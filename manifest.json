@@ -1,0 +1,14 @@
+{
+  "name": "Ma Cave à Tabac",
+  "short_name": "Cave Tabac",
+  "description": "Gestion de cave à tabac à pipe — inventaire, dégustation, vieillissement",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#13110e",
+  "theme_color": "#13110e",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
