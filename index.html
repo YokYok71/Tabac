@@ -8,14 +8,36 @@
 <meta name="apple-mobile-web-app-title" content="Cave Tabac">
 <meta name="theme-color" content="#13110e">
 <title>Ma Cave a Tabac</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <style>*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{background:#13110e;font-family:-apple-system,sans-serif;overflow-x:hidden}#root{min-height:100vh}</style>
 </head>
 <body>
 <div id="root"></div>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').then(function(r){console.log('SW registered');}).catch(function(e){console.warn('SW failed:',e);});}
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script>
 window.storage={get:function(k){return new Promise(function(r){try{var v=localStorage.getItem(k);r(v?{key:k,value:v}:null);}catch(e){r(null);}});},set:function(k,v){return new Promise(function(r){try{localStorage.setItem(k,v);r({key:k,value:v});}catch(e){r(null);}});},delete:function(k){return new Promise(function(r){try{localStorage.removeItem(k);r({key:k,deleted:true});}catch(e){r(null);}});}};
+
+var imgCache={db:null,
+open:function(){return new Promise(function(ok,no){if(imgCache.db){ok(imgCache.db);return;}var r=indexedDB.open("cave-imgs",1);r.onupgradeneeded=function(e){e.target.result.createObjectStore("i");};r.onsuccess=function(e){imgCache.db=e.target.result;ok(imgCache.db);};r.onerror=function(){no();};});},
+put:function(k,v){return imgCache.open().then(function(db){return new Promise(function(ok){var t=db.transaction("i","readwrite");t.objectStore("i").put(v,k);t.oncomplete=function(){ok(true);};t.onerror=function(){ok(false);};});});},
+get:function(k){return imgCache.open().then(function(db){return new Promise(function(ok){var t=db.transaction("i","readonly");var r=t.objectStore("i").get(k);r.onsuccess=function(){ok(r.result||null);};r.onerror=function(){ok(null);};});});}
+};
+function dlImg(url){
+if(!url)return Promise.resolve(null);
+return imgCache.get(url).then(function(c){
+if(c)return c;
+function tryF(u){return fetch(u).then(function(r){if(!r.ok)throw new Error();return r.blob();});}
+return tryF(url).catch(function(){return tryF("https://corsproxy.io/?"+encodeURIComponent(url));}).then(function(b){
+return new Promise(function(ok){var r=new FileReader();r.onload=function(){imgCache.put(url,r.result);ok(r.result);};r.onerror=function(){ok(null);};r.readAsDataURL(b);});
+}).catch(function(){return null;});
+});
+}
+
 var useState=React.useState;var useEffect=React.useEffect;var useCallback=React.useCallback;var useMemo=React.useMemo;
 
 var SK = "pipe-cellar-v6";
@@ -60,10 +82,29 @@ function App(){
   var _al=useState(false),addLotMode=_al[0],setAddLotMode=_al[1];
   var _lb=useState(null),lightbox=_lb[0],setLightbox=_lb[1];
   var _bk=useState(null),backupStatus=_bk[0],setBackupStatus=_bk[1];
+  var _is=useState(null),importStatus=_is[0],setImportStatus=_is[1];
+  var _ic=useState({}),imgLocal=_ic[0],setImgLocal=_ic[1];
 
   var load=useCallback(function(){window.storage.get(SK).then(function(r){setData(r&&r.value?JSON.parse(r.value):Object.assign({},INIT));setLoading(false);}).catch(function(){setData(Object.assign({},INIT));setLoading(false);});},[]);
   var save=useCallback(function(nd){setData(nd);window.storage.set(SK,JSON.stringify(nd)).catch(function(e){console.error(e);});},[]);
   useEffect(function(){load();},[load]);
+
+  // Load cached images into state on data change
+  useEffect(function(){
+    if(!data)return;
+    var urls=[];
+    (data.tobaccos||[]).forEach(function(t){if(t.imageUrl)urls.push(t.imageUrl);});
+    (data.pipes||[]).forEach(function(p){if(p.imageUrl)urls.push(p.imageUrl);});
+    var newLocal={};var pending=urls.length;
+    if(!pending)return;
+    urls.forEach(function(u){
+      imgCache.get(u).then(function(cached){
+        if(cached)newLocal[u]=cached;
+        pending--;
+        if(pending<=0)setImgLocal(newLocal);
+      }).catch(function(){pending--;if(pending<=0)setImgLocal(newLocal);});
+    });
+  },[data]);
 
   function nav(v){setView(v);setDetail(null);setPipeDet(null);setEditId(null);setEditPipeId(null);setSearch("");setStatusFilter("all");setAddLotMode(false);}
 
@@ -129,7 +170,37 @@ function App(){
   function delWish(id){save(Object.assign({},data,{wishlist:(data.wishlist||[]).filter(function(w){return w.id!==id;})}));}
   function wishToInv(w){setForm(Object.assign({},BT,{name:w.name,brand:w.brand,tastingNotes:w.notes||""}));delWish(w.id);nav("addT");}
 
-  function doImport(){try{var d=JSON.parse(importText);if(d.tobaccos){save(Object.assign({},INIT,d));setImportModal(false);setImportText("");nav("inv");}}catch(e){alert("JSON invalide");}}
+  function doImport(){
+    try{
+      var d=JSON.parse(importText);
+      if(!d.tobaccos){alert("JSON invalide");return;}
+      var newData=Object.assign({},INIT,d);
+      save(newData);
+      setImportText("");
+      // Collect all image URLs
+      var urls=[];
+      (newData.tobaccos||[]).forEach(function(t){if(t.imageUrl)urls.push(t.imageUrl);});
+      (newData.pipes||[]).forEach(function(p){if(p.imageUrl)urls.push(p.imageUrl);});
+      if(urls.length===0){setImportModal(false);nav("inv");return;}
+      // Download images to local cache
+      var done=0;var total=urls.length;
+      setImportStatus({done:0,total:total});
+      function dlNext(idx){
+        if(idx>=urls.length){
+          setImportStatus(null);
+          setImportModal(false);
+          // Refresh imgLocal
+          var loc={};var p2=urls.length;
+          urls.forEach(function(u){imgCache.get(u).then(function(c){if(c)loc[u]=c;p2--;if(p2<=0)setImgLocal(loc);}).catch(function(){p2--;if(p2<=0)setImgLocal(loc);});});
+          nav("inv");
+          return;
+        }
+        setImportStatus({done:idx,total:total,current:urls[idx].substring(0,50)+"..."});
+        dlImg(urls[idx]).then(function(){setTimeout(function(){dlNext(idx+1);},500);}).catch(function(){setTimeout(function(){dlNext(idx+1);},500);});
+      }
+      dlNext(0);
+    }catch(e){alert("JSON invalide: "+e.message);}
+  }
   function doExport(){navigator.clipboard.writeText(JSON.stringify(data,null,2)).then(function(){alert("Copi\u00e9 !");});}
   function doExportCSV(){
     var sep=",";
@@ -378,7 +449,7 @@ function App(){
   function badge(text,c,b){return React.createElement("span",{style:sBadge(c||amber,b)},text);}
   function statusBadge(s){var m={cellar:["Cave","#a89650","#33301a"],jar:["Pot",green,"#1e2e20"],finished:["Fini","#777","#292929"]};var x=m[s]||m.cellar;return badge(x[0],x[1],x[2]);}
   function rebuyBadge(r){if(r===null||r===undefined)return null;return r?badge("\u00c0 reprendre",green,"#1e2e20"):badge("Pas reprendre",red,"#2e1e1e");}
-  function img(url,sz,icon){sz=sz||48;icon=icon||"\ud83c\udf42";if(!url)return React.createElement("div",{style:{width:sz,height:sz,minWidth:sz,borderRadius:8,background:bg4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:sz*0.4}},icon);return React.createElement("img",{src:url,alt:"",style:{width:sz,height:sz,minWidth:sz,borderRadius:8,objectFit:"cover",border:"1px solid "+bdr},onError:function(e){e.target.style.display="none";}});}
+  function img(url,sz,icon){sz=sz||48;icon=icon||"\ud83c\udf42";if(!url)return React.createElement("div",{style:{width:sz,height:sz,minWidth:sz,borderRadius:8,background:bg4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:sz*0.4}},icon);var src=imgLocal[url]||url;return React.createElement("img",{src:src,alt:"",style:{width:sz,height:sz,minWidth:sz,borderRadius:8,objectFit:"cover",border:"1px solid "+bdr},onError:function(e){e.target.style.display="none";}});}
   function infoBox(label,value){return React.createElement("div",{style:{background:bg4,borderRadius:8,padding:"9px 12px"}},React.createElement("div",{style:{fontSize:12,color:tx3,textTransform:"uppercase",letterSpacing:.8}},label),React.createElement("div",{style:{fontSize:15,color:hi,marginTop:2}},value||"\u2014"));}
   function statBox(val,label,icon){return React.createElement("div",{style:{background:bg3,border:"1px solid "+bdr,borderRadius:11,padding:"12px 8px",textAlign:"center",flex:"1 1 80px",minWidth:80}},React.createElement("div",{style:{fontSize:14,marginBottom:4}},icon),React.createElement("div",{style:{fontSize:24,fontWeight:700,color:gold}},val),React.createElement("div",{style:{fontSize:12,color:tx2,marginTop:3,textTransform:"uppercase",letterSpacing:1}},label));}
 
@@ -611,7 +682,14 @@ function App(){
     importModal&&React.createElement("div",{onClick:function(){setImportModal(false);},style:{position:"fixed",inset:0,background:"#000b",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}},React.createElement("div",{onClick:function(e){e.stopPropagation();},style:{background:bg3,border:"1px solid "+bdr,borderRadius:14,padding:24,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}},
       React.createElement("h3",{style:{color:hi,margin:"0 0 10px",fontSize:20}},"\ud83d\udce5 Import / Export"),
       React.createElement("textarea",{style:Object.assign({},sTxa,{minHeight:100,fontSize:14,fontFamily:"monospace"}),value:importText,onChange:function(e){setImportText(e.target.value);},placeholder:'{"tobaccos":[...]}'}),
-      React.createElement("div",{style:{display:"flex",gap:8,marginTop:10}},btn("Importer",doImport,amber,"#111",false,!importText,true),btn("Annuler",function(){setImportModal(false);},"transparent",tx2,false,false,false,{border:"1px solid "+bdr})),
+      React.createElement("div",{style:{display:"flex",gap:8,marginTop:10}},btn("Importer",doImport,amber,"#111",false,!importText||importStatus,true),btn("Annuler",function(){setImportModal(false);},"transparent",tx2,false,false,false,{border:"1px solid "+bdr})),
+      importStatus?React.createElement("div",{style:{marginTop:10}},
+        React.createElement("div",{style:{fontSize:13,color:gold,marginBottom:4}},"\u23f3 T\u00e9l\u00e9chargement images: "+importStatus.done+"/"+importStatus.total),
+        React.createElement("div",{style:{height:6,background:bg,borderRadius:3,overflow:"hidden"}},
+          React.createElement("div",{style:{height:"100%",width:Math.round(importStatus.done/importStatus.total*100)+"%",background:"linear-gradient(90deg,"+amber+","+gold+")",borderRadius:3,transition:"width .3s"}})
+        ),
+        importStatus.current?React.createElement("div",{style:{fontSize:12,color:tx3,marginTop:3,wordBreak:"break-all"}},importStatus.current):null
+      ):null,
       React.createElement("div",{style:{borderTop:"1px solid "+bdr,marginTop:12,paddingTop:12,display:"grid",gap:8}},
         btn("\ud83d\udccb Exporter JSON (copier)",doExport,"transparent",gold,true,false,true,{border:"1px solid "+gold+"33"}),
         btn("\ud83d\udcc4 Exporter CSV",doExportCSV,"transparent",green,true,false,true,{border:"1px solid "+green+"33"}),
@@ -631,7 +709,7 @@ function App(){
     delConfirm&&React.createElement("div",{onClick:function(){setDelConfirm(null);},style:{position:"fixed",inset:0,background:"#000b",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}},React.createElement("div",{onClick:function(e){e.stopPropagation();},style:{background:bg3,border:"1px solid "+bdr,borderRadius:14,padding:24,maxWidth:360,width:"90%",textAlign:"center"}},React.createElement("div",{style:{fontSize:32,marginBottom:8}},"\u26a0\ufe0f"),React.createElement("h3",{style:{color:hi}},"Supprimer ce tabac ?"),React.createElement("div",{style:{display:"flex",gap:8,justifyContent:"center",marginTop:14}},btn("Supprimer",function(){deleteTobacco(delConfirm);},red,"#fff"),btn("Annuler",function(){setDelConfirm(null);},"transparent",tx2,false,false,false,{border:"1px solid "+bdr})))),
 
     lightbox&&React.createElement("div",{onClick:function(){setLightbox(null);},style:{position:"fixed",inset:0,background:"#000e",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300,padding:16,cursor:"pointer"}},
-      React.createElement("img",{src:lightbox,alt:"",style:{maxWidth:"95%",maxHeight:"90vh",borderRadius:12,objectFit:"contain",boxShadow:"0 0 40px #0008"},onError:function(e){e.target.style.display="none";}}),
+      React.createElement("img",{src:imgLocal[lightbox]||lightbox,alt:"",style:{maxWidth:"95%",maxHeight:"90vh",borderRadius:12,objectFit:"contain",boxShadow:"0 0 40px #0008"},onError:function(e){e.target.style.display="none";}}),
       React.createElement("div",{style:{position:"absolute",top:20,right:20,color:"#fff",fontSize:28,fontWeight:700,cursor:"pointer"}},"\u2715")
     )
   );
