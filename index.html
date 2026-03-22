@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cave Tabac">
+<meta name="theme-color" content="#13110e">
+<title>Ma Cave a Tabac</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<script src="https://accounts.google.com/gsi/client" async></script>
+<style>*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{background:#13110e;font-family:-apple-system,sans-serif;overflow-x:hidden}#root{min-height:100vh}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').then(function(r){console.log('SW registered');}).catch(function(e){console.warn('SW failed:',e);});}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+window.storage={get:function(k){return new Promise(function(r){try{var v=localStorage.getItem(k);r(v?{key:k,value:v}:null);}catch(e){r(null);}});},set:function(k,v){return new Promise(function(r){try{localStorage.setItem(k,v);r({key:k,value:v});}catch(e){r(null);}});},delete:function(k){return new Promise(function(r){try{localStorage.removeItem(k);r({key:k,deleted:true});}catch(e){r(null);}});}};
+
+var imgCache={db:null,
+open:function(){return new Promise(function(ok,no){if(imgCache.db){ok(imgCache.db);return;}var r=indexedDB.open("cave-imgs",1);r.onupgradeneeded=function(e){e.target.result.createObjectStore("i");};r.onsuccess=function(e){imgCache.db=e.target.result;ok(imgCache.db);};r.onerror=function(){no();};});},
+put:function(k,v){return imgCache.open().then(function(db){return new Promise(function(ok){var t=db.transaction("i","readwrite");t.objectStore("i").put(v,k);t.oncomplete=function(){ok(true);};t.onerror=function(){ok(false);};});});},
+get:function(k){return imgCache.open().then(function(db){return new Promise(function(ok){var t=db.transaction("i","readonly");var r=t.objectStore("i").get(k);r.onsuccess=function(){ok(r.result||null);};r.onerror=function(){ok(null);};});});}
+};
+function dlImg(url){
+if(!url)return Promise.resolve(null);
+return imgCache.get(url).then(function(c){
+if(c)return c;
+function tryF(u){return fetch(u).then(function(r){if(!r.ok)throw new Error();return r.blob();});}
+return tryF(url).catch(function(){return tryF("https://corsproxy.io/?"+encodeURIComponent(url));}).then(function(b){
+return new Promise(function(ok){var r=new FileReader();r.onload=function(){imgCache.put(url,r.result);ok(r.result);};r.onerror=function(){ok(null);};r.readAsDataURL(b);});
+}).catch(function(){return null;});
+});
+}
+
+var useState=React.useState;var useEffect=React.useEffect;var useCallback=React.useCallback;var useMemo=React.useMemo;
+
+var SK = "pipe-cellar-v6";
+var CATS = ["Anglais","Virginia","Aromatique","Balkan/Anglais","VaPer","Burley","Oriental","Autre"];
+var CUTS = ["Ready Rubbed","Flake","Broken Flake","Plug","Coins","Ribbon","Crumble Cake","Rope","Autre"];
+var SHAPES = ["Billiard","Bent","Dublin","Apple","Bulldog","Poker","Churchwarden","Calabash","Freehand","Lovat","Canadian","Zulu","Autre"];
+var INIT = { tobaccos:[], wishlist:[], pipes:[], nxT:1, nxW:1, nxP:1, nxL:1 };
+var BT = { name:"",brand:"",category:"",blend:"",cut:"",rating:0,rebuy:null,tastingNotes:"",description:"",imageUrl:"",lots:[] };
+var BL = { status:"cellar", weightG:"50", datePurchased:"", dateProduction:"", dateOpened:"", boxNumber:"", price:"", seller:"" };
+var BP = { name:"",brand:"",shape:"Billiard",datePurchased:"",price:"",description:"",imageUrl:"",rating:0 };
+var BW = { name:"",brand:"",notes:"",priority:"medium" };
+
+var today = function(){ return new Date().toISOString().slice(0,10); };
+function daysSince(d){ if(!d)return null; return Math.max(0,Math.floor((Date.now()-new Date(d).getTime())/864e5)); }
+function ageLabel(d){ if(d===null||d===undefined)return "\u2014"; if(d<30)return d+"j"; if(d<365)return Math.floor(d/30)+" mois"; var y=Math.floor(d/365),m=Math.floor((d%365)/30); return m>0?y+"a "+m+"m":y+"a"; }
+function fmtDate(d){if(!d)return "\u2014";var p=d.split("-");if(p.length===3)return p[2]+"-"+p[1]+"-"+p[0];return d;}
+function lotAge(l){ return daysSince(l.dateProduction||l.datePurchased); }
+function oldestAge(t){ if(!t.lots||!t.lots.length)return null; var ages=t.lots.map(lotAge).filter(function(a){return a!==null;}); return ages.length?Math.max.apply(null,ages):null; }
+function totalWeight(t){ return (t.lots||[]).reduce(function(s,l){return s+(parseInt(l.weightG)||0);},0); }
+function countByStatus(t,st){ return (t.lots||[]).filter(function(l){return l.status===st;}).length; }
+function hasActive(t){ return (t.lots||[]).some(function(l){return l.status!=="finished";}); }
+
+var bg="#13110e",bg2="#1b1713",bg3="#252019",bg4="#312a21",bdr="#3d3428",txt="#c8b99a",tx2="#8f7f68",tx3="#655846",hi="#e8dcc6",amber="#cb8528",gold="#d4a03a",green="#6fb876",red="#c25848";
+
+function App(){
+  var _s=useState(null),data=_s[0],setData=_s[1];
+  var _l=useState(true),loading=_l[0],setLoading=_l[1];
+  var _v=useState("home"),view=_v[0],setView=_v[1];
+  var _sr=useState(""),search=_sr[0],setSearch=_sr[1];
+  var _so=useState("name"),sortBy=_so[0],setSortBy=_so[1];
+  var _sf=useState("all"),statusFilter=_sf[0],setStatusFilter=_sf[1];
+  var _f=useState(Object.assign({},BT)),form=_f[0],setForm=_f[1];
+  var _pf=useState(Object.assign({},BP)),pipeForm=_pf[0],setPipeForm=_pf[1];
+  var _wf=useState(Object.assign({},BW)),wishForm=_wf[0],setWishForm=_wf[1];
+  var _lf=useState(Object.assign({},BL)),lotForm=_lf[0],setLotForm=_lf[1];
+  var _ei=useState(null),editId=_ei[0],setEditId=_ei[1];
+  var _ep=useState(null),editPipeId=_ep[0],setEditPipeId=_ep[1];
+  var _d=useState(null),detail=_d[0],setDetail=_d[1];
+  var _pd=useState(null),pipeDet=_pd[0],setPipeDet=_pd[1];
+  var _dc=useState(null),delConfirm=_dc[0],setDelConfirm=_dc[1];
+  var _im=useState(false),importModal=_im[0],setImportModal=_im[1];
+  var _it=useState(""),importText=_it[0],setImportText=_it[1];
+  var _al=useState(false),addLotMode=_al[0],setAddLotMode=_al[1];
+  var _el=useState(null),editLotIdx=_el[0],setEditLotIdx=_el[1];
+  var _lb=useState(null),lightbox=_lb[0],setLightbox=_lb[1];
+  var _bk=useState(null),backupStatus=_bk[0],setBackupStatus=_bk[1];
+  var _is=useState(null),importStatus=_is[0],setImportStatus=_is[1];
+  var _ic=useState({}),imgLocal=_ic[0],setImgLocal=_ic[1];
+
+  var load=useCallback(function(){window.storage.get(SK).then(function(r){setData(r&&r.value?JSON.parse(r.value):Object.assign({},INIT));setLoading(false);}).catch(function(){setData(Object.assign({},INIT));setLoading(false);});},[]);
+  var save=useCallback(function(nd){setData(nd);window.storage.set(SK,JSON.stringify(nd)).catch(function(e){console.error(e);});},[]);
+  useEffect(function(){load();},[load]);
+
+  // Load cached images into state on data change
+  useEffect(function(){
+    if(!data)return;
+    var urls=[];
+    (data.tobaccos||[]).forEach(function(t){if(t.imageUrl)urls.push(t.imageUrl);});
+    (data.pipes||[]).forEach(function(p){if(p.imageUrl)urls.push(p.imageUrl);});
+    var newLocal={};var pending=urls.length;
+    if(!pending)return;
+    urls.forEach(function(u){
+      imgCache.get(u).then(function(cached){
+        if(cached)newLocal[u]=cached;
+        pending--;
+        if(pending<=0)setImgLocal(newLocal);
+      }).catch(function(){pending--;if(pending<=0)setImgLocal(newLocal);});
+    });
+  },[data]);
+
+  function nav(v){setView(v);setDetail(null);setPipeDet(null);setEditId(null);setEditPipeId(null);setSearch("");setStatusFilter("all");setAddLotMode(false);}
+
+  // Tobacco CRUD
+  function addTobacco(){
+    if(!form.name)return;
+    var lots=form.lots&&form.lots.length?form.lots:[Object.assign({},BL,{datePurchased:today()})];
+    var it=Object.assign({},form,{id:data.nxT,lots:lots});
+    save(Object.assign({},data,{tobaccos:data.tobaccos.concat([it]),nxT:data.nxT+1}));
+    setForm(Object.assign({},BT));nav("inv");
+  }
+  function updateTobacco(){
+    save(Object.assign({},data,{tobaccos:data.tobaccos.map(function(t){return t.id===editId?Object.assign({},form,{id:editId}):t;})}));
+    setEditId(null);setForm(Object.assign({},BT));nav("inv");
+  }
+  function deleteTobacco(id){
+    save(Object.assign({},data,{tobaccos:data.tobaccos.filter(function(t){return t.id!==id;})}));
+    setDelConfirm(null);if(detail&&detail.id===id)setDetail(null);
+  }
+  function addLotToTobacco(tobId){
+    var lot=Object.assign({},lotForm,{id:Date.now()});
+    if(!lot.datePurchased)lot.datePurchased=today();
+    var tobs=data.tobaccos.map(function(t){
+      if(t.id!==tobId)return t;
+      return Object.assign({},t,{lots:(t.lots||[]).concat([lot])});
+    });
+    save(Object.assign({},data,{tobaccos:tobs}));
+    var upd=tobs.find(function(t){return t.id===tobId;});
+    setDetail(upd);setLotForm(Object.assign({},BL));setAddLotMode(false);
+  }
+  function updateLotInTobacco(tobId,lotIdx){
+    var tobs=data.tobaccos.map(function(t){
+      if(t.id!==tobId)return t;
+      var newLots=t.lots.map(function(l,i){return i===lotIdx?Object.assign({},lotForm):l;});
+      return Object.assign({},t,{lots:newLots});
+    });
+    save(Object.assign({},data,{tobaccos:tobs}));
+    var upd=tobs.find(function(t){return t.id===tobId;});
+    setDetail(upd);setLotForm(Object.assign({},BL));setEditLotIdx(null);
+  }
+  function removeLot(tobId,lotIdx){
+    var tobs=data.tobaccos.map(function(t){
+      if(t.id!==tobId)return t;
+      var newLots=t.lots.filter(function(_,i){return i!==lotIdx;});
+      return Object.assign({},t,{lots:newLots});
+    });
+    save(Object.assign({},data,{tobaccos:tobs}));
+    setDetail(tobs.find(function(t){return t.id===tobId;}));
+  }
+  function changeLotStatus(tobId,lotIdx,ns){
+    var tobs=data.tobaccos.map(function(t){
+      if(t.id!==tobId)return t;
+      var newLots=t.lots.map(function(l,i){
+        if(i!==lotIdx)return l;
+        var u=Object.assign({},l,{status:ns});
+        if(ns==="jar"&&!l.dateOpened)u.dateOpened=today();
+        if(ns==="cellar")u.dateOpened="";
+        return u;
+      });
+      return Object.assign({},t,{lots:newLots});
+    });
+    save(Object.assign({},data,{tobaccos:tobs}));
+    setDetail(tobs.find(function(t){return t.id===tobId;}));
+  }
+
+  // Pipes
+  function addPipe(){if(!pipeForm.name&&!pipeForm.brand)return;save(Object.assign({},data,{pipes:(data.pipes||[]).concat([Object.assign({},pipeForm,{id:data.nxP||1})]),nxP:(data.nxP||1)+1}));setPipeForm(Object.assign({},BP));}
+  function updatePipe(){save(Object.assign({},data,{pipes:(data.pipes||[]).map(function(p){return p.id===editPipeId?Object.assign({},pipeForm,{id:editPipeId}):p;})}));setEditPipeId(null);setPipeForm(Object.assign({},BP));nav("pipes");}
+  function deletePipe(id){save(Object.assign({},data,{pipes:(data.pipes||[]).filter(function(p){return p.id!==id;})}));if(pipeDet&&pipeDet.id===id)setPipeDet(null);}
+
+  // Wishlist
+  function addWish(){if(!wishForm.name)return;save(Object.assign({},data,{wishlist:(data.wishlist||[]).concat([Object.assign({},wishForm,{id:data.nxW||1})]),nxW:(data.nxW||1)+1}));setWishForm(Object.assign({},BW));}
+  function delWish(id){save(Object.assign({},data,{wishlist:(data.wishlist||[]).filter(function(w){return w.id!==id;})}));}
+  function wishToInv(w){setForm(Object.assign({},BT,{name:w.name,brand:w.brand,tastingNotes:w.notes||""}));delWish(w.id);nav("addT");}
+
+  function doImport(){
+    try{
+      var d=JSON.parse(importText);
+      if(!d.tobaccos){alert("JSON invalide");return;}
+      if(d._apiKey){saveApiKey(d._apiKey);}
+      var cleanD=Object.assign({},d);delete cleanD._apiKey;
+      var newData=Object.assign({},INIT,cleanD);
+      save(newData);
+      setImportText("");
+      // Collect all image URLs
+      var urls=[];
+      (newData.tobaccos||[]).forEach(function(t){if(t.imageUrl)urls.push(t.imageUrl);});
+      (newData.pipes||[]).forEach(function(p){if(p.imageUrl)urls.push(p.imageUrl);});
+      if(urls.length===0){setImportModal(false);nav("inv");return;}
+      // Download images to local cache
+      var done=0;var total=urls.length;
+      setImportStatus({done:0,total:total});
+      function dlNext(idx){
+        if(idx>=urls.length){
+          setImportStatus(null);
+          setImportModal(false);
+          // Refresh imgLocal
+          var loc={};var p2=urls.length;
+          urls.forEach(function(u){imgCache.get(u).then(function(c){if(c)loc[u]=c;p2--;if(p2<=0)setImgLocal(loc);}).catch(function(){p2--;if(p2<=0)setImgLocal(loc);});});
+          nav("inv");
+          return;
+        }
+        setImportStatus({done:idx,total:total,current:urls[idx].substring(0,50)+"..."});
+        dlImg(urls[idx]).then(function(){setTimeout(function(){dlNext(idx+1);},500);}).catch(function(){setTimeout(function(){dlNext(idx+1);},500);});
+      }
+      dlNext(0);
+    }catch(e){alert("JSON invalide: "+e.message);}
+  }
+  function doExport(){var exp=Object.assign({},data,{_apiKey:apiKey||""});navigator.clipboard.writeText(JSON.stringify(exp,null,2)).then(function(){alert("Copi\u00e9 !");});}
+  function doExportCSV(){
+    var sep=",";
+    function esc(v){
+      var s=String(v===null||v===undefined?"":v);
+      s=s.replace(/\r\n/g," ").replace(/\n/g," ").replace(/\r/g," ");
+      s=s.replace(/"/g,'""');
+      return '"'+s+'"';
+    }
+    var lines=[];
+    lines.push([esc("Marque"),esc("Nom"),esc("Categorie"),esc("Composition"),esc("Coupe"),esc("Description"),esc("Note"),esc("A reprendre"),esc("Notes degustation"),esc("Statut"),esc("Poids (g)"),esc("Date achat"),esc("Date production"),esc("Date mise en pot"),esc("No boite"),esc("Prix (CHF)"),esc("Vendeur"),esc("Age"),esc("Image URL")].join(sep));
+    (data.tobaccos||[]).forEach(function(t){
+      var lots=t.lots&&t.lots.length?t.lots:[{}];
+      lots.forEach(function(l){
+        var age=l.dateProduction||l.datePurchased?ageLabel(daysSince(l.dateProduction||l.datePurchased)):"";
+        var st=l.status==="cellar"?"Cave":l.status==="jar"?"Pot":l.status==="finished"?"Termine":"";
+        var rb=t.rebuy===true?"Oui":t.rebuy===false?"Non":"";
+        lines.push([
+          esc(t.brand),esc(t.name),esc(t.category),esc(t.blend),esc(t.cut),
+          esc(t.description),esc(t.rating||""),esc(rb),esc(t.tastingNotes),
+          esc(st),esc(l.weightG||""),esc(l.datePurchased||""),esc(l.dateProduction||""),
+          esc(l.dateOpened||""),esc(l.boxNumber||""),esc(l.price||""),esc(l.seller||""),esc(age),esc(t.imageUrl)
+        ].join(sep));
+      });
+    });
+    lines.push("");
+    lines.push("");
+    lines.push([esc("=== PIPES ===")].join(sep));
+    lines.push([esc("Marque"),esc("Modele"),esc("Forme"),esc("Prix"),esc("Date achat"),esc("Note"),esc("Description"),esc("Image URL")].join(sep));
+    (data.pipes||[]).forEach(function(p){
+      lines.push([esc(p.brand),esc(p.name),esc(p.shape),esc(p.price||""),esc(p.datePurchased||""),esc(p.rating||""),esc(p.description),esc(p.imageUrl)].join(sep));
+    });
+    lines.push("");
+    lines.push("");
+    lines.push([esc("=== WISHLIST ===")].join(sep));
+    lines.push([esc("Nom"),esc("Marque"),esc("Notes"),esc("Priorite")].join(sep));
+    (data.wishlist||[]).forEach(function(w){
+      lines.push([esc(w.name),esc(w.brand),esc(w.notes),esc(w.priority)].join(sep));
+    });
+    var csvContent=lines.join("\r\n");
+    var bom=new Uint8Array([0xEF,0xBB,0xBF]);
+    var encoder=new TextEncoder();
+    var csvBytes=encoder.encode(csvContent);
+    var combined=new Uint8Array(bom.length+csvBytes.length);
+    combined.set(bom);combined.set(csvBytes,bom.length);
+    var blob=new Blob([combined],{type:"text/csv;charset=utf-8"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url;a.download="cave-tabac-export.csv";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  function doBackupZip(){
+    setBackupStatus("Chargement de JSZip...");
+    var script=document.createElement("script");
+    script.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+    script.onload=function(){
+      var zip=new JSZip();
+      zip.file("cave-tabac-data.json",JSON.stringify(data,null,2));
+      setBackupStatus("Generation du CSV...");
+      var csvBtn=document.querySelector("[data-csv-export]");
+      var sep=",";
+      function esc(v){var s=String(v===null||v===undefined?"":v);s=s.replace(/\r\n/g," ").replace(/\n/g," ").replace(/\r/g," ");s=s.replace(/"/g,'""');return '"'+s+'"';}
+      var lines=[];
+      lines.push([esc("Marque"),esc("Nom"),esc("Categorie"),esc("Composition"),esc("Coupe"),esc("Description"),esc("Note"),esc("A reprendre"),esc("Notes degustation"),esc("Statut"),esc("Poids (g)"),esc("Date achat"),esc("Date production"),esc("Date mise en pot"),esc("No boite"),esc("Prix (CHF)"),esc("Vendeur"),esc("Age"),esc("Image URL")].join(sep));
+      (data.tobaccos||[]).forEach(function(t){var lots=t.lots&&t.lots.length?t.lots:[{}];lots.forEach(function(l){var age=l.dateProduction||l.datePurchased?ageLabel(daysSince(l.dateProduction||l.datePurchased)):"";var st=l.status==="cellar"?"Cave":l.status==="jar"?"Pot":l.status==="finished"?"Termine":"";var rb=t.rebuy===true?"Oui":t.rebuy===false?"Non":"";lines.push([esc(t.brand),esc(t.name),esc(t.category),esc(t.blend),esc(t.cut),esc(t.description),esc(t.rating||""),esc(rb),esc(t.tastingNotes),esc(st),esc(l.weightG||""),esc(l.datePurchased||""),esc(l.dateProduction||""),esc(l.dateOpened||""),esc(l.boxNumber||""),esc(l.price||""),esc(l.seller||""),esc(age),esc(t.imageUrl)].join(sep));});});
+      lines.push("");lines.push("");lines.push([esc("=== PIPES ===")].join(sep));
+      lines.push([esc("Marque"),esc("Modele"),esc("Forme"),esc("Prix"),esc("Date achat"),esc("Note"),esc("Description"),esc("Image URL")].join(sep));
+      (data.pipes||[]).forEach(function(p){lines.push([esc(p.brand),esc(p.name),esc(p.shape),esc(p.price||""),esc(p.datePurchased||""),esc(p.rating||""),esc(p.description),esc(p.imageUrl)].join(sep));});
+      lines.push("");lines.push("");lines.push([esc("=== WISHLIST ===")].join(sep));
+      lines.push([esc("Nom"),esc("Marque"),esc("Notes"),esc("Priorite")].join(sep));
+      (data.wishlist||[]).forEach(function(w){lines.push([esc(w.name),esc(w.brand),esc(w.notes),esc(w.priority)].join(sep));});
+      var csvStr="\uFEFF"+lines.join("\r\n");
+      zip.file("cave-tabac-export.csv",csvStr);
+      var imgFolder=zip.folder("images-tabacs");
+      var imgPipeFolder=zip.folder("images-pipes");
+      var allImages=[];
+      (data.tobaccos||[]).forEach(function(t){if(t.imageUrl)allImages.push({url:t.imageUrl,name:(t.brand+"-"+t.name).replace(/[^a-zA-Z0-9]/g,"_"),folder:imgFolder});});
+      (data.pipes||[]).forEach(function(p){if(p.imageUrl)allImages.push({url:p.imageUrl,name:(p.brand+"-"+p.name).replace(/[^a-zA-Z0-9]/g,"_"),folder:imgPipeFolder});});
+      var downloaded=0;var total=allImages.length;
+      setBackupStatus("Telechargement des images: 0/"+total);
+      function downloadNext(idx){
+        if(idx>=allImages.length){
+          setBackupStatus("Creation du ZIP...");
+          zip.generateAsync({type:"blob"}).then(function(content){
+            var url=URL.createObjectURL(content);
+            var a=document.createElement("a");
+            a.href=url;a.download="cave-tabac-backup.zip";
+            document.body.appendChild(a);a.click();document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            setBackupStatus("done");
+            setTimeout(function(){setBackupStatus(null);},3000);
+          });
+          return;
+        }
+        var item=allImages[idx];
+        setBackupStatus("Telechargement images: "+(idx+1)+"/"+total);
+        function tryFetch(url){
+          return fetch(url).then(function(r){
+            if(!r.ok)throw new Error("HTTP "+r.status);
+            return r.blob();
+          });
+        }
+        tryFetch(item.url).catch(function(){
+          return tryFetch("https://corsproxy.io/?"+encodeURIComponent(item.url));
+        }).then(function(blob){
+          var ext=".jpg";
+          if(blob.type.indexOf("png")>=0)ext=".png";
+          if(blob.type.indexOf("webp")>=0)ext=".webp";
+          if(blob.type.indexOf("gif")>=0)ext=".gif";
+          item.folder.file(item.name+ext,blob);
+          downloadNext(idx+1);
+        }).catch(function(e){
+          console.warn("Image skip:",item.url,e.message);
+          downloadNext(idx+1);
+        });
+      }
+      if(allImages.length>0){downloadNext(0);}
+      else{
+        setBackupStatus("Creation du ZIP...");
+        zip.generateAsync({type:"blob"}).then(function(content){
+          var url=URL.createObjectURL(content);
+          var a=document.createElement("a");
+          a.href=url;a.download="cave-tabac-backup.zip";
+          document.body.appendChild(a);a.click();document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          setBackupStatus("done");
+          setTimeout(function(){setBackupStatus(null);},3000);
+        });
+      }
+    };
+    script.onerror=function(){setBackupStatus(null);alert("Erreur chargement JSZip");};
+    document.head.appendChild(script);
+  }
+  // === Photo Upload from iPhone ===
+  function handlePhotoUpload(callback){
+    var inp=document.createElement("input");
+    inp.type="file";
+    inp.accept="image/*";
+    inp.onchange=function(e){
+      var file=e.target.files[0];
+      if(!file)return;
+      // Resize image to max 800px to save storage
+      var reader=new FileReader();
+      reader.onload=function(ev){
+        var img2=new Image();
+        img2.onload=function(){
+          var maxSz=800;
+          var w=img2.width,h=img2.height;
+          if(w>maxSz||h>maxSz){
+            if(w>h){h=Math.round(h*maxSz/w);w=maxSz;}
+            else{w=Math.round(w*maxSz/h);h=maxSz;}
+          }
+          var canvas=document.createElement("canvas");
+          canvas.width=w;canvas.height=h;
+          var ctx=canvas.getContext("2d");
+          ctx.drawImage(img2,0,0,w,h);
+          var dataUrl=canvas.toDataURL("image/jpeg",0.8);
+          // Store in IndexedDB
+          var key="local-photo-"+Date.now();
+          imgCache.put(key,dataUrl).then(function(){
+            callback(key,dataUrl);
+          });
+        };
+        img2.src=ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+    inp.click();
+  }
+  // === Google Drive Integration ===
+  var GDRIVE_CLIENT_ID="890611313186-qadhr6pqp2vk5toh0rkrpgi3qcd1e4ji.apps.googleusercontent.com";
+  var GDRIVE_SCOPE="https://www.googleapis.com/auth/drive";
+  var GDRIVE_FILENAME="cave-tabac-backup.json";
+  var _gd=useState(null),gdriveStatus=_gd[0],setGdriveStatus=_gd[1];
+
+  function gdriveGetToken(){
+    return new Promise(function(ok,no){
+      function doAuth(){
+        try{
+          var client=google.accounts.oauth2.initTokenClient({
+            client_id:GDRIVE_CLIENT_ID,
+            scope:GDRIVE_SCOPE,
+            callback:function(resp){
+              if(resp.error){no(new Error(resp.error_description||resp.error));return;}
+              ok(resp.access_token);
+            },
+            error_callback:function(err){
+              no(new Error(err.message||"Auth annulee"));
+            }
+          });
+          client.requestAccessToken({prompt:""});
+        }catch(e){
+          no(new Error("Erreur auth: "+e.message));
+        }
+      }
+      if(window.google&&window.google.accounts&&window.google.accounts.oauth2){
+        doAuth();
+      }else{
+        var s=document.createElement("script");
+        s.src="https://accounts.google.com/gsi/client";
+        s.onload=function(){
+          setTimeout(doAuth,500);
+        };
+        s.onerror=function(){no(new Error("Impossible de charger Google. Verifiez votre connexion internet et reessayez."));};
+        document.head.appendChild(s);
+      }
+    });
+  }
+
+  function gdriveSave(){
+    setGdriveStatus("Connexion Google...");
+    gdriveGetToken().then(function(token){
+      setGdriveStatus("Recherche du fichier existant...");
+      var headers={"Authorization":"Bearer "+token};
+      return fetch("https://www.googleapis.com/drive/v3/files?q=name%3D%27"+GDRIVE_FILENAME+"%27+and+trashed%3Dfalse&spaces=drive&fields=files(id,name)",{headers:headers}).then(function(r){return r.json();}).then(function(list){
+        var backupData=Object.assign({},data,{_apiKey:apiKey||""});
+        var jsonStr=JSON.stringify(backupData,null,2);
+        var blob=new Blob([jsonStr],{type:"application/json"});
+        if(list.files&&list.files.length>0){
+          var fileId=list.files[0].id;
+          setGdriveStatus("Mise \u00e0 jour sur Google Drive...");
+          return fetch("https://www.googleapis.com/upload/drive/v3/files/"+fileId+"?uploadType=multipart",{method:"PATCH",headers:{"Authorization":"Bearer "+token},body:function(){var f=new FormData();f.append("metadata",new Blob([JSON.stringify({name:GDRIVE_FILENAME,mimeType:"application/json"})],{type:"application/json"}));f.append("file",blob);return f;}()});
+        } else {
+          setGdriveStatus("Sauvegarde sur Google Drive...");
+          var metadata={name:GDRIVE_FILENAME,mimeType:"application/json",parents:["root"]};
+          var form=new FormData();
+          form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
+          form.append("file",blob);
+          return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{"Authorization":"Bearer "+token},body:form});
+        }
+      }).then(function(r){return r.json();}).then(function(f){
+        if(f.error){throw new Error(f.error.message||"Erreur Drive");}
+        setGdriveStatus("done");
+        setTimeout(function(){setGdriveStatus(null);},3000);
+      });
+    }).catch(function(e){
+      setGdriveStatus("Erreur: "+String(e.message||e).substring(0,150));
+      setTimeout(function(){setGdriveStatus(null);},5000);
+    });
+  }
+
+  function gdriveRestore(){
+    setGdriveStatus("Connexion Google...");
+    gdriveGetToken().then(function(token){
+      setGdriveStatus("Recherche du backup...");
+      var headers={"Authorization":"Bearer "+token};
+      return fetch("https://www.googleapis.com/drive/v3/files?q=name%3D%27"+GDRIVE_FILENAME+"%27+and+trashed%3Dfalse&spaces=drive&fields=files(id,name,modifiedTime)",{headers:headers}).then(function(r){return r.json();}).then(function(list){
+        if(!list.files||list.files.length===0){
+          throw new Error("Aucun backup trouv\u00e9 sur Google Drive");
+        }
+        var fileId=list.files[0].id;
+        var modTime=list.files[0].modifiedTime;
+        setGdriveStatus("T\u00e9l\u00e9chargement du backup...");
+        return fetch("https://www.googleapis.com/drive/v3/files/"+fileId+"?alt=media",{headers:headers}).then(function(r){return r.text();}).then(function(txt){
+          var d=JSON.parse(txt);
+          if(!d.tobaccos){throw new Error("Fichier invalide");}
+          var dateStr=modTime?new Date(modTime).toLocaleString("fr-FR"):"";
+          if(!window.confirm("Restaurer le backup"+(dateStr?" du "+dateStr:"")+" ?\n"+d.tobaccos.length+" tabacs, "+(d.pipes||[]).length+" pipes\n\nCela remplacera toutes vos donn\u00e9es actuelles.")){
+            setGdriveStatus(null);return;
+          }
+          if(d._apiKey){saveApiKey(d._apiKey);}
+          var cleanData=Object.assign({},d);delete cleanData._apiKey;
+          save(Object.assign({},INIT,cleanData));
+          setGdriveStatus("restore_done");
+          // Download images
+          var urls=[];
+          (d.tobaccos||[]).forEach(function(t){if(t.imageUrl)urls.push(t.imageUrl);});
+          (d.pipes||[]).forEach(function(p){if(p.imageUrl)urls.push(p.imageUrl);});
+          if(urls.length>0){
+            setGdriveStatus("T\u00e9l\u00e9chargement images: 0/"+urls.length);
+            var idx2=0;
+            function dlN(){
+              if(idx2>=urls.length){setGdriveStatus("done");setTimeout(function(){setGdriveStatus(null);nav("inv");},2000);return;}
+              setGdriveStatus("T\u00e9l\u00e9chargement images: "+idx2+"/"+urls.length);
+              dlImg(urls[idx2]).then(function(){idx2++;setTimeout(dlN,500);}).catch(function(){idx2++;setTimeout(dlN,500);});
+            }
+            dlN();
+          } else {
+            setGdriveStatus("done");
+            setTimeout(function(){setGdriveStatus(null);nav("inv");},2000);
+          }
+        });
+      });
+    }).catch(function(e){
+      setGdriveStatus("Erreur: "+String(e.message||e).substring(0,150));
+      setTimeout(function(){setGdriveStatus(null);},5000);
+    });
+  }
+
+  function resetAll(){if(window.confirm("Supprimer TOUTES les donn\u00e9es ?")){save(Object.assign({},INIT));nav("home");}}
+
+  var _aiL=useState(false),aiLoad=_aiL[0],setAiLoad=_aiL[1];
+  var _aiE=useState(""),aiErr=_aiE[0],setAiErr=_aiE[1];
+  var _aiK=useState(localStorage.getItem("anthropic-api-key")||""),apiKey=_aiK[0],setApiKey=_aiK[1];
+  // AI autocomplete (HTML version with API key)
+  function saveApiKey(k){setApiKey(k);localStorage.setItem("anthropic-api-key",k);}
+  function aiAutoFill(type){
+    if(!apiKey){setAiErr("Cl\u00e9 API requise (bouton \ud83d\udce5 en haut)");return;}
+    var q=type==="pipe"?((pipeForm.brand||"")+" "+(pipeForm.name||"")+" pipe").trim():((form.brand||"")+" "+(form.name||"")+" pipe tobacco").trim();
+    if(q.length<3)return;setAiLoad(true);setAiErr("");
+    var sysPrompt=type==="pipe"
+      ?"Tu es un expert en pipes a tabac. Utilise la recherche web pour trouver des informations precises. Une fois tes recherches terminees, reponds UNIQUEMENT avec un JSON valide, sans backticks markdown, sans texte avant ou apres. Format: {\"brand\":\"marque\",\"shape\":\"forme\",\"imageUrl\":\"\",\"description\":\"description courte en francais\"}"
+      :"Tu es un expert en tabac a pipe. Utilise la recherche web pour trouver des informations PRECISES sur ce tabac, en cherchant sur tobaccoreviews.com, smokingpipes.com et pipesandcigars.com. REGLES STRICTES pour le champ blend: donne UNIQUEMENT la liste des varietes/types de tabac qui composent le melange, separees par des virgules. Exemples: \"Virginia, Latakia, Perique\" ou \"Burley, Virginia, Black Cavendish\". Jamais de phrases descriptives dans blend. Si pas trouve, ecris \"Inconnu\". Une fois tes recherches terminees, reponds UNIQUEMENT avec un JSON valide, sans backticks markdown, sans texte avant ou apres.";
+    var userPrompt=type==="pipe"
+      ?"Recherche des informations sur la pipe: "+q+". Donne le JSON."
+      :"Recherche des informations sur le tabac a pipe: "+q+". Donne le resultat en JSON: {\"brand\":\"fabricant exact\",\"category\":\"un parmi: Anglais, Virginia, Aromatique, Balkan/Anglais, VaPer, Burley, Oriental\",\"blend\":\"varietes de tabac separees par virgules uniquement\",\"cut\":\"un parmi: Ready Rubbed, Flake, Broken Flake, Plug, Coins, Ribbon, Crumble Cake, Rope\",\"imageUrl\":\"\",\"description\":\"description courte en francais: aromes, caractere\"}";
+    var headers={"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"};
+    fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",headers:headers,
+      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1024,system:sysPrompt,tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],messages:[{role:"user",content:userPrompt}]})
+    }).then(function(r){return r.json();}).then(function(d){
+      if(d.error)throw new Error(d.error.message||"Erreur API");
+      var allText="";
+      (d.content||[]).forEach(function(c){if(c.type==="text")allText+=c.text+"\n";});
+      if(!allText.trim())throw new Error("Reponse vide - stop_reason: "+(d.stop_reason||"?"));
+      var cleaned=allText.replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
+      var m=cleaned.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/);
+      if(!m){
+        var m2=cleaned.match(/\{[\s\S]*\}/);
+        if(!m2)throw new Error("Pas de JSON. Reponse: "+cleaned.substring(0,200));
+        m=m2;
+      }
+      var info;
+      try{info=JSON.parse(m[0]);}catch(pe){throw new Error("JSON invalide: "+m[0].substring(0,200));}
+      if(type==="pipe"){setPipeForm(function(f){return Object.assign({},f,{brand:info.brand||f.brand,shape:info.shape||f.shape,imageUrl:info.imageUrl||f.imageUrl,description:info.description||f.description});});}
+      else{setForm(function(f){return Object.assign({},f,{brand:info.brand||f.brand,category:info.category||f.category,blend:info.blend||f.blend,cut:info.cut||f.cut,imageUrl:info.imageUrl||f.imageUrl,description:info.description||f.description});});}
+      setAiLoad(false);
+    }).catch(function(e){setAiErr(String(e.message||e).substring(0,300));setAiLoad(false);});
+  }
+
+  // Bulk update helper - single tobacco lookup
+  function aiFetchOne(t){
+    var q=((t.brand||"")+" "+(t.name||"")).trim();
+    console.log("[AI] Fetching: "+q);
+    var sysP="Tu es un expert en tabac a pipe. Utilise la recherche web pour trouver des informations PRECISES sur ce tabac, en cherchant sur tobaccoreviews.com, smokingpipes.com et pipesandcigars.com. Pour blend: UNIQUEMENT la liste des varietes de tabac separees par virgules (ex: Virginia, Latakia, Perique). Reponds UNIQUEMENT avec un JSON valide sans backticks.";
+    var userP="Informations sur le tabac a pipe: "+q+". Reponds en JSON: {\"brand\":\"fabricant\",\"category\":\"type\",\"blend\":\"varietes separees par virgules\",\"cut\":\"coupe\",\"imageUrl\":\"url image produit\",\"description\":\"description courte FR\"}";
+    var headers={"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"};
+    return fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",headers:headers,
+      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:1024,system:sysP,tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],messages:[{role:"user",content:userP}]})
+    }).then(function(r){return r.json();}).then(function(d){
+      return parseAiResponse(d,q);
+    }).catch(function(e){console.error("[AI] Fetch error:",e);return{_error:String(e.message||e)};});
+  }
+
+  // Lightweight version WITHOUT web search for bulk operations
+  // Shared response parser
+  function parseAiResponse(d,label){
+    if(d.error){console.error("[AI] API error for "+label+":",d.error);return{_error:d.error.message};}
+    var allText="";
+    (d.content||[]).forEach(function(c){if(c.type==="text")allText+=c.text+"\n";});
+    if(!allText.trim())return{_error:"no_text"};
+    var cleaned=allText.replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
+    var m=cleaned.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/)||cleaned.match(/\{[\s\S]*\}/);
+    if(!m)return{_error:"no_json"};
+    try{return JSON.parse(m[0]);}catch(e){return{_error:"parse_fail"};}
+  }
+  var filtered=useMemo(function(){
+    if(!data)return[];
+    var ls=data.tobaccos||[];
+    if(statusFilter==="cellar")ls=ls.filter(function(t){return countByStatus(t,"cellar")>0;});
+    if(statusFilter==="jar")ls=ls.filter(function(t){return countByStatus(t,"jar")>0;});
+    if(statusFilter==="finished")ls=ls.filter(function(t){return!hasActive(t);});
+    if(search){var q=search.toLowerCase();ls=ls.filter(function(t){return[t.name,t.brand,t.blend,t.category,t.cut,t.tastingNotes].some(function(f){return f&&f.toLowerCase().indexOf(q)>=0;});});}
+    return ls.slice().sort(function(a,b){
+      if(sortBy==="name")return(a.name||"").localeCompare(b.name||"");
+      if(sortBy==="brand")return(a.brand||"").localeCompare(b.brand||"");
+      if(sortBy==="rating")return(b.rating||0)-(a.rating||0);
+      if(sortBy==="aging")return(oldestAge(b)||0)-(oldestAge(a)||0);
+      if(sortBy==="qty")return(b.lots||[]).length-(a.lots||[]).length;
+      return(a.name||"").localeCompare(b.name||"");
+    });
+  },[data,statusFilter,search,sortBy]);
+
+  // Stats
+  var stats=useMemo(function(){
+    if(!data)return{};
+    var all=data.tobaccos||[];
+    var allLots=[];all.forEach(function(t){(t.lots||[]).forEach(function(l){allLots.push(l);});});
+    var cel=allLots.filter(function(l){return l.status==="cellar";});
+    var jar=allLots.filter(function(l){return l.status==="jar";});
+    var act=allLots.filter(function(l){return l.status!=="finished";});
+    var wt=act.reduce(function(s,l){return s+(parseInt(l.weightG)||0);},0);
+    var cats={};all.forEach(function(t){if(t.category&&hasActive(t))cats[t.category]=(cats[t.category]||0)+1;});
+    var brands={};all.forEach(function(t){if(t.brand&&hasActive(t))brands[t.brand]=(brands[t.brand]||0)+1;});
+    var rated=all.filter(function(t){return t.rating>0;});
+    var avg=rated.length?(rated.reduce(function(s,t){return s+t.rating;},0)/rated.length).toFixed(1):"\u2014";
+    return{refs:all.length,cellar:cel.length,jars:jar.length,wt:wt,avg:avg,cats:Object.entries(cats).sort(function(a,b){return b[1]-a[1];}),brands:Object.entries(brands).sort(function(a,b){return b[1]-a[1];}),pipes:(data.pipes||[]).length,wish:(data.wishlist||[]).length};
+  },[data]);
+
+  // ── Render helpers ──
+  var sInp={background:bg3,border:"1px solid "+bdr,borderRadius:7,padding:"11px 14px",color:txt,fontSize:16,outline:"none",width:"100%",boxSizing:"border-box"};
+  var sSel=Object.assign({},sInp,{fontSize:15});
+  var sTxa=Object.assign({},sInp,{resize:"vertical",minHeight:70});
+  var sLbl={fontSize:13,color:tx2,marginBottom:3,letterSpacing:1,textTransform:"uppercase",fontWeight:600};
+  var sCard={background:"linear-gradient(145deg,"+bg3+","+bg2+")",border:"1px solid "+bdr,borderRadius:11,padding:14};
+  var sBadge=function(c,b){return{display:"inline-block",padding:"2px 8px",borderRadius:10,fontSize:13,fontWeight:700,color:c,background:b||bg4,letterSpacing:.4,whiteSpace:"nowrap"};};
+
+  function btn(text,onClick,bgc,fgc,small,disabled,full,extra){return React.createElement("button",{disabled:disabled,onClick:onClick,style:Object.assign({padding:small?"7px 13px":"11px 20px",border:"none",borderRadius:7,background:disabled?"#444":(bgc||amber),color:disabled?"#888":(fgc||"#111"),fontSize:small?11:13,fontWeight:700,cursor:disabled?"not-allowed":"pointer",width:full?"100%":undefined,transition:"all .15s",letterSpacing:.3},extra||{})},text);}
+  function stars(v,set,sz){return React.createElement("div",{style:{display:"flex",gap:1}},[1,2,3,4,5].map(function(i){return React.createElement("span",{key:i,onClick:function(){if(set)set(i===v?0:i);},style:{cursor:set?"pointer":"default",fontSize:sz||14,color:i<=v?gold:bg4,userSelect:"none"}},"\u2605");}));}
+  function badge(text,c,b){return React.createElement("span",{style:sBadge(c||amber,b)},text);}
+  function statusBadge(s){var m={cellar:["Cave","#a89650","#33301a"],jar:["Pot",green,"#1e2e20"],finished:["Fini","#777","#292929"]};var x=m[s]||m.cellar;return badge(x[0],x[1],x[2]);}
+  function rebuyBadge(r){if(r===null||r===undefined)return null;return r?badge("\u00c0 reprendre",green,"#1e2e20"):badge("Pas reprendre",red,"#2e1e1e");}
+  function img(url,sz,icon){sz=sz||48;icon=icon||"\ud83c\udf42";if(!url)return React.createElement("div",{style:{width:sz,height:sz,minWidth:sz,borderRadius:8,background:bg4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:sz*0.4}},icon);var src=imgLocal[url]||url;return React.createElement("img",{src:src,alt:"",style:{width:sz,height:sz,minWidth:sz,borderRadius:8,objectFit:"cover",border:"1px solid "+bdr},onError:function(e){e.target.style.display="none";}});}
+  function infoBox(label,value){return React.createElement("div",{style:{background:bg4,borderRadius:8,padding:"9px 12px"}},React.createElement("div",{style:{fontSize:12,color:tx3,textTransform:"uppercase",letterSpacing:.8}},label),React.createElement("div",{style:{fontSize:15,color:hi,marginTop:2}},value||"\u2014"));}
+  function statBox(val,label,icon){return React.createElement("div",{style:{background:bg3,border:"1px solid "+bdr,borderRadius:11,padding:"12px 8px",textAlign:"center",flex:"1 1 80px",minWidth:80}},React.createElement("div",{style:{fontSize:14,marginBottom:4}},icon),React.createElement("div",{style:{fontSize:24,fontWeight:700,color:gold}},val),React.createElement("div",{style:{fontSize:12,color:tx2,marginTop:3,textTransform:"uppercase",letterSpacing:1}},label));}
+
+  function aiCard(type){var disabled=type==="pipe"?(!pipeForm.name&&!pipeForm.brand):(!form.name&&!form.brand);return React.createElement("div",{style:Object.assign({},sCard,{marginBottom:12,border:"1px solid "+amber+"33"})},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}},React.createElement("span",{style:{fontSize:17}},"\ud83e\udd16"),React.createElement("span",{style:{fontSize:14,color:gold,fontWeight:700}},"Auto-completer"),React.createElement("span",{style:{fontSize:13,color:tx2,flex:1}},"Remplis nom/marque puis clique"),btn(aiLoad?"\u23f3...":"\ud83d\udd0d Chercher",function(){aiAutoFill(type);},gold,"#111",true,disabled||aiLoad)),aiErr?React.createElement("div",{style:{color:red,fontSize:14,marginTop:6}},aiErr):null);}
+
+  // Lot status summary for a tobacco
+  function lotSummary(t){
+    var c=countByStatus(t,"cellar"),j=countByStatus(t,"jar"),f=countByStatus(t,"finished");
+    var parts=[];
+    if(c>0)parts.push(c+" cave");
+    if(j>0)parts.push(j+" pot"+(j>1?"s":""));
+    if(f>0)parts.push(f+" fini"+(f>1?"s":""));
+    return parts.join(" \u00b7 ");
+  }
+
+  if(loading)return React.createElement("div",{style:{minHeight:"100vh",background:bg,display:"flex",alignItems:"center",justifyContent:"center",color:tx2}},React.createElement("div",{style:{textAlign:"center"}},React.createElement("div",{style:{fontSize:44,marginBottom:12}},"\ud83e\ude88"),React.createElement("div",{style:{letterSpacing:3,fontSize:14,textTransform:"uppercase"}},"Chargement\u2026")));
+
+  // ── Lot row renderer ──
+  function lotRow(l,idx,tobId,canEdit){
+    return React.createElement("div",{key:idx,style:{background:bg4,borderRadius:8,padding:"10px 12px",marginBottom:6}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
+        React.createElement("div",{style:{display:"flex",gap:5,alignItems:"center"}},
+          statusBadge(l.status),
+          React.createElement("span",{style:{fontSize:14,color:hi,fontWeight:600}},l.weightG?l.weightG+"g":""),
+          l.boxNumber?React.createElement("span",{style:{fontSize:13,color:tx3}},"n\u00b0"+l.boxNumber):null
+        ),
+        canEdit?React.createElement("div",{style:{display:"flex",gap:3}},
+          l.status==="cellar"?btn("\ud83e\udead",function(){changeLotStatus(tobId,idx,"jar");},green,"#111",true):null,
+          l.status==="jar"?btn("\u2713",function(){changeLotStatus(tobId,idx,"finished");},"#666","#fff",true):null,
+          l.status!=="cellar"?btn("\ud83d\udce6",function(){changeLotStatus(tobId,idx,"cellar");},"transparent",tx2,true,false,false,{border:"1px solid "+bdr}):null,
+          btn("\u270f\ufe0f",function(){setLotForm(Object.assign({},BL,l));setEditLotIdx(idx);setAddLotMode(false);},"transparent",gold,true,false,false,{border:"1px solid "+gold+"33"}),
+          btn("\u2715",function(){if(window.confirm("Supprimer ce lot ?"))removeLot(tobId,idx);},"transparent",red,true,false,false,{border:"1px solid "+red+"33"})
+        ):null
+      ),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}},
+        React.createElement("div",{style:{fontSize:13,color:tx2}},"\ud83d\udcc5 Achat: ",React.createElement("span",{style:{color:txt}},fmtDate(l.datePurchased))),
+        React.createElement("div",{style:{fontSize:13,color:tx2}},"\ud83c\udfed Prod: ",React.createElement("span",{style:{color:txt}},fmtDate(l.dateProduction))),
+        l.status==="jar"?React.createElement("div",{style:{fontSize:13,color:tx2}},"\ud83e\udead Pot: ",React.createElement("span",{style:{color:txt}},fmtDate(l.dateOpened))):null,
+        React.createElement("div",{style:{fontSize:13,color:tx2}},"\ud83d\udd70 \u00c2ge: ",React.createElement("span",{style:{color:gold}},ageLabel(lotAge(l)))),
+        l.price?React.createElement("div",{style:{fontSize:13,color:tx2}},"\ud83d\udcb0 Prix: ",React.createElement("span",{style:{color:txt}},l.price+" CHF")):null,
+        l.seller?React.createElement("div",{style:{fontSize:13,color:tx2}},"\ud83c\udfea Vendeur: ",React.createElement("span",{style:{color:txt}},l.seller)):null
+      )
+    );
+  }
+
+  // ── Tobacco card in list ──
+  function tabCard(t){
+    var c=countByStatus(t,"cellar"),j=countByStatus(t,"jar");
+    return React.createElement("div",{key:t.id,onClick:function(){setDetail(t);},style:Object.assign({},sCard,{display:"flex",gap:10,alignItems:"center",cursor:"pointer"})},
+      img(t.imageUrl,48),
+      React.createElement("div",{style:{flex:1,minWidth:0}},
+        React.createElement("div",{style:{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}},
+          React.createElement("span",{style:{fontSize:16,fontWeight:700,color:hi}},t.name),
+          c>0?badge(c+"\ud83d\udce6","#a89650","#33301a"):null,
+          j>0?badge(j+"\ud83e\udead",green,"#1e2e20"):null
+        ),
+        React.createElement("div",{style:{fontSize:14,color:tx2}},[t.brand,t.category,totalWeight(t)?totalWeight(t)+"g":""].filter(Boolean).join(" \u00b7 ")),
+        React.createElement("div",{style:{display:"flex",gap:6,alignItems:"center",marginTop:2}},
+          t.rating>0?stars(t.rating,null,10):null,
+          oldestAge(t)!==null?React.createElement("span",{style:{fontSize:12,color:gold}},"\ud83d\udd70 "+ageLabel(oldestAge(t))):null
+        )
+      )
+    );
+  }
+
+  return React.createElement("div",{style:{minHeight:"100vh",background:"linear-gradient(175deg,"+bg+","+bg2+","+bg+")",color:txt,maxWidth:600,margin:"0 auto"}},
+
+    // HEADER
+    React.createElement("div",{style:{padding:"16px 18px 8px",borderBottom:"1px solid "+bdr,background:"linear-gradient(180deg,#1e1a15,transparent)"}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}},
+        React.createElement("div",null,
+          React.createElement("h1",{style:{fontSize:24,fontWeight:700,color:hi,margin:0}},"\ud83e\ude88 Ma Cave \u00e0 Tabac"),
+          React.createElement("div",{style:{fontSize:12,color:tx3,letterSpacing:2,textTransform:"uppercase",marginTop:2}},"Gestion & D\u00e9gustation")
+        ),
+        React.createElement("div",{style:{display:"flex",gap:4}},
+          btn("\ud83d\udce5",function(){setImportModal(true);},"transparent",tx2,true,false,false,{border:"1px solid "+bdr}),
+          btn("\ud83d\uddd1",resetAll,"transparent",tx2,true,false,false,{border:"1px solid "+bdr})
+        )
+      ),
+      React.createElement("div",{style:{display:"flex",gap:3,marginTop:10,flexWrap:"wrap"}},
+        [["home","Accueil"],["inv","Tabacs"],["pipes","Pipes"],["wish","Wishlist"]].map(function(x){return React.createElement("button",{key:x[0],onClick:function(){nav(x[0]);},style:{padding:"8px 15px",border:"none",borderRadius:7,fontSize:14,fontWeight:view===x[0]?700:500,background:view===x[0]?amber:"transparent",color:view===x[0]?"#111":tx2,cursor:"pointer"}},x[1]);}),
+        React.createElement("button",{onClick:function(){nav("addT");},style:{padding:"8px 15px",border:"1px dashed "+bdr,borderRadius:7,fontSize:14,background:"transparent",color:amber,cursor:"pointer",fontWeight:600}},"+Tabac"),
+        React.createElement("button",{onClick:function(){nav("addP");},style:{padding:"8px 15px",border:"1px dashed "+bdr,borderRadius:7,fontSize:14,background:"transparent",color:amber,cursor:"pointer",fontWeight:600}},"+Pipe")
+      )
+    ),
+
+    // HOME
+    view==="home"&&React.createElement("div",{style:{padding:"14px 18px"}},
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8,marginBottom:12}},statBox(stats.refs,"R\u00e9f\u00e9rences","\ud83c\udf42"),statBox(stats.cellar,"Bo\u00eetes","\ud83d\udce6"),statBox(stats.jars,"Pots","\ud83e\udead"),statBox((stats.wt/1000).toFixed(1)+"kg","Poids","\u2696\ufe0f")),
+      React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}},statBox(stats.avg,"Note moy.","\u2b50"),statBox(stats.pipes,"Pipes","\ud83e\ude88"),statBox(stats.wish,"Wishlist","\ud83d\udcad")),
+      stats.cats&&stats.cats.length>0&&React.createElement("div",{style:Object.assign({},sCard,{marginBottom:12})},
+        React.createElement("div",{style:{fontSize:12,color:tx2,textTransform:"uppercase",letterSpacing:1,marginBottom:8}},"Par type"),
+        stats.cats.map(function(x){var tot=stats.refs;var pct=tot>0?Math.round(x[1]/tot*100):0;return React.createElement("div",{key:x[0],style:{marginBottom:5}},React.createElement("div",{style:{display:"flex",justifyContent:"space-between",fontSize:14,marginBottom:2}},React.createElement("span",null,x[0]),React.createElement("span",{style:{color:tx2}},x[1]+" ("+pct+"%)")),React.createElement("div",{style:{height:5,background:bg,borderRadius:3,overflow:"hidden"}},React.createElement("div",{style:{height:"100%",width:pct+"%",background:"linear-gradient(90deg,"+amber+","+gold+")",borderRadius:3}})));})
+      ),
+      stats.brands&&stats.brands.length>0&&React.createElement("div",{style:sCard},
+        React.createElement("div",{style:{fontSize:12,color:tx2,textTransform:"uppercase",letterSpacing:1,marginBottom:8}},"Top marques"),
+        React.createElement("div",{style:{display:"flex",flexWrap:"wrap",gap:4}},stats.brands.slice(0,15).map(function(x){return badge(x[0]+" ("+x[1]+")",txt,bg4);}))
+      )
+    ),
+
+    // INVENTORY
+    view==="inv"&&!detail&&React.createElement("div",null,
+      React.createElement("div",{style:{padding:"10px 18px",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}},
+        React.createElement("input",{style:Object.assign({},sInp,{flex:1,minWidth:120}),value:search,onChange:function(e){setSearch(e.target.value);},placeholder:"\ud83d\udd0d Rechercher\u2026"}),
+        React.createElement("select",{style:Object.assign({},sSel,{width:"auto"}),value:sortBy,onChange:function(e){setSortBy(e.target.value);}},React.createElement("option",{value:"name"},"Nom"),React.createElement("option",{value:"brand"},"Marque"),React.createElement("option",{value:"rating"},"Note"),React.createElement("option",{value:"aging"},"\u00c2ge"),React.createElement("option",{value:"qty"},"Quantit\u00e9"))
+      ),
+      React.createElement("div",{style:{padding:"0 18px 6px",display:"flex",gap:3,flexWrap:"wrap"}},
+        [["all","Tous"],["cellar","Cave"],["jar","Pots"],["finished","Finis"]].map(function(x){return React.createElement("button",{key:x[0],onClick:function(){setStatusFilter(x[0]);},style:{padding:"7px 13px",border:"none",borderRadius:6,fontSize:14,fontWeight:statusFilter===x[0]?700:500,background:statusFilter===x[0]?amber:"transparent",color:statusFilter===x[0]?"#111":tx2,cursor:"pointer"}},x[1]);})
+      ),
+      React.createElement("div",{style:{padding:"0 18px 18px",display:"grid",gap:7}},
+        filtered.length===0&&React.createElement("div",{style:{textAlign:"center",padding:40,color:tx3,fontSize:15}},"Aucun tabac trouv\u00e9"),
+        filtered.map(function(t){return tabCard(t);})
+      )
+    ),
+
+    // DETAIL
+    view==="inv"&&detail&&React.createElement("div",{style:{padding:"14px 18px"}},
+      btn("\u2190 Retour",function(){setDetail(null);},"transparent",tx2,true,false,false,{marginBottom:10}),
+      React.createElement("div",{style:{display:"flex",gap:14,marginBottom:14}},
+        React.createElement("div",{onClick:function(){if(detail.imageUrl)setLightbox(detail.imageUrl);},style:{cursor:detail.imageUrl?"pointer":"default"}},img(detail.imageUrl,80)),
+        React.createElement("div",null,
+          React.createElement("h2",{style:{fontSize:22,color:hi,margin:"0 0 2px"}},detail.name),
+          React.createElement("div",{style:{fontSize:15,color:tx2}},detail.brand),
+          React.createElement("div",{style:{display:"flex",gap:4,marginTop:5,flexWrap:"wrap"}},rebuyBadge(detail.rebuy),badge(lotSummary(detail),tx2,bg4)),
+          detail.rating>0&&React.createElement("div",{style:{marginTop:5}},stars(detail.rating,null,15))
+        )
+      ),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}},
+        infoBox("Type",detail.category),infoBox("Coupe",detail.cut),
+        infoBox("Poids total",totalWeight(detail)+"g"),infoBox("Plus ancien",ageLabel(oldestAge(detail)))
+      ),
+      detail.blend&&React.createElement("div",{style:Object.assign({},sCard,{marginBottom:10})},React.createElement("div",{style:sLbl},"Composition"),React.createElement("div",{style:{fontSize:15,color:txt,marginTop:4}},detail.blend)),
+      detail.description&&React.createElement("div",{style:Object.assign({},sCard,{marginBottom:10})},React.createElement("div",{style:sLbl},"Description"),React.createElement("div",{style:{fontSize:15,color:txt,marginTop:4,whiteSpace:"pre-wrap",lineHeight:1.5}},detail.description)),
+      detail.tastingNotes&&React.createElement("div",{style:Object.assign({},sCard,{marginBottom:10})},React.createElement("div",{style:sLbl},"Notes de d\u00e9gustation"),React.createElement("div",{style:{fontSize:15,color:txt,marginTop:4,whiteSpace:"pre-wrap",lineHeight:1.5}},detail.tastingNotes)),
+
+      // LOTS
+      React.createElement("div",{style:{marginTop:12}},
+        React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}},
+          React.createElement("div",{style:sLbl},"D\u00e9tail des lots ("+(detail.lots||[]).length+")"),
+          btn("+ Lot",function(){setAddLotMode(true);setLotForm(Object.assign({},BL));},amber,"#111",true)
+        ),
+        (detail.lots||[]).map(function(l,i){return lotRow(l,i,detail.id,true);}),
+
+        // Add lot form
+        (addLotMode||editLotIdx!==null)&&React.createElement("div",{style:{background:bg4,borderRadius:8,padding:12,marginTop:8,border:"1px dashed "+amber+"44"}},
+          React.createElement("div",{style:Object.assign({},sLbl,{marginBottom:8})},editLotIdx!==null?"Modifier le lot":"Nouveau lot"),
+          React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},
+            React.createElement("div",null,React.createElement("div",{style:sLbl},"Statut"),React.createElement("select",{style:sSel,value:lotForm.status,onChange:function(e){setLotForm(Object.assign({},lotForm,{status:e.target.value}));}},React.createElement("option",{value:"cellar"},"Cave"),React.createElement("option",{value:"jar"},"Pot"),React.createElement("option",{value:"finished"},"Termin\u00e9"))),
+            React.createElement("div",null,React.createElement("div",{style:sLbl},"Poids (g)"),React.createElement("input",{style:sInp,type:"number",value:lotForm.weightG,onChange:function(e){setLotForm(Object.assign({},lotForm,{weightG:e.target.value}));}})),
+            React.createElement("div",null,React.createElement("div",{style:sLbl},"Date achat"),React.createElement("input",{style:sInp,type:"date",value:lotForm.datePurchased,onChange:function(e){setLotForm(Object.assign({},lotForm,{datePurchased:e.target.value}));}})),
+            React.createElement("div",null,React.createElement("div",{style:sLbl},"Date prod."),React.createElement("input",{style:sInp,type:"date",value:lotForm.dateProduction,onChange:function(e){setLotForm(Object.assign({},lotForm,{dateProduction:e.target.value}));}})),
+            lotForm.status==="cellar"&&React.createElement("div",null,React.createElement("div",{style:sLbl},"N\u00b0 bo\u00eete"),React.createElement("input",{style:sInp,type:"number",value:lotForm.boxNumber,onChange:function(e){setLotForm(Object.assign({},lotForm,{boxNumber:e.target.value}));}})),
+            (lotForm.status==="jar"||lotForm.status==="finished")&&React.createElement("div",null,React.createElement("div",{style:sLbl},"Date pot"),React.createElement("input",{style:sInp,type:"date",value:lotForm.dateOpened,onChange:function(e){setLotForm(Object.assign({},lotForm,{dateOpened:e.target.value}));}})),
+            React.createElement("div",null,React.createElement("div",{style:sLbl},"Prix (CHF)"),React.createElement("input",{style:sInp,type:"number",step:"0.01",value:lotForm.price,onChange:function(e){setLotForm(Object.assign({},lotForm,{price:e.target.value}));}})),
+            React.createElement("div",null,React.createElement("div",{style:sLbl},"Vendeur"),React.createElement("input",{style:sInp,value:lotForm.seller||"",onChange:function(e){setLotForm(Object.assign({},lotForm,{seller:e.target.value}));},placeholder:"Ex: La Pipe Rit"}))
+          ),
+          React.createElement("div",{style:{display:"flex",gap:6,marginTop:10}},
+            editLotIdx!==null?btn("Enregistrer",function(){updateLotInTobacco(detail.id,editLotIdx);},amber,"#111",true):btn("Ajouter",function(){addLotToTobacco(detail.id);},amber,"#111",true),
+            btn("Annuler",function(){setAddLotMode(false);setEditLotIdx(null);setLotForm(Object.assign({},BL));},"transparent",tx2,true,false,false,{border:"1px solid "+bdr})
+          )
+        )
+      ),
+
+      React.createElement("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginTop:14}},
+        btn("\u270f\ufe0f Modifier",function(){setForm(Object.assign({},detail));setEditId(detail.id);setView("editT");},"transparent",gold,true,false,false,{border:"1px solid "+gold+"44"}),
+        btn("\ud83d\uddd1 Supprimer",function(){setDelConfirm(detail.id);},"transparent",red,true,false,false,{border:"1px solid "+red+"44"})
+      )
+    ),
+
+    // ADD/EDIT TOBACCO
+    (view==="addT"||view==="editT")&&React.createElement("div",{style:{padding:"14px 18px"}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}},
+        React.createElement("h2",{style:{fontSize:22,color:hi,margin:0}},view==="editT"?"\u270f\ufe0f Modifier":"\u2795 Ajouter un tabac"),
+        btn("\u2715",function(){setForm(Object.assign({},BT));nav("inv");},"transparent",tx2,true,false,false,{border:"1px solid "+bdr})
+      ),
+      aiCard("tobacco"),
+      React.createElement("div",{style:{display:"grid",gap:10}},
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},
+          React.createElement("div",null,React.createElement("div",{style:sLbl},"Nom *"),React.createElement("input",{style:sInp,value:form.name,onChange:function(e){setForm(Object.assign({},form,{name:e.target.value}));},placeholder:"Ex: Nightcap"})),
+          React.createElement("div",null,React.createElement("div",{style:sLbl},"Marque"),React.createElement("input",{style:sInp,value:form.brand,onChange:function(e){setForm(Object.assign({},form,{brand:e.target.value}));},placeholder:"Ex: Dunhill"}))
+        ),
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},
+          React.createElement("div",null,React.createElement("div",{style:sLbl},"Type"),React.createElement("select",{style:sSel,value:form.category,onChange:function(e){setForm(Object.assign({},form,{category:e.target.value}));}},React.createElement("option",{value:""},"\u2014"),CATS.map(function(c){return React.createElement("option",{key:c,value:c},c);}))),
+          React.createElement("div",null,React.createElement("div",{style:sLbl},"Coupe"),React.createElement("select",{style:sSel,value:form.cut,onChange:function(e){setForm(Object.assign({},form,{cut:e.target.value}));}},React.createElement("option",{value:""},"\u2014"),CUTS.map(function(c){return React.createElement("option",{key:c,value:c},c);})))
+        ),
+        React.createElement("div",null,React.createElement("div",{style:sLbl},"Composition"),React.createElement("input",{style:sInp,value:form.blend,onChange:function(e){setForm(Object.assign({},form,{blend:e.target.value}));},placeholder:"Latakia, Virginia\u2026"})),
+        React.createElement("div",null,React.createElement("div",{style:sLbl},"Description"),React.createElement("textarea",{style:sTxa,value:form.description||"",onChange:function(e){setForm(Object.assign({},form,{description:e.target.value}));},placeholder:"Ar\u00f4mes, caract\u00e8re, style\u2026"})),
+        React.createElement("div",null,
+          React.createElement("div",{style:sLbl},"Image"),
+          React.createElement("div",{style:{display:"grid",gap:8,marginBottom:8}},
+            React.createElement("div",{style:{display:"flex",gap:8}},
+              btn("\ud83d\udcf8 Photo iPhone",function(){handlePhotoUpload(function(key,dataUrl){setForm(Object.assign({},form,{imageUrl:key}));setImgLocal(function(prev){var n=Object.assign({},prev);n[key]=dataUrl;return n;});});},"#4a7c59","#fff",true,false,true),
+              btn("\ud83d\udd17 URL",function(){var u=prompt("URL de l'image:");if(u)setForm(Object.assign({},form,{imageUrl:u}));},"transparent",tx2,true,false,false,{border:"1px solid "+bdr})
+            ),
+            btn("\ud83d\udcf7 Chercher photo en ligne",function(){window.open("https://www.google.com/search?tbm=isch&q="+encodeURIComponent((form.brand||"")+" "+(form.name||"")+" pipe tobacco site:smokingpipes.com OR site:tobaccoreviews.com"),"_blank");},"transparent","#8bb",true,false,true,{border:"1px solid #8bb44"})
+          ),
+          (form.imageUrl&&(imgLocal[form.imageUrl]||form.imageUrl))?React.createElement("img",{src:imgLocal[form.imageUrl]||form.imageUrl,alt:"",style:{maxWidth:120,borderRadius:8,border:"1px solid "+bdr},onError:function(e){e.target.style.display="none";}}):null
+        ),
+        React.createElement("div",null,React.createElement("div",{style:sLbl},"Note"),stars(form.rating,function(v){setForm(Object.assign({},form,{rating:v}));})),
+        React.createElement("div",null,React.createElement("div",{style:sLbl},"\u00c0 reprendre ?"),React.createElement("div",{style:{display:"flex",gap:6,marginTop:4}},[{v:true,l:"Oui",c:green},{v:false,l:"Non",c:red},{v:null,l:"?",c:tx2}].map(function(o){return React.createElement("button",{key:String(o.v),onClick:function(){setForm(Object.assign({},form,{rebuy:o.v}));},style:{padding:"4px 14px",borderRadius:6,fontSize:14,fontWeight:600,cursor:"pointer",border:"1px solid "+(form.rebuy===o.v?o.c:bdr),background:form.rebuy===o.v?o.c+"22":"transparent",color:form.rebuy===o.v?o.c:tx3}},o.l);}))),
+        React.createElement("div",null,React.createElement("div",{style:sLbl},"Notes de d\u00e9gustation"),React.createElement("textarea",{style:sTxa,value:form.tastingNotes,onChange:function(e){setForm(Object.assign({},form,{tastingNotes:e.target.value}));},placeholder:"Ar\u00f4mes, impressions\u2026"})),
+        btn(view==="editT"?"Enregistrer":"Ajouter",view==="editT"?updateTobacco:addTobacco,amber,"#111",false,!form.name,true)
+      )
+    ),
+
+    // PIPES
+    view==="pipes"&&!pipeDet&&React.createElement("div",{style:{padding:"14px 18px"}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},React.createElement("h2",{style:{fontSize:20,color:hi,margin:0}},"\ud83e\ude88 Mes Pipes ("+(data.pipes||[]).length+")"),btn("+ Ajouter",function(){nav("addP");},amber,"#111",true)),
+      (data.pipes||[]).length===0&&React.createElement("div",{style:{textAlign:"center",padding:40,color:tx3,fontSize:15}},"Aucune pipe"),
+      React.createElement("div",{style:{display:"grid",gap:7}},(data.pipes||[]).map(function(p){return React.createElement("div",{key:p.id,onClick:function(){setPipeDet(p);},style:Object.assign({},sCard,{display:"flex",gap:10,alignItems:"center",cursor:"pointer"})},img(p.imageUrl,52,"\ud83e\ude88"),React.createElement("div",{style:{flex:1}},React.createElement("div",{style:{fontSize:16,fontWeight:700,color:hi}},[p.brand,p.name].filter(Boolean).join(" \u2014 ")),React.createElement("div",{style:{fontSize:14,color:tx2}},[p.shape,fmtDate(p.datePurchased),p.price?p.price+" CHF":""].filter(Boolean).join(" \u00b7 ")),p.rating>0&&React.createElement("div",{style:{marginTop:2}},stars(p.rating,null,10))));}))
+    ),
+    view==="pipes"&&pipeDet&&React.createElement("div",{style:{padding:"14px 18px"}},
+      btn("\u2190 Retour",function(){setPipeDet(null);},"transparent",tx2,true,false,false,{marginBottom:10}),
+      React.createElement("div",{style:{display:"flex",gap:14,marginBottom:14}},React.createElement("div",{onClick:function(){if(pipeDet.imageUrl)setLightbox(pipeDet.imageUrl);},style:{cursor:pipeDet.imageUrl?"pointer":"default"}},img(pipeDet.imageUrl,90,"\ud83e\ude88")),React.createElement("div",null,React.createElement("h2",{style:{fontSize:22,color:hi,margin:"0 0 2px"}},pipeDet.name||pipeDet.brand),pipeDet.brand&&pipeDet.name&&React.createElement("div",{style:{fontSize:15,color:tx2}},pipeDet.brand),React.createElement("div",{style:{display:"flex",gap:4,marginTop:5}},badge(pipeDet.shape,gold,bg4),pipeDet.price&&badge(pipeDet.price+" CHF",green,"#1e2e20")),pipeDet.rating>0&&React.createElement("div",{style:{marginTop:5}},stars(pipeDet.rating,null,15)))),
+      React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},infoBox("Forme",pipeDet.shape),infoBox("Achat",fmtDate(pipeDet.datePurchased)),infoBox("Prix",pipeDet.price?pipeDet.price+" CHF":null),infoBox("Anciennet\u00e9",ageLabel(daysSince(pipeDet.datePurchased)))),
+      pipeDet.description&&React.createElement("div",{style:Object.assign({},sCard,{marginTop:10})},React.createElement("div",{style:sLbl},"Description"),React.createElement("div",{style:{fontSize:15,color:txt,marginTop:4,whiteSpace:"pre-wrap",lineHeight:1.5}},pipeDet.description)),
+      React.createElement("div",{style:{display:"flex",gap:5,marginTop:14}},btn("\u270f\ufe0f",function(){setPipeForm(Object.assign({},pipeDet));setEditPipeId(pipeDet.id);setView("editP");},"transparent",gold,true,false,false,{border:"1px solid "+gold+"44"}),btn("\ud83d\uddd1",function(){if(window.confirm("Supprimer ?")){deletePipe(pipeDet.id);setPipeDet(null);}},"transparent",red,true,false,false,{border:"1px solid "+red+"44"}))
+    ),
+    (view==="addP"||view==="editP")&&React.createElement("div",{style:{padding:"14px 18px"}},
+      React.createElement("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}},React.createElement("h2",{style:{fontSize:22,color:hi,margin:0}},view==="editP"?"\u270f\ufe0f Modifier la pipe":"\u2795 Ajouter une pipe"),btn("\u2715",function(){setPipeForm(Object.assign({},BP));nav("pipes");},"transparent",tx2,true,false,false,{border:"1px solid "+bdr})),
+      aiCard("pipe"),
+      React.createElement("div",{style:{display:"grid",gap:10}},
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},React.createElement("div",null,React.createElement("div",{style:sLbl},"Mod\u00e8le *"),React.createElement("input",{style:sInp,value:pipeForm.name,onChange:function(e){setPipeForm(Object.assign({},pipeForm,{name:e.target.value}));}})),React.createElement("div",null,React.createElement("div",{style:sLbl},"Marque"),React.createElement("input",{style:sInp,value:pipeForm.brand,onChange:function(e){setPipeForm(Object.assign({},pipeForm,{brand:e.target.value}));}}))),
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},React.createElement("div",null,React.createElement("div",{style:sLbl},"Forme"),React.createElement("select",{style:sSel,value:pipeForm.shape,onChange:function(e){setPipeForm(Object.assign({},pipeForm,{shape:e.target.value}));}},SHAPES.map(function(s){return React.createElement("option",{key:s,value:s},s);}))),React.createElement("div",null,React.createElement("div",{style:sLbl},"Date achat"),React.createElement("input",{style:sInp,type:"date",value:pipeForm.datePurchased,onChange:function(e){setPipeForm(Object.assign({},pipeForm,{datePurchased:e.target.value}));}}))),
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},React.createElement("div",null,React.createElement("div",{style:sLbl},"Prix (CHF)"),React.createElement("input",{style:sInp,type:"number",step:"0.01",value:pipeForm.price,onChange:function(e){setPipeForm(Object.assign({},pipeForm,{price:e.target.value}));}})),React.createElement("div",null,React.createElement("div",{style:sLbl},"Note"),stars(pipeForm.rating,function(v){setPipeForm(Object.assign({},pipeForm,{rating:v}));}))),
+        React.createElement("div",null,
+          React.createElement("div",{style:sLbl},"Image"),
+          React.createElement("div",{style:{display:"flex",gap:8,marginBottom:8}},
+            btn("\ud83d\udcf8 Photo iPhone",function(){handlePhotoUpload(function(key,dataUrl){setPipeForm(Object.assign({},pipeForm,{imageUrl:key}));setImgLocal(function(prev){var n=Object.assign({},prev);n[key]=dataUrl;return n;});});},"#4a7c59","#fff",false,false,true),
+            btn("\ud83d\udd17 URL",function(){var u=prompt("URL de l'image:");if(u)setPipeForm(Object.assign({},pipeForm,{imageUrl:u}));},"transparent",tx2,false,false,false,{border:"1px solid "+bdr})
+          ),
+          (pipeForm.imageUrl&&(imgLocal[pipeForm.imageUrl]||pipeForm.imageUrl))?React.createElement("img",{src:imgLocal[pipeForm.imageUrl]||pipeForm.imageUrl,alt:"",style:{maxWidth:120,borderRadius:8,border:"1px solid "+bdr},onError:function(e){e.target.style.display="none";}}):null
+        ),
+        React.createElement("div",null,React.createElement("div",{style:sLbl},"Description"),React.createElement("textarea",{style:sTxa,value:pipeForm.description,onChange:function(e){setPipeForm(Object.assign({},pipeForm,{description:e.target.value}));}})),
+        btn(view==="editP"?"Enregistrer":"Ajouter",view==="editP"?updatePipe:addPipe,amber,"#111",false,!pipeForm.name&&!pipeForm.brand,true)
+      )
+    ),
+
+    // WISHLIST
+    view==="wish"&&React.createElement("div",{style:{padding:"14px 18px"}},
+      React.createElement("h2",{style:{fontSize:20,color:hi,margin:"0 0 12px"}},"\ud83d\udcad Wishlist ("+(data.wishlist||[]).length+")"),
+      React.createElement("div",{style:Object.assign({},sCard,{marginBottom:12})},React.createElement("div",{style:{display:"grid",gap:8}},
+        React.createElement("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}},React.createElement("div",null,React.createElement("div",{style:sLbl},"Nom"),React.createElement("input",{style:sInp,value:wishForm.name,onChange:function(e){setWishForm(Object.assign({},wishForm,{name:e.target.value}));}})),React.createElement("div",null,React.createElement("div",{style:sLbl},"Marque"),React.createElement("input",{style:sInp,value:wishForm.brand,onChange:function(e){setWishForm(Object.assign({},wishForm,{brand:e.target.value}));}}))),
+        React.createElement("div",null,React.createElement("div",{style:sLbl},"Notes"),React.createElement("input",{style:sInp,value:wishForm.notes,onChange:function(e){setWishForm(Object.assign({},wishForm,{notes:e.target.value}));}})),
+        btn("Ajouter",addWish,amber,"#111",false,!wishForm.name,true)
+      )),
+      React.createElement("div",{style:{display:"grid",gap:7}},(data.wishlist||[]).map(function(w){return React.createElement("div",{key:w.id,style:Object.assign({},sCard,{display:"flex",gap:10,alignItems:"center"})},React.createElement("div",{style:{flex:1}},React.createElement("div",{style:{fontSize:16,fontWeight:700,color:hi}},w.name),w.brand&&React.createElement("div",{style:{fontSize:14,color:tx2}},w.brand),w.notes&&React.createElement("div",{style:{fontSize:14,color:tx3,marginTop:2}},w.notes)),React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:4}},btn("\ud83d\udce6",function(){wishToInv(w);},green,"#111",true),btn("\u2715",function(){delWish(w.id);},"transparent",red,true,false,false,{border:"1px solid "+red+"33"})));}))
+    ),
+
+    // MODALS
+    importModal&&React.createElement("div",{onClick:function(){setImportModal(false);},style:{position:"fixed",inset:0,background:"#000b",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}},React.createElement("div",{onClick:function(e){e.stopPropagation();},style:{background:bg3,border:"1px solid "+bdr,borderRadius:14,padding:24,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}},
+      React.createElement("h3",{style:{color:hi,margin:"0 0 10px",fontSize:20}},"\ud83d\udce5 Import / Export"),
+      React.createElement("textarea",{style:Object.assign({},sTxa,{minHeight:100,fontSize:14,fontFamily:"monospace"}),value:importText,onChange:function(e){setImportText(e.target.value);},placeholder:'{"tobaccos":[...]}'}),
+      React.createElement("div",{style:{display:"flex",gap:8,marginTop:10}},btn("Importer",doImport,amber,"#111",false,!importText||importStatus,true),btn("Annuler",function(){setImportModal(false);},"transparent",tx2,false,false,false,{border:"1px solid "+bdr})),
+      importStatus?React.createElement("div",{style:{marginTop:10}},
+        React.createElement("div",{style:{fontSize:13,color:gold,marginBottom:4}},"\u23f3 T\u00e9l\u00e9chargement images: "+importStatus.done+"/"+importStatus.total),
+        React.createElement("div",{style:{height:6,background:bg,borderRadius:3,overflow:"hidden"}},
+          React.createElement("div",{style:{height:"100%",width:Math.round(importStatus.done/importStatus.total*100)+"%",background:"linear-gradient(90deg,"+amber+","+gold+")",borderRadius:3,transition:"width .3s"}})
+        ),
+        importStatus.current?React.createElement("div",{style:{fontSize:12,color:tx3,marginTop:3,wordBreak:"break-all"}},importStatus.current):null
+      ):null,
+      React.createElement("div",{style:{borderTop:"1px solid "+bdr,marginTop:12,paddingTop:12,display:"grid",gap:8}},
+        btn("\ud83d\udccb Exporter JSON (copier)",doExport,"transparent",gold,true,false,true,{border:"1px solid "+gold+"33"}),
+        btn("\ud83d\udcc4 Exporter CSV",doExportCSV,"transparent",green,true,false,true,{border:"1px solid "+green+"33"}),
+        btn("\ud83d\udce6 Backup complet (ZIP)",doBackupZip,"transparent",amber,true,false,true,{border:"1px solid "+amber+"33"}),
+        backupStatus?React.createElement("div",{style:{fontSize:13,color:backupStatus==="done"?green:gold,textAlign:"center",padding:4}},backupStatus==="done"?"\u2705 Backup t\u00e9l\u00e9charg\u00e9 !":"\u23f3 "+backupStatus):null
+      ),
+      React.createElement("div",{style:{borderTop:"1px solid "+bdr,marginTop:12,paddingTop:12}},
+        React.createElement("div",{style:{fontSize:13,color:tx2,marginBottom:8,letterSpacing:1,textTransform:"uppercase",fontWeight:600}},"\u2601\ufe0f Google Drive"),
+        React.createElement("div",{style:{display:"grid",gap:8}},
+          btn("\u2601\ufe0f Sauvegarder sur Google Drive",gdriveSave,"#4285f4","#fff",false,!!gdriveStatus,true),
+          btn("\u2601\ufe0f Restaurer depuis Google Drive",gdriveRestore,"transparent","#4285f4",false,!!gdriveStatus,true,{border:"1px solid #4285f4"})
+        ),
+        gdriveStatus?React.createElement("div",{style:{fontSize:13,color:gdriveStatus==="done"||gdriveStatus==="restore_done"?green:gdriveStatus.indexOf("Erreur")===0?red:gold,textAlign:"center",padding:6,marginTop:6}},
+          gdriveStatus==="done"?"\u2705 Sauvegard\u00e9 sur Google Drive !":
+          gdriveStatus==="restore_done"?"\u2705 Restauration termin\u00e9e !":
+          gdriveStatus
+        ):null,
+        React.createElement("div",{style:{fontSize:12,color:tx3,marginTop:6}},"Le fichier \""+GDRIVE_FILENAME+"\" sera cr\u00e9\u00e9 dans votre Google Drive")
+      ),
+      React.createElement("div",{style:{borderTop:"1px solid "+bdr,marginTop:12,paddingTop:12}},
+        React.createElement("div",{style:{fontSize:13,color:tx2,marginBottom:6,letterSpacing:1,textTransform:"uppercase",fontWeight:600}},"\ud83d\udd11 Cl\u00e9 API Anthropic (pour auto-compl\u00e9tion)"),
+        React.createElement("input",{id:"api-key-input",style:Object.assign({},sInp,{fontSize:14,fontFamily:"monospace"}),type:"text",defaultValue:apiKey,placeholder:"sk-ant-..."}),
+        React.createElement("div",{style:{display:"flex",gap:8,marginTop:8}},
+          btn("\u2705 Sauvegarder la cl\u00e9",function(){var v=document.getElementById("api-key-input").value.trim();saveApiKey(v);alert(v?"Cl\u00e9 sauvegard\u00e9e !":"Cl\u00e9 supprim\u00e9e");},green,"#111",false,false,true),
+          apiKey?btn("\ud83d\uddd1 Supprimer",function(){saveApiKey("");document.getElementById("api-key-input").value="";alert("Cl\u00e9 supprim\u00e9e");},"transparent",red,true,false,false,{border:"1px solid "+red+"33"}):null
+        ),
+        apiKey?React.createElement("div",{style:{fontSize:13,color:green,marginTop:6}},"\u2713 Cl\u00e9 configur\u00e9e ("+apiKey.substring(0,10)+"...)"):React.createElement("div",{style:{fontSize:13,color:tx3,marginTop:6}},"Collez votre cl\u00e9 depuis console.anthropic.com puis cliquez Sauvegarder")
+      )
+    )),
+    delConfirm&&React.createElement("div",{onClick:function(){setDelConfirm(null);},style:{position:"fixed",inset:0,background:"#000b",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}},React.createElement("div",{onClick:function(e){e.stopPropagation();},style:{background:bg3,border:"1px solid "+bdr,borderRadius:14,padding:24,maxWidth:360,width:"90%",textAlign:"center"}},React.createElement("div",{style:{fontSize:32,marginBottom:8}},"\u26a0\ufe0f"),React.createElement("h3",{style:{color:hi}},"Supprimer ce tabac ?"),React.createElement("div",{style:{display:"flex",gap:8,justifyContent:"center",marginTop:14}},btn("Supprimer",function(){deleteTobacco(delConfirm);},red,"#fff"),btn("Annuler",function(){setDelConfirm(null);},"transparent",tx2,false,false,false,{border:"1px solid "+bdr})))),
+
+    lightbox&&React.createElement("div",{onClick:function(){setLightbox(null);},style:{position:"fixed",inset:0,background:"#000e",display:"flex",alignItems:"center",justifyContent:"center",zIndex:300,padding:16,cursor:"pointer"}},
+      React.createElement("img",{src:imgLocal[lightbox]||lightbox,alt:"",style:{maxWidth:"95%",maxHeight:"90vh",borderRadius:12,objectFit:"contain",boxShadow:"0 0 40px #0008"},onError:function(e){e.target.style.display="none";}}),
+      React.createElement("div",{style:{position:"absolute",top:20,right:20,color:"#fff",fontSize:28,fontWeight:700,cursor:"pointer"}},"\u2715")
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
