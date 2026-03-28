@@ -12,3 +12,5 @@ android/
 
 # macOS
 .DS_Store
+assets/
+package-lock.json
