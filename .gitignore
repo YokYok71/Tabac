@@ -1,0 +1,14 @@
+# Dépendances Node
+node_modules/
+
+# Assets web générés (recréés par prepare-www.sh)
+www/
+
+# Projet iOS généré par Capacitor
+ios/
+
+# Projet Android (non utilisé)
+android/
+
+# macOS
+.DS_Store
