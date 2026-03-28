@@ -4,8 +4,10 @@ node_modules/
 # Assets web générés (recréés par prepare-www.sh)
 www/
 
-# Projet iOS généré par Capacitor
-ios/
+# Projet iOS — on ignore les gros dossiers générés
+ios/App/Pods/
+ios/App/App.xcworkspace/
+ios/.xcode.env.local
 
 # Projet Android (non utilisé)
 android/
