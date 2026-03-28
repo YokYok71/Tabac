@@ -25,6 +25,6 @@
     "scheme": "CaveTabac",
     "limitsNavigationsToAppBoundDomains": false,
     "allowsLinkPreview": false,
-    "scrollEnabled": false
+    "scrollEnabled": true
   }
 }
