@@ -1,0 +1,18 @@
+# Dépendances Node
+node_modules/
+
+# Assets web générés (recréés par prepare-www.sh)
+www/
+
+# Projet iOS — on ignore les gros dossiers générés
+ios/App/Pods/
+ios/App/App.xcworkspace/
+ios/.xcode.env.local
+
+# Projet Android (non utilisé)
+android/
+
+# macOS
+.DS_Store
+assets/
+package-lock.json
