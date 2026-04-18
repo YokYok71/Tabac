@@ -1,11 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "▶ Installation des dépendances npm pour Xcode Cloud..."
+echo "▶ Copie des assets web vers www/..."
 cd $CI_WORKSPACE
-npm install
-
-echo "▶ Copie des assets web..."
 mkdir -p www
 cp index.html    www/
 cp manifest.json www/
