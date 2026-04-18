@@ -26,5 +26,9 @@ cp capacitor.config.json ios/App/App/capacitor.config.json
 echo "▶ Vérification des fichiers xcconfig ..."
 touch ios/debug.xcconfig ios/release.xcconfig
 
+echo "▶ Installation des dépendances CocoaPods ..."
+(cd ios/App && pod install)
+
 echo ""
-echo "✅ Prêt ! Lance 'npx cap open ios' pour ouvrir Xcode."
+echo "✅ Prêt ! Ouverture de Xcode..."
+open ios/App/App.xcworkspace
