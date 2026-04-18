@@ -20,6 +20,9 @@ cp sw.js         ios/App/App/public/
 cp icon-192.png  ios/App/App/public/
 cp icon-512.png  ios/App/App/public/
 
+echo "▶ Copie du fichier de config Capacitor ..."
+cp capacitor.config.json ios/App/App/capacitor.config.json
+
 echo "▶ Vérification des fichiers xcconfig ..."
 touch ios/debug.xcconfig ios/release.xcconfig
 
