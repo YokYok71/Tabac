@@ -18,9 +18,6 @@ cp sw.js         www/
 cp icon-192.png  www/
 cp icon-512.png  www/
 
-echo "▶ Synchronisation Capacitor (iOS) ..."
-npx cap copy ios
-
 echo "▶ Copie directe vers ios/App/App/public/ ..."
 mkdir -p ios/App/App/public
 cp index.html    ios/App/App/public/
