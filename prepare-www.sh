@@ -10,7 +10,7 @@ cp icon-192.png  www/
 cp icon-512.png  www/
 
 echo "▶ Synchronisation Capacitor (iOS) ..."
-npx cap sync ios
+npx cap copy ios
 
 echo ""
 echo "✅ Prêt ! Lance 'npx cap open ios' pour ouvrir Xcode."
