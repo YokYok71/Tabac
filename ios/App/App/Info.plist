@@ -2,20 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Pour choisir une photo depuis votre bibliothèque</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.lifestyle</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Pour enregistrer des photos dans votre bibliothèque</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Pour photographier vos tabacs et pipes</string>
-	<key>CAPACITOR_DEBUG</key>
+    <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Ma Cave à Tabac</string>
+        <string>Ma Cave à Tabac</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
