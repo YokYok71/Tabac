@@ -7,6 +7,9 @@ rm -rf ios/App/App.xcworkspace
 rm -f  ios/App/Podfile.lock
 rm -f  ios/App/Podfile
 
+echo "▶ Installation des dépendances npm ..."
+npm install
+
 echo "▶ Copie des assets web vers www/ ..."
 mkdir -p www
 cp index.html    www/
