@@ -1,4 +1,4 @@
-var CACHE_NAME = 'cave-tabac-v12';
+var CACHE_NAME = 'cave-tabac-v18';
 var URLS_TO_CACHE = [
   './',
   './index.html',
