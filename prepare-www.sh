@@ -12,5 +12,8 @@ cp icon-512.png  www/
 echo "▶ Synchronisation Capacitor (iOS) ..."
 npx cap copy ios
 
+echo "▶ Vérification des fichiers xcconfig ..."
+touch ios/debug.xcconfig ios/release.xcconfig
+
 echo ""
 echo "✅ Prêt ! Lance 'npx cap open ios' pour ouvrir Xcode."
