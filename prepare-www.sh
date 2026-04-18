@@ -3,7 +3,7 @@ set -e
 
 echo "▶ Suppression des artefacts CocoaPods ..."
 rm -rf ios/App/Pods
-rm -rf ios/App/App.xcworkspace
+# Ne pas supprimer App.xcworkspace — requis par le CLI Capacitor
 rm -f  ios/App/Podfile.lock
 rm -f  ios/App/Podfile
 
