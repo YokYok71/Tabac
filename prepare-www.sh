@@ -23,6 +23,11 @@ cp icon-512.png  ios/App/App/public/
 echo "▶ Copie du fichier de config Capacitor ..."
 cp capacitor.config.json ios/App/App/capacitor.config.json
 
+echo "▶ Suppression des artefacts CocoaPods ..."
+rm -rf ios/App/Pods
+rm -rf ios/App/App.xcworkspace
+rm -f  ios/App/Podfile.lock
+
 echo "▶ Vérification des fichiers xcconfig ..."
 touch ios/debug.xcconfig ios/release.xcconfig
 
