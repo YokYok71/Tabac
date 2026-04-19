@@ -1,7 +1,8 @@
-var CACHE_NAME = 'cave-tabac-v33';
+var CACHE_NAME = 'cave-tabac-v34';
 var URLS_TO_CACHE = [
   './',
   './index.html',
+  './reset.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
