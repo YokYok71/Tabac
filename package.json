@@ -7,7 +7,7 @@
     "sync": "npm run prepare && npx cap sync ios",
     "open": "npx cap open ios",
     "ios": "npm run sync && npx cap open ios",
-    "version": "bash set-version.sh"
+    "setver": "bash set-version.sh"
   },
   "dependencies": {
     "@capacitor/core": "^6.0.0",
