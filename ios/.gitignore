@@ -8,4 +8,4 @@ xcuserdata
 capacitor-cordova-ios-plugins
 
 # Generated Config files
-App/App/config.xml
+# App/App/config.xml  ← committed explicitly for Xcode Cloud

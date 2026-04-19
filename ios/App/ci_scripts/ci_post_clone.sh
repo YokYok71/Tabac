@@ -10,5 +10,3 @@ fi
 
 cd "$CI_WORKSPACE"
 npm install
-npm run prepare
-npx cap copy ios
