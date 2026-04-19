@@ -1,12 +1,4 @@
 #!/bin/sh
-set -e
-
-export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/local/sbin:$PATH"
-
-# Install Node.js if not available
-if ! command -v npm >/dev/null 2>&1; then
-    brew install node
-fi
-
-cd "$CI_WORKSPACE"
-npm install
+# All web assets and config.xml are committed to git.
+# No npm/node needed at build time — SPM handles native dependencies.
+echo "ci_post_clone: nothing to do"
