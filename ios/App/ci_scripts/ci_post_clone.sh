@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
-# Install Node.js dependencies so Capacitor SPM packages are available
+# Add Homebrew paths so npm is available in Xcode Cloud
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 cd "$CI_WORKSPACE"
 npm install
