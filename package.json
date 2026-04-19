@@ -6,7 +6,8 @@
     "prepare": "mkdir -p www && cp index.html manifest.json sw.js icon-192.png icon-512.png www/",
     "sync": "npm run prepare && npx cap sync ios",
     "open": "npx cap open ios",
-    "ios": "npm run sync && npx cap open ios"
+    "ios": "npm run sync && npx cap open ios",
+    "version": "bash set-version.sh"
   },
   "dependencies": {
     "@capacitor/core": "^6.0.0",
