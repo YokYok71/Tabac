@@ -14,10 +14,10 @@
 <style>*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{background:#0a0a0a;font-family:-apple-system,sans-serif;overflow-x:hidden}#root{min-height:100vh}</style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root"><div style="color:#808080;text-align:center;padding:60px;font-family:sans-serif">⏳ Chargement...</div></div>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js');}</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" onerror="document.getElementById('root').innerHTML='<div style=color:red;text-align:center;padding:60px>❌ React CDN indisponible</div>'"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" onerror="document.getElementById('root').innerHTML='<div style=color:red;text-align:center;padding:60px>❌ ReactDOM CDN indisponible</div>'"></script>
 <script>
 window.storage={get:function(k){return new Promise(function(r){try{var v=localStorage.getItem(k);r(v?{key:k,value:v}:null);}catch(e){r(null);}});},set:function(k,v){return new Promise(function(r){try{localStorage.setItem(k,v);r({key:k,value:v});}catch(e){r(null);}});},delete:function(k){return new Promise(function(r){try{localStorage.removeItem(k);r({key:k,deleted:true});}catch(e){r(null);}});}};
 
