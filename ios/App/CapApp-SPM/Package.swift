@@ -12,11 +12,11 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "6.2.1"),
-        .package(name: "CapacitorFilesystem", path: "../../../node_modules/@capacitor/filesystem"),
-        .package(name: "CapacitorKeyboard", path: "../../../node_modules/@capacitor/keyboard"),
-        .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
-        .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
-        .package(name: "CapacitorStatusBar", path: "../../../node_modules/@capacitor/status-bar")
+        .package(name: "CapacitorFilesystem", path: "../../capacitor-plugins/filesystem"),
+        .package(name: "CapacitorKeyboard", path: "../../capacitor-plugins/keyboard"),
+        .package(name: "CapacitorShare", path: "../../capacitor-plugins/share"),
+        .package(name: "CapacitorSplashScreen", path: "../../capacitor-plugins/splash-screen"),
+        .package(name: "CapacitorStatusBar", path: "../../capacitor-plugins/status-bar")
     ],
     targets: [
         .target(
