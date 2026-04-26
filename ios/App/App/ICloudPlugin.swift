@@ -35,7 +35,7 @@ public class ICloudPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         DispatchQueue.global(qos: .background).async {
             guard let url = self.getFileURL() else {
-                DispatchQueue.main.async { call.reject("iCloud non disponible. Verifie que tu es connecte a iCloud et que iCloud Drive est active.") }
+                DispatchQueue.main.async { call.reject("iCloud unavailable. Please check that you are signed in to iCloud and that iCloud Drive is enabled.") }
                 return
             }
             do {
@@ -50,11 +50,11 @@ public class ICloudPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func restore(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .background).async {
             guard let url = self.getFileURL() else {
-                DispatchQueue.main.async { call.reject("iCloud non disponible. Verifie que tu es connecte a iCloud et que iCloud Drive est active.") }
+                DispatchQueue.main.async { call.reject("iCloud unavailable. Please check that you are signed in to iCloud and that iCloud Drive is enabled.") }
                 return
             }
             guard FileManager.default.fileExists(atPath: url.path) else {
-                DispatchQueue.main.async { call.reject("Aucune sauvegarde trouvee dans iCloud Drive.") }
+                DispatchQueue.main.async { call.reject("No backup found in iCloud Drive.") }
                 return
             }
             do {
