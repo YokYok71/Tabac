@@ -36,6 +36,8 @@
 			<string>Any</string>
 		</dict>
 	</dict>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.food-and-drink</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
