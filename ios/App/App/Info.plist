@@ -38,6 +38,8 @@
 	</dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Used to take photos for your tobacco and pipe entries.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Used to add photos to your tobacco and pipe entries.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
