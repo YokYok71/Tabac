@@ -44,7 +44,7 @@ var CATS=["Anglais","Virginia","Aromatique","Balkan/Anglais","VaPer","Burley","O
 var CUTS=["Ready Rubbed","Flake","Broken Flake","Plug","Coins","Ribbon","Crumble Cake","Rope","Autre"];
 var SHAPES=["Billiard","Bent","Dublin","Apple","Bulldog","Poker","Churchwarden","Calabash","Freehand","Lovat","Canadian","Zulu","Autre"];
 var INIT={tobaccos:[],wishlist:[],pipes:[],nxT:1,nxW:1,nxP:1,nxL:1};
-var APP_VERSION="2.0";var APP_BUILD="11";
+var APP_VERSION="2.0";var APP_BUILD="12";
 var IS_IOS_STANDALONE=(window.navigator.standalone===true);
 var PENDING_GDRIVE_TOKEN=null;var PENDING_GDRIVE_ACTION=null;
 (function(){if(!window.location.hash)return;var hp=new URLSearchParams(window.location.hash.substring(1));var tk=hp.get("access_token");if(!tk)return;window.history.replaceState({},"",window.location.pathname);var pa=localStorage.getItem("gdrive-pending");localStorage.removeItem("gdrive-pending");if(pa){PENDING_GDRIVE_TOKEN=tk;PENDING_GDRIVE_ACTION=pa;}})();
