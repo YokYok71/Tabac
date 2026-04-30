@@ -1,56 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy — My Tobacco Cellar</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; color: #333; line-height: 1.6; }
-    h1 { color: #111; }
-    h2 { color: #444; margin-top: 2em; }
-    p { margin: 0.8em 0; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Politique de confidentialité — Ma Cave à Tabac</title>
+<style>
+  body{background:#13110e;color:#c8b99a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:680px;margin:0 auto;padding:32px 20px;line-height:1.7;}
+  h1{color:#e8dcc6;font-size:24px;margin-bottom:4px;}
+  h2{color:#e8dcc6;font-size:14px;margin-top:32px;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;}
+  p,li{font-size:15px;color:#c8b99a;}
+  ul{padding-left:20px;}
+  a{color:#cb8528;text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  .subtitle{color:#655846;font-size:13px;margin-bottom:40px;}
+  hr{border:none;border-top:1px solid #3d3428;margin:32px 0;}
+  .back{display:inline-block;margin-bottom:24px;color:#8f7f68;font-size:14px;}
+  code{background:#1b1713;padding:2px 6px;border-radius:4px;font-size:13px;}
+</style>
 </head>
 <body>
+<a class="back" href="./">← Ma Cave à Tabac</a>
+<h1>Politique de confidentialité</h1>
+<p class="subtitle">Ma Cave à Tabac — t-cellar.app &nbsp;·&nbsp; Dernière mise à jour : avril 2026</p>
 
-  <h1>Privacy Policy</h1>
-  <p><strong>Ma Cave à Tabac / My Tobacco Cellar</strong></p>
-  <p>Last updated: April 2026</p>
+<h2>Résumé</h2>
+<p>Ma Cave à Tabac est une application web progressive (PWA) personnelle. Elle ne collecte aucune donnée utilisateur sur un serveur. Toutes vos données restent sur votre appareil.</p>
 
-  <h2>Data Collection</h2>
-  <p>This app does not collect, transmit, or share any personal data. All information entered in the app (tobacco inventory, pipes, tasting notes, photos) is stored exclusively on your device using local storage.</p>
+<h2>Données stockées localement</h2>
+<p>L'application stocke les informations suivantes exclusivement sur votre appareil via <code>localStorage</code> :</p>
+<ul>
+  <li>Votre collection de tabacs (noms, marques, notes, lots, photos)</li>
+  <li>Votre collection de pipes</li>
+  <li>Votre liste de souhaits</li>
+  <li>Vos préférences d'interface (langue, clé API)</li>
+</ul>
+<p>Ces données ne quittent jamais votre appareil sauf si vous utilisez la sauvegarde Google Drive (voir ci-dessous).</p>
 
-  <h2>Third-Party Services</h2>
-  <p>The app includes an optional AI assistant feature. If you choose to use it, you must provide your own API key (Anthropic, OpenAI, or Google). Your API key is stored locally on your device and is only transmitted directly to the respective AI provider when you use the feature. No data is routed through our servers.</p>
+<h2>Google Drive (sauvegarde optionnelle)</h2>
+<p>Si vous choisissez d'utiliser la fonctionnalité de sauvegarde, l'application demande l'accès au scope <strong>drive.appdata</strong> de votre compte Google. Ce scope permet uniquement :</p>
+<ul>
+  <li>De lire et écrire un fichier de sauvegarde (<code>cave-tabac-backup.json</code>) dans un dossier privé réservé à l'application, invisible dans votre Google Drive</li>
+</ul>
+<p>L'application n'accède à aucun autre fichier de votre Google Drive. L'authentification est gérée directement par Google via OAuth 2.0. Aucun token ni donnée Google n'est transmis à un tiers.</p>
 
-  <h2>iCloud</h2>
-  <p>If you use the iCloud backup feature, your data is synced to your personal iCloud account. This data is governed by Apple's privacy policy.</p>
+<h2>Assistant IA (optionnel)</h2>
+<p>Si vous configurez une clé API (Anthropic, OpenAI ou Google Gemini), l'application envoie directement depuis votre navigateur des requêtes aux API correspondantes pour l'auto-complétion des fiches tabac et pipe. Seules les informations saisies dans le champ de recherche sont transmises. La clé API est stockée localement sur votre appareil et n'est jamais envoyée à un autre service.</p>
 
-  <h2>Analytics</h2>
-  <p>The app does not use any analytics, tracking, or advertising services.</p>
+<h2>Aucun serveur tiers, aucun tracking</h2>
+<p>Ma Cave à Tabac est hébergée sur GitHub Pages. L'application ne dispose d'aucun serveur propre, ne pose aucun cookie de tracking et n'intègre aucun outil d'analyse (Google Analytics, etc.).</p>
 
-  <h2>Contact</h2>
-  <p>If you have any questions about this privacy policy, please contact us at the email address listed on the App Store page.</p>
+<h2>Plateforme</h2>
+<p>L'application fonctionne sur navigateur web (Safari, Chrome, Firefox, etc.) et peut être installée comme PWA sur l'écran d'accueil iOS et Android. Il n'existe pas de version native iOS ou Android distribuée via l'App Store ou le Play Store.</p>
 
-  <hr>
-  <h1>Politique de confidentialité</h1>
-  <p><strong>Ma Cave à Tabac / My Tobacco Cellar</strong></p>
-  <p>Dernière mise à jour : avril 2026</p>
+<h2>Contact</h2>
+<p>Pour toute question concernant vos données : <a href="mailto:macaveatabac@gmail.com">macaveatabac@gmail.com</a></p>
 
-  <h2>Collecte de données</h2>
-  <p>Cette application ne collecte, ne transmet et ne partage aucune donnée personnelle. Toutes les informations saisies dans l'app (inventaire de tabacs, pipes, notes de dégustation, photos) sont stockées exclusivement sur votre appareil.</p>
-
-  <h2>Services tiers</h2>
-  <p>L'app inclut une fonctionnalité optionnelle d'assistant IA. Si vous choisissez de l'utiliser, vous devez fournir votre propre clé API (Anthropic, OpenAI ou Google). Votre clé API est stockée localement sur votre appareil et est uniquement transmise directement au fournisseur IA concerné lors de l'utilisation de la fonctionnalité. Aucune donnée ne transite par nos serveurs.</p>
-
-  <h2>iCloud</h2>
-  <p>Si vous utilisez la fonctionnalité de sauvegarde iCloud, vos données sont synchronisées avec votre compte iCloud personnel. Ces données sont régies par la politique de confidentialité d'Apple.</p>
-
-  <h2>Analyse et publicité</h2>
-  <p>L'application n'utilise aucun service d'analyse, de suivi ou de publicité.</p>
-
-  <h2>Contact</h2>
-  <p>Pour toute question relative à cette politique de confidentialité, veuillez nous contacter à l'adresse email indiquée sur la page App Store.</p>
-
+<hr>
+<p style="font-size:13px;color:#655846;">Cette politique s'applique à l'application accessible sur <a href="https://t-cellar.app">t-cellar.app</a>.</p>
 </body>
 </html>
