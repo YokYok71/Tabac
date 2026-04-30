@@ -1,4 +1,4 @@
-var CACHE_NAME = 'cave-tabac-v46';
+var CACHE_NAME = 'cave-tabac-v47';
 var URLS_TO_CACHE = [
   './',
   './index.html',
@@ -13,7 +13,7 @@ var URLS_TO_CACHE = [
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
-      return cache.addAll(URLS_TO_CACHE);
+      return cache.addAll(URLS_TO_CACHE.map(function(u){return new Request(u,{cache:'reload'});}));
     })
   );
   self.skipWaiting();

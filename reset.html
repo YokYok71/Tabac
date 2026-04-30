@@ -17,7 +17,7 @@ async function reset() {
   } catch(e) {
     msg.textContent = '✅ Redirection...';
   }
-  setTimeout(function(){ window.location.href = './'; }, 1500);
+  setTimeout(function(){ window.location.href = './?_v=' + Date.now(); }, 1500);
 }
 reset();
 </script>
