@@ -1,4 +1,4 @@
-var CACHE_NAME = 'cave-tabac-v45';
+var CACHE_NAME = 'cave-tabac-v46';
 var URLS_TO_CACHE = [
   './',
   './index.html',
@@ -37,7 +37,8 @@ self.addEventListener('fetch', function(event) {
   if (event.request.url.indexOf('accounts.google.com') >= 0) return;
   if (event.request.url.indexOf('googleapis.com') >= 0) return;
   if (event.request.url.indexOf('gstatic.com') >= 0) return;
-  
+  if (event.request.cache === 'no-store') return;
+
   event.respondWith(
     caches.match(event.request).then(function(response) {
       if (response) return response;
