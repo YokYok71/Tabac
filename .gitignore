@@ -1,22 +1,10 @@
-# Dépendances Node
-node_modules/
-
-# Assets web générés (recréés par prepare-www.sh)
-www/
-
-# Projet iOS — on ignore les gros dossiers générés
-ios/App/Pods/
-ios/App/App.xcworkspace/xcuserdata/
-ios/.xcode.env.local
-
-# Fichiers Capacitor/Cordova générés au build
-ios/App/App/public/cordova.js
-ios/App/App/public/cordova_plugins.js
-
-# Projet Android (non utilisé)
-android/
-
 # macOS
 .DS_Store
-assets/
+
+# Dépendances Node (non utilisées dans ce projet)
+node_modules/
 package-lock.json
+
+# Assets temporaires
+assets/
+www/
