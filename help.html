@@ -138,6 +138,7 @@
   <tr><td>À reprendre ?</td><td>Oui / Non / ? — mémo pour les futurs achats</td></tr>
 </table>
 <p>À l'enregistrement, un premier lot en <span class="badge badge-cave">Cave</span> est créé automatiquement avec la date du jour.</p>
+<div class="note">La fiche détail affiche toujours l'intégralité des champs (notation, à reprendre, composition, description, notes de dégustation), même s'ils sont vides — ils apparaissent alors avec un tiret <em>—</em>.</div>
 <div class="note">Utilisez <strong>🤖 Auto-compléter</strong> pour remplir les champs automatiquement via l'IA (nécessite une clé API).</div>
 
 <h2 id="fr-lots">4. Gérer les lots</h2>
@@ -167,14 +168,33 @@
   <tr><td>Modèle / Marque</td><td>Identification de la pipe</td></tr>
   <tr><td>Forme</td><td>Billiard, Bent, Dublin, Apple, Bulldog, Poker, Churchwarden, Calabash, Freehand, Lovat, Canadian, Zulu, Autre</td></tr>
   <tr><td>Date d'achat</td><td>Pour le calcul d'ancienneté</td></tr>
-  <tr><td>Prix (CHF)</td><td>Valeur pour les statistiques</td></tr>
+  <tr><td>Prix (CHF) / Vendeur</td><td>Valeur et provenance</td></tr>
   <tr><td>Note (★)</td><td>0 à 5 étoiles</td></tr>
+  <tr><td>Description</td><td>Notes générales sur la pipe</td></tr>
+  <tr><td>Notes personnelles</td><td>Vos remarques privées (entretien, anecdotes…)</td></tr>
   <tr><td>Statut</td><td>Active / Finie (masquée par défaut)</td></tr>
 </table>
-<p>Bouton <strong>✓ Marquer finie</strong> depuis la vue détail. Bouton <strong>🪈 Réactiver</strong> pour la remettre en service.</p>
+<p>La fiche détail affiche tous les champs, y compris description et notes personnelles, même s'ils sont vides (affichage <em>—</em>). Bouton <strong>✓ Marquer finie</strong> depuis la vue détail. Bouton <strong>🪈 Réactiver</strong> pour la remettre en service.</p>
 
 <h2 id="fr-wishlist">7. Wishlist</h2>
-<p>Mémo pour les tabacs à acheter. Bouton <strong>📦</strong> sur un élément pour créer directement une fiche tabac pré-remplie et retirer l'élément de la liste.</p>
+<p>Mémo pour les tabacs à acheter. Chaque entrée peut contenir :</p>
+<table>
+  <tr><th>Champ</th><th>Description</th></tr>
+  <tr><td>Nom / Marque</td><td>Identification du tabac convoité</td></tr>
+  <tr><td>Type / Coupe</td><td>Catégorie et coupe souhaitées</td></tr>
+  <tr><td>Composition</td><td>Variétés de feuilles attendues</td></tr>
+  <tr><td>Description</td><td>Informations générales</td></tr>
+  <tr><td>Note</td><td>Impressions, références ou avis trouvés en ligne</td></tr>
+  <tr><td>Notes personnelles</td><td>Remarque privée (où acheter, prix observé…)</td></tr>
+  <tr><td>Image</td><td>Photo ou URL de référence</td></tr>
+</table>
+<h3>Actions sur un élément</h3>
+<ul>
+  <li><strong>✏️</strong> — éditer l'entrée directement dans le formulaire (la carte est surlignée en orange, bouton <em>Annuler</em> disponible)</li>
+  <li><strong>📦</strong> — convertir en fiche tabac pré-remplie et retirer de la wishlist</li>
+  <li><strong>✕</strong> — supprimer l'entrée</li>
+</ul>
+<div class="note">Le bouton 📦 transfère Nom, Marque, Type, Coupe, Composition, Description et Notes de dégustation vers le formulaire tabac. Vous n'avez plus qu'à ajouter vos lots.</div>
 
 <h2 id="fr-ia">8. Assistant IA</h2>
 <p>Disponible dans les formulaires tabac et pipe. Remplissez le nom ou la marque, puis <strong>🔍 Chercher</strong>. L'IA remplit automatiquement catégorie, composition, coupe ou forme, et description.</p>
@@ -308,6 +328,7 @@
   <tr><td>Rebuy?</td><td>Yes / No / ? — reminder for future purchases</td></tr>
 </table>
 <p>On save, a first <span class="badge badge-cave">Cellar</span> lot is created automatically with today's date.</p>
+<div class="note">The detail view always shows all fields (rating, rebuy, blend, description, tasting notes), even when empty — they display as <em>—</em>.</div>
 <div class="note">Use <strong>🤖 Auto-fill</strong> to populate fields automatically via AI (requires an API key).</div>
 
 <h2 id="en-lots">4. Managing lots</h2>
@@ -337,14 +358,33 @@
   <tr><td>Model / Brand</td><td>Pipe identification</td></tr>
   <tr><td>Shape</td><td>Billiard, Bent, Dublin, Apple, Bulldog, Poker, Churchwarden, Calabash, Freehand, Lovat, Canadian, Zulu, Other</td></tr>
   <tr><td>Purchase date</td><td>Used to calculate age</td></tr>
-  <tr><td>Price (CHF)</td><td>Value for statistics</td></tr>
+  <tr><td>Price (CHF) / Seller</td><td>Value and provenance</td></tr>
   <tr><td>Rating (★)</td><td>0 to 5 stars</td></tr>
+  <tr><td>Description</td><td>General notes about the pipe</td></tr>
+  <tr><td>Personal notes</td><td>Your private remarks (maintenance, anecdotes…)</td></tr>
   <tr><td>Status</td><td>Active / Retired (hidden by default)</td></tr>
 </table>
-<p>Use <strong>✓ Mark retired</strong> from the detail view, or <strong>🪈 Reactivate</strong> to bring it back.</p>
+<p>The detail view always shows all fields, including description and personal notes, even when empty (displayed as <em>—</em>). Use <strong>✓ Mark retired</strong> from the detail view, or <strong>🪈 Reactivate</strong> to bring it back.</p>
 
 <h2 id="en-wishlist">7. Wishlist</h2>
-<p>A memo for tobaccos to buy. Tap <strong>📦</strong> on any item to create a pre-filled tobacco entry and remove it from the list.</p>
+<p>A memo for tobaccos to buy. Each entry can contain:</p>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Name / Brand</td><td>Identification of the desired tobacco</td></tr>
+  <tr><td>Type / Cut</td><td>Desired category and cut</td></tr>
+  <tr><td>Blend</td><td>Expected leaf varieties</td></tr>
+  <tr><td>Description</td><td>General information</td></tr>
+  <tr><td>Note</td><td>Impressions, references or reviews found online</td></tr>
+  <tr><td>Personal notes</td><td>Private remark (where to buy, observed price…)</td></tr>
+  <tr><td>Image</td><td>Reference photo or URL</td></tr>
+</table>
+<h3>Item actions</h3>
+<ul>
+  <li><strong>✏️</strong> — edit the entry directly in the form (card highlighted in amber, <em>Cancel</em> button available)</li>
+  <li><strong>📦</strong> — convert to a pre-filled tobacco entry and remove from wishlist</li>
+  <li><strong>✕</strong> — delete the entry</li>
+</ul>
+<div class="note">The 📦 button transfers Name, Brand, Type, Cut, Blend, Description and Tasting notes to the tobacco form. Just add your lots.</div>
 
 <h2 id="en-ai">8. AI Assistant</h2>
 <p>Available in tobacco and pipe forms. Fill in the name or brand, then tap <strong>🔍 Search</strong>. The AI automatically fills category, blend, cut or shape, and description.</p>
