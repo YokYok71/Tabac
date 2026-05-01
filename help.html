@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,7 +14,7 @@
   li{margin-bottom:4px;}
   a{color:#cb8528;text-decoration:none;}
   a:hover{text-decoration:underline;}
-  .subtitle{color:#655846;font-size:13px;margin-bottom:40px;}
+  .subtitle{color:#655846;font-size:13px;margin-bottom:32px;}
   hr{border:none;border-top:1px solid #3d3428;margin:32px 0;}
   .back{display:inline-block;margin-bottom:24px;color:#8f7f68;font-size:14px;}
   code{background:#1b1713;padding:2px 6px;border-radius:4px;font-size:13px;color:#cb8528;}
@@ -22,8 +22,6 @@
   .toc h4{color:#e8dcc6;margin:0 0 12px;font-size:14px;text-transform:uppercase;letter-spacing:1px;}
   .toc ol{margin:0;padding-left:18px;}
   .toc li{margin-bottom:3px;font-size:14px;}
-  .step{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;}
-  .step-num{background:#cb8528;color:#111;font-weight:700;font-size:13px;border-radius:50%;width:24px;height:24px;min-width:24px;display:flex;align-items:center;justify-content:center;margin-top:2px;}
   .badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:13px;font-weight:700;white-space:nowrap;}
   .badge-cave{background:#2a2510;color:#c9b458;}
   .badge-pot{background:#0f2618;color:#2ecc71;}
@@ -40,32 +38,50 @@
   th{background:#1b1713;color:#e8dcc6;text-align:left;padding:8px 12px;border-bottom:1px solid #3d3428;}
   td{padding:8px 12px;border-bottom:1px solid #252019;vertical-align:top;}
   td:first-child{color:#cb8528;white-space:nowrap;}
+  .lang-btn{float:right;margin-top:4px;padding:4px 12px;border-radius:6px;border:1px solid #3d3428;background:transparent;color:#8f7f68;font-size:12px;cursor:pointer;font-weight:700;letter-spacing:1px;}
+  .lang-btn:hover{color:#c8b99a;border-color:#655846;}
+  .section{display:none;}
+  .section.active{display:block;}
 </style>
 </head>
 <body>
+<script>
+  var lang=localStorage.getItem("cave-lang")||"fr";
+  function switchLang(){lang=lang==="fr"?"en":"fr";render();}
+  function render(){
+    document.getElementById("sec-fr").className="section"+(lang==="fr"?" active":"");
+    document.getElementById("sec-en").className="section"+(lang==="en"?" active":"");
+    document.getElementById("lang-toggle").textContent=lang==="fr"?"EN":"FR";
+    document.documentElement.lang=lang;
+  }
+  document.addEventListener("DOMContentLoaded",render);
+</script>
+
+<!-- ═══════════════ FRANÇAIS ═══════════════ -->
+<div id="sec-fr" class="section">
 <a class="back" href="./">← Ma Cave à Tabac</a>
+<button class="lang-btn" id="lang-toggle" onclick="switchLang()">EN</button>
 <h1>📖 Mode d'emploi</h1>
 <p class="subtitle">Ma Cave à Tabac v2.0 &nbsp;·&nbsp; Guide complet</p>
 
 <div class="toc">
   <h4>Sommaire</h4>
   <ol>
-    <li><a href="#concepts">Concepts de base</a></li>
-    <li><a href="#cycle">Cycle de vie d'un tabac : Achat → Cave → Pot → Terminé</a></li>
-    <li><a href="#ajouter-tabac">Ajouter un tabac</a></li>
-    <li><a href="#gerer-lots">Gérer les lots</a></li>
-    <li><a href="#inventaire">Parcourir l'inventaire</a></li>
-    <li><a href="#pipes">Gestion des pipes</a></li>
-    <li><a href="#wishlist">Wishlist</a></li>
-    <li><a href="#ia">Assistant IA</a></li>
-    <li><a href="#sauvegarde">Sauvegarde et export</a></li>
-    <li><a href="#maj">Mises à jour</a></li>
-    <li><a href="#installation">Installation sur l'écran d'accueil</a></li>
+    <li><a href="#fr-concepts">Concepts de base</a></li>
+    <li><a href="#fr-cycle">Cycle de vie : Achat → Cave → Pot → Terminé</a></li>
+    <li><a href="#fr-tabac">Ajouter un tabac</a></li>
+    <li><a href="#fr-lots">Gérer les lots</a></li>
+    <li><a href="#fr-inventaire">Parcourir l'inventaire</a></li>
+    <li><a href="#fr-pipes">Gestion des pipes</a></li>
+    <li><a href="#fr-wishlist">Wishlist</a></li>
+    <li><a href="#fr-ia">Assistant IA</a></li>
+    <li><a href="#fr-sauvegarde">Sauvegarde et export</a></li>
+    <li><a href="#fr-maj">Mises à jour</a></li>
+    <li><a href="#fr-install">Installation sur l'écran d'accueil</a></li>
   </ol>
 </div>
 
-<!-- ─── CONCEPTS ─── -->
-<h2 id="concepts">1. Concepts de base</h2>
+<h2 id="fr-concepts">1. Concepts de base</h2>
 <p>L'application s'organise autour de deux objets principaux :</p>
 <ul>
   <li><strong>Tabac</strong> — une référence (ex. : Dunhill Early Morning Pipe). Un tabac peut avoir zéro ou plusieurs <strong>lots</strong>.</li>
@@ -73,38 +89,19 @@
 </ul>
 <p>Cette distinction permet de suivre plusieurs boîtes d'un même tabac à des stades différents (une en cave, une en pot) tout en conservant un seul espace de notes et de description.</p>
 
-<!-- ─── CYCLE DE VIE ─── -->
-<h2 id="cycle">2. Cycle de vie d'un tabac</h2>
-
+<h2 id="fr-cycle">2. Cycle de vie d'un tabac</h2>
 <div class="flow">
-  <div class="flow-step">
-    <span class="icon">🛒</span>
-    <span class="label">Achat</span>
-    <span class="sub">Nouveau lot</span>
-  </div>
+  <div class="flow-step"><span class="icon">🛒</span><span class="label">Achat</span><span class="sub">Nouveau lot</span></div>
   <span class="flow-arrow">→</span>
-  <div class="flow-step">
-    <span class="icon">📦</span>
-    <span class="label">Cave</span>
-    <span class="sub">Boîte fermée</span>
-  </div>
+  <div class="flow-step"><span class="icon">📦</span><span class="label">Cave</span><span class="sub">Boîte fermée</span></div>
   <span class="flow-arrow">→</span>
-  <div class="flow-step">
-    <span class="icon">🫙</span>
-    <span class="label">Pot</span>
-    <span class="sub">Boîte ouverte</span>
-  </div>
+  <div class="flow-step"><span class="icon">🫙</span><span class="label">Pot</span><span class="sub">Boîte ouverte</span></div>
   <span class="flow-arrow">→</span>
-  <div class="flow-step">
-    <span class="icon">✅</span>
-    <span class="label">Terminé</span>
-    <span class="sub">Lot fini</span>
-  </div>
+  <div class="flow-step"><span class="icon">✅</span><span class="label">Terminé</span><span class="sub">Lot fini</span></div>
 </div>
 
-<h3>📦 Cave (Cellar)</h3>
-<p>Un lot nouvellement acheté entre directement en <span class="badge badge-cave">Cave</span>. Il représente une boîte fermée qui vieillit. L'âge affiché est calculé depuis la <strong>date de production</strong> (si renseignée) ou depuis la <strong>date d'achat</strong>.</p>
-<p>Champs disponibles à ce stade :</p>
+<h3>📦 Cave</h3>
+<p>Un lot nouvellement acheté entre directement en <span class="badge badge-cave">Cave</span>. Il représente une boîte fermée qui vieillit. L'âge est calculé depuis la <strong>date de production</strong> (si renseignée) ou depuis la <strong>date d'achat</strong>.</p>
 <table>
   <tr><th>Champ</th><th>Description</th></tr>
   <tr><td>Poids (g)</td><td>Quantité en grammes (ex. : 50, 100, 454)</td></tr>
@@ -115,193 +112,290 @@
   <tr><td>Vendeur</td><td>Boutique ou revendeur</td></tr>
 </table>
 
-<h3>🫙 Pot (Jar)</h3>
-<p>Quand vous ouvrez une boîte pour la mettre en pot, passez le lot en <span class="badge badge-pot">Pot</span>. Appuyez sur le bouton <strong>✏️</strong> du lot concerné, changez le statut sur « Pot », puis enregistrez. La <strong>date de mise en pot</strong> est automatiquement renseignée avec la date du jour (modifiable).</p>
-<div class="note">Un lot en pot est généralement en cours de consommation. Le poids peut être mis à jour pour refléter ce qui reste.</div>
+<h3>🫙 Pot</h3>
+<p>Quand vous ouvrez une boîte pour la mettre en pot, passez le lot en <span class="badge badge-pot">Pot</span> via le bouton <strong>✏️</strong>. La <strong>date de mise en pot</strong> est automatiquement renseignée (modifiable). Le poids peut être mis à jour pour refléter ce qui reste.</p>
 
 <h3>✅ Terminé</h3>
 <p>Quand le lot est vide, passez-le en <span class="badge badge-fin">Terminé</span>. La <strong>date de fin</strong> est enregistrée automatiquement. Le lot reste visible dans l'historique (bouton <em>Voir terminés</em>) mais n'apparaît plus dans les statistiques actives.</p>
 
-<h3>↩️ Réactiver un lot</h3>
-<p>Un lot terminé peut être réactivé en <span class="badge badge-cave">Cave</span> via le bouton <strong>Réactiver</strong>. Utile si une erreur a été faite ou si vous retrouvez une boîte oubliée.</p>
+<h3>↩️ Réactiver</h3>
+<p>Un lot terminé peut être réactivé en <span class="badge badge-cave">Cave</span> via le bouton <strong>Réactiver</strong>. Utile en cas d'erreur ou de boîte retrouvée.</p>
+<div class="note">Vous pouvez créer un lot directement en « Pot » ou « Terminé » pour saisir un historique passé.</div>
 
-<div class="note">Le cycle est <strong>cave → pot → terminé</strong> mais vous pouvez aussi créer un lot directement en « Pot » ou « Terminé » si vous souhaitez retrouver un historique passé.</div>
-
-<!-- ─── AJOUTER TABAC ─── -->
-<h2 id="ajouter-tabac">3. Ajouter un tabac</h2>
+<h2 id="fr-tabac">3. Ajouter un tabac</h2>
 <p>Cliquez sur <strong>+ Tabac</strong> dans la barre de navigation.</p>
-
-<h3>Champs de la fiche tabac</h3>
 <table>
   <tr><th>Champ</th><th>Description</th></tr>
   <tr><td>Nom *</td><td>Nom du tabac (obligatoire)</td></tr>
-  <tr><td>Marque</td><td>Fabricant (ex. : Dunhill, Peterson, Savinelli)</td></tr>
-  <tr><td>Type</td><td>Catégorie : Anglais, Virginia, Aromatique, Balkan/Anglais, VaPer, Burley, Oriental, Autre</td></tr>
+  <tr><td>Marque</td><td>Fabricant (ex. : Dunhill, Peterson)</td></tr>
+  <tr><td>Type</td><td>Anglais, Virginia, Aromatique, Balkan/Anglais, VaPer, Burley, Oriental, Autre</td></tr>
   <tr><td>Coupe</td><td>Ready Rubbed, Flake, Broken Flake, Plug, Coins, Ribbon, Crumble Cake, Rope, Autre</td></tr>
-  <tr><td>Composition</td><td>Description des variétés de feuilles (texte libre)</td></tr>
-  <tr><td>Description</td><td>Notes générales sur le tabac</td></tr>
+  <tr><td>Composition</td><td>Description des variétés de feuilles</td></tr>
+  <tr><td>Description</td><td>Notes générales</td></tr>
   <tr><td>Notes de dégustation</td><td>Vos impressions personnelles</td></tr>
-  <tr><td>Image</td><td>📸 Photo depuis la caméra / 🔗 URL / 📷 Recherche Google Images</td></tr>
+  <tr><td>Image</td><td>📸 Photo · 🔗 URL · 📷 Recherche Google Images</td></tr>
   <tr><td>Note (★)</td><td>0 à 5 étoiles</td></tr>
   <tr><td>À reprendre ?</td><td>Oui / Non / ? — mémo pour les futurs achats</td></tr>
 </table>
+<p>À l'enregistrement, un premier lot en <span class="badge badge-cave">Cave</span> est créé automatiquement avec la date du jour.</p>
+<div class="note">Utilisez <strong>🤖 Auto-compléter</strong> pour remplir les champs automatiquement via l'IA (nécessite une clé API).</div>
 
-<p>À l'enregistrement, un premier lot en <span class="badge badge-cave">Cave</span> est créé automatiquement avec la date du jour. Vous pouvez ensuite le compléter (poids, date de production, etc.) depuis la vue détail.</p>
-
-<div class="note">Utilisez le bouton <strong>🤖 Auto-compléter</strong> en haut du formulaire pour remplir automatiquement les champs via l'IA (nécessite une clé API).</div>
-
-<!-- ─── GÉRER LOTS ─── -->
-<h2 id="gerer-lots">4. Gérer les lots</h2>
-<p>Depuis la <strong>vue détail d'un tabac</strong> (cliquez sur une carte dans l'inventaire), vous voyez tous ses lots actifs. En bas à droite : bouton <strong>+ Lot</strong> pour ajouter un nouvel achat.</p>
-
-<h3>Ajouter un lot (nouvel achat)</h3>
-<ol>
-  <li>Ouvrez le tabac concerné depuis l'inventaire</li>
-  <li>Appuyez sur <strong>+ Lot</strong></li>
-  <li>Renseignez : statut (Cave), poids, dates, prix, vendeur</li>
-  <li>Appuyez sur <strong>Ajouter</strong></li>
-</ol>
-<div class="note">Vous pouvez avoir plusieurs lots du même tabac simultanément à des stades différents — par exemple une boîte en cave achetée pour vieillir et un pot en cours.</div>
-
-<h3>Modifier un lot</h3>
-<p>Chaque lot affiche un bouton <strong>✏️</strong>. Modifiez le statut, le poids restant, les dates, puis <strong>Enregistrer</strong>.</p>
-
-<h3>Supprimer un lot</h3>
-<p>Bouton <strong>✕</strong> sur le lot, confirmation requise. Irréversible.</p>
-
-<h3>Afficher les lots terminés</h3>
-<p>Par défaut, les lots terminés sont masqués. Bouton <strong>👁 Voir terminés (N)</strong> pour les afficher dans l'historique.</p>
-
-<!-- ─── INVENTAIRE ─── -->
-<h2 id="inventaire">5. Parcourir l'inventaire</h2>
-
-<h3>Filtres de statut</h3>
-<p>Barre de filtre sous la barre de recherche :</p>
+<h2 id="fr-lots">4. Gérer les lots</h2>
+<p>Depuis la vue détail d'un tabac (cliquez sur une carte), vous voyez tous ses lots. Bouton <strong>+ Lot</strong> pour ajouter un nouvel achat.</p>
+<div class="note">Un même tabac peut avoir plusieurs lots simultanément à des stades différents — par exemple une boîte en cave pour vieillir et un pot en cours de consommation.</div>
 <ul>
-  <li><strong>Tous</strong> — tous les tabacs ayant au moins un lot actif (+ tabacs sans lots)</li>
-  <li><strong>Cave</strong> — tabacs avec au moins une boîte en cave</li>
-  <li><strong>Pots</strong> — tabacs avec au moins un lot en pot</li>
-  <li><strong>Terminés</strong> — tabacs avec au moins un lot terminé</li>
+  <li><strong>✏️</strong> — modifier le statut, le poids, les dates</li>
+  <li><strong>✕</strong> — supprimer le lot (irréversible)</li>
+  <li><strong>👁 Voir terminés</strong> — afficher l'historique des lots finis</li>
 </ul>
 
-<h3>Recherche</h3>
-<p>La barre de recherche filtre sur le nom, la marque, la composition, la catégorie, la coupe et les notes de dégustation. Quand une recherche est active, le filtre de statut est ignoré (affiche tout).</p>
-
-<h3>Tri</h3>
-<p>Menu déroulant : Nom · Marque · Note · Âge (plus ancien en premier) · Quantité (nombre de lots).</p>
-
-<h3>Filtres par catégorie / marque</h3>
+<h2 id="fr-inventaire">5. Parcourir l'inventaire</h2>
+<h3>Filtres de statut</h3>
+<ul>
+  <li><strong>Tous</strong> — tabacs avec au moins un lot actif</li>
+  <li><strong>Cave</strong> — au moins une boîte en cave</li>
+  <li><strong>Pots</strong> — au moins un lot en pot</li>
+  <li><strong>Terminés</strong> — au moins un lot terminé</li>
+</ul>
+<h3>Recherche et tri</h3>
+<p>La recherche filtre sur nom, marque, composition, catégorie, coupe et notes de dégustation. Tri disponible : Nom · Marque · Note · Âge · Quantité.</p>
 <p>Sur le tableau de bord, cliquez sur une catégorie ou une marque pour filtrer directement l'inventaire.</p>
 
-<!-- ─── PIPES ─── -->
-<h2 id="pipes">6. Gestion des pipes</h2>
-<p>Cliquez sur <strong>Pipes</strong> dans la navigation, puis <strong>+ Pipe</strong>.</p>
-
-<h3>Champs d'une fiche pipe</h3>
+<h2 id="fr-pipes">6. Gestion des pipes</h2>
 <table>
   <tr><th>Champ</th><th>Description</th></tr>
-  <tr><td>Modèle</td><td>Nom du modèle</td></tr>
-  <tr><td>Marque</td><td>Fabricant</td></tr>
+  <tr><td>Modèle / Marque</td><td>Identification de la pipe</td></tr>
   <tr><td>Forme</td><td>Billiard, Bent, Dublin, Apple, Bulldog, Poker, Churchwarden, Calabash, Freehand, Lovat, Canadian, Zulu, Autre</td></tr>
   <tr><td>Date d'achat</td><td>Pour le calcul d'ancienneté</td></tr>
   <tr><td>Prix (CHF)</td><td>Valeur pour les statistiques</td></tr>
-  <tr><td>Vendeur</td><td>Boutique ou revendeur</td></tr>
   <tr><td>Note (★)</td><td>0 à 5 étoiles</td></tr>
-  <tr><td>Image</td><td>Photo ou URL</td></tr>
-  <tr><td>Description</td><td>Notes libres</td></tr>
+  <tr><td>Statut</td><td>Active / Finie (masquée par défaut)</td></tr>
 </table>
-
-<h3>Statuts d'une pipe</h3>
-<ul>
-  <li><strong>Active</strong> — pipe en service</li>
-  <li><strong>Finie</strong> — pipe retirée (cassée, vendue…). Masquée par défaut, visible via <em>Voir finies</em>.</li>
-</ul>
 <p>Bouton <strong>✓ Marquer finie</strong> depuis la vue détail. Bouton <strong>🪈 Réactiver</strong> pour la remettre en service.</p>
 
-<!-- ─── WISHLIST ─── -->
-<h2 id="wishlist">7. Wishlist</h2>
-<p>Mémo pour les tabacs à acheter. Chaque entrée comporte un nom, une marque et des notes libres.</p>
-<p>Bouton <strong>📦</strong> sur un élément de la wishlist : crée une fiche tabac pré-remplie avec le nom et la marque, et retire l'élément de la wishlist.</p>
+<h2 id="fr-wishlist">7. Wishlist</h2>
+<p>Mémo pour les tabacs à acheter. Bouton <strong>📦</strong> sur un élément pour créer directement une fiche tabac pré-remplie et retirer l'élément de la liste.</p>
 
-<!-- ─── IA ─── -->
-<h2 id="ia">8. Assistant IA</h2>
-<p>Disponible dans les formulaires tabac et pipe. Remplissez au moins le nom ou la marque, puis cliquez sur <strong>🔍 Chercher</strong>.</p>
-<p>L'IA remplit automatiquement : marque, catégorie, composition, coupe (tabac) ou forme (pipe), et description.</p>
-
-<h3>Fournisseurs supportés</h3>
+<h2 id="fr-ia">8. Assistant IA</h2>
+<p>Disponible dans les formulaires tabac et pipe. Remplissez le nom ou la marque, puis <strong>🔍 Chercher</strong>. L'IA remplit automatiquement catégorie, composition, coupe ou forme, et description.</p>
 <table>
-  <tr><th>Fournisseur</th><th>Modèle</th><th>Clé API</th></tr>
-  <tr><td>Anthropic (défaut)</td><td>Claude Haiku + recherche web</td><td>console.anthropic.com</td></tr>
-  <tr><td>OpenAI</td><td>GPT-4o mini</td><td>platform.openai.com</td></tr>
-  <tr><td>Google Gemini</td><td>Gemini 2.0 Flash</td><td>aistudio.google.com</td></tr>
+  <tr><th>Fournisseur</th><th>Clé API</th></tr>
+  <tr><td>Anthropic (défaut)</td><td>console.anthropic.com</td></tr>
+  <tr><td>OpenAI</td><td>platform.openai.com</td></tr>
+  <tr><td>Google Gemini</td><td>aistudio.google.com</td></tr>
 </table>
+<p>Configuration : ⚙️ → section <em>Assistant IA</em> → choisir le fournisseur → coller la clé → <strong>✅ Sauvegarder</strong>.</p>
+<div class="note">La clé est stockée uniquement sur votre appareil et n'est jamais transmise à un tiers.</div>
 
-<h3>Configurer la clé API</h3>
-<ol>
-  <li>Ouvrir les paramètres <strong>⚙️</strong></li>
-  <li>Section <em>Assistant IA</em> — choisir le fournisseur</li>
-  <li>Coller la clé API dans le champ</li>
-  <li>Appuyer sur <strong>✅ Sauvegarder</strong></li>
-</ol>
-<div class="note">La clé est stockée uniquement sur votre appareil. Elle n'est jamais transmise à un tiers.</div>
-
-<!-- ─── SAUVEGARDE ─── -->
-<h2 id="sauvegarde">9. Sauvegarde et export</h2>
-<p>Toutes les options sont dans le menu <strong>⚙️</strong> (icône engrenage, haut à droite).</p>
-
+<h2 id="fr-sauvegarde">9. Sauvegarde et export</h2>
+<p>Toutes les options sont dans <strong>⚙️</strong> (icône engrenage, haut à droite).</p>
 <h3>☁️ Google Drive (recommandé)</h3>
-<p>Sauvegarde chiffrée dans un dossier privé de votre Google Drive (invisible dans vos fichiers). Authentification OAuth 2.0 directe avec Google.</p>
+<p>Sauvegarde dans un dossier privé de votre Google Drive (invisible dans vos fichiers). Authentification OAuth 2.0 directe avec Google.</p>
 <ul>
   <li><strong>Sauvegarder Drive</strong> — écrase la sauvegarde existante</li>
-  <li><strong>Restaurer Drive</strong> — affiche un résumé (nombre de tabacs, pipes, date) avant confirmation</li>
+  <li><strong>Restaurer Drive</strong> — affiche un résumé avant confirmation</li>
 </ul>
 <div class="warn">La restauration remplace toutes vos données locales. Effectuez un export JSON avant si vous avez un doute.</div>
-<div class="note">Sur iOS en mode application (PWA), l'authentification passe par une redirection — vous quitterez brièvement l'application avant d'y revenir automatiquement.</div>
+<div class="note">Sur iOS en mode PWA, l'authentification passe par une redirection — vous quitterez brièvement l'application avant d'y revenir automatiquement.</div>
+<h3>Autres formats</h3>
+<ul>
+  <li><strong>📋 Export JSON</strong> — toutes vos données, réimportable</li>
+  <li><strong>📄 Export CSV</strong> — tabacs, pipes et wishlist (compatible Excel)</li>
+  <li><strong>📦 Backup ZIP</strong> — données + toutes les images</li>
+  <li><strong>📂 Importer fichier</strong> — restaurer depuis un fichier JSON local</li>
+</ul>
 
-<h3>📋 Export JSON</h3>
-<p>Exporte l'intégralité de vos données (tabacs, pipes, wishlist, clé API) dans un fichier <code>cave-tabac-export.json</code>. Sur iOS, déclenche la feuille de partage. Sur desktop, téléchargement direct.</p>
-<p>Ce fichier peut être réimporté via <strong>📂 Importer fichier (.json)</strong> ou en le collant dans la zone de texte puis <strong>Importer</strong>.</p>
+<h2 id="fr-maj">10. Mises à jour</h2>
+<p>⚙️ → <strong>Mises à jour</strong>. Si une nouvelle version est disponible, sauvegardez d'abord sur Google Drive, puis confirmez la mise à jour.</p>
+<div class="warn">Le cache de l'application est effacé lors de la mise à jour. Sauvegardez avant de continuer.</div>
 
-<h3>📄 Export CSV</h3>
-<p>Exporte tabacs, pipes et wishlist dans un fichier <code>cave-tabac-export.csv</code> avec BOM UTF-8 (compatible Excel). Chaque ligne correspond à un lot.</p>
-
-<h3>📦 Backup ZIP</h3>
-<p>Archive complète : données JSON + CSV + toutes les images (tabacs et pipes). Idéal pour une sauvegarde locale complète.</p>
-
-<h3>📂 Importer fichier (.json)</h3>
-<p>Sélectionnez un fichier JSON exporté précédemment. Une confirmation affiche le nombre de tabacs et pipes avant d'écraser les données.</p>
-
-<!-- ─── MAJ ─── -->
-<h2 id="maj">10. Mises à jour</h2>
-<p>Bouton <strong>Mises à jour</strong> dans les paramètres ⚙️ → <em>Vérifier</em>. Si une nouvelle version est disponible :</p>
-<ol>
-  <li>Un bandeau affiche la version disponible</li>
-  <li>Cliquez <strong>Mettre à jour</strong></li>
-  <li>Un avertissement vous invite à sauvegarder d'abord sur Google Drive</li>
-  <li>Confirmez — l'application se recharge avec la nouvelle version</li>
-</ol>
-<div class="warn">Effectuez toujours une sauvegarde Google Drive avant une mise à jour. Le cache de l'application est effacé lors du processus.</div>
-
-<!-- ─── INSTALLATION ─── -->
-<h2 id="installation">11. Installation sur l'écran d'accueil</h2>
-
+<h2 id="fr-install">11. Installation sur l'écran d'accueil</h2>
 <h3>iOS (Safari)</h3>
 <ol>
   <li>Ouvrir <a href="https://t-cellar.app">t-cellar.app</a> dans Safari</li>
-  <li>Appuyer sur l'icône <strong>Partager</strong> (carré avec flèche vers le haut)</li>
-  <li>Choisir <strong>Sur l'écran d'accueil</strong></li>
-  <li>Confirmer le nom et appuyer sur <strong>Ajouter</strong></li>
+  <li>Icône <strong>Partager</strong> → <strong>Sur l'écran d'accueil</strong></li>
+  <li>Confirmer</li>
 </ol>
-<div class="note">L'application fonctionne entièrement hors ligne une fois installée. Les sauvegardes Google Drive nécessitent une connexion internet.</div>
-
 <h3>Android (Chrome)</h3>
 <ol>
   <li>Ouvrir <a href="https://t-cellar.app">t-cellar.app</a> dans Chrome</li>
   <li>Menu <strong>⋮</strong> → <strong>Ajouter à l'écran d'accueil</strong></li>
-  <li>Confirmer</li>
 </ol>
+<div class="note">L'application fonctionne hors ligne une fois installée.</div>
 
 <hr>
 <p style="font-size:13px;color:#655846;">Ma Cave à Tabac — <a href="https://t-cellar.app">t-cellar.app</a> &nbsp;·&nbsp; <a href="./privacy.html">Confidentialité</a> &nbsp;·&nbsp; <a href="mailto:macaveatabac@gmail.com">Contact</a></p>
+</div>
+
+<!-- ═══════════════ ENGLISH ═══════════════ -->
+<div id="sec-en" class="section">
+<a class="back" href="./">← My Tobacco Cellar</a>
+<button class="lang-btn" id="lang-toggle" onclick="switchLang()">FR</button>
+<h1>📖 User Guide</h1>
+<p class="subtitle">My Tobacco Cellar v2.0 &nbsp;·&nbsp; Complete guide</p>
+
+<div class="toc">
+  <h4>Contents</h4>
+  <ol>
+    <li><a href="#en-concepts">Core concepts</a></li>
+    <li><a href="#en-cycle">Tobacco lifecycle: Purchase → Cellar → Jar → Finished</a></li>
+    <li><a href="#en-tobacco">Adding a tobacco</a></li>
+    <li><a href="#en-lots">Managing lots</a></li>
+    <li><a href="#en-inventory">Browsing the inventory</a></li>
+    <li><a href="#en-pipes">Pipe collection</a></li>
+    <li><a href="#en-wishlist">Wishlist</a></li>
+    <li><a href="#en-ai">AI Assistant</a></li>
+    <li><a href="#en-backup">Backup and export</a></li>
+    <li><a href="#en-updates">Updates</a></li>
+    <li><a href="#en-install">Installing on the home screen</a></li>
+  </ol>
+</div>
+
+<h2 id="en-concepts">1. Core concepts</h2>
+<p>The app is organized around two main objects:</p>
+<ul>
+  <li><strong>Tobacco</strong> — a reference (e.g. Dunhill Early Morning Pipe). A tobacco can have zero or more <strong>lots</strong>.</li>
+  <li><strong>Lot</strong> — a specific tin or quantity purchased on a given date. The lot carries the status and aging history.</li>
+</ul>
+<p>This distinction lets you track multiple tins of the same tobacco at different stages (one cellaring, one open in a jar) while sharing a single set of notes and description.</p>
+
+<h2 id="en-cycle">2. Tobacco lifecycle</h2>
+<div class="flow">
+  <div class="flow-step"><span class="icon">🛒</span><span class="label">Purchase</span><span class="sub">New lot</span></div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-step"><span class="icon">📦</span><span class="label">Cellar</span><span class="sub">Sealed tin</span></div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-step"><span class="icon">🫙</span><span class="label">Jar</span><span class="sub">Tin opened</span></div>
+  <span class="flow-arrow">→</span>
+  <div class="flow-step"><span class="icon">✅</span><span class="label">Finished</span><span class="sub">Lot empty</span></div>
+</div>
+
+<h3>📦 Cellar</h3>
+<p>A newly purchased lot enters <span class="badge badge-cave">Cellar</span> status. It represents a sealed tin aging in storage. Age is calculated from the <strong>production date</strong> (if provided) or the <strong>purchase date</strong>.</p>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Weight (g)</td><td>Quantity in grams (e.g. 50, 100, 454)</td></tr>
+  <tr><td>Purchase date</td><td>Pre-filled with today's date</td></tr>
+  <tr><td>Production date</td><td>For accurate age calculation — copy from the tin</td></tr>
+  <tr><td>Box #</td><td>ID number if you have several tins of the same tobacco</td></tr>
+  <tr><td>Price (CHF)</td><td>Purchase price</td></tr>
+  <tr><td>Seller</td><td>Shop or vendor</td></tr>
+</table>
+
+<h3>🫙 Jar</h3>
+<p>When you open a tin and transfer it to a jar, change the lot to <span class="badge badge-pot">Jar</span> status using the <strong>✏️</strong> button. The <strong>jar date</strong> is auto-filled with today (editable). Update the weight to reflect what remains.</p>
+
+<h3>✅ Finished</h3>
+<p>When the lot is empty, set it to <span class="badge badge-fin">Finished</span>. The <strong>end date</strong> is recorded automatically. The lot stays in history (via <em>Show finished</em>) but no longer counts in active statistics.</p>
+
+<h3>↩️ Reactivate</h3>
+<p>A finished lot can be moved back to <span class="badge badge-cave">Cellar</span> using the <strong>Reactivate</strong> button — useful for corrections or rediscovered tins.</p>
+<div class="note">You can create a lot directly as "Jar" or "Finished" to record past history.</div>
+
+<h2 id="en-tobacco">3. Adding a tobacco</h2>
+<p>Tap <strong>+ Tobacco</strong> in the navigation bar.</p>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Name *</td><td>Tobacco name (required)</td></tr>
+  <tr><td>Brand</td><td>Manufacturer (e.g. Dunhill, Peterson)</td></tr>
+  <tr><td>Type</td><td>English, Virginia, Aromatic, Balkan/English, VaPer, Burley, Oriental, Other</td></tr>
+  <tr><td>Cut</td><td>Ready Rubbed, Flake, Broken Flake, Plug, Coins, Ribbon, Crumble Cake, Rope, Other</td></tr>
+  <tr><td>Blend</td><td>Leaf varieties description</td></tr>
+  <tr><td>Description</td><td>General notes</td></tr>
+  <tr><td>Tasting notes</td><td>Your personal impressions</td></tr>
+  <tr><td>Image</td><td>📸 Camera · 🔗 URL · 📷 Google Image Search</td></tr>
+  <tr><td>Rating (★)</td><td>0 to 5 stars</td></tr>
+  <tr><td>Rebuy?</td><td>Yes / No / ? — reminder for future purchases</td></tr>
+</table>
+<p>On save, a first <span class="badge badge-cave">Cellar</span> lot is created automatically with today's date.</p>
+<div class="note">Use <strong>🤖 Auto-fill</strong> to populate fields automatically via AI (requires an API key).</div>
+
+<h2 id="en-lots">4. Managing lots</h2>
+<p>From a tobacco's detail view (tap a card in the inventory), you can see all its lots. Use <strong>+ Lot</strong> to add a new purchase.</p>
+<div class="note">A single tobacco can have multiple lots at different stages simultaneously — for example one tin cellaring and one jar being smoked.</div>
+<ul>
+  <li><strong>✏️</strong> — edit status, weight, dates</li>
+  <li><strong>✕</strong> — delete lot (irreversible)</li>
+  <li><strong>👁 Show finished</strong> — display the history of finished lots</li>
+</ul>
+
+<h2 id="en-inventory">5. Browsing the inventory</h2>
+<h3>Status filters</h3>
+<ul>
+  <li><strong>All</strong> — tobaccos with at least one active lot</li>
+  <li><strong>Cellar</strong> — at least one tin in the cellar</li>
+  <li><strong>Jars</strong> — at least one lot in a jar</li>
+  <li><strong>Finished</strong> — at least one finished lot</li>
+</ul>
+<h3>Search and sort</h3>
+<p>Search filters on name, brand, blend, category, cut and tasting notes. Sort by: Name · Brand · Rating · Age · Quantity.</p>
+<p>On the dashboard, click any category or brand to filter the inventory directly.</p>
+
+<h2 id="en-pipes">6. Pipe collection</h2>
+<table>
+  <tr><th>Field</th><th>Description</th></tr>
+  <tr><td>Model / Brand</td><td>Pipe identification</td></tr>
+  <tr><td>Shape</td><td>Billiard, Bent, Dublin, Apple, Bulldog, Poker, Churchwarden, Calabash, Freehand, Lovat, Canadian, Zulu, Other</td></tr>
+  <tr><td>Purchase date</td><td>Used to calculate age</td></tr>
+  <tr><td>Price (CHF)</td><td>Value for statistics</td></tr>
+  <tr><td>Rating (★)</td><td>0 to 5 stars</td></tr>
+  <tr><td>Status</td><td>Active / Retired (hidden by default)</td></tr>
+</table>
+<p>Use <strong>✓ Mark retired</strong> from the detail view, or <strong>🪈 Reactivate</strong> to bring it back.</p>
+
+<h2 id="en-wishlist">7. Wishlist</h2>
+<p>A memo for tobaccos to buy. Tap <strong>📦</strong> on any item to create a pre-filled tobacco entry and remove it from the list.</p>
+
+<h2 id="en-ai">8. AI Assistant</h2>
+<p>Available in tobacco and pipe forms. Fill in the name or brand, then tap <strong>🔍 Search</strong>. The AI automatically fills category, blend, cut or shape, and description.</p>
+<table>
+  <tr><th>Provider</th><th>API key</th></tr>
+  <tr><td>Anthropic (default)</td><td>console.anthropic.com</td></tr>
+  <tr><td>OpenAI</td><td>platform.openai.com</td></tr>
+  <tr><td>Google Gemini</td><td>aistudio.google.com</td></tr>
+</table>
+<p>Configure in ⚙️ → <em>AI Assistant</em> section → choose provider → paste key → <strong>✅ Save</strong>.</p>
+<div class="note">Your key is stored only on your device and never sent to a third party.</div>
+
+<h2 id="en-backup">9. Backup and export</h2>
+<p>All options are in <strong>⚙️</strong> (gear icon, top right).</p>
+<h3>☁️ Google Drive (recommended)</h3>
+<p>Saves to a private hidden folder in your Google Drive. Direct OAuth 2.0 authentication with Google.</p>
+<ul>
+  <li><strong>Save to Drive</strong> — overwrites the existing backup</li>
+  <li><strong>Restore Drive</strong> — shows a summary before confirming</li>
+</ul>
+<div class="warn">Restoring replaces all your local data. Export to JSON first if in doubt.</div>
+<div class="note">On iOS PWA, authentication uses a redirect — you will briefly leave the app before returning automatically.</div>
+<h3>Other formats</h3>
+<ul>
+  <li><strong>📋 Export JSON</strong> — all your data, re-importable</li>
+  <li><strong>📄 Export CSV</strong> — tobaccos, pipes and wishlist (Excel-compatible)</li>
+  <li><strong>📦 Backup ZIP</strong> — data + all images</li>
+  <li><strong>📂 Import file</strong> — restore from a local JSON file</li>
+</ul>
+
+<h2 id="en-updates">10. Updates</h2>
+<p>⚙️ → <strong>Check updates</strong>. If a new version is available, save to Google Drive first, then confirm the update.</p>
+<div class="warn">The app cache is cleared during the update. Back up before continuing.</div>
+
+<h2 id="en-install">11. Installing on the home screen</h2>
+<h3>iOS (Safari)</h3>
+<ol>
+  <li>Open <a href="https://t-cellar.app">t-cellar.app</a> in Safari</li>
+  <li>Tap <strong>Share</strong> → <strong>Add to Home Screen</strong></li>
+  <li>Confirm</li>
+</ol>
+<h3>Android (Chrome)</h3>
+<ol>
+  <li>Open <a href="https://t-cellar.app">t-cellar.app</a> in Chrome</li>
+  <li>Menu <strong>⋮</strong> → <strong>Add to Home Screen</strong></li>
+</ol>
+<div class="note">The app works fully offline once installed.</div>
+
+<hr>
+<p style="font-size:13px;color:#655846;">My Tobacco Cellar — <a href="https://t-cellar.app">t-cellar.app</a> &nbsp;·&nbsp; <a href="./privacy.html">Privacy</a> &nbsp;·&nbsp; <a href="mailto:macaveatabac@gmail.com">Contact</a></p>
+</div>
+
 </body>
 </html>
