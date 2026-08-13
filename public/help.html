@@ -1295,6 +1295,7 @@ The two formats have neither the same columns nor the same effect: loading one i
     <li><a href="#es-install">Instalar en la pantalla de inicio</a></li>
     <li><a href="#es-concepts">Conceptos clave</a></li>
     <li><a href="#es-cycle">Ciclo de vida del tabaco: Compra → Bodega → Tarro → Terminado</a></li>
+    <li><a href="#es-catalogue">El catálogo de referencia</a></li>
     <li><a href="#es-tobacco">Añadir un tabaco</a></li>
     <li><a href="#es-lots">Gestionar los lotes</a></li>
     <li><a href="#es-inventory">Explorar el inventario</a></li>
@@ -1332,6 +1333,11 @@ The two formats have neither the same columns nor the same effect: loading one i
   <li><strong>Lote</strong> — una lata o cantidad concreta comprada en una fecha determinada. El lote lleva el estado y el historial de envejecimiento.</li>
 </ul>
 <p>Esta distinción te permite seguir varias latas del mismo tabaco en distintas etapas (una envejeciendo, otra abierta en un tarro) compartiendo un único conjunto de notas y descripción.</p>
+<p>Estos dos objetos forman <strong>tu inventario</strong>: lo que realmente posees. Junto a él, la aplicación sabe usar una tercera cosa, de naturaleza distinta:</p>
+<ul>
+  <li><strong>El catálogo de referencia</strong> — un archivo <em>opcional</em> que cargas tú y que describe mezclas del mercado (familia, corte, composición, descripción), sin decir nada de tus latas. No contiene ni pesos, ni precios, ni fechas. Sirve para rellenar tus fichas más deprisa, nunca para sustituirlas.</li>
+</ul>
+<div class="warn"><strong>El inventario y el catálogo no se mezclan.</strong> Cargar un catálogo no añade nada a tu bodega; añadir un tabaco a tu bodega no modifica el catálogo. Sin embargo, ambos se cargan desde la misma pantalla <em>Ajustes → Datos</em>, y esa es la confusión más habitual — la <a href="#es-catalogue">sección 4</a> está dedicada a ellos.</div>
 
 <h2 id="es-cycle">3. Ciclo de vida del tabaco</h2>
 <div class="flow">
@@ -1370,22 +1376,105 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note"><strong>Ojo:</strong> incluso con Contabilidad desactivada, abrir un lote de Bodega hacia un Tarro (Bodega → Tarro) sigue ocurriendo — es un evento físico real (has abierto una lata), regido por el estado del lote y no por el seguimiento de cantidades.</div>
 <div class="note">El <strong>gramaje por defecto</strong> (que rellena el campo Gramaje de una sesión nueva) también se ajusta en <em>Ajustes → Preferencias</em>. Además, cuando eliges una pipa <strong>cuyas dimensiones de la cazoleta</strong> (diámetro + profundidad) están indicadas, la app <strong>estima el gramaje automáticamente</strong> a partir del volumen de la cazoleta y del <strong>corte del tabaco</strong> seleccionado (un flake denso pesa más que un ribbon aireado a igual volumen). También se tiene en cuenta la <strong>forma de la pipa</strong>: una cazoleta cónica (familia Dublin, o Bulldog/Rhodesian) contiene un poco menos que una recta de las mismas dimensiones. Sin dimensiones de la cazoleta, se aplica el gramaje por defecto anterior. La estimación sigue siendo editable a mano.</div>
 
-<h2 id="es-tobacco">5. Añadir un tabaco</h2>
-<p><strong>El catálogo es tu propio archivo.</strong> La app no incluye ninguno: desde <em>Ajustes → Datos → Catálogo de referencia</em>, descarga la <strong>plantilla CSV</strong>, complétala (una fila por mezcla: marca, nombre, categoría, corte, fuerza, composición, descripción…) y <strong>cárgala</strong>. Una vez cargado alimenta el autorrelleno, la búsqueda, las comparaciones y la página Catálogo. Sin catálogo, esas pantallas te lo dicen y te traen aquí. Tres maneras de añadir un tabaco, de la más rápida a la más manual:</p>
+<h2 id="es-catalogue">4. El catálogo de referencia</h2>
+<p>La aplicación maneja <strong>dos cosas distintas</strong>, que se cargan las dos desde <em>Ajustes → Datos</em> y que no hay que confundir:</p>
+<ul>
+  <li><strong>Tu inventario</strong> — tus propias latas. Lotes, pesos, precios, fechas de compra, sesiones fumadas. Es tu bodega: la modificas continuamente y viaja en tus copias de seguridad.</li>
+  <li><strong>El catálogo de referencia</strong> — un archivo de fichas descriptivas (marca, nombre, familia, corte, composición, descripción) que no describe <em>ninguna</em> de tus latas en particular. No contiene ni pesos, ni precios, ni fechas: dice lo que <em>es</em> una mezcla, no lo que tú tienes de ella.</li>
+</ul>
+<p>El catálogo es <strong>opcional</strong> y la aplicación funciona por completo sin él: puedes introducir toda tu bodega a mano. Solo aporta una cosa, pero hace ganar tiempo — <strong>no volver a teclear las características de una mezcla que ya conoces</strong>.</p>
+<div class="note"><strong>La app no incluye ningún catálogo.</strong> El catálogo es <em>tu</em> archivo: tú lo compones, tú lo corriges, y solo contiene lo que hayas puesto en él. Mientras no cargues ninguno, las pantallas que lo usan te lo dicen y te traen aquí — no hay nada roto.</div>
 
-<h3>① Explorar el catálogo (lo más rápido)</h3>
+<h3>Lo que cambia el catálogo una vez cargado</h3>
+<ul>
+  <li>El <strong>autorrelleno</strong> de los formularios de tabaco y de deseo lo consulta (consulta la <a href="#es-ai">sección 12</a>).</li>
+  <li>Una página <strong>Catálogo</strong> se vuelve explorable, con búsqueda y filtros.</li>
+  <li>Puedes <strong>comparar</strong> dos o tres mezclas una al lado de la otra.</li>
+  <li>Puedes <strong>traer de una sola pasada</strong> los datos del catálogo a las fichas que ya tienes.</li>
+</ul>
+<div class="warn"><strong>El catálogo nunca modifica tu bodega por sí solo.</strong> Cargarlo no añade ningún tabaco a tu inventario, no quita ninguno y no toca ninguno de tus lotes. Solo abre las posibilidades anteriores, que después lanzas tú. A la inversa, introducir o eliminar un tabaco en tu bodega no modifica el catálogo: es de <strong>solo lectura</strong>.</div>
+
+<h3>Conseguir y cargar tu catálogo</h3>
 <ol>
-  <li>Desde la pestaña <strong>Catálogo</strong>, toca el icono <strong>📖</strong> arriba a la derecha.</li>
+  <li>Ve a <em>Ajustes → Datos → Catálogo de referencia</em>.</li>
+  <li>Toca <strong>Descargar la plantilla</strong>: obtienes un archivo CSV vacío, con la fila de encabezado y una fila de ejemplo.</li>
+  <li>Rellénalo en una hoja de cálculo — <strong>una fila por mezcla</strong>.</li>
+  <li>Vuelve a la app y toca <strong>Cargar un catálogo (.csv)</strong>, luego elige tu archivo.</li>
+</ol>
+<p>Cargar un archivo nuevo <strong>reemplaza</strong> el anterior — el catálogo no es acumulativo, al contrario que la importación de tus tabacos. El botón <strong>Quitar el catálogo</strong> lo elimina; tu bodega no se toca, y siempre podrás volver a cargarlo desde tu archivo.</p>
+
+<h3>El formato del archivo</h3>
+<p>La <strong>plantilla CSV</strong> lleva las veinte columnas que la app sabe leer, con una fila de ejemplo. Conserva la fila de encabezado: las columnas se reconocen <strong>por su nombre</strong>, no por su posición, y una columna que no uses puede quedar vacía.</p>
+<ul>
+  <li><strong>brand_key</strong> — <strong>Obligatoria.</strong> La marca. Junto con <em>blend_name</em> es la identidad de la fila: dos filas con el mismo par son duplicados y solo se conserva la primera. Una fila sin uno de los dos se ignora.</li>
+  <li><strong>blend_name</strong> — <strong>Obligatoria.</strong> El nombre de la mezcla.</li>
+  <li><strong>brand_name</strong> — La marca tal como se muestra, si difiere de la clave.</li>
+  <li><strong>category</strong> — <strong>Taxonomía fija.</strong> Una de las familias de la app (lista en la <a href="#es-tobacco">sección 5</a>).</li>
+  <li><strong>cut</strong> — <strong>Taxonomía fija.</strong> Uno de los cortes de la app (lista en la <a href="#es-tobacco">sección 5</a>).</li>
+  <li><strong>force, roomNote, taste</strong> — Un entero de 0 a 5. Vacío = desconocido.</li>
+  <li><strong>agingMax</strong> — Años de guarda: un número (10) o un rango (10-15). Vacío = se aplica el valor por defecto de la familia.</li>
+  <li><strong>blend</strong> — La composición, en texto libre («Virginia, Perique»).</li>
+  <li><strong>description_fr … description_pt</strong> — Una columna por idioma. La app muestra la tuya, si no el inglés, si no el francés, si no la primera rellenada: basta con una.</li>
+  <li><strong>brand_aliases, blend_aliases</strong> — Otros nombres, separados por punto y coma. Es lo que hace que una lata etiquetada de otro modo se reconozca.</li>
+  <li><strong>lastReviewed, reviewValidated</strong> — Tus notas de revisión. Se conservan tal cual, la app nunca las lee.</li>
+</ul>
+<div class="warn"><strong>Dos columnas deben respetar la taxonomía de la app: <em>category</em> y <em>cut</em>.</strong> Un valor desconocido no se rechaza — se conserva tal cual y el informe de carga te lo señala — pero entonces la mezcla solo se entiende a medias: la familia no la clasifica en ningún sitio (ni banda de maduración ni edad de guarda por defecto), el corte no pesa nada (la estimación del peso de una cazoleta cae al valor genérico), el valor no se traduce y no existe en el desplegable del formulario — de modo que abrir y guardar ese tabaco <strong>reescribe</strong> tu valor. Las etiquetas comerciales habituales se convierten solas (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); para el resto, guíate por las dos listas de la <a href="#es-tobacco">sección 5</a>.</div>
+<div class="note">Tras cada carga la pantalla te dice qué ha leído: cuántas mezclas y marcas, filas ignoradas por falta de marca o de nombre, duplicados descartados y los valores de familia o corte que no ha reconocido. <strong>Lee esas líneas</strong> — un catálogo que ha perdido un tercio de sus filas se parece en todo a uno que ha cargado bien. El botón <strong>Comprobar mi catálogo</strong>, justo debajo, repite la misma comprobación y esta vez indica el <strong>número de fila</strong> de cada problema, para que puedas corregirlo en tu hoja de cálculo.</div>
+<p>Esta comprobación solo juzga lo que la app sabe juzgar: las dos columnas obligatorias y las dos columnas de taxonomía fija. No relee tus descripciones ni verifica la exactitud de tus datos — es tu archivo.</p>
+
+<h3>Explorar el catálogo</h3>
+<p>Desde la pestaña <strong>Tabacos</strong>, toca el icono <strong>📖</strong> arriba a la derecha: se abre la página <strong>Catálogo</strong>. Es de solo lectura y muestra <em>únicamente</em> el contenido de tu archivo, nunca tu bodega.</p>
+<ul>
+  <li><strong>Búsqueda</strong> tolerante: números de catálogo («Solani 131» → «Solani Red Label»), nombres parciales («Peterson Sher» → «Sherlock Holmes»), marcas escritas de otra forma («MacBaren», «G L Pease», «Cornell and Diehl») y pequeñas erratas («Capstain» → Capstan). La misma tolerancia sirve para detectar duplicados en tu inventario.</li>
+  <li><strong>Filtros</strong> por familia o por marca, y presentación agrupada por marca.</li>
+  <li>Una insignia <em>✓ en propiedad</em> (verde) o <em>★ deseado</em> (ámbar) en cada fila te muestra lo que ya tienes — es el único sitio donde los dos mundos se cruzan, y solo para informarte.</li>
+  <li>Cuando una mezcla responde a varios nombres, su ficha los muestra bajo el título, precedidos de <strong>También llamado</strong> — útil cuando tu lata lleva un nombre distinto al del catálogo. Solo se listan los nombres que no aparecen ya en el título.</li>
+</ul>
+<p>Desde una ficha del catálogo, dos botones hacen pasar la mezcla <em>de la referencia a tu bodega</em>: <strong>Añadir a mi inventario</strong> y <strong>Añadir a mi lista de deseos</strong>. Es la vía más rápida para dar de alta un tabaco — consulta la <a href="#es-tobacco">sección 5</a>.</p>
+
+<h3>Comparar blends</h3>
+<p>La <strong>fila «Comparar blends»</strong>, arriba de la página Catálogo justo antes del campo de búsqueda — o el icono de <strong>gráfico</strong> de la barra superior, o el botón al final de la ficha de un blend — pone <strong>dos o tres blends uno al lado del otro</strong>. Puedes mezclar las fuentes libremente: un tabaco de tu bodega, un blend del catálogo que no tienes, un deseo de tu lista.</p>
+<div class="note"><strong>Las columnas no responden todas a las mismas preguntas, y es intencionado.</strong> La parte <em>factual</em> — familia, corte, composición, fuerza, aroma ambiental, sabor, envejecimiento — existe para todas las fuentes, y ahí es donde se decide una compra. La parte sobre <em>tu experiencia</em> — tu valoración, el stock, el lote más antiguo, las sesiones, la valoración media, el coste por cazoleta, los aromas percibidos — solo existe para lo que posees: en un blend del catálogo esas filas quedan en «—». Las filas que <strong>difieren</strong> se resaltan.</div>
+
+<h3>Traer los datos del catálogo a tus fichas</h3>
+<p>Dos caminos, según quieras tratar <strong>una ficha</strong> o <strong>toda tu bodega</strong>. En ambos casos son tus fichas las que se modifican; el catálogo nunca se mueve.</p>
+<p><strong>Una sola ficha.</strong> Ábrela en modo edición (botón Editar en un tabaco o un deseo). Si la marca + el nombre coinciden con una ficha del catálogo y al menos un campo difiere, aparece un banner <em>«Actualización de catálogo disponible»</em> en la parte superior del formulario que enumera las diferencias, tu valor y el del catálogo lado a lado:</p>
+<ul>
+  <li><strong>Sincronizar</strong> reemplaza de una vez tus valores por los del catálogo (aún puedes ajustarlos antes de guardar).</li>
+  <li><strong>Mantener mis valores</strong> oculta el banner para esa ficha.</li>
+</ul>
+<p><strong>Toda la bodega de una vez.</strong> El botón arriba a la derecha de la página Catálogo, <strong>Aplicar los datos del catálogo</strong>, compara tu inventario <em>y</em> tu lista de deseos con el catálogo, y actualiza luego en una sola pasada los <strong>campos factuales</strong>: categoría, corte, composición, fuerza, aroma ambiental, sabor, envejecimiento máximo, descripción. La aplicación te muestra primero lo que cambiaría (cuántas fichas y cuántos campos); nada se escribe hasta que confirmes.</p>
+<div class="note"><strong>Tus datos personales nunca se tocan:</strong> notas de cata, valoración, «no recomprar», foto, lotes (pesos, precios, fechas), colecciones, la nota personal de los deseos. El <strong>nombre y la marca</strong> tampoco se modifican: es como reconoces tu lata, y es además la clave que evita duplicados al importar. Las fichas ausentes del catálogo quedan sin cambios, y un aviso <strong>«Deshacer»</strong> lo devuelve todo a su estado durante unos segundos tras la pasada.</div>
+<div class="note"><strong>Bloquear una ficha que has trabajado a mano.</strong> Al final del formulario de un tabaco o de un deseo, la casilla <strong>«No sobrescribir nunca desde el catálogo»</strong> pone esa ficha fuera del alcance de la actualización masiva: se omite por completo y el catálogo ni siquiera se consulta para ella. Útil cuando has corregido tú mismo una composición, medido una fuerza o reescrito una descripción. La ventana de confirmación indica cuántas fichas están bloqueadas. No impide la sincronización ficha a ficha de más arriba: ahí ves la diferencia en pantalla antes de aceptar.</div>
+
+<h3>Guardar el catálogo</h3>
+<p>El catálogo <strong>no se incluye en las copias de seguridad de tu bodega</strong> — ni en la exportación JSON, ni en el ZIP, ni en la copia automática. Es intencionado: puede pesar varios megabytes y solo cambia de vez en cuando, mientras que tu bodega se guarda con cada modificación.</p>
+<p>Por eso tiene dos botones propios, en la misma sección de los ajustes: <strong>Guardar el catálogo en la nube</strong> y <strong>Recuperar el catálogo de la nube</strong>. Viaja en su propio archivo y solo se envía cuando tú lo pides. En un dispositivo nuevo, la recuperación está disponible aunque no haya ningún catálogo cargado — es precisamente ahí donde sirve.</p>
+<div class="note">Guarda también el CSV original por tu parte: es el archivo que editas en tu hoja de cálculo, y el botón <strong>Exportar mi catálogo</strong> te lo devuelve tal como lo tiene la app.</div>
+
+<h2 id="es-tobacco">5. Añadir un tabaco</h2>
+<p>Añadir un tabaco es crear una ficha en <strong>tu inventario</strong>: una referencia que posees, a la que después vincularás uno o varios lotes. Tres maneras de hacerlo, de la más rápida a la más manual. Producen exactamente la misma ficha y todo sigue siendo editable después — elige según lo que tengas a mano.</p>
+<ul>
+  <li><strong>①</strong> has cargado un <a href="#es-catalogue">catálogo de referencia</a> y la mezcla está en él;</li>
+  <li><strong>②</strong> quieres que la app busque las características por ti, en tu catálogo o en línea;</li>
+  <li><strong>③</strong> lo introduces todo tú mismo — es la vía que no depende de nada.</li>
+</ul>
+
+<h3>① Desde el catálogo (lo más rápido)</h3>
+<p>Esta vía supone haber cargado un catálogo de referencia — consulta la <a href="#es-catalogue">sección 4</a>. Si no tienes ninguno, pasa a ② o ③: no te falta nada, simplemente escribirás algo más.</p>
+<ol>
+  <li>Desde la pestaña <strong>Tabacos</strong>, toca el icono <strong>📖</strong> arriba a la derecha: se abre la página <strong>Catálogo</strong>.</li>
   <li>Busca tu mezcla: barra de búsqueda ("Capstan blue", "Solani 131", "FVF"… la búsqueda es tolerante), filtro por categoría o marca, o la lista agrupada por marca.</li>
   <li>Toca la fila para ver una vista previa y luego <strong>"Añadir a mi inventario"</strong>: se abre un mini formulario prerrellenado, todo editable.</li>
   <li><strong>Guardar</strong> → el tabaco se crea con un primer lote en <span class="badge badge-cave">Bodega</span>, y vuelves al catálogo para seguir.</li>
 </ol>
+<div class="note">El catálogo no se modifica con la operación: has <em>copiado</em> sus valores en una ficha nueva, que te pertenece. Corregirla después no cambiará nada en el archivo de referencia.</div>
 <div class="note">El botón <strong>"★ Añadir a mi lista de deseos"</strong> hace lo mismo pero archiva la entrada en tu lista de deseos. Una insignia <em>✓ en propiedad</em> (verde) o <em>★ deseado</em> (ámbar) en cada fila muestra lo que ya tienes.</div>
 <div class="note">El <strong>precio, la fecha de compra y los detalles del lote</strong> se añaden después desde la página del tabaco — consulta <a href="#es-lots">Gestionar los lotes</a>.</div>
-<div class="note"><strong>¿Ya escribiste un tabaco a mano?</strong> Puedes traer los valores del catálogo a una ficha existente: ábrela en modo edición y un banner <em>"Actualización de catálogo disponible"</em> te ofrecerá <strong>sincronizar</strong> los campos que difieran — consulta la <a href="#es-ai">sección 12</a>.</div>
+<div class="note"><strong>¿Ya escribiste un tabaco a mano?</strong> Puedes traer los valores del catálogo a una ficha existente: ábrela en modo edición y un banner <em>"Actualización de catálogo disponible"</em> te ofrecerá <strong>sincronizar</strong> los campos que difieran — consulta la <a href="#es-catalogue">sección 4</a>.</div>
 
 <h3>② Entrada con autocompletado</h3>
-<p>Toca el <strong>+</strong> en la parte superior de la pestaña <strong>Tabacos</strong>, introduce al menos la <strong>marca</strong> y el <strong>nombre</strong>, y luego el botón <strong>Buscar</strong> en la tarjeta <em>Autocompletar</em>. La app rellena categoría, corte, mezcla, fuerza, aroma ambiental, sabor, edad máxima y descripción (todo editable). Por defecto consulta primero el <strong>catálogo local integrado</strong> y después tu asistente de IA si la mezcla no está en él; el ajuste <em>Fuente preferida</em> permite invertir ese orden, consulta <a href="#es-ai">Asistente de IA</a>. También puedes <strong>escanear la lata</strong> para prerrellenar la marca y el nombre automáticamente.</p>
+<p>Toca el <strong>+</strong> en la parte superior de la pestaña <strong>Tabacos</strong>, introduce al menos la <strong>marca</strong> y el <strong>nombre</strong>, y luego el botón <strong>Buscar</strong> en la tarjeta <em>Autocompletar</em>. La app rellena categoría, corte, mezcla, fuerza, aroma ambiental, sabor, edad máxima y descripción (todo editable). Por defecto consulta primero <strong>tu catálogo</strong> si está cargado (<a href="#es-catalogue">sección 4</a>), y después tu asistente de IA si la mezcla no está en él; el ajuste <em>Fuente preferida</em> permite invertir ese orden, consulta <a href="#es-ai">Asistente de IA</a>. Sin catálogo y sin clave de API, ese botón no tiene nada que consultar y te lo dice — la entrada manual ③ sigue estando siempre disponible. También puedes <strong>escanear la lata</strong> para prerrellenar la marca y el nombre automáticamente.</p>
 
 <h3>③ Entrada totalmente manual</h3>
 <table>
@@ -1476,8 +1565,8 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note"><strong>Registro de mantenimiento:</strong> la ficha de la pipa tiene un <em>“Registro de mantenimiento”</em> — cada sesión elige un <strong>tipo de limpieza</strong> (ligera, completa, o “sin limpieza” para una intervención aislada) y luego <strong>marca las tareas realizadas</strong> (limpiapipas, cazoleta, escariado, sal y alcohol, boquilla, cera, reparación, reposo, otro), con la fecha y notas. Las entradas se muestran de la más reciente a la más antigua. Aparece un <strong>recordatorio “limpieza pendiente”</strong> (una etiqueta en la tarjeta y la ficha, y una sección al final de la página de inicio) cuando una pipa se ha fumado cierto número de sesiones desde su última limpieza — <strong>solo las limpiezas ligera y completa reinician el contador</strong> (“sin limpieza” no cuenta). Umbral ajustable en <em>Ajustes → Preferencias</em> (5 sesiones por defecto). También puedes <strong>desactivar por completo estos recordatorios</strong> en <em>Ajustes → Preferencias → “Recordatorios de mantenimiento”</em>: los recordatorios desaparecen entonces de la página de inicio y de las fichas de pipa, pero el registro sigue disponible. El registro se incluye en tus copias de seguridad.</div>
 
 <h2 id="es-wishlist">9. Lista de deseos</h2>
-<p>Un recordatorio de tabacos por comprar. En la pestaña <strong>Catálogo</strong> (tu lista de tabacos), toca el chip <em>Lista de deseos</em> (icono de corazón) en la fila de filtros para mostrar solo tus deseos; elige cualquier otro filtro para volver al inventario.</p>
-<div class="note"><strong>La forma más rápida de llenar tu lista de deseos:</strong> el catálogo de referencia (icono <strong>📖</strong>, consulta la <a href="#es-tobacco">sección 5</a>) ofrece un botón <em>★ Añadir a mi lista de deseos</em> en cada mezcla — el deseo se crea prerrellenado con un solo toque, sin escribir. También puedes añadir un deseo manualmente con el botón <strong>+</strong>; el asistente de IA y el escaneo de la lata también funcionan en ese formulario.</div>
+<p>Un recordatorio de tabacos por comprar. En la pestaña <strong>Tabacos</strong>, toca el chip <em>Lista de deseos</em> (icono de corazón) en la fila de filtros para mostrar solo tus deseos; elige cualquier otro filtro para volver al inventario. La lista de deseos forma parte de tu inventario — son tus propios deseos, no fichas del catálogo.</p>
+<div class="note"><strong>La forma más rápida de llenar tu lista de deseos:</strong> el catálogo de referencia (icono <strong>📖</strong>, consulta la <a href="#es-catalogue">sección 4</a>) ofrece un botón <em>★ Añadir a mi lista de deseos</em> en cada mezcla — el deseo se crea prerrellenado con un solo toque, sin escribir. También puedes añadir un deseo manualmente con el botón <strong>+</strong>; el asistente de IA y el escaneo de la lata también funcionan en ese formulario.</div>
 <p>Cada entrada puede contener:</p>
 <table>
   <tr><th>Campo</th><th>Descripción</th></tr>
@@ -1560,50 +1649,14 @@ The two formats have neither the same columns nor the same effect: loading one i
 
 <h2 id="es-ai">12. Asistente de IA</h2>
 <p>Disponible en los formularios de tabaco, pipa y lista de deseos. Rellena el nombre o la marca y luego toca <strong>Buscar</strong>. La app rellena automáticamente categoría, mezcla, corte o forma, descripción — y para los tabacos: <strong>Fuerza, Aroma ambiental, Sabor y Edad máx. en bodega</strong>.</p>
-<h3>Tu catálogo de referencia</h3>
-<p>El <strong>catálogo local</strong> es el archivo CSV que has cargado desde <em>Ajustes → Datos</em> (ver <a href="#es-tobacco">sección 5</a>): la app no incluye ninguno. Una vez cargado es <strong>instantáneo, sin conexión y sin clave</strong> — sin petición de red. <strong>Sin clave de API</strong>, el autocompletado se apoya directamente en él. <strong>Con una clave</strong>, decide el ajuste <em>Fuente preferida</em> (más abajo): en <strong>Agente IA</strong> el catálogo sirve de repliegue cuando la petición falla; en <strong>Catálogo</strong> (por defecto) pasa primero, y aparece un <strong>panel verde</strong> en cuanto escribes una marca + nombre reconocidos, con un botón <strong>Rellenar la ficha</strong> (o <em>Ignorar</em> para descartarlo). Tras cada búsqueda, una pequeña línea <em>· fuente: …</em> te dice de dónde procede el dato. <strong>Mientras no haya catálogo cargado</strong>, el autocompletado sin clave no tiene nada que consultar y te lo dice.</p>
-<p>El catálogo admite <strong>entradas aproximadas</strong>: números de catálogo ("Solani 131" → "Solani Red Label"), nombres parciales ("Peterson Sher" → "Sherlock Holmes"), marcas escritas de otra forma ("MacBaren", "G L Pease", "Cornell and Diehl") y pequeñas erratas ("Capstain" → Capstan). La misma tolerancia impulsa la detección de duplicados en tu inventario.</p>
-<p>Cuando un blend responde a varios nombres, su ficha los muestra bajo el título, tras <strong>También llamado</strong> — útil cuando tu lata lleva un nombre distinto al del catálogo, por ejemplo tras fusionar dos entradas. Solo se listan los nombres que no aparecen ya en el título.</p>
-<h3>El formato del archivo</h3>
-<p>La <strong>plantilla CSV</strong> lleva las veinte columnas que la app sabe leer, con una fila de ejemplo. Conserva la fila de encabezado: las columnas se reconocen <strong>por su nombre</strong>, no por su posición, y una columna que no uses puede quedar vacía.</p>
-<ul>
-  <li><strong>brand_key</strong> — <strong>Obligatoria.</strong> La marca. Junto con <em>blend_name</em> es la identidad de la fila: dos filas con el mismo par son duplicados y solo se conserva la primera. Una fila sin uno de los dos se ignora.</li>
-  <li><strong>blend_name</strong> — <strong>Obligatoria.</strong> El nombre de la mezcla.</li>
-  <li><strong>brand_name</strong> — La marca tal como se muestra, si difiere de la clave.</li>
-  <li><strong>category</strong> — <strong>Taxonomía fija.</strong> Una de las familias de la app (lista en la <a href="#es-tobacco">sección 5</a>).</li>
-  <li><strong>cut</strong> — <strong>Taxonomía fija.</strong> Uno de los cortes de la app (lista en la <a href="#es-tobacco">sección 5</a>).</li>
-  <li><strong>force, roomNote, taste</strong> — Un entero de 0 a 5. Vacío = desconocido.</li>
-  <li><strong>agingMax</strong> — Años de guarda: un número (10) o un rango (10-15). Vacío = se aplica el valor por defecto de la familia.</li>
-  <li><strong>blend</strong> — La composición, en texto libre («Virginia, Perique»).</li>
-  <li><strong>description_fr … description_pt</strong> — Una columna por idioma. La app muestra la tuya, si no el inglés, si no el francés, si no la primera rellenada: basta con una.</li>
-  <li><strong>brand_aliases, blend_aliases</strong> — Otros nombres, separados por punto y coma. Es lo que hace que una lata etiquetada de otro modo se reconozca.</li>
-  <li><strong>lastReviewed, reviewValidated</strong> — Tus notas de revisión. Se conservan tal cual, la app nunca las lee.</li>
-</ul>
-<div class="warn"><strong>Dos columnas deben respetar la taxonomía de la app: <em>category</em> y <em>cut</em>.</strong> Un valor desconocido no se rechaza — se conserva tal cual y el informe de carga te lo señala — pero entonces la mezcla solo se entiende a medias: la familia no la clasifica en ningún sitio (ni banda de maduración ni edad de guarda por defecto), el corte no pesa nada (la estimación del peso de una cazoleta cae al valor genérico), el valor no se traduce y no existe en el desplegable del formulario — de modo que abrir y guardar ese tabaco <strong>reescribe</strong> tu valor. Las etiquetas comerciales habituales se convierten solas (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); para el resto, guíate por las dos listas de la <a href="#es-tobacco">sección 5</a>.</div>
-<div class="note">Tras cada carga la pantalla te dice qué ha leído: cuántas mezclas y marcas, filas ignoradas por falta de marca o de nombre, duplicados descartados y los valores de familia o corte que no ha reconocido. <strong>Lee esas líneas</strong> — un catálogo que ha perdido un tercio de sus filas se parece en todo a uno que ha cargado bien. El botón <strong>Comprobar mi catálogo</strong>, justo debajo, repite la misma comprobación y esta vez indica el <strong>número de fila</strong> de cada problema, para que puedas corregirlo en tu hoja de cálculo.</div>
-<h3>Comparar blends</h3>
-<p>La <strong>fila «Comparar blends»</strong>, arriba de la página Catálogo justo antes del campo de búsqueda — o el icono de <strong>gráfico</strong> de la barra superior, o el botón al final de la ficha de un blend — pone <strong>dos o tres blends uno al lado del otro</strong>. Puedes mezclar las fuentes libremente: un tabaco de tu bodega, un blend del catálogo que no tienes, un deseo de tu lista.</p>
-<div class="note"><strong>Las columnas no responden todas a las mismas preguntas, y es intencionado.</strong> La parte <em>factual</em> — familia, corte, composición, fuerza, room note, sabor, envejecimiento — existe para todos, y ahí es donde se decide una compra. La parte sobre <em>tu experiencia</em> — tu valoración, el stock, el lote más antiguo, las sesiones, la valoración media, el coste por pipada, los aromas percibidos — solo existe para lo que posees: en un blend del catálogo esas filas quedan en «—». Las filas que <strong>difieren</strong> se resaltan.</div>
-
-<h3>Aplicar los datos del catálogo</h3>
-<p>El <strong>botón arriba a la derecha de la página Catálogo</strong> (se llega con el icono 📖 de la barra del inventario) compara toda tu bodega y tu lista de deseos con el catálogo de referencia y actualiza en una sola pasada los <strong>campos factuales</strong>: categoría, corte, composición, fuerza, room note, sabor, envejecimiento máximo, descripción. La aplicación te muestra primero lo que cambiaría (cuántas fichas y cuántos campos); nada se escribe hasta que confirmes.</p>
-<div class="note"><strong>Tus datos personales nunca se sobrescriben:</strong> notas de cata, valoración, «no recomprar», foto, lotes (pesos, precios, fechas), colecciones, la nota personal de los deseos. El <strong>nombre y la marca</strong> tampoco se tocan: es como reconoces tu lata, y es además la clave que evita duplicados al importar. Las fichas ausentes del catálogo quedan sin cambios, y un aviso <strong>«Deshacer»</strong> lo devuelve todo a su estado durante unos segundos tras la pasada.</div>
-<div class="note"><strong>Bloquear una ficha que has trabajado a mano.</strong> Al final del formulario de un tabaco o de un deseo, la casilla <strong>«No sobrescribir nunca desde el catálogo»</strong> pone esa ficha fuera del alcance de la actualización masiva: se omite por completo y el catálogo ni siquiera se consulta para ella. Útil cuando has corregido tú mismo una composición, medido una fuerza o reescrito una descripción. La ventana de confirmación indica cuántas fichas están bloqueadas. No impide la <em>sincronización manual</em> desde la propia ficha (sección siguiente): ahí ves la diferencia en pantalla antes de aceptar.</div>
-
+<div class="note"><strong>La IA y el catálogo responden a la misma pregunta por dos caminos.</strong> El <a href="#es-catalogue">catálogo</a> es tu archivo: instantáneo, sin conexión, gratuito, pero solo conoce lo que tú hayas puesto en él. El agente de IA consulta a un proveedor en línea: conoce mezclas que no están en tu archivo, pero exige una clave, una conexión, y lo factura tu proveedor. El ajuste de más abajo decide cuál de los dos se consulta primero.</div>
 <h3>Fuente preferida</h3>
 <p>Se define en <em>Ajustes → Datos → Asistente de IA → Fuente preferida</em>:</p>
 <ul>
   <li><strong>Agente de IA</strong> — consulta primero tu proveedor, con una vuelta silenciosa al catálogo local si hay error.</li>
-  <li><strong>Catálogo</strong> (por defecto) — instantáneo, sin conexión, sin clave. Elige esta sin clave de API, o para ahorrar tu cuota.</li>
+  <li><strong>Catálogo</strong> (por defecto) — instantáneo, sin conexión, sin clave. Elige esta sin clave de API, o para ahorrar tu cuota. Sin catálogo cargado no hay nada que consultar, y la app te lo dice.</li>
 </ul>
 <p>Tras un rellenado desde el catálogo, un botón <strong>"Contrastar con la IA"</strong> pide una segunda opinión y muestra un comparativo de los campos que difieren — luego eliges <em>Aplicar IA</em> o <em>Mantener catálogo</em>.</p>
-<h3>Actualizar una ficha ya introducida desde el catálogo</h3>
-<p>¿Escribiste un tabaco a mano y quieres los valores correctos del catálogo? <strong>Abre la ficha en modo edición</strong> (botón Editar en un tabaco o un deseo). Si la marca + nombre coinciden con una entrada del catálogo y al menos un campo difiere, aparece automáticamente un banner <em>"Actualización de catálogo disponible"</em> <strong>en la parte superior del formulario</strong>. Enumera las diferencias (categoría, corte, mezcla, fuerza, aroma ambiental, sabor, edad máx., descripción) con tu valor y el del catálogo lado a lado:</p>
-<ul>
-  <li><strong>Sincronizar</strong> reemplaza tus valores por los del catálogo con un solo toque (aún puedes ajustar antes de guardar).</li>
-  <li><strong>Mantener mis valores</strong> oculta el banner para esa ficha.</li>
-</ul>
-<div class="note">Tus <strong>notas personales</strong>, fotos, valoración con estrellas, marca "recomprar" y lotes nunca se tocan — no están en el catálogo.</div>
 <h3>Agente de IA (proveedores)</h3>
 <table>
   <tr><th>Proveedor</th><th>Clave de API</th></tr>
@@ -1617,7 +1670,7 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note">Tu clave se guarda localmente. Por defecto se <strong>excluye</strong> de las exportaciones y las copias de seguridad; para incluirla, desactiva <em>Excluir claves de API de las exportaciones</em> en la misma sección.</div>
 <h3>Escanear la lata</h3>
 <p>En el formulario de tabaco (y de deseo), el botón <strong>Escanear la lata</strong> te permite fotografiar la lata (o elegir una foto de tu galería): la IA lee la etiqueta para rellenar la <strong>marca</strong>, el <strong>nombre</strong> y la <strong>composición</strong> cuando sean legibles, y luego encadena automáticamente la búsqueda habitual para completar el resto. Una foto, una ficha completa. La foto se reduce de tamaño antes de subirla y <strong>nunca se almacena</strong>. Si es ilegible, un mensaje te invita a reintentar; no se sobrescribe nada.</p>
-<div class="note">Para <strong>explorar el catálogo</strong> y añadir una mezcla con un solo toque, consulta la <a href="#es-tobacco">sección 5 "Añadir un tabaco"</a>.</div>
+<div class="note">El catálogo de referencia — conseguir uno, cargarlo, explorarlo, traer sus datos — tiene su propia <a href="#es-catalogue">sección 4</a>. Para las tres maneras de crear un tabaco, consulta la <a href="#es-tobacco">sección 5</a>.</div>
 
 <h2 id="es-stats">13. Estadísticas y gráficos</h2>
 <p>Accesible mediante el botón <strong>Estad.</strong> (icono de gráfico) en la barra de navegación. Muestra gráficos SVG calculados en tiempo real a partir de tus datos.</p>
@@ -1662,6 +1715,12 @@ The two formats have neither the same columns nor the same effect: loading one i
   <li><strong>📂 Importar archivo</strong> — restaurar desde un archivo JSON (Reemplazar / Fusionar / Seleccionar, ver más abajo).</li>
   <li><strong>Importar tabacos (.csv)</strong> — añade tabacos (y sus lotes) desde una hoja de cálculo. Las columnas se reconocen <strong>por el nombre de la cabecera</strong> (acentos y mayúsculas ignorados, alias FR/EN): solo <em>Marca</em> y <em>Nombre</em> son obligatorios. Las filas que comparten la misma marca + nombre se agrupan en un tabaco con varios lotes. La importación se hace siempre como <strong>Fusión</strong> (nunca reemplazo: tus pipas y sesiones nunca se borran, y los duplicados se deduplican por marca + nombre). Usa <strong>Descargar plantilla CSV</strong> para partir de un archivo listo para rellenar. Las columnas <em>Categoría</em> y <em>Corte</em> deben usar la taxonomía de la app (listas de la sección 5) — las denominaciones comerciales habituales se reconocen (« Navy Cut », « Cigar »), un valor desconocido pasa a « Autre » y el detalle aparece debajo del botón con el número de fila.</li>
 </ul>
+<div class="warn"><strong>Desde esta pantalla se cargan dos archivos CSV diferentes. No los confundas.</strong>
+<ul>
+  <li><strong>Importar tabacos (.csv)</strong>, más arriba — son <em>tus latas</em>. Columnas <em>Marca</em>, <em>Nombre</em>, pesos, precios, fechas. El archivo <strong>se añade</strong> a tu bodega por fusión y crea lotes. Su plantilla es el botón <strong>Descargar plantilla CSV</strong>, en esta misma sección.</li>
+  <li><strong>Cargar un catálogo (.csv)</strong>, en la sección <em>Catálogo de referencia</em> — son <em>fichas descriptivas</em>. Columnas <em>brand_key</em>, <em>blend_name</em>, <em>category</em>, <em>cut</em>… El archivo <strong>reemplaza</strong> el catálogo anterior y no añade <strong>nada</strong> a tu bodega. Su plantilla es el botón <strong>Descargar la plantilla</strong>, en esa otra sección. Consulta la <a href="#es-catalogue">sección 4</a>.</li>
+</ul>
+Los dos formatos no tienen ni las mismas columnas ni el mismo efecto: cargar uno en lugar del otro no destruye nada, pero la app te responderá que no ha sabido leer nada.</div>
 <div class="note"><strong>Errores de importación CSV explícitos.</strong> Si el archivo no contiene ningún tabaco legible, un mensaje te recuerda las columnas esperadas. Si eliges por error un <em>archivo de copia JSON</em>, la app te redirige a <strong>Importar archivo (.json)</strong>. Un CSV de exportación completo (varias secciones) se acepta: solo se importa su parte de tabacos, con una nota.</div>
 <div class="note"><strong>Reemplazar, Fusionar o Seleccionar.</strong> Tras elegir el archivo, un selector ofrece tres modos: <strong>Reemplazar</strong> (borra tus datos locales e instala el archivo importado), <strong>Fusionar</strong> (conserva tus datos y solo añade los elementos que faltan — emparejados por marca + nombre, sesiones sin duplicados) o <strong>Seleccionar elementos</strong> (eliges exactamente qué tabacos / pipas / deseos / accesorios / sesiones importar). El mismo selector aparece al restaurar desde la nube.</div>
 <div class="warn">El modo <strong>Reemplazar</strong> sobrescribe todos tus datos locales. Exporta una copia primero si tienes dudas, o usa <em>Fusionar</em>.</div>
@@ -1819,6 +1878,7 @@ The two formats have neither the same columns nor the same effect: loading one i
     <li><a href="#de-install">Auf dem Startbildschirm installieren</a></li>
     <li><a href="#de-concepts">Grundlegende Konzepte</a></li>
     <li><a href="#de-cycle">Tabak-Lebenszyklus: Kauf → Keller → Glas → Aufgebraucht</a></li>
+    <li><a href="#de-catalogue">Der Referenzkatalog</a></li>
     <li><a href="#de-tobacco">Einen Tabak hinzufügen</a></li>
     <li><a href="#de-lots">Lose verwalten</a></li>
     <li><a href="#de-inventory">Das Inventar durchsuchen</a></li>
@@ -1856,6 +1916,11 @@ The two formats have neither the same columns nor the same effect: loading one i
   <li><strong>Los</strong> — eine bestimmte Dose oder Menge, die an einem bestimmten Datum gekauft wurde. Das Los trägt den Status und den Reifeverlauf.</li>
 </ul>
 <p>Diese Unterscheidung erlaubt es dir, mehrere Dosen desselben Tabaks in verschiedenen Stadien zu verfolgen (eine reift, eine ist im Glas geöffnet), während sie sich einen gemeinsamen Satz an Notizen und Beschreibung teilen.</p>
+<p>Diese beiden Objekte bilden <strong>dein Inventar</strong>: was du wirklich besitzt. Daneben kann die App eine dritte Sache nutzen, ganz anderer Art:</p>
+<ul>
+  <li><strong>Der Referenzkatalog</strong> — eine <em>optionale</em> Datei, die du lädst und die Handelsmischungen beschreibt (Familie, Schnitt, Zusammensetzung, Beschreibung), ohne etwas über deine Dosen zu sagen. Sie enthält weder Gewicht noch Preis noch Datum. Sie hilft, deine Einträge schneller auszufüllen, ersetzt sie aber nie.</li>
+</ul>
+<div class="warn"><strong>Inventar und Katalog vermischen sich nicht.</strong> Einen Katalog zu laden fügt deinem Keller nichts hinzu; einen Tabak bei dir anzulegen ändert den Katalog nicht. Beide werden trotzdem über denselben Bildschirm <em>Einstellungen → Daten</em> geladen — das ist die häufigste Verwechslung, und <a href="#de-catalogue">Abschnitt 4</a> ist ihnen gewidmet.</div>
 
 <h2 id="de-cycle">3. Tabak-Lebenszyklus</h2>
 <div class="flow">
@@ -1894,22 +1959,105 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note"><strong>Hinweis:</strong> selbst bei deaktivierter Buchhaltung findet das Öffnen eines Keller-Loses zu einem Glas (Keller → Glas) weiterhin statt — es ist ein echtes physisches Ereignis (du hast eine Dose geöffnet), gesteuert durch den Status des Loses und nicht durch die Mengenerfassung.</div>
 <div class="note">Das <strong>Standard-Sitzungsgewicht</strong> (das das Gewichtsfeld einer neuen Sitzung vorbelegt) wird ebenfalls unter <em>Einstellungen → Präferenzen</em> eingestellt. Außerdem schätzt die App das Gewicht <strong>automatisch</strong>, wenn du eine Pfeife wählst, <strong>deren Kammermaße</strong> (Durchmesser + Tiefe) eingetragen sind — aus dem Kammervolumen und dem <strong>Schnitt des gewählten Tabaks</strong> (ein dichter Flake wiegt mehr als ein luftiger Ribbon bei gleichem Volumen). Auch die <strong>Pfeifenform</strong> fließt ein: eine konische Kammer (Dublin-Familie oder Bulldog/Rhodesian) fasst etwas weniger als eine gerade gleicher Maße. Ohne Kammermaße gilt das obige Standardgewicht. Die Schätzung bleibt von Hand änderbar.</div>
 
-<h2 id="de-tobacco">5. Einen Tabak hinzufügen</h2>
-<p><strong>Der Katalog ist deine eigene Datei.</strong> Die App bringt keinen mit: Lade unter <em>Einstellungen → Daten → Referenzkatalog</em> die <strong>CSV-Vorlage</strong> herunter, fülle sie aus (eine Zeile pro Blend: Marke, Name, Kategorie, Schnitt, Stärke, Zusammensetzung, Beschreibung…) und <strong>lade sie hoch</strong>. Einmal geladen versorgt er das Auto-Ausfüllen, die Suche, die Vergleiche und die Katalogseite. Ohne Katalog sagen dir diese Bildschirme das und verweisen dich hierher. Drei Wege, einen Tabak hinzuzufügen, vom schnellsten zum manuellsten:</p>
+<h2 id="de-catalogue">4. Der Referenzkatalog</h2>
+<p>Die App verarbeitet <strong>zwei verschiedene Dinge</strong>, die beide unter <em>Einstellungen → Daten</em> geladen werden und die man nicht verwechseln darf:</p>
+<ul>
+  <li><strong>Dein Inventar</strong> — deine eigenen Dosen. Lose, Gewichte, Preise, Kaufdaten, gerauchte Sitzungen. Das ist dein Keller: du änderst ihn ständig, und er wandert in deine Sicherungen.</li>
+  <li><strong>Der Referenzkatalog</strong> — eine Datei mit beschreibenden Einträgen (Marke, Name, Familie, Schnitt, Zusammensetzung, Beschreibung), die <em>keine</em> deiner Dosen im Besonderen beschreibt. Sie enthält weder Gewicht noch Preis noch Datum: sie sagt, was eine Mischung <em>ist</em>, nicht was du davon besitzt.</li>
+</ul>
+<p>Der Katalog ist <strong>optional</strong>, und die App funktioniert vollständig ohne ihn: du kannst deinen ganzen Keller von Hand erfassen. Er bringt nur eines, aber das spart Zeit — <strong>die Merkmale einer Mischung, die du längst kennst, nicht noch einmal abzutippen</strong>.</p>
+<div class="note"><strong>Die App bringt keinen Katalog mit.</strong> Der Katalog ist <em>deine</em> Datei: du stellst sie zusammen, du korrigierst sie, sie enthält nur, was du hineingeschrieben hast. Solange du keinen geladen hast, sagen dir die Bildschirme, die ihn nutzen, genau das und verweisen dich hierher — es ist nichts kaputt.</div>
 
-<h3>① Den Katalog durchstöbern (am schnellsten)</h3>
+<h3>Was ein geladener Katalog ändert</h3>
+<ul>
+  <li>Das <strong>Auto-Ausfüllen</strong> der Tabak- und Wunschformulare fragt ihn ab (siehe <a href="#de-ai">Abschnitt 12</a>).</li>
+  <li>Eine Seite <strong>Katalog</strong> lässt sich durchstöbern, mit Suche und Filtern.</li>
+  <li>Du kannst zwei oder drei Mischungen <strong>vergleichen</strong>.</li>
+  <li>Du kannst die Katalogdaten <strong>in einem Durchgang</strong> in deine bestehenden Einträge übernehmen.</li>
+</ul>
+<div class="warn"><strong>Der Katalog ändert deinen Keller nie von selbst.</strong> Ihn zu laden fügt deinem Inventar keinen Tabak hinzu, entfernt keinen und rührt kein Los an. Er eröffnet nur die obigen Möglichkeiten, die du danach selbst auslöst. Umgekehrt ändert das Anlegen oder Löschen eines Tabaks bei dir den Katalog nicht: er ist <strong>schreibgeschützt</strong>.</div>
+
+<h3>Deinen Katalog anlegen und laden</h3>
 <ol>
-  <li>Tippe im Tab <strong>Katalog</strong> oben rechts auf das <strong>📖</strong>-Symbol.</li>
+  <li>Gehe zu <em>Einstellungen → Daten → Referenzkatalog</em>.</li>
+  <li>Tippe auf <strong>Vorlage herunterladen</strong>: du erhältst eine leere CSV-Datei mit Kopfzeile und einer Beispielzeile.</li>
+  <li>Fülle sie in einer Tabelle aus — <strong>eine Zeile pro Mischung</strong>.</li>
+  <li>Komm in die App zurück, tippe auf <strong>Katalog laden (.csv)</strong> und wähle deine Datei.</li>
+</ol>
+<p>Eine neue Datei zu laden <strong>ersetzt</strong> die vorige — der Katalog ist nicht kumulativ, anders als der Import deiner Tabake. Die Schaltfläche <strong>Katalog entfernen</strong> löscht ihn; dein Keller bleibt unberührt, und du kannst ihn jederzeit aus deiner Datei neu laden.</p>
+
+<h3>Das Dateiformat</h3>
+<p>Die <strong>CSV-Vorlage</strong> trägt die zwanzig Spalten, die die App lesen kann, mit einer Beispielzeile. Behalte die Kopfzeile: Spalten werden <strong>über ihren Namen</strong> erkannt, nicht über ihre Position, und eine Spalte, die du nicht nutzt, darf leer bleiben.</p>
+<ul>
+  <li><strong>brand_key</strong> — <strong>Pflicht.</strong> Die Marke. Zusammen mit <em>blend_name</em> ist sie die Identität der Zeile: zwei Zeilen mit demselben Paar sind Duplikate, nur die erste bleibt. Eine Zeile ohne eines von beiden wird übersprungen.</li>
+  <li><strong>blend_name</strong> — <strong>Pflicht.</strong> Der Name der Mischung.</li>
+  <li><strong>brand_name</strong> — Die Marke wie angezeigt, falls sie vom Schlüssel abweicht.</li>
+  <li><strong>category</strong> — <strong>Feste Taxonomie.</strong> Eine der Familien der App (Liste in <a href="#de-tobacco">Abschnitt 5</a>).</li>
+  <li><strong>cut</strong> — <strong>Feste Taxonomie.</strong> Einer der Schnitte der App (Liste in <a href="#de-tobacco">Abschnitt 5</a>).</li>
+  <li><strong>force, roomNote, taste</strong> — Eine ganze Zahl von 0 bis 5. Leer = unbekannt.</li>
+  <li><strong>agingMax</strong> — Lagerjahre: eine Zahl (10) oder eine Spanne (10-15). Leer = der Standardwert der Familie gilt.</li>
+  <li><strong>blend</strong> — Die Zusammensetzung als Freitext („Virginia, Perique“).</li>
+  <li><strong>description_fr … description_pt</strong> — Eine Spalte je Sprache. Die App zeigt deine, sonst Englisch, sonst Französisch, sonst die erste gefüllte: eine genügt.</li>
+  <li><strong>brand_aliases, blend_aliases</strong> — Weitere Namen, durch Semikolon getrennt. Das lässt eine anders beschriftete Dose trotzdem erkennen.</li>
+  <li><strong>lastReviewed, reviewValidated</strong> — Deine Prüfnotizen. Werden unverändert behalten und nie von der App gelesen.</li>
+</ul>
+<div class="warn"><strong>Zwei Spalten müssen der Taxonomie der App folgen: <em>category</em> und <em>cut</em>.</strong> Ein unbekannter Wert wird nicht abgewiesen — er bleibt wörtlich erhalten und der Ladebericht nennt ihn — aber das Blend ist dann nur halb verstanden: die Familie ordnet es nirgends ein (keine Reifespanne, kein Standard-Lageralter), der Schnitt wiegt nichts (die Schätzung des Kopfgewichts fällt auf den generischen Wert zurück), der Wert wird nicht übersetzt und existiert im Dropdown des Formulars nicht — sodass Öffnen und Speichern dieses Tabaks deinen Wert <strong>überschreibt</strong>. Gängige Handelsbezeichnungen werden automatisch umgesetzt (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); für alles andere halte dich an die beiden Listen in <a href="#de-tobacco">Abschnitt 5</a>.</div>
+<div class="note">Nach jedem Laden sagt dir der Bildschirm, was gelesen wurde: wie viele Blends und Marken, wegen fehlender Marke oder fehlenden Namens übersprungene Zeilen, verworfene Duplikate und jeder Familien- oder Schnittwert, der nicht erkannt wurde. <strong>Lies diese Zeilen</strong> — ein Katalog, der still ein Drittel seiner Zeilen verloren hat, sieht genauso aus wie einer, der sauber geladen wurde. Der Knopf <strong>Katalog prüfen</strong> direkt darunter führt dieselbe Prüfung erneut aus und nennt diesmal die <strong>Zeilennummer</strong> jedes Problems, damit du es in deiner Tabelle beheben kannst.</div>
+<p>Diese Prüfung beurteilt nur, was die App beurteilen kann: die beiden Pflichtspalten und die beiden Spalten mit fester Taxonomie. Sie liest deine Beschreibungen nicht gegen und prüft nicht, ob deine Daten stimmen — es ist deine Datei.</p>
+
+<h3>Den Katalog durchstöbern</h3>
+<p>Tippe im Tab <strong>Tabake</strong> oben rechts auf das <strong>📖</strong>-Symbol: die Seite <strong>Katalog</strong> öffnet sich. Sie ist schreibgeschützt und zeigt <em>nur</em> den Inhalt deiner Datei, nie deinen Keller.</p>
+<ul>
+  <li>Fehlertolerante <strong>Suche</strong>: Katalognummern („Solani 131" → „Solani Red Label"), Teilnamen („Peterson Sher" → „Sherlock Holmes"), unterschiedlich getippte Marken („MacBaren", „G L Pease", „Cornell and Diehl") und kleine Tippfehler („Capstain" → Capstan). Dieselbe Toleranz erkennt Duplikate in deinem Inventar.</li>
+  <li><strong>Filter</strong> nach Familie oder Marke, und Anzeige gruppiert nach Marke.</li>
+  <li>Ein Abzeichen <em>✓ vorhanden</em> (grün) oder <em>★ gewünscht</em> (amber) auf jeder Zeile zeigt, was du schon hast — die einzige Stelle, an der sich beide Welten treffen, und nur zu deiner Information.</li>
+  <li>Hört eine Mischung auf mehrere Namen, listet ihre Karte sie unter dem Titel auf, nach <strong>Auch bekannt als</strong> — nützlich, wenn deine Dose anders heißt als der Katalogeintrag. Aufgeführt werden nur Namen, die nicht schon im Titel stehen.</li>
+</ul>
+<p>Auf einer Katalogkarte holen zwei Schaltflächen die Mischung <em>aus der Referenz in deinen Keller</em>: <strong>Zum Bestand hinzufügen</strong> und <strong>Zur Wunschliste hinzufügen</strong>. Das ist der schnellste Weg, einen Tabak zu erfassen — siehe <a href="#de-tobacco">Abschnitt 5</a>.</p>
+
+<h3>Blends vergleichen</h3>
+<p>Die <strong>Zeile „Blends vergleichen“</strong> oben auf der Katalogseite direkt über dem Suchfeld — oder das <strong>Diagramm</strong>-Symbol in der oberen Leiste, oder die Schaltfläche unten auf der Karte eines Blends — stellt <strong>zwei oder drei Blends nebeneinander</strong>. Du kannst die Quellen frei mischen: einen Tabak aus deinem Keller, einen Blend aus dem Katalog, den du nicht besitzt, einen Wunsch von deiner Liste.</p>
+<div class="note"><strong>Die Spalten beantworten nicht alle dieselben Fragen, und das ist Absicht.</strong> Den <em>sachlichen</em> Teil — Familie, Schnitt, Zusammensetzung, Stärke, Room Note, Geschmack, Reifung — gibt es für alle, und dort entscheidet sich ein Kauf. Den Teil über <em>deine Erfahrung</em> — deine Bewertung, der Bestand, das älteste Los, die Sitzungen, die Durchschnittsbewertung, die Kosten pro Pfeife, die wahrgenommenen Aromen — gibt es nur für das, was du besitzt: bei einem Katalog-Blend bleiben diese Zeilen auf „—". Zeilen, die <strong>abweichen</strong>, werden hervorgehoben.</div>
+
+<h3>Katalogdaten in deine Einträge übernehmen</h3>
+<p>Zwei Wege, je nachdem, ob du <strong>einen Eintrag</strong> oder <strong>deinen ganzen Keller</strong> behandeln willst. In beiden Fällen werden deine Einträge geändert; der Katalog selbst bewegt sich nie.</p>
+<p><strong>Ein einzelner Eintrag.</strong> Öffne ihn im Bearbeitungsmodus (Schaltfläche Bearbeiten bei einem Tabak oder einem Wunsch). Wenn Marke + Name mit einem Katalogeintrag übereinstimmen und mindestens ein Feld abweicht, erscheint oben im Formular ein Banner <em>„Katalog-Update verfügbar"</em> und listet die Abweichungen auf, deinen Wert und den des Katalogs nebeneinander:</p>
+<ul>
+  <li><strong>Synchronisieren</strong> ersetzt deine Werte mit einem Tipp durch die des Katalogs (du kannst vor dem Speichern noch anpassen).</li>
+  <li><strong>Meine Werte behalten</strong> blendet das Banner für diesen Eintrag aus.</li>
+</ul>
+<p><strong>Der ganze Keller auf einmal.</strong> Die Schaltfläche oben rechts auf der Katalogseite vergleicht dein Inventar <em>und</em> deine Wunschliste mit dem Katalog und aktualisiert in einem Durchgang die <strong>sachlichen Felder</strong>: Kategorie, Schnitt, Zusammensetzung, Stärke, Room Note, Geschmack, maximale Reifung, Beschreibung. Die App zeigt dir zuerst, was sich ändern würde (wie viele Einträge, wie viele Felder); nichts wird geschrieben, bevor du bestätigst.</p>
+<div class="note"><strong>Deine persönlichen Daten werden nie überschrieben:</strong> Verkostungsnotizen, Bewertung, „nicht nachkaufen“, Foto, Lose (Gewichte, Preise, Daten), Sammlungen, die persönliche Notiz der Wünsche. Auch <strong>Name und Marke</strong> bleiben unangetastet — daran erkennst du deine Dose, und sie sind zugleich der Schlüssel, der beim Import Duplikate verhindert. Einträge, die nicht im Katalog stehen, bleiben unverändert, und ein <strong>„Rückgängig“</strong>-Hinweis stellt nach dem Durchgang für einige Sekunden alles wieder her.</div>
+<div class="note"><strong>Einen selbst gepflegten Eintrag sperren.</strong> Ganz unten im Formular eines Tabaks oder eines Wunsches setzt das Kästchen <strong>„Nie aus dem Katalog überschreiben“</strong> diesen Eintrag außer Reichweite der Sammelaktualisierung: Er wird vollständig übersprungen, der Katalog wird für ihn gar nicht erst befragt. Praktisch, wenn du eine Zusammensetzung selbst korrigiert, eine Stärke gemessen oder eine Beschreibung neu geschrieben hast. Der Bestätigungsdialog nennt die Zahl der gesperrten Einträge. Das Abgleichen Eintrag für Eintrag (oben) bleibt davon unberührt: Dort siehst du den Unterschied auf dem Bildschirm, bevor du zustimmst.</div>
+
+<h3>Den Katalog sichern</h3>
+<p>Der Katalog steckt <strong>nicht in deinen Keller-Sicherungen</strong> — weder im JSON-Export noch im ZIP noch in der automatischen Sicherung. Das ist Absicht: er kann mehrere Megabyte wiegen und ändert sich nur ab und zu, während dein Keller bei jeder Änderung gesichert wird.</p>
+<p>Er hat deshalb im selben Einstellungsabschnitt zwei eigene Schaltflächen: <strong>Katalog in der Cloud sichern</strong> und <strong>Katalog aus der Cloud holen</strong>. Er reist in einer eigenen Datei und wird nur hochgeladen, wenn du es verlangst. Auf einem neuen Gerät steht das Holen auch dann bereit, wenn kein Katalog geladen ist — genau dort nützt es.</p>
+<div class="note">Behalte auch die ursprüngliche CSV bei dir: das ist die Datei, die du in deiner Tabelle bearbeitest, und die Schaltfläche <strong>Meinen Katalog exportieren</strong> gibt sie dir so zurück, wie die App sie hält.</div>
+
+<h2 id="de-tobacco">5. Einen Tabak hinzufügen</h2>
+<p>Einen Tabak hinzuzufügen heißt, einen Eintrag in <strong>deinem Inventar</strong> anzulegen: eine Referenz, die du besitzt und der du danach ein oder mehrere Lose anhängst. Drei Wege, vom schnellsten zum manuellsten. Sie erzeugen genau denselben Eintrag, und alles bleibt danach änderbar — wähle nach dem, was du zur Hand hast.</p>
+<ul>
+  <li><strong>①</strong> du hast einen <a href="#de-catalogue">Referenzkatalog</a> geladen und die Mischung steht darin;</li>
+  <li><strong>②</strong> die App soll die Merkmale für dich suchen, in deinem Katalog oder online;</li>
+  <li><strong>③</strong> du gibst alles selbst ein — der Weg, der von nichts abhängt.</li>
+</ul>
+
+<h3>① Aus dem Katalog (am schnellsten)</h3>
+<p>Dieser Weg setzt einen geladenen Referenzkatalog voraus — siehe <a href="#de-catalogue">Abschnitt 4</a>. Hast du keinen, nimm ② oder ③: dir fehlt nichts, die Eingabe dauert nur länger.</p>
+<ol>
+  <li>Tippe im Tab <strong>Tabake</strong> oben rechts auf das <strong>📖</strong>-Symbol: die Seite <strong>Katalog</strong> öffnet sich.</li>
   <li>Finde deinen Blend: Suchleiste („Capstan blue", „Solani 131", „FVF"… die Suche ist fehlertolerant), Kategorie- oder Markenfilter, oder die nach Marke gruppierte Liste.</li>
-  <li>Tippe auf die Zeile für eine Vorschau, dann auf <strong>„Zu meinem Inventar hinzufügen"</strong>: ein vorausgefülltes Mini-Formular öffnet sich, alles bearbeitbar.</li>
+  <li>Tippe auf die Zeile für eine Vorschau, dann auf <strong>„Zum Bestand hinzufügen"</strong>: ein vorausgefülltes Mini-Formular öffnet sich, alles bearbeitbar.</li>
   <li><strong>Speichern</strong> → der Tabak wird mit einem ersten Los in dem <span class="badge badge-cave">Keller</span> angelegt, und du kehrst zum Katalog zurück, um weiterzumachen.</li>
 </ol>
-<div class="note">Die Schaltfläche <strong>„★ Zu meiner Wunschliste hinzufügen"</strong> macht dasselbe, legt den Eintrag aber unter deiner Wunschliste ab. Ein Abzeichen <em>✓ vorhanden</em> (grün) oder <em>★ gewünscht</em> (amber) auf jeder Zeile zeigt, was du bereits hast.</div>
+<div class="note">Der Katalog wird dabei nicht verändert: du hast seine Werte in einen neuen Eintrag <em>kopiert</em>, der dir gehört. Ihn später zu korrigieren ändert nichts an der Referenzdatei.</div>
+<div class="note">Die Schaltfläche <strong>„★ Zur Wunschliste hinzufügen"</strong> macht dasselbe, legt den Eintrag aber unter deiner Wunschliste ab. Ein Abzeichen <em>✓ vorhanden</em> (grün) oder <em>★ gewünscht</em> (amber) auf jeder Zeile zeigt, was du bereits hast.</div>
 <div class="note">Der <strong>Preis, das Kaufdatum und die Losdetails</strong> werden nachträglich auf der Seite des Tabaks ergänzt — siehe <a href="#de-lots">Lose verwalten</a>.</div>
-<div class="note"><strong>Schon einen Tabak von Hand eingetragen?</strong> Du kannst die Werte des Katalogs auf eine bestehende Karte übernehmen: öffne sie im Bearbeitungsmodus, und ein Banner <em>„Katalog-Update verfügbar"</em> bietet an, die abweichenden Felder zu <strong>synchronisieren</strong> — siehe <a href="#de-ai">Abschnitt 12</a>.</div>
+<div class="note"><strong>Schon einen Tabak von Hand eingetragen?</strong> Du kannst die Werte des Katalogs auf einen bestehenden Eintrag übernehmen: öffne ihn im Bearbeitungsmodus, und ein Banner <em>„Katalog-Update verfügbar"</em> bietet an, die abweichenden Felder zu <strong>synchronisieren</strong> — siehe <a href="#de-catalogue">Abschnitt 4</a>.</div>
 
 <h3>② Eingabe mit Auto-Ausfüllen</h3>
-<p>Tippe oben im Tab <strong>Tabak</strong> auf das <strong>+</strong>, gib mindestens die <strong>Marke</strong> und den <strong>Namen</strong> ein, dann auf die Schaltfläche <strong>Suchen</strong> auf der Karte <em>Auto-Ausfüllen</em>. Die App füllt Kategorie, Schnitt, Blend, Stärke, Room Note, Geschmack, maximales Alter und Beschreibung (alles bearbeitbar). Standardmäßig fragt sie zuerst den <strong>eingebauten lokalen Katalog</strong> und danach deinen KI-Assistenten, falls der Blend dort nicht steht; mit der Einstellung <em>Bevorzugte Quelle</em> lässt sich diese Reihenfolge umkehren, siehe <a href="#de-ai">KI-Assistent</a>. Du kannst auch <strong>die Dose scannen</strong>, um Marke und Name automatisch vorauszufüllen.</p>
+<p>Tippe oben im Tab <strong>Tabak</strong> auf das <strong>+</strong>, gib mindestens die <strong>Marke</strong> und den <strong>Namen</strong> ein, dann auf die Schaltfläche <strong>Suchen</strong> auf der Karte <em>Auto-Ausfüllen</em>. Die App füllt Kategorie, Schnitt, Blend, Stärke, Room Note, Geschmack, maximales Alter und Beschreibung (alles bearbeitbar). Standardmäßig fragt sie zuerst <strong>deinen Katalog</strong>, sofern geladen (<a href="#de-catalogue">Abschnitt 4</a>), und danach deinen KI-Assistenten, falls der Blend dort nicht steht; mit der Einstellung <em>Bevorzugte Quelle</em> lässt sich diese Reihenfolge umkehren, siehe <a href="#de-ai">KI-Assistent</a>. Ohne Katalog und ohne API-Schlüssel hat diese Schaltfläche nichts abzufragen und sagt es dir — die manuelle Eingabe ③ bleibt immer verfügbar. Du kannst auch <strong>die Dose scannen</strong>, um Marke und Name automatisch vorauszufüllen.</p>
 
 <h3>③ Vollständig manuelle Eingabe</h3>
 <table>
@@ -2000,8 +2148,8 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note"><strong>Pflege-Logbuch:</strong> die Pfeifen-Detailseite hat ein <em>„Pflege-Logbuch“</em> — jede Sitzung wählt eine <strong>Reinigungsart</strong> (leicht, gründlich oder „ohne Reinigung“ für einen einzelnen Eingriff) und <strong>hakt dann die erledigten Arbeiten ab</strong> (Pfeifenreiniger, Kopf, Ausreiben, Salz &amp; Alkohol, Mundstück, Wachs, Reparatur, Ruhen, Andere), mit Datum und Notizen. Die Einträge werden vom neuesten zum ältesten angezeigt. Eine <strong>„Reinigung fällig“-Erinnerung</strong> erscheint (ein Chip auf Karte und Detailseite sowie ein Abschnitt am Ende der Startseite), sobald eine Pfeife eine bestimmte Anzahl Sitzungen seit ihrer letzten Reinigung geraucht wurde — <strong>nur die leichte und die gründliche Reinigung setzen den Zähler zurück</strong> („ohne Reinigung“ zählt nicht). Schwelle einstellbar unter <em>Einstellungen → Präferenzen</em> (Standard 5 Sitzungen). Du kannst diese <strong>Erinnerungen auch ganz abschalten</strong> unter <em>Einstellungen → Präferenzen → „Pflege-Erinnerungen“</em>: die Erinnerungen verschwinden dann von der Startseite und den Pfeifen-Detailseiten, das Logbuch bleibt aber verfügbar. Das Logbuch ist in deinen Sicherungen enthalten.</div>
 
 <h2 id="de-wishlist">9. Wunschliste</h2>
-<p>Ein Merkzettel für Tabake, die du kaufen möchtest. Tippe im Tab <strong>Katalog</strong> (deine Tabakliste) auf den Chip <em>Wunschliste</em> (Herzsymbol) in der Filterzeile, um nur deine Wünsche anzuzeigen; wähle einen beliebigen anderen Filter, um zum Inventar zurückzukehren.</p>
-<div class="note"><strong>Schnellster Weg, deine Wunschliste zu füllen:</strong> der Referenzkatalog (<strong>📖</strong>-Symbol, siehe <a href="#de-tobacco">Abschnitt 5</a>) bietet auf jedem Blend eine Schaltfläche <em>★ Zu meiner Wunschliste hinzufügen</em> — der Wunsch wird mit einem Tipp vorausgefüllt angelegt, ohne Tippen. Du kannst einen Wunsch auch manuell über die <strong>+</strong>-Schaltfläche hinzufügen; der KI-Assistent und der Dosen-Scan funktionieren auch in diesem Formular.</div>
+<p>Ein Merkzettel für Tabake, die du kaufen möchtest. Tippe im Tab <strong>Tabake</strong> auf den Chip <em>Wunschliste</em> (Herzsymbol) in der Filterzeile, um nur deine Wünsche anzuzeigen; wähle einen beliebigen anderen Filter, um zum Inventar zurückzukehren. Die Wunschliste gehört zu deinem Inventar — es sind deine eigenen Wünsche, keine Katalogeinträge.</p>
+<div class="note"><strong>Schnellster Weg, deine Wunschliste zu füllen:</strong> der Referenzkatalog (<strong>📖</strong>-Symbol, siehe <a href="#de-catalogue">Abschnitt 4</a>) bietet auf jedem Blend eine Schaltfläche <em>★ Zur Wunschliste hinzufügen</em> — der Wunsch wird mit einem Tipp vorausgefüllt angelegt, ohne Tippen. Du kannst einen Wunsch auch manuell über die <strong>+</strong>-Schaltfläche hinzufügen; der KI-Assistent und der Dosen-Scan funktionieren auch in diesem Formular.</div>
 <p>Jeder Eintrag kann enthalten:</p>
 <table>
   <tr><th>Feld</th><th>Beschreibung</th></tr>
@@ -2084,50 +2232,14 @@ The two formats have neither the same columns nor the same effect: loading one i
 
 <h2 id="de-ai">12. KI-Assistent</h2>
 <p>Verfügbar in den Formularen für Tabak, Pfeife und Wunschliste. Fülle den Namen oder die Marke aus, dann tippe auf <strong>Suchen</strong>. Die App füllt automatisch Kategorie, Blend, Schnitt oder Form, Beschreibung — und für Tabake: <strong>Stärke, Room Note, Geschmack und maximales Reifealter</strong>.</p>
-<h3>Dein Referenzkatalog</h3>
-<p>Der <strong>lokale Katalog</strong> ist die CSV-Datei, die du unter <em>Einstellungen → Daten</em> geladen hast (siehe <a href="#de-tobacco">Abschnitt 5</a>): die App bringt keinen mit. Einmal geladen ist er <strong>sofort verfügbar, offline und ohne Schlüssel</strong> — keine Netzwerkanfrage. <strong>Ohne API-Schlüssel</strong> greift das Auto-Ausfüllen direkt auf ihn zu. <strong>Mit einem Schlüssel</strong> entscheidet die Einstellung <em>Bevorzugte Quelle</em> (weiter unten): bei <strong>KI-Agent</strong> dient der Katalog als Rückfall, wenn die Anfrage fehlschlägt; bei <strong>Katalog</strong> (Standard) kommt er zuerst, und ein <strong>grünes Feld</strong> erscheint, sobald du eine erkannte Marke + Namen eintippst, mit einer Schaltfläche <strong>Eintrag ausfüllen</strong> (oder <em>Ignorieren</em>, um es auszublenden). Nach jeder Suche sagt dir eine kleine Zeile <em>· Quelle: …</em>, woher die Daten stammen. <strong>Solange kein Katalog geladen ist</strong>, hat das Auto-Ausfüllen ohne Schlüssel nichts nachzuschlagen und sagt es dir.</p>
-<p>Der Katalog akzeptiert <strong>ungefähre Eingaben</strong>: Katalognummern („Solani 131" → „Solani Red Label"), Teilnamen („Peterson Sher" → „Sherlock Holmes"), unterschiedlich getippte Marken („MacBaren", „G L Pease", „Cornell and Diehl") und kleine Tippfehler („Capstain" → Capstan). Dieselbe Toleranz treibt die Duplikaterkennung in deinem Inventar an.</p>
-<p>Wenn ein Blend auf mehrere Namen hört, listet seine Karte sie unter dem Titel auf, nach <strong>Auch bekannt als</strong> — nützlich, wenn deine Dose anders heißt als der Katalogeintrag, etwa nachdem zwei Einträge zusammengeführt wurden. Aufgeführt werden nur Namen, die nicht schon im Titel stehen.</p>
-<h3>Das Dateiformat</h3>
-<p>Die <strong>CSV-Vorlage</strong> trägt die zwanzig Spalten, die die App lesen kann, mit einer Beispielzeile. Behalte die Kopfzeile: Spalten werden <strong>über ihren Namen</strong> erkannt, nicht über ihre Position, und eine Spalte, die du nicht nutzt, darf leer bleiben.</p>
-<ul>
-  <li><strong>brand_key</strong> — <strong>Pflicht.</strong> Die Marke. Zusammen mit <em>blend_name</em> ist sie die Identität der Zeile: zwei Zeilen mit demselben Paar sind Duplikate, nur die erste bleibt. Eine Zeile ohne eines von beiden wird übersprungen.</li>
-  <li><strong>blend_name</strong> — <strong>Pflicht.</strong> Der Name der Mischung.</li>
-  <li><strong>brand_name</strong> — Die Marke wie angezeigt, falls sie vom Schlüssel abweicht.</li>
-  <li><strong>category</strong> — <strong>Feste Taxonomie.</strong> Eine der Familien der App (Liste in <a href="#de-tobacco">Abschnitt 5</a>).</li>
-  <li><strong>cut</strong> — <strong>Feste Taxonomie.</strong> Einer der Schnitte der App (Liste in <a href="#de-tobacco">Abschnitt 5</a>).</li>
-  <li><strong>force, roomNote, taste</strong> — Eine ganze Zahl von 0 bis 5. Leer = unbekannt.</li>
-  <li><strong>agingMax</strong> — Lagerjahre: eine Zahl (10) oder eine Spanne (10-15). Leer = der Standardwert der Familie gilt.</li>
-  <li><strong>blend</strong> — Die Zusammensetzung als Freitext („Virginia, Perique“).</li>
-  <li><strong>description_fr … description_pt</strong> — Eine Spalte je Sprache. Die App zeigt deine, sonst Englisch, sonst Französisch, sonst die erste gefüllte: eine genügt.</li>
-  <li><strong>brand_aliases, blend_aliases</strong> — Weitere Namen, durch Semikolon getrennt. Das lässt eine anders beschriftete Dose trotzdem erkennen.</li>
-  <li><strong>lastReviewed, reviewValidated</strong> — Deine Prüfnotizen. Werden unverändert behalten und nie von der App gelesen.</li>
-</ul>
-<div class="warn"><strong>Zwei Spalten müssen der Taxonomie der App folgen: <em>category</em> und <em>cut</em>.</strong> Ein unbekannter Wert wird nicht abgewiesen — er bleibt wörtlich erhalten und der Ladebericht nennt ihn — aber das Blend ist dann nur halb verstanden: die Familie ordnet es nirgends ein (keine Reifespanne, kein Standard-Lageralter), der Schnitt wiegt nichts (die Schätzung des Kopfgewichts fällt auf den generischen Wert zurück), der Wert wird nicht übersetzt und existiert im Dropdown des Formulars nicht — sodass Öffnen und Speichern dieses Tabaks deinen Wert <strong>überschreibt</strong>. Gängige Handelsbezeichnungen werden automatisch umgesetzt (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); für alles andere halte dich an die beiden Listen in <a href="#de-tobacco">Abschnitt 5</a>.</div>
-<div class="note">Nach jedem Laden sagt dir der Bildschirm, was gelesen wurde: wie viele Blends und Marken, wegen fehlender Marke oder fehlenden Namens übersprungene Zeilen, verworfene Duplikate und jeder Familien- oder Schnittwert, der nicht erkannt wurde. <strong>Lies diese Zeilen</strong> — ein Katalog, der still ein Drittel seiner Zeilen verloren hat, sieht genauso aus wie einer, der sauber geladen wurde. Der Knopf <strong>Katalog prüfen</strong> direkt darunter führt dieselbe Prüfung erneut aus und nennt diesmal die <strong>Zeilennummer</strong> jedes Problems, damit du es in deiner Tabelle beheben kannst.</div>
-<h3>Blends vergleichen</h3>
-<p>Die <strong>Zeile „Blends vergleichen“</strong> oben auf der Katalogseite direkt über dem Suchfeld — oder das <strong>Diagramm</strong>-Symbol in der oberen Leiste, oder die Schaltfläche unten auf der Karte eines Blends — stellt <strong>zwei oder drei Blends nebeneinander</strong>. Du kannst die Quellen frei mischen: einen Tabak aus deinem Keller, einen Blend aus dem Katalog, den du nicht besitzt, einen Wunsch von deiner Liste.</p>
-<div class="note"><strong>Die Spalten beantworten nicht alle dieselben Fragen, und das ist Absicht.</strong> Der <em>sachliche</em> Teil — Familie, Schnitt, Zusammensetzung, Stärke, Room Note, Geschmack, Reifung — gibt es für alle, und dort entscheidet sich ein Kauf. Der Teil über <em>deine Erfahrung</em> — deine Bewertung, der Bestand, das älteste Los, die Sitzungen, die Durchschnittsbewertung, die Kosten pro Pfeife, die wahrgenommenen Aromen — gibt es nur für das, was du besitzt: bei einem Katalog-Blend bleiben diese Zeilen auf „—". Zeilen, die <strong>abweichen</strong>, werden hervorgehoben.</div>
-
-<h3>Katalogdaten übernehmen</h3>
-<p>Die <strong>Schaltfläche oben rechts auf der Katalogseite</strong> (erreichbar über das 📖-Symbol in der Bestandsleiste) vergleicht deinen gesamten Keller und deine Wunschliste mit dem Referenzkatalog und aktualisiert in einem Durchgang die <strong>sachlichen Felder</strong>: Kategorie, Schnitt, Zusammensetzung, Stärke, Room Note, Geschmack, maximale Reifung, Beschreibung. Die App zeigt dir zuerst, was sich ändern würde (wie viele Einträge, wie viele Felder); nichts wird geschrieben, bevor du bestätigst.</p>
-<div class="note"><strong>Deine persönlichen Daten werden nie überschrieben:</strong> Verkostungsnotizen, Bewertung, „nicht nachkaufen“, Foto, Lose (Gewichte, Preise, Daten), Sammlungen, die persönliche Notiz der Wünsche. Auch <strong>Name und Marke</strong> bleiben unangetastet — daran erkennst du deine Dose, und sie sind zugleich der Schlüssel, der beim Import Duplikate verhindert. Einträge, die nicht im Katalog stehen, bleiben unverändert, und ein <strong>„Rückgängig“</strong>-Hinweis stellt nach dem Durchgang für einige Sekunden alles wieder her.</div>
-<div class="note"><strong>Einen selbst gepflegten Eintrag sperren.</strong> Ganz unten im Formular eines Tabaks oder eines Wunsches setzt das Kästchen <strong>„Nie aus dem Katalog überschreiben“</strong> diesen Eintrag außer Reichweite der Sammelaktualisierung: Er wird vollständig übersprungen, der Katalog wird für ihn gar nicht erst befragt. Praktisch, wenn du eine Zusammensetzung selbst korrigiert, eine Stärke gemessen oder eine Beschreibung neu geschrieben hast. Der Bestätigungsdialog nennt die Zahl der gesperrten Einträge. Das manuelle Abgleichen im Eintrag selbst (nächster Abschnitt) bleibt möglich: Dort siehst du den Unterschied auf dem Bildschirm, bevor du zustimmst.</div>
-
+<div class="note"><strong>KI und Katalog beantworten dieselbe Frage auf zwei Wegen.</strong> Der <a href="#de-catalogue">Katalog</a> ist deine Datei: sofort, offline, kostenlos, aber er kennt nur, was du hineingeschrieben hast. Der KI-Agent fragt einen Anbieter online: er kennt Mischungen, die in deiner Datei fehlen, verlangt aber einen Schlüssel und eine Verbindung, und dein Anbieter stellt ihn in Rechnung. Die Einstellung unten entscheidet, welcher von beiden zuerst gefragt wird.</div>
 <h3>Bevorzugte Quelle</h3>
 <p>Festgelegt unter <em>Einstellungen → Daten → KI-Assistent → Bevorzugte Quelle</em>:</p>
 <ul>
-  <li><strong>KI-Agent</strong> — fragt zuerst deinen Anbieter, mit einem stillen Rückgriff auf den lokalen Katalog bei Fehler.</li>
-  <li><strong>Katalog</strong> (Standard) — sofort, offline, ohne Schlüssel. Wähle dies ohne API-Schlüssel oder um dein Kontingent zu schonen.</li>
+  <li><strong>KI-Agent</strong> — fragt zuerst deinen Anbieter, mit einem stillen Rückgriff auf den Katalog bei Fehler.</li>
+  <li><strong>Katalog</strong> (Standard) — sofort, offline, ohne Schlüssel. Wähle dies ohne API-Schlüssel oder um dein Kontingent zu schonen. Ist kein Katalog geladen, gibt es nichts nachzuschlagen, und die App sagt es dir.</li>
 </ul>
 <p>Nach einem Ausfüllen aus dem Katalog holt eine Schaltfläche <strong>„Mit KI gegenprüfen"</strong> eine zweite Meinung ein und zeigt eine Differenz der abweichenden Felder — du wählst dann <em>KI anwenden</em> oder <em>Katalog behalten</em>.</p>
-<h3>Eine bereits eingetragene Karte aus dem Katalog aktualisieren</h3>
-<p>Einen Tabak von Hand getippt und willst die korrekten Werte des Katalogs? <strong>Öffne die Karte im Bearbeitungsmodus</strong> (Schaltfläche Bearbeiten bei einem Tabak oder einem Wunsch). Wenn Marke + Name mit einem Katalogeintrag übereinstimmen und mindestens ein Feld abweicht, erscheint automatisch ein Banner <em>„Katalog-Update verfügbar"</em> <strong>am oberen Rand des Formulars</strong>. Es listet die Abweichungen (Kategorie, Schnitt, Blend, Stärke, Room Note, Geschmack, Max. Alter, Beschreibung) mit deinem Wert und dem Katalogwert nebeneinander:</p>
-<ul>
-  <li><strong>Synchronisieren</strong> ersetzt deine Werte mit einem Tipp durch die des Katalogs (du kannst vor dem Speichern noch anpassen).</li>
-  <li><strong>Meine Werte behalten</strong> blendet das Banner für diese Karte aus.</li>
-</ul>
-<div class="note">Deine <strong>persönlichen Notizen</strong>, Fotos, Sternebewertung, „Wiederkaufen"-Markierung und Lose werden nie angetastet — sie sind nicht im Katalog.</div>
 <h3>KI-Agent (Anbieter)</h3>
 <table>
   <tr><th>Anbieter</th><th>API-Schlüssel</th></tr>
@@ -2141,7 +2253,7 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note">Dein Schlüssel wird lokal gespeichert. Standardmäßig ist er von Exporten und Sicherungen <strong>ausgeschlossen</strong>; um ihn einzubeziehen, deaktiviere <em>API-Schlüssel von Exporten ausschließen</em> im selben Abschnitt.</div>
 <h3>Die Dose scannen</h3>
 <p>Im Tabak- (und Wunsch-)Formular lässt dich die Schaltfläche <strong>Dose scannen</strong> die Dose fotografieren (oder ein Foto aus deiner Bibliothek wählen): die KI liest das Etikett, um die <strong>Marke</strong>, den <strong>Namen</strong> und die <strong>Zusammensetzung</strong> auszufüllen, wenn lesbar, und verkettet dann automatisch die übliche Suche, um den Rest zu vervollständigen. Ein Foto, ein vollständiges Blatt. Das Foto wird vor dem Hochladen verkleinert und <strong>nie gespeichert</strong>. Wenn es unlesbar ist, lädt eine Nachricht dich ein, es erneut zu versuchen; nichts wird überschrieben.</p>
-<div class="note">Um <strong>den Katalog zu durchstöbern</strong> und einen Blend mit einem Tipp hinzuzufügen, siehe <a href="#de-tobacco">Abschnitt 5 „Einen Tabak hinzufügen"</a>.</div>
+<div class="note">Der Referenzkatalog — sich einen beschaffen, ihn laden, durchstöbern und seine Daten übernehmen — hat seinen eigenen <a href="#de-catalogue">Abschnitt 4</a>. Für die drei Wege, einen Tabak anzulegen, siehe <a href="#de-tobacco">Abschnitt 5</a>.</div>
 
 <h2 id="de-stats">13. Statistiken und Diagramme</h2>
 <p>Erreichbar über die Schaltfläche <strong>Stats</strong> (Diagrammsymbol) in der Navigationsleiste. Zeigt SVG-Diagramme, die in Echtzeit aus deinen Daten berechnet werden.</p>
@@ -2186,6 +2298,12 @@ The two formats have neither the same columns nor the same effect: loading one i
   <li><strong>📂 Datei importieren</strong> — aus einer JSON-Datei wiederherstellen (Ersetzen / Zusammenführen / Auswählen, siehe unten).</li>
   <li><strong>Tabake importieren (.csv)</strong> — fügt Tabake (und ihre Lose) aus einer Tabelle hinzu. Die Spalten werden <strong>nach dem Spaltennamen</strong> erkannt (Akzente und Groß-/Kleinschreibung ignoriert, FR/EN-Aliase): nur <em>Marke</em> und <em>Name</em> sind erforderlich. Zeilen mit derselben Marke + Name werden zu einem Tabak mit mehreren Losen zusammengefasst. Der Import läuft immer als <strong>Zusammenführung</strong> (nie als Ersetzen: deine Pfeifen und Sitzungen werden nie gelöscht, und Duplikate werden nach Marke + Name entdoppelt). Nutze <strong>CSV-Vorlage herunterladen</strong>, um von einer ausfüllfertigen Datei auszugehen. Die Spalten <em>Kategorie</em> und <em>Schnitt</em> müssen die Taxonomie der App verwenden (Listen in Abschnitt 5) — gängige Handelsbezeichnungen werden erkannt (« Navy Cut », « Cigar »), ein unbekannter Wert wird auf « Autre » gesetzt, und die Einzelheiten erscheinen mit der Zeilennummer unter dem Knopf.</li>
 </ul>
+<div class="warn"><strong>Von diesem Bildschirm lassen sich zwei verschiedene CSV-Dateien laden. Verwechsle sie nicht.</strong>
+<ul>
+  <li><strong>Tabake importieren (.csv)</strong>, oben — das sind <em>deine Dosen</em>. Spalten <em>Marke</em>, <em>Name</em>, Gewicht, Preis, Daten. Die Datei <strong>ergänzt</strong> deinen Keller per Zusammenführung und legt Lose an. Ihre Vorlage ist die Schaltfläche <strong>CSV-Vorlage herunterladen</strong> in ebendiesem Abschnitt.</li>
+  <li><strong>Katalog laden (.csv)</strong>, weiter oben im Abschnitt <em>Referenzkatalog</em> — das sind <em>beschreibende Einträge</em>. Spalten <em>brand_key</em>, <em>blend_name</em>, <em>category</em>, <em>cut</em>… Die Datei <strong>ersetzt</strong> den bisherigen Katalog und fügt deinem Keller <strong>nichts</strong> hinzu. Ihre Vorlage ist die Schaltfläche <strong>Vorlage herunterladen</strong> in jenem anderen Abschnitt. Siehe <a href="#de-catalogue">Abschnitt 4</a>.</li>
+</ul>
+Die beiden Formate haben weder dieselben Spalten noch dieselbe Wirkung: das eine anstelle des anderen zu laden zerstört nichts, aber die App wird dir antworten, dass sie nichts lesen konnte.</div>
 <div class="note"><strong>Ausführliche CSV-Importfehler.</strong> Enthält die Datei keinen lesbaren Tabak, erinnert dich eine Meldung an die erwarteten Spalten. Wählst du versehentlich eine <em>JSON-Sicherungsdatei</em>, verweist dich die App auf <strong>Datei importieren (.json)</strong>. Eine vollständige mehrteilige Export-CSV wird akzeptiert: nur ihr Tabak-Teil wird importiert, mit einem Hinweis.</div>
 <div class="note"><strong>Ersetzen, Zusammenführen oder Auswählen.</strong> Nachdem du die Datei gewählt hast, bietet ein Auswähler drei Modi: <strong>Ersetzen</strong> (löscht deine lokalen Daten und installiert die importierte Datei), <strong>Zusammenführen</strong> (behält deine Daten und hängt nur fehlende Elemente an — abgeglichen über Marke + Name, Sitzungen dedupliziert) oder <strong>Elemente auswählen</strong> (du wählst genau, welche Tabake / Pfeifen / Wünsche / Zubehör / Sitzungen importiert werden). Derselbe Auswähler erscheint bei einer Cloud-Wiederherstellung.</div>
 <div class="warn">Der Modus <strong>Ersetzen</strong> überschreibt all deine lokalen Daten. Exportiere im Zweifel zuerst eine Sicherung, oder nutze <em>Zusammenführen</em>.</div>
@@ -2340,6 +2458,7 @@ The two formats have neither the same columns nor the same effect: loading one i
     <li><a href="#it-install">Installazione nella schermata home</a></li>
     <li><a href="#it-concepts">Concetti fondamentali</a></li>
     <li><a href="#it-cycle">Ciclo di vita del tabacco: Acquisto → Cantina → Barattolo → Finito</a></li>
+    <li><a href="#it-catalogue">Il catalogo di riferimento</a></li>
     <li><a href="#it-tobacco">Aggiungere un tabacco</a></li>
     <li><a href="#it-lots">Gestire i lotti</a></li>
     <li><a href="#it-inventory">Sfogliare l'inventario</a></li>
@@ -2377,6 +2496,11 @@ The two formats have neither the same columns nor the same effect: loading one i
   <li><strong>Lotto</strong> — una specifica latta o quantità acquistata in una data precisa. Il lotto porta con sé lo stato e la storia dell'invecchiamento.</li>
 </ul>
 <p>Questa distinzione ti permette di seguire più latte dello stesso tabacco a stadi diversi (una che invecchia in cantina, una aperta in un barattolo) pur condividendo un unico insieme di note e descrizioni.</p>
+<p>Questi due oggetti formano <strong>il tuo inventario</strong>: ciò che possiedi davvero. Accanto, l'app sa usare una terza cosa, di natura diversa:</p>
+<ul>
+  <li><strong>Il catalogo di riferimento</strong> — un file <em>facoltativo</em> che carichi tu e che descrive miscele in commercio (famiglia, taglio, composizione, descrizione), senza dire nulla delle tue latte. Non contiene né pesi, né prezzi, né date. Serve a compilare le tue schede più in fretta, mai a sostituirle.</li>
+</ul>
+<div class="warn"><strong>Inventario e catalogo non si mescolano.</strong> Caricare un catalogo non aggiunge nulla alla tua cantina; aggiungere un tabacco da te non modifica il catalogo. Eppure si caricano entrambi dalla stessa schermata <em>Impostazioni → Dati</em>, ed è la confusione più comune — la <a href="#it-catalogue">sezione 4</a> è dedicata a loro.</div>
 
 <h2 id="it-cycle">3. Ciclo di vita del tabacco</h2>
 <div class="flow">
@@ -2415,22 +2539,105 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note"><strong>Nota:</strong> anche con la Contabilità disattivata, l'apertura di un lotto di Cantina verso un Barattolo (Cantina → Barattolo) avviene comunque — è un evento fisico reale (hai aperto una latta), governato dallo stato del lotto e non dal monitoraggio delle quantità.</div>
 <div class="note">La <strong>grammatura predefinita</strong> (che precompila il campo Grammatura di una nuova sessione) si imposta anch'essa in <em>Impostazioni → Preferenze</em>. Inoltre, quando scegli una pipa <strong>di cui sono indicate le dimensioni del fornello</strong> (diametro + profondità), l'app <strong>stima la grammatura automaticamente</strong> dal volume del fornello e dal <strong>taglio del tabacco</strong> selezionato (un flake denso pesa più di un ribbon arioso a parità di volume). Si tiene conto anche della <strong>forma della pipa</strong>: un fornello conico (famiglia Dublin, o Bulldog/Rhodesian) contiene un po' meno di uno dritto delle stesse dimensioni. Senza dimensioni del fornello si applica la grammatura predefinita qui sopra. La stima resta modificabile a mano.</div>
 
-<h2 id="it-tobacco">5. Aggiungere un tabacco</h2>
-<p><strong>Il catalogo è il tuo file.</strong> L'app non ne include nessuno: da <em>Impostazioni → Dati → Catalogo di riferimento</em>, scarica il <strong>modello CSV</strong>, compilalo (una riga per miscela: marca, nome, categoria, taglio, forza, composizione, descrizione…) e <strong>caricalo</strong>. Una volta caricato alimenta il riempimento automatico, la ricerca, i confronti e la pagina Catalogo. Senza catalogo, quelle schermate te lo dicono e ti rimandano qui. Tre modi per aggiungere un tabacco, dal più veloce al più manuale:</p>
+<h2 id="it-catalogue">4. Il catalogo di riferimento</h2>
+<p>L'app gestisce <strong>due cose diverse</strong>, che si caricano entrambe da <em>Impostazioni → Dati</em> e che non vanno confuse:</p>
+<ul>
+  <li><strong>Il tuo inventario</strong> — le tue latte. Lotti, pesi, prezzi, date di acquisto, sessioni fumate. È la tua cantina: la modifichi di continuo e finisce nei tuoi backup.</li>
+  <li><strong>Il catalogo di riferimento</strong> — un file di schede descrittive (marca, nome, famiglia, taglio, composizione, descrizione) che non descrive <em>nessuna</em> delle tue latte in particolare. Non contiene né pesi, né prezzi, né date: dice che cosa <em>è</em> una miscela, non quanta ne possiedi.</li>
+</ul>
+<p>Il catalogo è <strong>facoltativo</strong> e l'app funziona benissimo senza di esso: puoi inserire tutta la tua cantina a mano. Porta un solo vantaggio, ma che fa guadagnare tempo — <strong>non ridigitare le caratteristiche di una miscela che conosci già</strong>.</p>
+<div class="note"><strong>Nessun catalogo è incluso nell'app.</strong> Il catalogo è <em>il tuo</em> file: lo componi tu, lo correggi tu, contiene solo ciò che ci hai messo. Finché non ne hai caricato nessuno, le schermate che lo usano te lo dicono e ti rimandano qui — non c'è nulla di rotto.</div>
 
-<h3>① Sfogliare il catalogo (il più veloce)</h3>
+<h3>Che cosa cambia quando è caricato</h3>
+<ul>
+  <li>La <strong>compilazione automatica</strong> dei moduli tabacco e desiderio lo consulta (vedi <a href="#it-ai">sezione 12</a>).</li>
+  <li>Una pagina <strong>Catalogo</strong> diventa sfogliabile, con ricerca e filtri.</li>
+  <li>Puoi <strong>confrontare</strong> due o tre miscele fianco a fianco.</li>
+  <li>Puoi <strong>riprendere in una sola passata</strong> i dati del catalogo nelle schede che possiedi già.</li>
+</ul>
+<div class="warn"><strong>Il catalogo non modifica mai la tua cantina da solo.</strong> Caricarlo non aggiunge alcun tabacco al tuo inventario, non ne toglie nessuno e non tocca nessuno dei tuoi lotti. Apre soltanto le possibilità qui sopra, che sei tu ad avviare. Viceversa, inserire o eliminare un tabacco da te non modifica il catalogo: è in <strong>sola lettura</strong>.</div>
+
+<h3>Procurarsi e caricare il catalogo</h3>
 <ol>
-  <li>Dalla scheda <strong>Catalogo</strong>, tocca l'icona <strong>📖</strong> in alto a destra.</li>
+  <li>Vai in <em>Impostazioni → Dati → Catalogo di riferimento</em>.</li>
+  <li>Tocca <strong>Scarica il modello</strong>: ottieni un file CSV vuoto, con la riga di intestazione e una riga di esempio.</li>
+  <li>Compilalo in un foglio di calcolo — <strong>una riga per miscela</strong>.</li>
+  <li>Torna nell'app, tocca <strong>Carica un catalogo (.csv)</strong> e scegli il tuo file.</li>
+</ol>
+<p>Caricare un nuovo file <strong>sostituisce</strong> il precedente — il catalogo non è cumulativo, al contrario dell'importazione dei tuoi tabacchi. Il pulsante <strong>Rimuovi il catalogo</strong> lo elimina; la tua cantina non viene toccata, e potrai sempre ricaricarlo dal tuo file.</p>
+
+<h3>Il formato del file</h3>
+<p>Il <strong>modello CSV</strong> porta le venti colonne che l'app sa leggere, con una riga di esempio. Conserva la riga di intestazione: le colonne sono riconosciute <strong>dal loro nome</strong>, non dalla posizione, e una colonna che non usi può restare vuota.</p>
+<ul>
+  <li><strong>brand_key</strong> — <strong>Obbligatoria.</strong> La marca. Insieme a <em>blend_name</em> è l'identità della riga: due righe con la stessa coppia sono duplicati e resta solo la prima. Una riga priva di uno dei due viene ignorata.</li>
+  <li><strong>blend_name</strong> — <strong>Obbligatoria.</strong> Il nome della miscela.</li>
+  <li><strong>brand_name</strong> — La marca come viene mostrata, se diversa dalla chiave.</li>
+  <li><strong>category</strong> — <strong>Tassonomia obbligata.</strong> Una delle famiglie dell'app (elenco nella <a href="#it-tobacco">sezione 5</a>).</li>
+  <li><strong>cut</strong> — <strong>Tassonomia obbligata.</strong> Uno dei tagli dell'app (elenco nella <a href="#it-tobacco">sezione 5</a>).</li>
+  <li><strong>force, roomNote, taste</strong> — Un intero da 0 a 5. Vuoto = sconosciuto.</li>
+  <li><strong>agingMax</strong> — Anni di invecchiamento: un numero (10) o un intervallo (10-15). Vuoto = si applica il valore predefinito della famiglia.</li>
+  <li><strong>blend</strong> — La composizione, testo libero («Virginia, Perique»).</li>
+  <li><strong>description_fr … description_pt</strong> — Una colonna per lingua. L'app mostra la tua, altrimenti l'inglese, altrimenti il francese, altrimenti la prima compilata: ne basta una.</li>
+  <li><strong>brand_aliases, blend_aliases</strong> — Altri nomi, separati da punto e virgola. È ciò che fa riconoscere una latta etichettata diversamente.</li>
+  <li><strong>lastReviewed, reviewValidated</strong> — Le tue note di revisione. Conservate così come sono, mai lette dall'app.</li>
+</ul>
+<div class="warn"><strong>Due colonne devono rispettare la tassonomia dell'app: <em>category</em> e <em>cut</em>.</strong> Un valore sconosciuto non viene rifiutato — resta tale e quale e il rapporto di caricamento te lo segnala — ma la miscela è allora capita solo a metà: la famiglia non la colloca da nessuna parte (né fascia di maturità né età di conservazione predefinita), il taglio non pesa nulla (la stima del peso di una pipata ripiega sul valore generico), il valore non si traduce e non esiste nel menu del modulo — così aprire e salvare quel tabacco <strong>riscrive</strong> il tuo valore. Le etichette commerciali più comuni vengono convertite da sole (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); per il resto, affidati ai due elenchi della <a href="#it-tobacco">sezione 5</a>.</div>
+<div class="note">Dopo ogni caricamento la schermata ti dice che cosa ha letto: quante miscele e marche, righe ignorate per mancanza di marca o di nome, duplicati scartati e i valori di famiglia o taglio che non ha riconosciuto. <strong>Leggi quelle righe</strong> — un catalogo che ha perso in silenzio un terzo delle sue righe è identico a uno caricato correttamente. Il pulsante <strong>Verifica il catalogo</strong>, appena sotto, ripete la stessa verifica e questa volta indica il <strong>numero di riga</strong> di ogni problema, così puoi correggerlo nel tuo foglio di calcolo.</div>
+<p>Questa verifica giudica solo ciò che l'app sa giudicare: le due colonne obbligatorie e le due colonne a tassonomia obbligata. Non rilegge le tue descrizioni e non controlla l'esattezza dei tuoi dati — è il tuo file.</p>
+
+<h3>Sfogliare il catalogo</h3>
+<p>Dalla scheda <strong>Tabacchi</strong>, tocca l'icona <strong>📖</strong> in alto a destra: si apre la pagina <strong>Catalogo</strong>. È in sola lettura e mostra <em>solo</em> il contenuto del tuo file, mai la tua cantina.</p>
+<ul>
+  <li><strong>Ricerca</strong> tollerante: numeri di catalogo («Solani 131» → «Solani Red Label»), nomi parziali («Peterson Sher» → «Sherlock Holmes»), marche digitate in modo diverso («MacBaren», «G L Pease», «Cornell and Diehl») e piccoli refusi («Capstain» → Capstan). La stessa tolleranza serve a individuare i duplicati nel tuo inventario.</li>
+  <li><strong>Filtri</strong> per famiglia o per marca, e visualizzazione raggruppata per marca.</li>
+  <li>Un badge <em>✓ posseduto</em> (verde) o <em>★ desiderato</em> (ambra) su ogni riga ti mostra ciò che hai già — è l'unico punto in cui i due mondi si incrociano, e serve soltanto a informarti.</li>
+  <li>Quando una miscela risponde a più nomi, la sua scheda li elenca sotto il titolo, dopo <strong>Conosciuto anche come</strong> — utile quando la tua latta porta un nome diverso da quello del catalogo. Vengono elencati solo i nomi che non compaiono già nel titolo.</li>
+</ul>
+<p>Da una scheda del catalogo, due pulsanti portano la miscela <em>dal riferimento alla tua cantina</em>: <strong>Aggiungi al mio inventario</strong> e <strong>Aggiungi ai desideri</strong>. È la via più rapida per inserire un tabacco — vedi <a href="#it-tobacco">sezione 5</a>.</p>
+
+<h3>Confrontare i blend</h3>
+<p>La <strong>riga «Confronta blend»</strong>, in cima alla pagina Catalogo appena sopra il campo di ricerca — o l'icona a <strong>grafico</strong> nella barra in alto, o il pulsante in fondo alla scheda di un blend — mette <strong>due o tre blend fianco a fianco</strong>. Puoi mescolare liberamente le fonti: un tabacco della tua cantina, un blend del catalogo che non possiedi, un desiderio della tua lista.</p>
+<div class="note"><strong>Le colonne non rispondono tutte alle stesse domande, ed è voluto.</strong> La parte <em>fattuale</em> — famiglia, taglio, composizione, forza, room note, gusto, invecchiamento — esiste per tutte le fonti, ed è lì che si decide un acquisto. La parte sulla <em>tua esperienza</em> — il tuo voto, la scorta, il lotto più vecchio, le sessioni, il voto medio, il costo per pipata, gli aromi percepiti — esiste solo per ciò che possiedi: per un blend del catalogo quelle righe restano a «—». Le righe che <strong>differiscono</strong> sono evidenziate.</div>
+
+<h3>Riprendere i dati del catalogo nelle tue schede</h3>
+<p>Due strade, a seconda che tu voglia trattare <strong>una scheda</strong> o <strong>tutta la tua cantina</strong>. In entrambi i casi vengono modificate le tue schede; il catalogo, invece, non si muove mai.</p>
+<p><strong>Una sola scheda.</strong> Aprila in modalità modifica (pulsante Modifica su un tabacco o un desiderio). Se marca + nome corrispondono a una scheda del catalogo e almeno un campo differisce, un banner <em>«Aggiornamento del catalogo disponibile»</em> appare in cima al modulo ed elenca le differenze, il tuo valore e quello del catalogo affiancati:</p>
+<ul>
+  <li><strong>Sincronizza</strong> sostituisce in un colpo i tuoi valori con quelli del catalogo (puoi comunque ritoccarli prima di salvare).</li>
+  <li><strong>Mantieni i miei valori</strong> nasconde il banner per quella scheda.</li>
+</ul>
+<p><strong>Tutta la cantina in una volta.</strong> Il pulsante <strong>Applica i dati del catalogo</strong>, in alto a destra nella pagina Catalogo, confronta il tuo inventario <em>e</em> la tua lista dei desideri con il catalogo, poi aggiorna in una sola passata i <strong>campi fattuali</strong>: categoria, taglio, composizione, forza, room note, gusto, invecchiamento massimo, descrizione. L'app ti mostra prima che cosa cambierà (quante schede e quanti campi); nulla viene scritto prima della tua conferma.</p>
+<div class="note"><strong>I tuoi dati personali non vengono mai toccati:</strong> note di degustazione, valutazione, «da non ricomprare», foto, lotti (pesi, prezzi, date), collezioni, la nota personale dei desideri. Anche <strong>nome e marca</strong> restano intatti: è così che riconosci la tua latta, ed è anche la chiave che evita i duplicati durante un'importazione. Le schede assenti dal catalogo restano invariate, e un avviso <strong>«Annulla»</strong> rimette tutto a posto per qualche secondo dopo la passata.</div>
+<div class="note"><strong>Bloccare una scheda curata a mano.</strong> In fondo al modulo di un tabacco o di un desiderio, la casella <strong>«Non sovrascrivere mai dal catalogo»</strong> mette quella scheda fuori dalla portata dell'aggiornamento in blocco: viene saltata del tutto e il catalogo non viene nemmeno consultato per essa. Utile quando hai corretto tu una composizione, misurato una forza o riscritto una descrizione. La finestra di conferma indica quante schede sono bloccate. Non impedisce la sincronizzazione scheda per scheda qui sopra: lì vedi la differenza a schermo prima di accettare.</div>
+
+<h3>Salvare il catalogo</h3>
+<p>Il catalogo <strong>non è incluso nei backup della tua cantina</strong> — né nell'esportazione JSON, né nello ZIP, né nel salvataggio automatico. È voluto: può pesare diversi megabyte e cambia solo di tanto in tanto, mentre la tua cantina viene salvata a ogni modifica.</p>
+<p>Ha quindi due pulsanti tutti suoi, nella stessa sezione delle impostazioni: <strong>Salva il catalogo nel cloud</strong> e <strong>Recupera il catalogo dal cloud</strong>. Viaggia in un file separato e parte solo quando lo chiedi tu. Su un dispositivo nuovo il recupero è disponibile anche se non è caricato alcun catalogo — è proprio lì che serve.</p>
+<div class="note">Conserva anche il CSV originale dalla tua parte: è il file che modifichi nel foglio di calcolo, e il pulsante <strong>Esporta il mio catalogo</strong> te lo restituisce così come l'app lo conserva.</div>
+
+<h2 id="it-tobacco">5. Aggiungere un tabacco</h2>
+<p>Aggiungere un tabacco significa creare una scheda nel <strong>tuo inventario</strong>: un riferimento che possiedi, al quale collegherai poi uno o più lotti. Tre modi per farlo, dal più veloce al più manuale. Producono esattamente la stessa scheda e tutto resta modificabile in seguito — scegli in base a ciò che hai sottomano.</p>
+<ul>
+  <li><strong>①</strong> hai caricato un <a href="#it-catalogue">catalogo di riferimento</a> e la miscela è lì dentro;</li>
+  <li><strong>②</strong> vuoi che sia l'app a cercare le caratteristiche al posto tuo, nel tuo catalogo oppure online;</li>
+  <li><strong>③</strong> inserisci tutto tu — è la via che non dipende da nulla.</li>
+</ul>
+
+<h3>① Dal catalogo (il più veloce)</h3>
+<p>Questa via presuppone di avere caricato un catalogo di riferimento — vedi la <a href="#it-catalogue">sezione 4</a>. Se non ne hai uno, passa a ② o a ③: non ti manca nulla, l'inserimento è soltanto più lungo.</p>
+<ol>
+  <li>Dalla scheda <strong>Tabacchi</strong>, tocca l'icona <strong>📖</strong> in alto a destra: si apre la pagina <strong>Catalogo</strong>.</li>
   <li>Trova la tua miscela: barra di ricerca ("Capstan blue", "Solani 131", "FVF"… la ricerca è tollerante), filtro per categoria o marca, oppure la lista raggruppata per marca.</li>
   <li>Tocca la riga per un'anteprima, poi <strong>"Aggiungi al mio inventario"</strong>: si apre un mini-modulo precompilato, tutto modificabile.</li>
   <li><strong>Salva</strong> → il tabacco viene creato con un primo lotto in <span class="badge badge-cave">Cantina</span>, e torni al catalogo per continuare.</li>
 </ol>
-<div class="note">Il pulsante <strong>"★ Aggiungi alla mia lista dei desideri"</strong> fa lo stesso ma archivia la voce nella tua lista dei desideri. Un badge <em>✓ posseduto</em> (verde) o <em>★ desiderato</em> (ambra) su ogni riga mostra ciò che hai già.</div>
+<div class="note">Il catalogo non viene modificato dall'operazione: ne hai <em>copiato</em> i valori in una scheda nuova, che appartiene a te. Correggerla in seguito non cambierà nulla nel file di riferimento.</div>
+<div class="note">Il pulsante <strong>«★ Aggiungi ai desideri»</strong> fa lo stesso ma archivia la voce nella tua lista dei desideri. Un badge <em>✓ posseduto</em> (verde) o <em>★ desiderato</em> (ambra) su ogni riga mostra ciò che hai già.</div>
 <div class="note">Il <strong>prezzo, la data di acquisto e i dettagli del lotto</strong> si aggiungono in seguito dalla pagina del tabacco — vedi <a href="#it-lots">Gestire i lotti</a>.</div>
-<div class="note"><strong>Hai già inserito un tabacco a mano?</strong> Puoi importare i valori del catalogo su una scheda esistente: aprila in modalità modifica e un banner <em>"Aggiornamento del catalogo disponibile"</em> ti proporrà di <strong>sincronizzare</strong> i campi divergenti — vedi <a href="#it-ai">sezione 12</a>.</div>
+<div class="note"><strong>Hai già inserito un tabacco a mano?</strong> Puoi importare i valori del catalogo su una scheda esistente: aprila in modalità modifica e un banner <em>«Aggiornamento del catalogo disponibile»</em> ti proporrà di <strong>sincronizzare</strong> i campi divergenti — vedi <a href="#it-catalogue">sezione 4</a>.</div>
 
 <h3>② Inserimento con compilazione automatica</h3>
-<p>Tocca il <strong>+</strong> in cima alla scheda <strong>Tab.</strong>, inserisci almeno la <strong>marca</strong> e il <strong>nome</strong>, poi il pulsante <strong>Cerca</strong> sulla scheda <em>Compilazione automatica</em>. L'app riempie categoria, taglio, blend, forza, room note, gusto, età massima e descrizione (tutti modificabili). Per impostazione predefinita consulta prima il <strong>catalogo locale integrato</strong> e poi il tuo assistente IA se la miscela non c'è; l'impostazione <em>Fonte preferita</em> permette di invertire questo ordine, vedi <a href="#it-ai">Assistente IA</a>. Puoi anche <strong>scansionare la latta</strong> per precompilare marca e nome automaticamente.</p>
+<p>Tocca il <strong>+</strong> in cima alla scheda <strong>Tabacchi</strong>, inserisci almeno la <strong>marca</strong> e il <strong>nome</strong>, poi il pulsante <strong>Cerca</strong> sulla scheda <em>Compilazione automatica</em>. L'app riempie categoria, taglio, blend, forza, room note, gusto, età massima e descrizione (tutti modificabili). Per impostazione predefinita consulta prima il <strong>tuo catalogo</strong>, se è caricato (<a href="#it-catalogue">sezione 4</a>), poi il tuo assistente IA se la miscela non c'è; l'impostazione <em>Fonte preferita</em> permette di invertire questo ordine, vedi <a href="#it-ai">Assistente IA</a>. Senza catalogo e senza chiave API questo pulsante non ha nulla da interrogare e te lo dice — l'inserimento manuale ③ resta sempre disponibile. Puoi anche <strong>scansionare la latta</strong> per precompilare marca e nome automaticamente.</p>
 
 <h3>③ Inserimento completamente manuale</h3>
 <table>
@@ -2521,8 +2728,8 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note"><strong>Registro di manutenzione:</strong> la scheda della pipa ha un <em>“Registro di manutenzione”</em> — ogni sessione sceglie un <strong>tipo di pulizia</strong> (leggera, completa, o “senza pulizia” per un intervento isolato) e poi <strong>spunta le attività svolte</strong> (scovolino, fornello, alesatura, sale e alcol, bocchino, cera, riparazione, riposo, altro), con data e note. Le voci sono mostrate dalla più recente alla più vecchia. Compare un <strong>promemoria “pulizia necessaria”</strong> (un chip sulla card e sulla scheda, più una sezione in fondo alla home) quando una pipa è stata fumata un certo numero di sessioni dall'ultima pulizia — <strong>solo le pulizie leggera e completa azzerano il contatore</strong> (“senza pulizia” non conta). Soglia regolabile in <em>Impostazioni → Preferenze</em> (5 sessioni di default). Puoi anche <strong>disattivare completamente questi promemoria</strong> da <em>Impostazioni → Preferenze → “Promemoria manutenzione”</em>: i promemoria spariscono allora dalla home e dalle schede pipa, ma il registro resta disponibile. Il registro è incluso nei tuoi backup.</div>
 
 <h2 id="it-wishlist">9. Lista dei desideri</h2>
-<p>Un promemoria dei tabacchi da acquistare. Nella scheda <strong>Catalogo</strong> (la tua lista di tabacchi), tocca il chip <em>Lista dei desideri</em> (icona a cuore) nella riga dei filtri per mostrare solo i tuoi desideri; scegli un altro filtro per tornare all'inventario.</p>
-<div class="note"><strong>Il modo più veloce per riempire la lista dei desideri:</strong> il catalogo di riferimento (icona <strong>📖</strong>, vedi <a href="#it-tobacco">sezione 5</a>) offre un pulsante <em>★ Aggiungi alla mia lista dei desideri</em> su ogni miscela — il desiderio viene creato precompilato con un tocco, senza digitare nulla. Puoi anche aggiungere un desiderio manualmente con il pulsante <strong>+</strong>; anche l'assistente IA e la scansione della latta funzionano su quel modulo.</div>
+<p>Un promemoria dei tabacchi da acquistare. Nella scheda <strong>Tabacchi</strong>, tocca il chip <em>Lista dei desideri</em> (icona a cuore) nella riga dei filtri per mostrare solo i tuoi desideri; scegli un altro filtro per tornare all'inventario. La lista dei desideri fa parte del tuo inventario — sono i tuoi desideri, non schede del catalogo.</p>
+<div class="note"><strong>Il modo più veloce per riempire la lista dei desideri:</strong> il catalogo di riferimento (icona <strong>📖</strong>, vedi <a href="#it-catalogue">sezione 4</a>) offre un pulsante <em>★ Aggiungi ai desideri</em> su ogni miscela — il desiderio viene creato precompilato con un tocco, senza digitare nulla. Puoi anche aggiungere un desiderio manualmente con il pulsante <strong>+</strong>; anche l'assistente IA e la scansione della latta funzionano su quel modulo.</div>
 <p>Ogni voce può contenere:</p>
 <table>
   <tr><th>Campo</th><th>Descrizione</th></tr>
@@ -2605,50 +2812,14 @@ The two formats have neither the same columns nor the same effect: loading one i
 
 <h2 id="it-ai">12. Assistente IA</h2>
 <p>Disponibile nei moduli di tabacco, pipa e lista dei desideri. Compila il nome o la marca, poi tocca <strong>Cerca</strong>. L'app riempie automaticamente categoria, blend, taglio o forma, descrizione — e per i tabacchi: <strong>Forza, Room Note, Gusto ed Età max in cantina</strong>.</p>
-<h3>Il tuo catalogo di riferimento</h3>
-<p>Il <strong>catalogo locale</strong> è il file CSV che hai caricato da <em>Impostazioni → Dati</em> (vedi <a href="#it-tobacco">sezione 5</a>): l'app non ne include nessuno. Una volta caricato è <strong>istantaneo, offline e senza chiave</strong> — nessuna richiesta di rete. <strong>Senza chiave API</strong>, la compilazione automatica si appoggia direttamente su di esso. <strong>Con una chiave</strong>, decide l'impostazione <em>Fonte preferita</em> (più sotto): su <strong>Agente IA</strong> il catalogo fa da ripiego quando la richiesta fallisce; su <strong>Catalogo</strong> (predefinito) passa per primo, e appare un <strong>pannello verde</strong> appena digiti una marca + nome riconosciuti, con un pulsante <strong>Compila la scheda</strong> (oppure <em>Ignora</em> per chiuderlo). Dopo ogni ricerca, una piccola riga <em>· fonte: …</em> ti dice da dove provengono i dati. <strong>Finché non è caricato alcun catalogo</strong>, la compilazione automatica senza chiave non ha nulla da consultare e te lo dice.</p>
-<p>Il catalogo accetta <strong>input approssimativi</strong>: numeri di catalogo ("Solani 131" → "Solani Red Label"), nomi parziali ("Peterson Sher" → "Sherlock Holmes"), marche digitate in modo diverso ("MacBaren", "G L Pease", "Cornell and Diehl") e piccoli refusi ("Capstain" → Capstan). La stessa tolleranza alimenta il rilevamento dei duplicati nel tuo inventario.</p>
-<p>Quando un blend risponde a più nomi, la sua scheda li elenca sotto il titolo, dopo <strong>Conosciuto anche come</strong> — utile quando la tua latta porta un nome diverso da quello del catalogo, per esempio dopo la fusione di due voci. Vengono elencati solo i nomi che non compaiono già nel titolo.</p>
-<h3>Il formato del file</h3>
-<p>Il <strong>modello CSV</strong> porta le venti colonne che l'app sa leggere, con una riga di esempio. Conserva la riga di intestazione: le colonne sono riconosciute <strong>dal loro nome</strong>, non dalla posizione, e una colonna che non usi può restare vuota.</p>
-<ul>
-  <li><strong>brand_key</strong> — <strong>Obbligatoria.</strong> La marca. Insieme a <em>blend_name</em> è l'identità della riga: due righe con la stessa coppia sono duplicati e resta solo la prima. Una riga priva di uno dei due viene ignorata.</li>
-  <li><strong>blend_name</strong> — <strong>Obbligatoria.</strong> Il nome della miscela.</li>
-  <li><strong>brand_name</strong> — La marca come viene mostrata, se diversa dalla chiave.</li>
-  <li><strong>category</strong> — <strong>Tassonomia obbligata.</strong> Una delle famiglie dell'app (elenco nella <a href="#it-tobacco">sezione 5</a>).</li>
-  <li><strong>cut</strong> — <strong>Tassonomia obbligata.</strong> Uno dei tagli dell'app (elenco nella <a href="#it-tobacco">sezione 5</a>).</li>
-  <li><strong>force, roomNote, taste</strong> — Un intero da 0 a 5. Vuoto = sconosciuto.</li>
-  <li><strong>agingMax</strong> — Anni di invecchiamento: un numero (10) o un intervallo (10-15). Vuoto = si applica il valore predefinito della famiglia.</li>
-  <li><strong>blend</strong> — La composizione, testo libero («Virginia, Perique»).</li>
-  <li><strong>description_fr … description_pt</strong> — Una colonna per lingua. L'app mostra la tua, altrimenti l'inglese, altrimenti il francese, altrimenti la prima compilata: ne basta una.</li>
-  <li><strong>brand_aliases, blend_aliases</strong> — Altri nomi, separati da punto e virgola. È ciò che fa riconoscere una latta etichettata diversamente.</li>
-  <li><strong>lastReviewed, reviewValidated</strong> — Le tue note di revisione. Conservate così come sono, mai lette dall'app.</li>
-</ul>
-<div class="warn"><strong>Due colonne devono rispettare la tassonomia dell'app: <em>category</em> e <em>cut</em>.</strong> Un valore sconosciuto non viene rifiutato — resta tale e quale e il rapporto di caricamento te lo segnala — ma la miscela è allora capita solo a metà: la famiglia non la colloca da nessuna parte (né fascia di maturità né età di conservazione predefinita), il taglio non pesa nulla (la stima del peso di una pipata ripiega sul valore generico), il valore non si traduce e non esiste nel menu del modulo — così aprire e salvare quel tabacco <strong>riscrive</strong> il tuo valore. Le etichette commerciali più comuni vengono convertite da sole (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); per il resto, affidati ai due elenchi della <a href="#it-tobacco">sezione 5</a>.</div>
-<div class="note">Dopo ogni caricamento la schermata ti dice che cosa ha letto: quante miscele e marche, righe ignorate per mancanza di marca o di nome, duplicati scartati e i valori di famiglia o taglio che non ha riconosciuto. <strong>Leggi quelle righe</strong> — un catalogo che ha perso in silenzio un terzo delle sue righe è identico a uno caricato correttamente. Il pulsante <strong>Verifica il catalogo</strong>, appena sotto, ripete la stessa verifica e questa volta indica il <strong>numero di riga</strong> di ogni problema, così puoi correggerlo nel tuo foglio di calcolo.</div>
-<h3>Confrontare i blend</h3>
-<p>La <strong>riga «Confronta blend»</strong>, in cima alla pagina Catalogo appena sopra il campo di ricerca — o l'icona a <strong>grafico</strong> nella barra in alto, o il pulsante in fondo alla scheda di un blend — mette <strong>due o tre blend fianco a fianco</strong>. Puoi mescolare liberamente le fonti: un tabacco della tua cantina, un blend del catalogo che non possiedi, un desiderio della tua lista.</p>
-<div class="note"><strong>Le colonne non rispondono tutte alle stesse domande, ed è voluto.</strong> La parte <em>fattuale</em> — famiglia, taglio, composizione, forza, room note, gusto, invecchiamento — esiste per tutti, ed è lì che si decide un acquisto. La parte sulla <em>tua esperienza</em> — il tuo voto, la scorta, il lotto più vecchio, le sessioni, il voto medio, il costo per pipata, gli aromi percepiti — esiste solo per ciò che possiedi: per un blend del catalogo quelle righe restano a «—». Le righe che <strong>differiscono</strong> sono evidenziate.</div>
-
-<h3>Applicare i dati del catalogo</h3>
-<p>Il <strong>pulsante in alto a destra nella pagina Catalogo</strong> (ci si arriva con l'icona 📖 nella barra dell'inventario) confronta tutta la tua cantina e la tua lista dei desideri con il catalogo di riferimento, poi aggiorna in una sola passata i <strong>campi fattuali</strong>: categoria, taglio, composizione, forza, room note, gusto, invecchiamento massimo, descrizione. L'app ti mostra prima cosa cambierebbe (quante schede e quanti campi); nulla viene scritto prima della tua conferma.</p>
-<div class="note"><strong>I tuoi dati personali non vengono mai sovrascritti:</strong> note di degustazione, valutazione, «non ricomprare», foto, lotti (pesi, prezzi, date), collezioni, la nota personale dei desideri. Anche <strong>nome e marca</strong> restano intatti: è così che riconosci la tua latta, ed è anche la chiave che evita i duplicati durante un import. Le schede assenti dal catalogo restano invariate, e un avviso <strong>«Annulla»</strong> rimette tutto a posto per qualche secondo dopo la passata.</div>
-<div class="note"><strong>Bloccare una scheda curata a mano.</strong> In fondo al modulo di un tabacco o di un desiderio, la casella <strong>«Non sovrascrivere mai dal catalogo»</strong> mette quella scheda fuori dalla portata dell'aggiornamento in blocco: viene saltata del tutto e il catalogo non viene nemmeno consultato per essa. Utile quando hai corretto tu una composizione, misurato una forza o riscritto una descrizione. La finestra di conferma indica quante schede sono bloccate. Non impedisce la <em>sincronizzazione manuale</em> dalla scheda stessa (sezione seguente): lì vedi la differenza a schermo prima di accettare.</div>
-
+<div class="note"><strong>L'IA e il catalogo rispondono alla stessa domanda per due strade.</strong> Il <a href="#it-catalogue">catalogo</a> è il tuo file: istantaneo, offline, gratuito, ma conosce solo ciò che ci hai messo. L'agente IA interroga un provider online: conosce miscele assenti dal tuo file, ma richiede una chiave, una connessione, ed è il tuo provider a fatturarlo. L'impostazione qui sotto decide quale dei due viene consultato per primo.</div>
 <h3>Fonte preferita</h3>
 <p>Si imposta in <em>Impostazioni → Dati → Assistente IA → Fonte preferita</em>:</p>
 <ul>
-  <li><strong>Agente IA</strong> — interroga prima il tuo provider, con un fallback silenzioso al catalogo locale in caso di errore.</li>
-  <li><strong>Catalogo</strong> (predefinito) — istantaneo, offline, senza chiave. Scegli questo senza chiave API, o per risparmiare la tua quota.</li>
+  <li><strong>Agente IA</strong> — interroga prima il tuo provider, con un fallback silenzioso al catalogo in caso di errore.</li>
+  <li><strong>Catalogo</strong> (predefinito) — istantaneo, offline, senza chiave. Scegli questo senza chiave API, o per risparmiare la tua quota. Se non è caricato alcun catalogo non c'è nulla da consultare, e l'app te lo dice.</li>
 </ul>
 <p>Dopo una compilazione dal catalogo, un pulsante <strong>"Verifica con l'IA"</strong> ottiene un secondo parere e mostra un confronto dei campi divergenti — poi scegli <em>Applica IA</em> o <em>Mantieni catalogo</em>.</p>
-<h3>Aggiornare dal catalogo una scheda già inserita</h3>
-<p>Hai inserito un tabacco a mano e vuoi i valori corretti del catalogo? <strong>Apri la scheda in modalità modifica</strong> (pulsante Modifica su un tabacco o un desiderio). Se marca + nome corrispondono a una voce del catalogo e almeno un campo differisce, un banner <em>"Aggiornamento del catalogo disponibile"</em> appare automaticamente <strong>in cima al modulo</strong>. Elenca le differenze (categoria, taglio, blend, forza, room note, gusto, età max, descrizione) con il tuo valore e quello del catalogo affiancati:</p>
-<ul>
-  <li><strong>Sincronizza</strong> sostituisce i tuoi valori con quelli del catalogo con un tocco (puoi comunque ritoccare prima di salvare).</li>
-  <li><strong>Mantieni i miei valori</strong> nasconde il banner per quella scheda.</li>
-</ul>
-<div class="note">Le tue <strong>note personali</strong>, le foto, la valutazione a stelle, il flag "da ricomprare" e i lotti non vengono mai toccati — non sono nel catalogo.</div>
 <h3>Agente IA (provider)</h3>
 <table>
   <tr><th>Provider</th><th>Chiave API</th></tr>
@@ -2662,7 +2833,7 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note">La tua chiave è memorizzata localmente. Di default è <strong>esclusa</strong> dalle esportazioni e dai backup; per includerla, disattiva <em>Escludi le chiavi API dalle esportazioni</em> nella stessa sezione.</div>
 <h3>Scansiona la latta</h3>
 <p>Nel modulo del tabacco (e del desiderio), il pulsante <strong>Scansiona la latta</strong> ti permette di fotografare la latta (o scegliere una foto dalla tua libreria): l'IA legge l'etichetta per riempire la <strong>marca</strong>, il <strong>nome</strong> e la <strong>composizione</strong> quando leggibile, poi concatena automaticamente la solita ricerca per completare il resto. Una foto, una scheda completa. La foto viene ridimensionata prima del caricamento e <strong>mai memorizzata</strong>. Se è illeggibile, un messaggio ti invita a riprovare; nulla viene sovrascritto.</p>
-<div class="note">Per <strong>sfogliare il catalogo</strong> e aggiungere una miscela con un tocco, vedi <a href="#it-tobacco">sezione 5 "Aggiungere un tabacco"</a>.</div>
+<div class="note">Il catalogo di riferimento — procurarsene uno, caricarlo, sfogliarlo, riprenderne i dati — ha una <a href="#it-catalogue">sezione 4</a> tutta sua. Per i tre modi di creare un tabacco, vedi la <a href="#it-tobacco">sezione 5</a>.</div>
 
 <h2 id="it-stats">13. Statistiche e grafici</h2>
 <p>Accessibile tramite il pulsante <strong>Stat.</strong> (icona a grafico) nella barra di navigazione. Mostra grafici SVG calcolati in tempo reale dai tuoi dati.</p>
@@ -2707,6 +2878,12 @@ The two formats have neither the same columns nor the same effect: loading one i
   <li><strong>📂 Importa file</strong> — ripristina da un file JSON (Sostituisci / Unisci / Seleziona, vedi sotto).</li>
   <li><strong>Importa tabacchi (.csv)</strong> — aggiunge tabacchi (e i loro lotti) da un foglio di calcolo. Le colonne sono riconosciute <strong>dal nome dell'intestazione</strong> (accenti e maiuscole/minuscole ignorati, alias FR/EN): solo <em>Marca</em> e <em>Nome</em> sono obbligatori. Le righe che condividono la stessa marca + nome si raggruppano in un tabacco con più lotti. L'importazione avviene sempre come <strong>Unione</strong> (mai sostituzione: le tue pipe e sessioni non vengono mai cancellate, e i duplicati sono deduplicati per marca + nome). Usa <strong>Scarica modello CSV</strong> per partire da un file pronto da compilare. Le colonne <em>Categoria</em> e <em>Taglio</em> devono usare la tassonomia dell'app (elenchi nella sezione 5) — le denominazioni commerciali più diffuse sono riconosciute (« Navy Cut », « Cigar »), un valore sconosciuto viene riportato a « Autre » e il dettaglio compare sotto il pulsante con il numero di riga.</li>
 </ul>
+<div class="warn"><strong>Da questa schermata si caricano due file CSV diversi. Non confonderli.</strong>
+<ul>
+  <li><strong>Importa tabacchi (.csv)</strong>, qui sopra — sono <em>le tue latte</em>. Colonne <em>Marca</em>, <em>Nome</em>, peso, prezzo, date. Il file <strong>si aggiunge</strong> alla tua cantina per unione e crea dei lotti. Il suo modello è il pulsante <strong>Scarica modello CSV</strong>, in questa stessa sezione.</li>
+  <li><strong>Carica un catalogo (.csv)</strong>, nella sezione <em>Catalogo di riferimento</em> più in alto — sono <em>schede descrittive</em>. Colonne <em>brand_key</em>, <em>blend_name</em>, <em>category</em>, <em>cut</em>… Il file <strong>sostituisce</strong> il catalogo precedente e non aggiunge <strong>nulla</strong> alla tua cantina. Il suo modello è il pulsante <strong>Scarica il modello</strong>, in quell'altra sezione. Vedi la <a href="#it-catalogue">sezione 4</a>.</li>
+</ul>
+I due formati non hanno né le stesse colonne né lo stesso effetto: caricare l'uno al posto dell'altro non distrugge nulla, ma l'app ti risponderà che non ha saputo leggere niente.</div>
 <div class="note"><strong>Errori di importazione CSV espliciti.</strong> Se il file non contiene alcun tabacco leggibile, un messaggio ti ricorda le colonne attese. Se scegli per errore un <em>file di backup JSON</em>, l'app ti reindirizza a <strong>Importa file (.json)</strong>. Un CSV di esportazione completo (più sezioni) è accettato: viene importata solo la sua parte tabacchi, con una nota.</div>
 <div class="note"><strong>Sostituisci, Unisci o Seleziona.</strong> Dopo aver scelto il file, un selettore offre tre modalità: <strong>Sostituisci</strong> (cancella i tuoi dati locali e installa il file importato), <strong>Unisci</strong> (mantiene i tuoi dati e aggiunge solo gli elementi mancanti — abbinati su marca + nome, sessioni deduplicate) o <strong>Seleziona elementi</strong> (scegli esattamente quali tabacchi / pipe / desideri / accessori / sessioni importare). Lo stesso selettore appare su un ripristino da cloud.</div>
 <div class="warn">La modalità <strong>Sostituisci</strong> sovrascrive tutti i tuoi dati locali. Esporta prima un backup in caso di dubbio, o usa <em>Unisci</em>.</div>
@@ -2866,6 +3043,7 @@ The two formats have neither the same columns nor the same effect: loading one i
     <li><a href="#pt-install">Instalar no ecrã inicial</a></li>
     <li><a href="#pt-concepts">Conceitos essenciais</a></li>
     <li><a href="#pt-cycle">Ciclo de vida do tabaco: Compra → Adega → Frasco → Terminado</a></li>
+    <li><a href="#pt-catalogue">O catálogo de referência</a></li>
     <li><a href="#pt-tobacco">Adicionar um tabaco</a></li>
     <li><a href="#pt-lots">Gerir os lotes</a></li>
     <li><a href="#pt-inventory">Navegar no inventário</a></li>
@@ -2903,6 +3081,11 @@ The two formats have neither the same columns nor the same effect: loading one i
   <li><strong>Lote</strong> — uma lata ou quantidade específica comprada numa determinada data. O lote contém o estado e o histórico de envelhecimento.</li>
 </ul>
 <p>Esta distinção permite-lhe acompanhar várias latas do mesmo tabaco em fases diferentes (uma a envelhecer na adega, outra aberta num frasco), partilhando um único conjunto de notas e de descrição.</p>
+<p>Estes dois objetos formam <strong>o seu inventário</strong>: aquilo que possui realmente. Ao lado, a aplicação sabe utilizar uma terceira coisa, de natureza diferente:</p>
+<ul>
+  <li><strong>O catálogo de referência</strong> — um ficheiro <em>facultativo</em> que carrega e que descreve blends do comércio (família, corte, composição, descrição), sem dizer nada sobre as suas latas. Não contém pesos, nem preços, nem datas. Serve para preencher as suas fichas mais depressa, nunca para as substituir.</li>
+</ul>
+<div class="warn"><strong>Inventário e catálogo não se misturam.</strong> Carregar um catálogo não acrescenta nada à sua adega; adicionar um tabaco seu não altera o catálogo. Ainda assim, ambos se carregam a partir do mesmo ecrã <em>Definições → Dados</em>, o que é a confusão mais frequente — a <a href="#pt-catalogue">secção 4</a> é dedicada a ambos.</div>
 
 <h2 id="pt-cycle">3. Ciclo de vida do tabaco</h2>
 <div class="flow">
@@ -2941,22 +3124,105 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note"><strong>Nota:</strong> mesmo com a Contabilidade inativa, a abertura de um lote de Adega para Frasco (Adega → Frasco) continua a acontecer — é um acontecimento físico real (abriu uma lata), regido pelo estado do lote e não pelo controlo das quantidades.</div>
 <div class="note">O <strong>peso predefinido da sessão</strong> (que pré-preenche o campo Peso de uma nova sessão) também se define em <em>Definições → Preferências</em>. Além disso, quando escolhe um cachimbo <strong>cujas dimensões do fornilho</strong> (diâmetro + profundidade) estão preenchidas, a aplicação <strong>estima o peso automaticamente</strong> a partir do volume do fornilho e do <strong>corte do tabaco selecionado</strong> (um flake denso pesa mais do que um ribbon arejado com o mesmo volume). A <strong>forma do cachimbo</strong> também é tida em conta: um fornilho cónico (família Dublin, ou Bulldog/Rhodesian) leva um pouco menos do que um fornilho reto com as mesmas dimensões. Sem as dimensões do fornilho, aplica-se o peso predefinido acima. A estimativa continua editável à mão.</div>
 
-<h2 id="pt-tobacco">5. Adicionar um tabaco</h2>
-<p><strong>O catálogo é o seu próprio ficheiro.</strong> A aplicação não inclui nenhum: em <em>Definições → Dados → Catálogo de referência</em>, descarregue o <strong>modelo CSV</strong>, preencha-o (uma linha por blend: marca, nome, categoria, corte, força, composição, descrição…) e <strong>carregue-o</strong>. Depois de carregado alimenta o preenchimento automático, a pesquisa, as comparações e a página Catálogo. Sem catálogo, esses ecrãs dizem-lho e remetem-no para aqui. Três formas de adicionar um tabaco, da mais rápida à mais manual:</p>
+<h2 id="pt-catalogue">4. O catálogo de referência</h2>
+<p>A aplicação lida com <strong>duas coisas diferentes</strong>, ambas carregadas a partir de <em>Definições → Dados</em> e que não devem ser confundidas:</p>
+<ul>
+  <li><strong>O seu inventário</strong> — as suas latas. Lotes, pesos, preços, datas de compra, sessões fumadas. É a sua adega: altera-a permanentemente e ela viaja nas suas cópias de segurança.</li>
+  <li><strong>O catálogo de referência</strong> — um ficheiro de fichas descritivas (marca, nome, família, corte, composição, descrição) que não descreve <em>nenhuma</em> das suas latas em particular. Não contém pesos, nem preços, nem datas: diz o que um blend <em>é</em>, não aquilo que possui dele.</li>
+</ul>
+<p>O catálogo é <strong>facultativo</strong> e a aplicação funciona inteiramente sem ele: pode introduzir toda a sua adega à mão. Traz uma única vantagem, mas essa poupa tempo — <strong>deixar de reescrever as características de um blend que já conhece</strong>.</p>
+<div class="note"><strong>Nenhum catálogo é fornecido com a aplicação.</strong> O catálogo é o <em>seu</em> ficheiro: compõe-o e corrige-o a seu gosto, e só contém aquilo que lá puser. Enquanto não carregar nenhum, os ecrãs que dele dependem dizem-lho e remetem-no para aqui — não está nada avariado.</div>
 
-<h3>① Percorrer o catálogo (o mais rápido)</h3>
+<h3>O que muda depois de carregar o catálogo</h3>
+<ul>
+  <li>O <strong>preenchimento automático</strong> dos formulários de tabaco e de desejo passa a consultá-lo (ver <a href="#pt-ai">secção 12</a>).</li>
+  <li>Uma página <strong>Catálogo</strong> fica navegável, com pesquisa e filtros.</li>
+  <li>Pode <strong>comparar</strong> dois ou três blends lado a lado.</li>
+  <li>Pode <strong>aplicar numa só passagem</strong> os dados do catálogo às fichas que já possui.</li>
+</ul>
+<div class="warn"><strong>O catálogo nunca altera a sua adega sozinho.</strong> Carregá-lo não acrescenta nenhum tabaco ao seu inventário, não retira nenhum e não toca em nenhum dos seus lotes. Limita-se a abrir as possibilidades acima, que só acontecem quando as desencadear. Reciprocamente, criar ou eliminar um tabaco seu não altera o catálogo: ele é <strong>apenas de leitura</strong>.</div>
+
+<h3>Obter e carregar o seu catálogo</h3>
 <ol>
-  <li>No separador <strong>Catálogo</strong>, toque no ícone <strong>📖</strong> no canto superior direito.</li>
+  <li>Vá a <em>Definições → Dados → Catálogo de referência</em>.</li>
+  <li>Toque em <strong>Descarregar o modelo</strong>: obtém um ficheiro CSV vazio, com a linha de cabeçalho e uma linha de exemplo.</li>
+  <li>Preencha-o numa folha de cálculo — <strong>uma linha por blend</strong>.</li>
+  <li>Volte à aplicação, toque em <strong>Carregar um catálogo (.csv)</strong> e escolha o seu ficheiro.</li>
+</ol>
+<p>Carregar um ficheiro novo <strong>substitui</strong> o anterior — o catálogo não é cumulativo, ao contrário da importação dos seus tabacos. O botão <strong>Remover o catálogo</strong> elimina-o; a sua adega não é tocada e poderá sempre voltar a carregá-lo a partir do seu ficheiro.</p>
+
+<h3>O formato do ficheiro</h3>
+<p>O <strong>modelo CSV</strong> traz as vinte colunas que a aplicação sabe ler, com uma linha de exemplo. Mantenha a linha de cabeçalho: as colunas são reconhecidas <strong>pelo nome</strong>, não pela posição, e uma coluna que não use pode ficar vazia.</p>
+<ul>
+  <li><strong>brand_key</strong> — <strong>Obrigatória.</strong> A marca. Com <em>blend_name</em> é a identidade da linha: duas linhas com o mesmo par são duplicados e só a primeira é mantida. Uma linha sem um dos dois é ignorada.</li>
+  <li><strong>blend_name</strong> — <strong>Obrigatória.</strong> O nome do blend.</li>
+  <li><strong>brand_name</strong> — A marca tal como é apresentada, se diferir da chave.</li>
+  <li><strong>category</strong> — <strong>Taxonomia imposta.</strong> Uma das famílias da aplicação (lista na <a href="#pt-tobacco">secção 5</a>).</li>
+  <li><strong>cut</strong> — <strong>Taxonomia imposta.</strong> Um dos cortes da aplicação (lista na <a href="#pt-tobacco">secção 5</a>).</li>
+  <li><strong>force, roomNote, taste</strong> — Um inteiro de 0 a 5. Vazio = desconhecido.</li>
+  <li><strong>agingMax</strong> — Anos de guarda: um número (10) ou um intervalo (10-15). Vazio = aplica-se o valor predefinido da família.</li>
+  <li><strong>blend</strong> — A composição, em texto livre («Virginia, Perique»).</li>
+  <li><strong>description_fr … description_pt</strong> — Uma coluna por idioma. A aplicação mostra a do seu idioma, senão o inglês, senão o francês, senão a primeira preenchida: basta uma.</li>
+  <li><strong>brand_aliases, blend_aliases</strong> — Outros nomes, separados por ponto e vírgula. É o que faz reconhecer uma lata rotulada de outra forma.</li>
+  <li><strong>lastReviewed, reviewValidated</strong> — As suas notas de revisão. Guardadas tal como estão, nunca lidas pela aplicação.</li>
+</ul>
+<div class="warn"><strong>Duas colunas têm de respeitar a taxonomia da aplicação: <em>category</em> e <em>cut</em>.</strong> Um valor desconhecido não é rejeitado — fica tal e qual e o relatório de carregamento indica-lho — mas o blend passa a ser compreendido apenas em parte: a família não o arruma em lado nenhum (sem faixa de maturidade nem idade de guarda predefinida), o corte não pesa nada (a estimativa do peso de um fornilho recai no valor genérico), o valor não é traduzido e não existe na lista do formulário — pelo que abrir e guardar esse tabaco <strong>reescreve</strong> o seu valor. Os rótulos comerciais mais comuns são convertidos automaticamente (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); para o resto, siga as duas listas da <a href="#pt-tobacco">secção 5</a>.</div>
+<div class="note">Depois de cada carregamento, o ecrã diz-lhe o que leu: quantos blends e marcas, linhas ignoradas por falta de marca ou de nome, duplicados descartados e os valores de família ou de corte que não reconheceu. <strong>Leia essas linhas</strong> — um catálogo que perdeu um terço das suas linhas é em tudo igual a um catálogo carregado corretamente. O botão <strong>Verificar o meu catálogo</strong>, logo abaixo, repete a mesma verificação e desta vez indica o <strong>número da linha</strong> de cada problema, para que o possa corrigir na sua folha de cálculo.</div>
+<p>Esta verificação só julga o que a aplicação sabe julgar: as duas colunas obrigatórias e as duas colunas de taxonomia imposta. Não relê as suas descrições nem verifica a exatidão dos seus dados — o ficheiro é seu.</p>
+
+<h3>Percorrer o catálogo</h3>
+<p>A partir do separador <strong>Tabacos</strong>, toque no ícone <strong>📖</strong> no canto superior direito: abre-se a página <strong>Catálogo</strong>. É só de leitura e mostra <em>apenas</em> o conteúdo do seu ficheiro, nunca a sua adega.</p>
+<ul>
+  <li><strong>Pesquisa</strong> tolerante: números de catálogo («Solani 131» → «Solani Red Label»), nomes parciais («Peterson Sher» → «Sherlock Holmes»), marcas escritas de outra forma («MacBaren», «G L Pease», «Cornell and Diehl») e pequenos erros de escrita («Capstain» → Capstan). A mesma tolerância serve para detetar duplicados no seu inventário.</li>
+  <li><strong>Filtros</strong> por família ou por marca, e apresentação agrupada por marca.</li>
+  <li>Um selo <em>✓ possuído</em> (verde) ou <em>★ desejado</em> (âmbar) em cada linha mostra-lhe o que já tem — é o único sítio onde os dois mundos se cruzam, e apenas para o informar.</li>
+  <li>Quando um blend responde a vários nomes, a sua ficha lista-os sob o título, precedidos de <strong>Também conhecido como</strong> — útil quando a sua lata tem um nome diferente do do catálogo. Só são listados os nomes que ainda não aparecem no título.</li>
+</ul>
+<p>A partir de uma ficha do catálogo, dois botões fazem passar o blend <em>da referência para a sua adega</em>: <strong>Adicionar ao meu inventário</strong> e <strong>Adicionar à minha wishlist</strong>. É a via mais rápida para registar um tabaco — ver <a href="#pt-tobacco">secção 5</a>.</p>
+
+<h3>Comparar blends</h3>
+<p>A <strong>linha «Comparar blends»</strong>, no topo da página Catálogo mesmo antes do campo de pesquisa — ou o ícone de <strong>gráfico</strong> na barra superior, ou o botão no fundo da ficha de um blend — coloca <strong>dois ou três blends lado a lado</strong>. Pode misturar as fontes livremente: um tabaco da sua adega, um blend do catálogo que não possui, um desejo da sua lista de desejos.</p>
+<div class="note"><strong>As colunas não respondem todas às mesmas perguntas, e isso é intencional.</strong> A parte <em>factual</em> — família, corte, composição, força, room note, sabor, envelhecimento — existe para todas as fontes, e é aí que se decide uma compra. A parte sobre <em>a sua experiência</em> — a sua avaliação, o stock, o lote mais antigo, as sessões, a avaliação média, o custo por fornilho, os aromas percebidos — só existe para o que possui: num blend do catálogo essas linhas ficam a «—». As linhas que <strong>diferem</strong> são realçadas.</div>
+
+<h3>Aplicar os dados do catálogo às suas fichas</h3>
+<p>Dois caminhos, consoante queira tratar <strong>uma ficha</strong> ou <strong>toda a sua adega</strong>. Nos dois casos são as suas fichas que mudam; o catálogo nunca é alterado.</p>
+<p><strong>Uma única ficha.</strong> Abra-a em modo de edição (botão Editar num tabaco ou num desejo). Se a marca + o nome corresponderem a uma entrada do catálogo e pelo menos um campo diferir, surge no topo do formulário um aviso <em>«Atualização do catálogo disponível»</em> que lista as diferenças, com o seu valor e o do catálogo lado a lado:</p>
+<ul>
+  <li><strong>Sincronizar</strong> substitui de uma só vez os seus valores pelos do catálogo (ainda os pode ajustar antes de guardar).</li>
+  <li><strong>Manter os meus valores</strong> oculta o aviso nessa ficha.</li>
+</ul>
+<p><strong>Toda a adega de uma vez.</strong> O botão no canto superior direito da página Catálogo compara o seu inventário <em>e</em> a sua lista de desejos com o catálogo e atualiza numa única passagem os <strong>campos factuais</strong>: categoria, corte, composição, força, room note, sabor, envelhecimento máximo, descrição. A aplicação mostra-lhe primeiro o que iria mudar (quantas fichas e quantos campos); nada é escrito antes da sua confirmação.</p>
+<div class="note"><strong>Os seus dados pessoais nunca são tocados:</strong> notas de degustação, avaliação, «não recomprar», fotografia, lotes (pesos, preços, datas), coleções, a nota pessoal dos desejos. O <strong>nome e a marca</strong> também não são alterados — é assim que reconhece a sua lata, e é também a chave usada para evitar duplicados numa importação. As fichas ausentes do catálogo ficam inalteradas, e um aviso <strong>«Anular»</strong> repõe tudo durante alguns segundos após a passagem.</div>
+<div class="note"><strong>Bloquear uma ficha que trabalhou à mão.</strong> No fim do formulário de um tabaco ou de um desejo, a caixa <strong>«Nunca substituir a partir do catálogo»</strong> coloca essa ficha fora do alcance da atualização em bloco: é ignorada por completo e o catálogo nem sequer é consultado para ela. Útil quando corrigiu você mesmo uma composição, mediu uma força ou reescreveu uma descrição. A janela de confirmação indica quantas fichas estão bloqueadas. Não impede a sincronização ficha a ficha acima: aí, vê a diferença no ecrã antes de aceitar.</div>
+
+<h3>Guardar o catálogo</h3>
+<p>O catálogo <strong>não está incluído nas cópias de segurança da sua adega</strong> — nem na exportação JSON, nem no ZIP, nem na cópia automática. É intencional: pode pesar vários megabytes e só muda de vez em quando, ao passo que a sua adega é guardada a cada alteração.</p>
+<p>Tem por isso dois botões próprios, na mesma secção das definições: <strong>Guardar o catálogo na nuvem</strong> e <strong>Obter o catálogo da nuvem</strong>. Viaja no seu próprio ficheiro e só é enviado quando o pedir. Num aparelho novo, a obtenção está disponível mesmo sem nenhum catálogo carregado — é precisamente aí que serve.</p>
+<div class="note">Guarde também o CSV de origem do seu lado: é o ficheiro que edita na sua folha de cálculo, e o botão <strong>Exportar o meu catálogo</strong> devolve-lho tal como a aplicação o detém.</div>
+
+<h2 id="pt-tobacco">5. Adicionar um tabaco</h2>
+<p>Adicionar um tabaco é criar uma ficha no <strong>seu inventário</strong>: uma referência que possui e à qual irá depois associar um ou vários lotes. Três formas de o fazer, da mais rápida à mais manual. Produzem exatamente a mesma ficha e tudo continua editável depois — escolha consoante o que tiver à mão.</p>
+<ul>
+  <li><strong>①</strong> carregou um <a href="#pt-catalogue">catálogo de referência</a> e o blend consta dele;</li>
+  <li><strong>②</strong> quer que a aplicação procure as características por si, no seu catálogo ou em linha;</li>
+  <li><strong>③</strong> introduz tudo manualmente — é a via que não depende de nada.</li>
+</ul>
+
+<h3>① A partir do catálogo (o mais rápido)</h3>
+<p>Esta via pressupõe ter carregado um catálogo de referência — ver a <a href="#pt-catalogue">secção 4</a>. Se não tiver nenhum, passe a ② ou a ③: não lhe falta nada, a introdução é apenas mais demorada.</p>
+<ol>
+  <li>A partir do separador <strong>Tabacos</strong>, toque no ícone <strong>📖</strong> no canto superior direito: abre-se a página <strong>Catálogo</strong>.</li>
   <li>Encontre o seu blend: barra de pesquisa («Capstan blue», «Solani 131», «FVF»… a pesquisa é tolerante), filtro por categoria ou marca, ou a lista agrupada por marca.</li>
   <li>Toque na linha para uma pré-visualização e depois em <strong>«Adicionar ao meu inventário»</strong>: abre-se um mini-formulário pré-preenchido, tudo editável.</li>
   <li><strong>Guardar</strong> → o tabaco é criado com um primeiro lote em <span class="badge badge-cave">Adega</span> e regressa ao catálogo para continuar.</li>
 </ol>
-<div class="note">O botão <strong>«★ Adicionar à minha lista de desejos»</strong> faz o mesmo, mas arquiva a entrada na sua lista de desejos. Um selo <em>✓ possuído</em> (verde) ou <em>★ desejado</em> (âmbar) em cada linha mostra o que já tem.</div>
+<div class="note">O catálogo não é alterado pela operação: <em>copiou</em> os seus valores para uma ficha nova, que lhe pertence. Corrigi-la depois não muda nada no ficheiro de referência.</div>
+<div class="note">O botão <strong>«★ Adicionar à minha wishlist»</strong> faz o mesmo, mas arquiva a entrada na sua lista de desejos. Um selo <em>✓ possuído</em> (verde) ou <em>★ desejado</em> (âmbar) em cada linha mostra o que já tem.</div>
 <div class="note">O <strong>preço, a data de compra e os detalhes do lote</strong> são adicionados depois, a partir da página do tabaco — ver <a href="#pt-lots">Gerir os lotes</a>.</div>
-<div class="note"><strong>Já introduziu um tabaco à mão?</strong> Pode trazer os valores do catálogo para uma ficha existente: abra-a em modo de edição e um aviso <em>«Atualização de catálogo disponível»</em> propõe <strong>sincronizar</strong> os campos divergentes — ver <a href="#pt-ai">secção 12</a>.</div>
+<div class="note"><strong>Já introduziu um tabaco à mão?</strong> Pode trazer os valores do catálogo para uma ficha existente: abra-a em modo de edição e um aviso <em>«Atualização do catálogo disponível»</em> propõe <strong>sincronizar</strong> os campos divergentes — ver <a href="#pt-catalogue">secção 4</a>.</div>
 
 <h3>② Introdução com preenchimento automático</h3>
-<p>Toque no <strong>+</strong> no topo do separador <strong>Tabacos</strong>, indique pelo menos a <strong>marca</strong> e o <strong>nome</strong> e depois o botão <strong>Pesquisar</strong> no cartão <em>Preenchimento automático</em>. A aplicação preenche categoria, corte, blend, força, room note, sabor, idade máxima e descrição (tudo editável). Por predefinição consulta primeiro o <strong>catálogo local integrado</strong> e só depois o seu assistente de IA, se o blend não constar dele; a definição <em>Fonte prioritária</em> permite inverter esta ordem, ver <a href="#pt-ai">Assistente de IA</a>. Também pode <strong>digitalizar a lata</strong> para pré-preencher automaticamente a marca e o nome.</p>
+<p>Toque no <strong>+</strong> no topo do separador <strong>Tabacos</strong>, indique pelo menos a <strong>marca</strong> e o <strong>nome</strong> e depois o botão <strong>Pesquisar</strong> no cartão <em>Preenchimento automático</em>. A aplicação preenche categoria, corte, blend, força, room note, sabor, idade máxima e descrição (tudo editável). Por predefinição consulta primeiro <strong>o seu catálogo</strong>, se estiver carregado (<a href="#pt-catalogue">secção 4</a>), e só depois o seu assistente de IA, caso o blend não conste dele; a definição <em>Fonte preferida</em> permite inverter esta ordem, ver <a href="#pt-ai">Assistente de IA</a>. Sem catálogo e sem chave de API, este botão não tem nada para consultar e diz-lho — a introdução manual ③ está sempre disponível. Também pode <strong>digitalizar a lata</strong> para pré-preencher automaticamente a marca e o nome.</p>
 
 <h3>③ Introdução totalmente manual</h3>
 <table>
@@ -3045,8 +3311,8 @@ The two formats have neither the same columns nor the same effect: loading one i
 
 <div class="note"><strong>Diário de manutenção:</strong> a ficha do cachimbo tem um <em>“Diário de manutenção”</em> — cada sessão escolhe um <strong>tipo de limpeza</strong> (ligeira, completa ou “sem limpeza” para uma intervenção isolada) e depois <strong>marca as tarefas realizadas</strong> (escovilhão, fornilho, raspagem, sal e álcool, boquilha, cera, reparação, repouso, outra), com a data e notas. Os registos são apresentados do mais recente para o mais antigo. Um <strong>aviso de “limpeza em atraso”</strong> aparece (uma etiqueta no cartão e na ficha, mais uma secção no final da página inicial) quando um cachimbo tiver sido fumado um determinado número de sessões desde a última limpeza — <strong>apenas as limpezas ligeira e completa reiniciam o contador</strong> (“sem limpeza” não conta). Limite ajustável em <em>Definições → Preferências</em> (5 sessões por predefinição). Também pode <strong>desativar completamente estes avisos</strong> em <em>Definições → Preferências → “Avisos de manutenção”</em>: os avisos desaparecem então da página inicial e das fichas dos cachimbos, mas o diário continua disponível. O diário está incluído nas suas cópias de segurança.</div>
 <h2 id="pt-wishlist">9. Lista de desejos</h2>
-<p>Um memorando para os tabacos a comprar. No separador <strong>Catálogo</strong> (a sua lista de tabacos), prima o chip <em>Lista de desejos</em> (ícone de coração) na linha de filtros para mostrar apenas os seus desejos; escolha qualquer outro filtro para regressar ao inventário.</p>
-<div class="note"><strong>A forma mais rápida de preencher a lista de desejos:</strong> o catálogo de referência (ícone <strong>📖</strong>, ver <a href="#pt-tobacco">secção 5</a>) oferece um botão <em>★ Adicionar à minha lista de desejos</em> em cada blend — o desejo é criado já preenchido com um toque, sem escrever nada. Também pode adicionar um desejo manualmente com o botão <strong>+</strong>; o assistente de IA e a digitalização de latas também funcionam nesse formulário.</div>
+<p>Um memorando para os tabacos a comprar. No separador <strong>Tabacos</strong>, prima o chip <em>Lista de desejos</em> (ícone de coração) na linha de filtros para mostrar apenas os seus desejos; escolha qualquer outro filtro para regressar ao inventário. A lista de desejos faz parte do seu inventário — são os seus próprios desejos, não fichas do catálogo.</p>
+<div class="note"><strong>A forma mais rápida de preencher a lista de desejos:</strong> o catálogo de referência (ícone <strong>📖</strong>, ver <a href="#pt-catalogue">secção 4</a>) oferece um botão <em>★ Adicionar à minha wishlist</em> em cada blend — o desejo é criado já preenchido com um toque, sem escrever nada. Também pode adicionar um desejo manualmente com o botão <strong>+</strong>; o assistente de IA e a digitalização de latas também funcionam nesse formulário.</div>
 <p>Cada entrada pode conter:</p>
 <table>
   <tr><th>Campo</th><th>Descrição</th></tr>
@@ -3128,50 +3394,14 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note"><strong>Privacidade:</strong> apenas as coordenadas dessa sessão são enviadas para o OpenStreetMap — para desenhar o mapa e para deduzir o nome do local (o serviço <strong>nominatim.openstreetmap.org</strong>). Nenhum outro dado é transmitido e, se nunca associar uma localização, nenhum pedido é feito.</div>
 <h2 id="pt-ai">12. Assistente IA</h2>
 <p>Disponível nos formulários de tabaco, cachimbo e lista de desejos. Preencha o nome ou a marca e depois toque em <strong>Pesquisar</strong>. A aplicação preenche automaticamente a categoria, o blend, o corte ou a forma, a descrição — e, no caso dos tabacos: <strong>Força, Room Note, Sabor e Idade máxima em adega</strong>.</p>
-<h3>O seu catálogo de referência</h3>
-<p>O <strong>catálogo local</strong> é o ficheiro CSV que carregou em <em>Definições → Dados</em> (ver <a href="#pt-tobacco">secção 5</a>): a aplicação não inclui nenhum. Depois de carregado é <strong>instantâneo, offline e sem chave</strong> — sem qualquer pedido de rede. <strong>Sem chave de API</strong>, o preenchimento automático apoia-se diretamente nele. <strong>Com uma chave</strong>, decide a definição <em>Fonte prioritária</em> (mais abaixo): em <strong>Agente IA</strong> o catálogo serve de recurso quando o pedido falha; em <strong>Catálogo</strong> (predefinição) passa em primeiro, e aparece um <strong>painel verde</strong> assim que escreve uma marca + nome reconhecidos, com um botão <strong>Preencher a ficha</strong> (ou <em>Ignorar</em> para o dispensar). Após cada pesquisa, uma pequena linha <em>· fonte: …</em> indica-lhe de onde vieram os dados. <strong>Enquanto não houver catálogo carregado</strong>, o preenchimento automático sem chave não tem nada para consultar e diz-lho.</p>
-<p>O catálogo aceita <strong>entradas aproximadas</strong>: números de catálogo ("Solani 131" → "Solani Red Label"), nomes parciais ("Peterson Sher" → "Sherlock Holmes"), marcas escritas de outra forma ("MacBaren", "G L Pease", "Cornell and Diehl") e pequenos erros de escrita ("Capstain" → Capstan). A mesma tolerância alimenta a deteção de duplicados no seu inventário.</p>
-<p>Quando um blend responde a vários nomes, a sua ficha lista-os sob o título, depois de <strong>Também conhecido como</strong> — útil quando a sua lata tem um nome diferente do do catálogo, por exemplo depois de duas entradas terem sido fundidas. Só são listados os nomes que ainda não aparecem no título.</p>
-<h3>O formato do ficheiro</h3>
-<p>O <strong>modelo CSV</strong> traz as vinte colunas que a aplicação sabe ler, com uma linha de exemplo. Mantenha a linha de cabeçalho: as colunas são reconhecidas <strong>pelo nome</strong>, não pela posição, e uma coluna que não use pode ficar vazia.</p>
-<ul>
-  <li><strong>brand_key</strong> — <strong>Obrigatória.</strong> A marca. Com <em>blend_name</em> é a identidade da linha: duas linhas com o mesmo par são duplicados e só a primeira é mantida. Uma linha sem um dos dois é ignorada.</li>
-  <li><strong>blend_name</strong> — <strong>Obrigatória.</strong> O nome da mistura.</li>
-  <li><strong>brand_name</strong> — A marca tal como é apresentada, se diferir da chave.</li>
-  <li><strong>category</strong> — <strong>Taxonomia imposta.</strong> Uma das famílias da aplicação (lista na <a href="#pt-tobacco">secção 5</a>).</li>
-  <li><strong>cut</strong> — <strong>Taxonomia imposta.</strong> Um dos cortes da aplicação (lista na <a href="#pt-tobacco">secção 5</a>).</li>
-  <li><strong>force, roomNote, taste</strong> — Um inteiro de 0 a 5. Vazio = desconhecido.</li>
-  <li><strong>agingMax</strong> — Anos de guarda: um número (10) ou um intervalo (10-15). Vazio = aplica-se o valor predefinido da família.</li>
-  <li><strong>blend</strong> — A composição, em texto livre («Virginia, Perique»).</li>
-  <li><strong>description_fr … description_pt</strong> — Uma coluna por idioma. A aplicação mostra a sua, senão o inglês, senão o francês, senão a primeira preenchida: basta uma.</li>
-  <li><strong>brand_aliases, blend_aliases</strong> — Outros nomes, separados por ponto e vírgula. É o que faz reconhecer uma lata rotulada de outra forma.</li>
-  <li><strong>lastReviewed, reviewValidated</strong> — As suas notas de revisão. Guardadas tal como estão, nunca lidas pela aplicação.</li>
-</ul>
-<div class="warn"><strong>Duas colunas têm de respeitar a taxonomia da aplicação: <em>category</em> e <em>cut</em>.</strong> Um valor desconhecido não é rejeitado — fica tal e qual e o relatório de carregamento indica-lho — mas a mistura passa a ser compreendida apenas em parte: a família não a arruma em lado nenhum (sem faixa de maturação nem idade de guarda predefinida), o corte não pesa nada (a estimativa do peso de um fornilho recai no valor genérico), o valor não é traduzido e não existe na lista do formulário — pelo que abrir e guardar esse tabaco <strong>reescreve</strong> o seu valor. Os rótulos comerciais mais comuns são convertidos automaticamente (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); para o resto, siga as duas listas da <a href="#pt-tobacco">secção 5</a>.</div>
-<div class="note">Depois de cada carregamento o ecrã diz-lhe o que leu: quantas misturas e marcas, linhas ignoradas por falta de marca ou de nome, duplicados descartados e os valores de família ou corte que não reconheceu. <strong>Leia essas linhas</strong> — um catálogo que perdeu um terço das suas linhas em silêncio é igualzinho a um que carregou bem. O botão <strong>Verificar o meu catálogo</strong>, logo abaixo, repete a mesma verificação e desta vez indica o <strong>número da linha</strong> de cada problema, para que o possa corrigir na sua folha de cálculo.</div>
-<h3>Comparar blends</h3>
-<p>A <strong>linha «Comparar blends»</strong>, no topo da página Catálogo mesmo antes do campo de pesquisa — ou o ícone de <strong>gráfico</strong> na barra superior, ou o botão no fundo da ficha de um blend — coloca <strong>dois ou três blends lado a lado</strong>. Pode misturar as fontes livremente: um tabaco da sua adega, um blend do catálogo que não possui, um desejo da sua lista.</p>
-<div class="note"><strong>As colunas não respondem todas às mesmas perguntas, e isso é intencional.</strong> A parte <em>factual</em> — família, corte, composição, força, room note, gosto, envelhecimento — existe para todos, e é aí que se decide uma compra. A parte sobre <em>a sua experiência</em> — a sua avaliação, o stock, o lote mais antigo, as sessões, a avaliação média, o custo por fornilho, os aromas percebidos — só existe para o que possui: para um blend do catálogo essas linhas ficam a «—». As linhas que <strong>diferem</strong> são realçadas.</div>
-
-<h3>Aplicar os dados do catálogo</h3>
-<p>O <strong>botão no canto superior direito da página Catálogo</strong> (chega-se lá pelo ícone 📖 na barra do inventário) compara toda a sua adega e a sua lista de desejos com o catálogo de referência e atualiza numa única passagem os <strong>campos factuais</strong>: categoria, corte, composição, força, room note, gosto, envelhecimento máximo, descrição. A aplicação mostra-lhe primeiro o que iria mudar (quantas fichas e quantos campos); nada é escrito antes da sua confirmação.</p>
-<div class="note"><strong>Os seus dados pessoais nunca são substituídos:</strong> notas de degustação, avaliação, «não recomprar», fotografia, lotes (pesos, preços, datas), coleções, a nota pessoal dos desejos. O <strong>nome e a marca</strong> também ficam intactos — é assim que reconhece a sua lata, e é também a chave que evita duplicados ao importar. As fichas ausentes do catálogo ficam inalteradas, e um aviso <strong>«Anular»</strong> repõe tudo durante alguns segundos após a passagem.</div>
-<div class="note"><strong>Bloquear uma ficha que trabalhou à mão.</strong> No fim do formulário de um tabaco ou de um desejo, a caixa <strong>«Nunca substituir a partir do catálogo»</strong> coloca essa ficha fora do alcance da atualização em bloco: é ignorada por completo e o catálogo nem sequer é consultado para ela. Útil quando corrigiu você mesmo uma composição, mediu uma força ou reescreveu uma descrição. A janela de confirmação indica quantas fichas estão bloqueadas. Não impede a <em>sincronização manual</em> a partir da própria ficha (secção seguinte): aí vê a diferença no ecrã antes de aceitar.</div>
-
+<div class="note"><strong>A IA e o catálogo respondem à mesma pergunta por dois caminhos.</strong> O <a href="#pt-catalogue">catálogo</a> é o seu ficheiro: instantâneo, offline, gratuito, mas só conhece aquilo que lá puser. O agente de IA consulta um fornecedor em linha: conhece blends que faltam ao seu ficheiro, mas exige uma chave, uma ligação, e é faturado pelo seu fornecedor. A definição abaixo decide qual dos dois é consultado primeiro.</div>
 <h3>Fonte preferida</h3>
 <p>Define-se em <em>Definições → Dados → Assistente IA → Fonte preferida</em>:</p>
 <ul>
   <li><strong>Agente IA</strong> — consulta primeiro o seu fornecedor, com recurso silencioso ao catálogo local em caso de erro.</li>
-  <li><strong>Catálogo</strong> (predefinição) — instantâneo, offline, sem chave. Escolha esta opção se não tiver chave de API, ou para poupar a sua quota.</li>
+  <li><strong>Catálogo</strong> (predefinição) — instantâneo, offline, sem chave. Escolha esta opção se não tiver chave de API, ou para poupar a sua quota. Sem catálogo carregado não há nada para consultar, e a aplicação diz-lho.</li>
 </ul>
 <p>Depois de um preenchimento a partir do catálogo, um botão <strong>"Confrontar com a IA"</strong> obtém uma segunda opinião e mostra as diferenças dos campos divergentes — pode então escolher <em>Aplicar IA</em> ou <em>Manter catálogo</em>.</p>
-<h3>Atualizar a partir do catálogo uma ficha já preenchida</h3>
-<p>Introduziu um tabaco à mão e quer os valores corretos do catálogo? <strong>Abra a ficha em modo de edição</strong> (botão Editar num tabaco ou num desejo). Se a marca + nome corresponderem a uma entrada do catálogo e pelo menos um campo diferir, surge automaticamente um aviso <em>"Atualização do catálogo disponível"</em> <strong>no topo do formulário</strong>. Lista as diferenças (categoria, corte, blend, força, room note, sabor, idade máxima, descrição) com o seu valor e o valor do catálogo lado a lado:</p>
-<ul>
-  <li><strong>Sincronizar</strong> substitui os seus valores pelos do catálogo num só toque (pode ainda ajustar antes de guardar).</li>
-  <li><strong>Manter os meus valores</strong> oculta o aviso nessa ficha.</li>
-</ul>
-<div class="note">As suas <strong>notas pessoais</strong>, fotografias, classificação por estrelas, indicador "recomprar" e lotes nunca são tocados — não constam do catálogo.</div>
 <h3>Agente IA (fornecedores)</h3>
 <table>
   <tr><th>Fornecedor</th><th>Chave de API</th></tr>
@@ -3185,7 +3415,7 @@ The two formats have neither the same columns nor the same effect: loading one i
 <div class="note">A sua chave é guardada localmente. Por predefinição é <strong>excluída</strong> das exportações e das cópias de segurança; para a incluir, desative <em>Excluir chaves de API das exportações</em> na mesma secção.</div>
 <h3>Digitalizar a lata</h3>
 <p>No formulário de tabaco (e de desejo), o botão <strong>Digitalizar a lata</strong> permite fotografar a lata (ou escolher uma fotografia da sua biblioteca): a IA lê o rótulo para preencher a <strong>marca</strong>, o <strong>nome</strong> e a <strong>composição</strong> quando legíveis e depois encadeia automaticamente a pesquisa habitual para completar o resto. Uma fotografia, uma ficha completa. A fotografia é reduzida antes do envio e <strong>nunca é armazenada</strong>. Se estiver ilegível, uma mensagem convida-o a tentar novamente; nada é substituído.</p>
-<div class="note">Para <strong>percorrer o catálogo</strong> e adicionar um blend num só toque, consulte a <a href="#pt-tobacco">secção 5 "Adicionar um tabaco"</a>.</div>
+<div class="note">O catálogo de referência — como obter um, carregá-lo, percorrê-lo e aplicar os seus dados — tem a sua própria <a href="#pt-catalogue">secção 4</a>. Para as três formas de criar um tabaco, ver a <a href="#pt-tobacco">secção 5</a>.</div>
 
 <h2 id="pt-stats">13. Estatísticas e gráficos</h2>
 <p>Acessível através do botão <strong>Estat.</strong> (ícone de gráfico) na barra de navegação. Mostra gráficos SVG calculados em tempo real a partir dos seus dados.</p>
@@ -3229,6 +3459,12 @@ The two formats have neither the same columns nor the same effect: loading one i
   <li><strong>📂 Importar ficheiro</strong> — restaurar a partir de um ficheiro JSON (Substituir / Fundir / Selecionar, ver abaixo).</li>
   <li><strong>Importar tabacos (.csv)</strong> — adiciona tabacos (e os respetivos lotes) a partir de uma folha de cálculo. As colunas são correspondidas <strong>pelo nome do cabeçalho</strong> (acentos e maiúsculas ignorados, com equivalentes FR/EN): apenas <em>Marca</em> e <em>Nome</em> são obrigatórios. As linhas que partilham a mesma marca + nome juntam-se num só tabaco com vários lotes. A importação corre sempre como uma <strong>Fusão</strong> (nunca uma substituição: os seus cachimbos e sessões nunca são apagados, e os duplicados são eliminados com base em marca + nome). Use <strong>Descarregar modelo CSV</strong> para partir de um ficheiro pronto a preencher. As colunas <em>Categoria</em> e <em>Corte</em> têm de usar a taxonomia da app (listas da secção 5) — as designações comerciais mais correntes são reconhecidas (« Navy Cut », « Cigar »), um valor desconhecido passa a « Autre » e o detalhe aparece por baixo do botão com o número da linha.</li>
 </ul>
+<div class="warn"><strong>Carregam-se dois ficheiros CSV diferentes a partir deste ecrã. Não os confunda.</strong>
+<ul>
+  <li><strong>Importar tabacos (.csv)</strong>, acima — são <em>as suas latas</em>. Colunas <em>Marca</em>, <em>Nome</em>, peso, preço, datas. O ficheiro <strong>acrescenta-se</strong> à sua adega por fusão e cria lotes. O seu modelo é o botão <strong>Descarregar o modelo CSV</strong>, nesta mesma secção.</li>
+  <li><strong>Carregar um catálogo (.csv)</strong>, na secção <em>Catálogo de referência</em> mais acima — são <em>fichas descritivas</em>. Colunas <em>brand_key</em>, <em>blend_name</em>, <em>category</em>, <em>cut</em>… O ficheiro <strong>substitui</strong> o catálogo anterior e <strong>não</strong> acrescenta nada à sua adega. O seu modelo é o botão <strong>Descarregar o modelo</strong>, nessa outra secção. Ver a <a href="#pt-catalogue">secção 4</a>.</li>
+</ul>
+Os dois formatos não têm as mesmas colunas nem o mesmo efeito: carregar um em vez do outro não destrói nada, mas a aplicação responder-lhe-á que não conseguiu ler nada.</div>
 <div class="note"><strong>Erros explícitos na importação CSV.</strong> Se o ficheiro não contiver nenhum tabaco legível, uma mensagem recorda-lhe as colunas esperadas. Se escolher por engano um <em>ficheiro JSON de cópia de segurança</em>, a aplicação encaminha-o para <strong>Importar ficheiro (.json)</strong>. Um CSV de exportação completa com várias secções é aceite: só a parte dos tabacos é importada, com um aviso.</div>
 <div class="note"><strong>Substituir, Fundir ou Selecionar.</strong> Depois de escolher o ficheiro, um seletor propõe três modos: <strong>Substituir</strong> (apaga os seus dados locais e instala o ficheiro importado), <strong>Fundir</strong> (mantém os seus dados e apenas acrescenta os itens em falta — correspondência por marca + nome, sessões sem duplicados) ou <strong>Selecionar itens</strong> (escolhe exatamente quais tabacos / cachimbos / desejos / acessórios / sessões importar). O mesmo seletor aparece num restauro a partir da nuvem.</div>
 <div class="warn">O modo <strong>Substituir</strong> sobrepõe-se a todos os seus dados locais. Exporte primeiro uma cópia de segurança em caso de dúvida, ou use <em>Fundir</em>.</div>
