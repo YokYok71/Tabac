@@ -71,10 +71,13 @@ updates:
     # `npm run lint` — a CI gate — breaks. This ignores ONLY the TypeScript
     # MAJOR bump; minor/patch on the v6 line still flow (see the `typescript`
     # group above), and Dependabot SECURITY updates (CVEs) fire regardless
-    # of this ignore. Because the block hides the reminder PR, issue #97 is
+    # of this ignore. Because the block hides the reminder PR, issue #1 is
     # the persistent tracker: LIFT this ignore + bump TS when
     # typescript-eslint ships TS 7 support (the unblock is a typescript-
-    # eslint release, NOT a new TS version).
+    # eslint release, NOT a new TS version). The cheapest check, no install
+    # needed: `npm view @typescript-eslint/typescript-estree@latest
+    # peerDependencies` — while it reads `typescript: <6.1.0`, TS 7 is out
+    # of range and this ignore is still warranted.
     ignore:
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
