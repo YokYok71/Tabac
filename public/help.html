@@ -711,6 +711,7 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
     <li><a href="#en-install">Installing on the home screen</a></li>
     <li><a href="#en-concepts">Core concepts</a></li>
     <li><a href="#en-cycle">Tobacco lifecycle: Purchase → Cellar → Jar → Finished</a></li>
+    <li><a href="#en-catalogue">The reference catalogue</a></li>
     <li><a href="#en-tobacco">Adding a tobacco</a></li>
     <li><a href="#en-lots">Managing lots</a></li>
     <li><a href="#en-inventory">Browsing the inventory</a></li>
@@ -748,6 +749,11 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
   <li><strong>Lot</strong> — a specific tin or quantity purchased on a given date. The lot carries the status and aging history.</li>
 </ul>
 <p>This distinction lets you track multiple tins of the same tobacco at different stages (one cellaring, one open in a jar) while sharing a single set of notes and description.</p>
+<p>Together these two objects form <strong>your inventory</strong>: what you actually own. Alongside it, the app can also use a third thing, of a different nature:</p>
+<ul>
+  <li><strong>The reference catalogue</strong> — an <em>optional</em> file that you load and that describes commercial blends (family, cut, composition, description), while saying nothing about your tins. It holds no weight, no price and no date. It is there to fill in your entries faster, never to replace them.</li>
+</ul>
+<div class="warn"><strong>Inventory and catalogue do not mix.</strong> Loading a catalogue adds nothing to your cellar; adding a tobacco of your own does not change the catalogue. The two are nevertheless loaded from the same <em>Settings → Data</em> screen, which is the most common confusion — <a href="#en-catalogue">section 4</a> is devoted to them.</div>
 
 <h2 id="en-cycle">3. Tobacco lifecycle</h2>
 <div class="flow">
@@ -786,22 +792,105 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
 <div class="note"><strong>Note:</strong> even with Accounting off, opening a Cellar lot into a Jar (Cellar → Jar) still happens — it's a real physical event (you opened a tin), governed by the lot's status, not by quantity tracking.</div>
 <div class="note">The <strong>default session weight</strong> (which pre-fills the Weight field of a new session) is also set in <em>Settings → Preferences</em>. In addition, when you pick a pipe <strong>whose chamber dimensions</strong> (diameter + depth) are filled in, the app <strong>estimates the weight automatically</strong> from the chamber volume and the <strong>selected tobacco's cut</strong> (a dense flake weighs more than an airy ribbon at the same volume). The <strong>pipe shape</strong> is factored in too: a conical chamber (Dublin family, or Bulldog/Rhodesian) holds a bit less than a straight one of the same dimensions. Without chamber dimensions, the default weight above applies. The estimate stays editable by hand.</div>
 
-<h2 id="en-tobacco">5. Adding a tobacco</h2>
-<p><strong>The catalogue is your own file.</strong> The app ships none: from <em>Settings → Data → Reference catalogue</em>, download the <strong>CSV template</strong>, fill it in (one row per blend: brand, name, category, cut, strength, composition, description…) and <strong>load it</strong>. Once loaded it feeds auto-fill, search, comparisons and the Catalogue page. Without one, those screens say so and point you here. Three ways to add a tobacco, from fastest to most manual:</p>
+<h2 id="en-catalogue">4. The reference catalogue</h2>
+<p>The app handles <strong>two different things</strong>, both of them loaded from <em>Settings → Data</em>, and they must not be confused:</p>
+<ul>
+  <li><strong>Your inventory</strong> — your own tins. Lots, weights, prices, purchase dates, sessions smoked. This is your cellar: you edit it constantly and it travels in your backups.</li>
+  <li><strong>The reference catalogue</strong> — a file of descriptive entries (brand, name, family, cut, composition, description) that describes <em>none</em> of your tins in particular. It holds no weight, no price and no date: it says what a blend <em>is</em>, not what you own of it.</li>
+</ul>
+<p>The catalogue is <strong>optional</strong> and the app works entirely without it: you can type your whole cellar in by hand. It brings one thing only, but that one thing saves time — <strong>never having to retype the characteristics of a blend you already know</strong>.</p>
+<div class="note"><strong>No catalogue ships with the app.</strong> The catalogue is <em>your</em> file: you compose it, you correct it, and it holds only what you have put in it. As long as you have loaded none, the screens that use it tell you so and point you back here — nothing is broken.</div>
 
-<h3>① Browse the catalog (fastest)</h3>
+<h3>What the catalogue changes once loaded</h3>
+<ul>
+  <li><strong>Auto-fill</strong> in the tobacco and wish forms consults it (see <a href="#en-ai">section 12</a>).</li>
+  <li>A <strong>Catalogue</strong> page becomes browsable, with search and filters.</li>
+  <li>You can <strong>compare</strong> two or three blends side by side.</li>
+  <li>You can <strong>apply the catalogue's data in one pass</strong> to the entries you already own.</li>
+</ul>
+<div class="warn"><strong>The catalogue never changes your cellar on its own.</strong> Loading it adds no tobacco to your inventory, removes none, and touches none of your lots. All it does is open up the possibilities above, which you then trigger yourself. Conversely, entering or deleting a tobacco of your own does not change the catalogue: it is <strong>read-only</strong>.</div>
+
+<h3>Getting and loading your catalogue</h3>
 <ol>
-  <li>From the <strong>Catalogue</strong> tab, tap the <strong>📖</strong> icon at the top right.</li>
+  <li>Go to <em>Settings → Data → Reference catalogue</em>.</li>
+  <li>Tap <strong>Download the template</strong>: you get an empty CSV file, with the header row and one example row.</li>
+  <li>Fill it in using a spreadsheet — <strong>one row per blend</strong>.</li>
+  <li>Come back to the app and tap <strong>Load a catalogue (.csv)</strong>, then pick your file.</li>
+</ol>
+<p>Loading a new file <strong>replaces</strong> the previous one — the catalogue is not cumulative, unlike the import of your own tobaccos. The <strong>Remove the catalogue</strong> button deletes it; your cellar is untouched, and you can always load it again from your file.</p>
+
+<h3>The file format</h3>
+<p>The <strong>CSV template</strong> carries the twenty columns the app can read, with one example row. Keep the header row: columns are matched <strong>by name</strong>, not by position, and a column you do not use can stay empty.</p>
+<ul>
+  <li><strong>brand_key</strong> — <strong>Required.</strong> The brand. Together with <em>blend_name</em> it is the row's identity: two rows sharing the pair are duplicates and only the first is kept. A row missing either one is skipped.</li>
+  <li><strong>blend_name</strong> — <strong>Required.</strong> The blend's name.</li>
+  <li><strong>brand_name</strong> — The brand as displayed, when it differs from the key.</li>
+  <li><strong>category</strong> — <strong>Fixed taxonomy.</strong> One of the app's families (list in <a href="#en-tobacco">section 5</a>).</li>
+  <li><strong>cut</strong> — <strong>Fixed taxonomy.</strong> One of the app's cuts (list in <a href="#en-tobacco">section 5</a>).</li>
+  <li><strong>force, roomNote, taste</strong> — An integer from 0 to 5. Empty = unknown.</li>
+  <li><strong>agingMax</strong> — Cellaring years: a number (10) or a range (10-15). Empty = the family default applies.</li>
+  <li><strong>blend</strong> — The composition, free text ("Virginia, Perique").</li>
+  <li><strong>description_fr … description_pt</strong> — One column per language. The app shows yours, else English, else French, else the first one filled: a single one is enough.</li>
+  <li><strong>brand_aliases, blend_aliases</strong> — Other names, semicolon-separated. This is what makes a differently-labelled tin resolve.</li>
+  <li><strong>lastReviewed, reviewValidated</strong> — Your review notes. Kept as-is, never read by the app.</li>
+</ul>
+<div class="warn"><strong>Two columns must follow the app's taxonomy: <em>category</em> and <em>cut</em>.</strong> An unrecognised value is not rejected — it is kept verbatim and the load report names it — but the blend is then only half understood: the family files it nowhere (no maturity band, no default cellaring age), the cut weighs nothing (the bowl-weight estimate falls back to the generic value), the value is not translated and does not exist in the form's dropdown — so opening and saving that tobacco <strong>rewrites</strong> your value. Common trade labels are converted automatically (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); for the rest, follow the two lists in <a href="#en-tobacco">section 5</a>.</div>
+<div class="note">After every load the screen tells you what it read: how many blends and brands, rows skipped for want of a brand or a name, duplicates dropped, and any family or cut value it did not recognise. <strong>Read those lines</strong> — a catalogue that silently lost a third of its rows looks exactly like one that loaded fine. The <strong>Check my catalogue</strong> button just below runs the same check and this time gives the <strong>line number</strong> of each problem, so you can fix it in your spreadsheet.</div>
+<p>That check judges only what the app is able to judge: the two required columns and the two fixed-taxonomy columns. It does not read your descriptions and does not verify that your data is accurate — it is your file.</p>
+
+<h3>Browsing the catalogue</h3>
+<p>From the <strong>Tobaccos</strong> tab, tap the <strong>📖</strong> icon at the top right: the <strong>Catalogue</strong> page opens. It is read-only and shows <em>only</em> the contents of your file, never your cellar.</p>
+<ul>
+  <li>Tolerant <strong>search</strong>: catalogue numbers ("Solani 131" → "Solani Red Label"), partial names ("Peterson Sher" → "Sherlock Holmes"), brands typed differently ("MacBaren", "G L Pease", "Cornell and Diehl") and small typos ("Capstain" → Capstan). The same tolerance powers duplicate detection in your inventory.</li>
+  <li><strong>Filters</strong> by family or by brand, and a brand-grouped display.</li>
+  <li>A badge <em>✓ owned</em> (green) or <em>★ wished</em> (amber) on each row shows what you already have — it is the one place where the two worlds meet, and purely to inform you.</li>
+  <li>When a blend answers to several names, its card lists them under the title, after <strong>Also known as</strong> — useful when your tin is labelled differently from the catalogue. Only names that are not already in the title are shown.</li>
+</ul>
+<p>From a catalogue card, two buttons move the blend <em>from the reference into your cellar</em>: <strong>Add to my inventory</strong> and <strong>Add to my wishlist</strong>. That is the fastest way to enter a tobacco — see <a href="#en-tobacco">section 5</a>.</p>
+
+<h3>Comparing blends</h3>
+<p>The <strong>“Compare blends” row</strong>, at the top of the Catalogue page just above the search field — or the <strong>chart</strong> icon in the top bar, or the button at the bottom of a blend's card — puts <strong>two or three blends side by side</strong>. You can mix the sources freely: a tobacco from your cellar, a catalogue blend you do not own, a wish from your list.</p>
+<div class="note"><strong>The columns do not all answer the same questions, and that is deliberate.</strong> The <em>factual</em> half — family, cut, composition, strength, room note, taste, ageing — exists for every source, and that is where a purchase is decided. The half about <em>your own experience</em> — your rating, stock, oldest lot, sessions, average session rating, cost per bowl, aromas you perceived — exists only for what you own: on a catalogue blend those rows stay at "—". The rows that <strong>differ</strong> are highlighted.</div>
+
+<h3>Applying the catalogue data to your entries</h3>
+<p>Two routes, depending on whether you want to handle <strong>one entry</strong> or <strong>your whole cellar</strong>. In both cases it is your entries that are modified; the catalogue itself never moves.</p>
+<p><strong>A single entry.</strong> Open it in edit mode (Edit button on a tobacco or a wish). If the brand + name match a catalogue entry and at least one field differs, a <em>"Catalog update available"</em> banner appears at the top of the form and lists the gaps, your value and the catalogue's side by side:</p>
+<ul>
+  <li><strong>Sync</strong> replaces your values with the catalogue's in one tap (you can still tweak them before saving).</li>
+  <li><strong>Keep my values</strong> hides the banner for that entry.</li>
+</ul>
+<p><strong>The whole cellar at once.</strong> The button at the top right of the Catalogue page compares your inventory <em>and</em> your wishlist against the catalogue, then updates the <strong>factual fields</strong> in a single pass: category, cut, composition, strength, room note, taste, maximum ageing, description. The app first shows you what would change (how many entries, how many fields); nothing is written until you confirm.</p>
+<div class="note"><strong>Your personal data is never touched:</strong> tasting notes, rating, "don't rebuy", photo, lots (weights, prices, dates), collections, the wishlist's personal note. <strong>Name and brand</strong> are left alone too — that is how you recognise your tin, and it is also the key used to avoid duplicates on import. Entries absent from the catalogue stay unchanged, and an <strong>"Undo"</strong> toast puts everything back for a few seconds after the pass.</div>
+<div class="note"><strong>Pin an entry you curated by hand.</strong> At the very bottom of a tobacco or wishlist form, the <strong>“Never overwrite from the catalogue”</strong> checkbox puts that entry out of the bulk update's reach: it is skipped entirely, and the catalogue is not even consulted for it. Useful when you corrected a composition yourself, measured a strength, or rewrote a description. The confirmation dialog tells you how many entries are pinned. It does not block the entry-by-entry sync above: there you see the difference on screen before accepting.</div>
+
+<h3>Backing up the catalogue</h3>
+<p>The catalogue is <strong>not included in your cellar backups</strong> — not in the JSON export, not in the ZIP, not in the automatic backup. That is deliberate: it can weigh several megabytes and only changes once in a while, whereas your cellar is saved on every edit.</p>
+<p>It therefore has two buttons of its own, in the same settings section: <strong>Back up the catalogue to the cloud</strong> and <strong>Fetch the catalogue from the cloud</strong>. It travels in its own file and is only sent when you ask for it. On a new device, fetching is available even when no catalogue is loaded — which is precisely where it is useful.</p>
+<div class="note">Keep the original CSV on your side too: it is the file you edit in your spreadsheet, and the <strong>Export my catalogue</strong> button hands it back to you exactly as the app holds it.</div>
+
+<h2 id="en-tobacco">5. Adding a tobacco</h2>
+<p>Adding a tobacco means creating an entry in <strong>your inventory</strong>: a reference you own, to which you will then attach one or more lots. Three ways to do it, from the fastest to the most manual. They produce exactly the same entry and everything stays editable afterwards — pick whichever suits what you have at hand.</p>
+<ul>
+  <li><strong>①</strong> you have loaded a <a href="#en-catalogue">reference catalogue</a> and the blend is in it;</li>
+  <li><strong>②</strong> you want the app to look up the characteristics for you, in your catalogue or online;</li>
+  <li><strong>③</strong> you type everything yourself — the route that depends on nothing.</li>
+</ul>
+
+<h3>① From the catalogue (fastest)</h3>
+<p>This route assumes you have loaded a reference catalogue — see <a href="#en-catalogue">section 4</a>. If you have none, go to ② or ③: you are missing nothing, entry is simply longer.</p>
+<ol>
+  <li>From the <strong>Tobaccos</strong> tab, tap the <strong>📖</strong> icon at the top right: the <strong>Catalogue</strong> page opens.</li>
   <li>Find your blend: search bar ("Capstan blue", "Solani 131", "FVF"… the search is tolerant), category or brand filter, or the brand-grouped list.</li>
   <li>Tap the row for a preview, then <strong>"Add to my inventory"</strong>: a pre-filled mini-form opens, everything editable.</li>
-  <li><strong>Save</strong> → the tobacco is created with a first lot in <span class="badge badge-cave">Cellar</span>, and you return to the catalog to keep going.</li>
+  <li><strong>Save</strong> → the tobacco is created with a first lot in <span class="badge badge-cave">Cellar</span>, and you return to the catalogue to keep going.</li>
 </ol>
+<div class="note">The catalogue is not modified by the operation: you have <em>copied</em> its values into a fresh entry, which is yours. Correcting that entry afterwards changes nothing in the reference file.</div>
 <div class="note">The <strong>"★ Add to my wishlist"</strong> button does the same but files the entry under your wishlist. A badge <em>✓ owned</em> (green) or <em>★ wished</em> (amber) on each row shows what you already have.</div>
 <div class="note">The <strong>price, purchase date and lot details</strong> are added afterwards from the tobacco's page — see <a href="#en-lots">Managing lots</a>.</div>
-<div class="note"><strong>Already typed a tobacco by hand?</strong> You can pull the catalog's values onto an existing card: open it in edit mode and a <em>"Catalog update available"</em> banner will offer to <strong>sync</strong> the divergent fields — see <a href="#en-ai">section 12</a>.</div>
+<div class="note"><strong>Already typed a tobacco by hand?</strong> You can pull the catalogue's values onto an existing entry: open it in edit mode and a <em>"Catalog update available"</em> banner will offer to <strong>sync</strong> the divergent fields — see <a href="#en-catalogue">section 4</a>.</div>
 
 <h3>② Entry with auto-fill</h3>
-<p>Tap the <strong>+</strong> at the top of the <strong>Tobacco</strong> tab, enter at least the <strong>brand</strong> and <strong>name</strong>, then the <strong>Search</strong> button on the <em>Auto-fill</em> card. The app fills category, cut, blend, strength, room note, taste, max age and description (all editable). By default it consults the <strong>built-in local catalogue</strong> first, then your AI assistant if the blend is not in it; the <em>Preferred source</em> setting lets you reverse that order, see <a href="#en-ai">AI Assistant</a>. You can also <strong>scan the tin</strong> to pre-fill brand and name automatically.</p>
+<p>Tap the <strong>+</strong> at the top of the <strong>Tobaccos</strong> tab, enter at least the <strong>brand</strong> and <strong>name</strong>, then the <strong>Search</strong> button on the <em>Auto-fill</em> card. The app fills category, cut, blend, strength, room note, taste, max age and description (all editable). By default it consults <strong>your catalogue</strong> first when one is loaded (<a href="#en-catalogue">section 4</a>), then your AI assistant if the blend is not in it; the <em>Preferred source</em> setting lets you reverse that order, see <a href="#en-ai">AI Assistant</a>. With no catalogue and no API key, that button has nothing to query and tells you so — manual entry ③ is always available. You can also <strong>scan the tin</strong> to pre-fill brand and name automatically.</p>
 
 <h3>③ Fully manual entry</h3>
 <table>
@@ -892,8 +981,8 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
 <div class="note"><strong>Maintenance log:</strong> the pipe fiche has a <em>“Maintenance log”</em> — each session picks a <strong>cleaning type</strong> (light, full, or “no cleaning” for a stand-alone intervention) then <strong>ticks the tasks done</strong> (pipe cleaner, bowl, reaming, salt &amp; alcohol, stem, wax, repair, rest, other), with the date and notes. Entries are shown newest first. A <strong>“cleaning due” reminder</strong> appears (a chip on the card and fiche, plus a section at the bottom of the home page) once a pipe has been smoked a set number of sessions since its last cleaning — <strong>only the light and full cleanings reset the counter</strong> (“no cleaning” doesn't count). Threshold adjustable in <em>Settings → Preferences</em> (5 sessions by default). You can also <strong>turn these reminders off entirely</strong> via <em>Settings → Preferences → “Maintenance reminders”</em>: the reminders then disappear from the home page and pipe fiches, but the log stays available. The log is included in your backups.</div>
 
 <h2 id="en-wishlist">9. Wishlist</h2>
-<p>A memo for tobaccos to buy. On the <strong>Catalogue</strong> tab (your tobacco list), tap the <em>Wishlist</em> chip (heart icon) in the filter row to show only your wishes; pick any other filter to return to the inventory.</p>
-<div class="note"><strong>Fastest way to fill your wishlist:</strong> the reference catalog (<strong>📖</strong> icon, see <a href="#en-tobacco">section 5</a>) offers a <em>★ Add to my wishlist</em> button on every blend — the wish is created pre-filled in one tap, no typing. You can also add a wish manually with the <strong>+</strong> button; the AI assistant and tin scan work on that form too.</div>
+<p>A memo for tobaccos to buy. On the <strong>Tobaccos</strong> tab, tap the <em>Wishlist</em> chip (heart icon) in the filter row to show only your wishes; pick any other filter to return to the inventory. The wishlist is part of your inventory — these are your own wishes, not catalogue entries.</p>
+<div class="note"><strong>Fastest way to fill your wishlist:</strong> the reference catalogue (<strong>📖</strong> icon, see <a href="#en-catalogue">section 4</a>) offers a <em>★ Add to my wishlist</em> button on every blend — the wish is created pre-filled in one tap, no typing. You can also add a wish manually with the <strong>+</strong> button; the AI assistant and tin scan work on that form too.</div>
 <p>Each entry can contain:</p>
 <table>
   <tr><th>Field</th><th>Description</th></tr>
@@ -976,50 +1065,14 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
 
 <h2 id="en-ai">12. AI Assistant</h2>
 <p>Available in tobacco, pipe and wishlist forms. Fill in the name or brand, then tap <strong>Search</strong>. The app automatically fills category, blend, cut or shape, description — and for tobaccos: <strong>Strength, Room Note, Taste and Max cellar age</strong>.</p>
-<h3>Your reference catalogue</h3>
-<p>The <strong>local catalogue</strong> is the CSV file you loaded from <em>Settings → Data</em> (see <a href="#en-tobacco">section 5</a>): nothing is bundled with the app. Once loaded it is <strong>instant, offline and key-free</strong> — no network request. <strong>Without an API key</strong>, auto-fill draws on it directly. <strong>With a key</strong>, the <em>Preferred source</em> setting (below) decides: on <strong>AI agent</strong> the catalogue is the fallback when the request fails; on <strong>Catalogue</strong> (the default) it comes first, and a <strong>green panel</strong> appears as soon as you type a recognised brand + name, with a <strong>Fill the sheet</strong> button (or <em>Ignore</em> to dismiss it). After each search, a small <em>· source: …</em> line tells you where the data came from. <strong>Until a catalogue is loaded</strong>, key-less auto-fill has nothing to look up and says so.</p>
-<p>The catalog accepts <strong>approximate input</strong>: catalog numbers ("Solani 131" → "Solani Red Label"), partial names ("Peterson Sher" → "Sherlock Holmes"), brands typed differently ("MacBaren", "G L Pease", "Cornell and Diehl") and small typos ("Capstain" → Capstan). The same tolerance powers duplicate detection in your inventory.</p>
-<p>When a blend answers to several names, its card lists them under the title, after <strong>Also known as</strong> — useful when your tin is labelled differently from the catalogue, for instance after two entries were merged. Only names that are not already in the title are shown.</p>
-<h3>The file format</h3>
-<p>The <strong>CSV template</strong> carries the twenty columns the app can read, with one example row. Keep the header row: columns are matched <strong>by name</strong>, not by position, and a column you do not use can stay empty.</p>
-<ul>
-  <li><strong>brand_key</strong> — <strong>Required.</strong> The brand. Together with <em>blend_name</em> it is the row's identity: two rows sharing the pair are duplicates and only the first is kept. A row missing either one is skipped.</li>
-  <li><strong>blend_name</strong> — <strong>Required.</strong> The blend's name.</li>
-  <li><strong>brand_name</strong> — The brand as displayed, when it differs from the key.</li>
-  <li><strong>category</strong> — <strong>Fixed taxonomy.</strong> One of the app's families (list in <a href="#en-tobacco">section 5</a>).</li>
-  <li><strong>cut</strong> — <strong>Fixed taxonomy.</strong> One of the app's cuts (list in <a href="#en-tobacco">section 5</a>).</li>
-  <li><strong>force, roomNote, taste</strong> — An integer from 0 to 5. Empty = unknown.</li>
-  <li><strong>agingMax</strong> — Cellaring years: a number (10) or a range (10-15). Empty = the family default applies.</li>
-  <li><strong>blend</strong> — The composition, free text ("Virginia, Perique").</li>
-  <li><strong>description_fr … description_pt</strong> — One column per language. The app shows yours, else English, else French, else the first one filled: a single one is enough.</li>
-  <li><strong>brand_aliases, blend_aliases</strong> — Other names, semicolon-separated. This is what makes a differently-labelled tin resolve.</li>
-  <li><strong>lastReviewed, reviewValidated</strong> — Your review notes. Kept as-is, never read by the app.</li>
-</ul>
-<div class="warn"><strong>Two columns must follow the app's taxonomy: <em>category</em> and <em>cut</em>.</strong> An unrecognised value is not rejected — it is kept verbatim and the load report names it — but the blend is then only half understood: the family files it nowhere (no maturity band, no default cellaring age), the cut weighs nothing (the bowl-weight estimate falls back to the generic value), the value is not translated and does not exist in the form's dropdown — so opening and saving that tobacco <strong>rewrites</strong> your value. Common trade labels are converted automatically (<em>Cigar</em> → Cigare, <em>Navy Cut</em> → Flake, <em>English Aromatic</em> → Anglais aromatique…); for the rest, follow the two lists in <a href="#en-tobacco">section 5</a>.</div>
-<div class="note">After every load the screen tells you what it read: how many blends and brands, rows skipped for want of a brand or a name, duplicates dropped, and any family or cut value it did not recognise. <strong>Read those lines</strong> — a catalogue that silently lost a third of its rows looks exactly like one that loaded fine. The <strong>Check my catalogue</strong> button just below runs the same check and this time gives the <strong>line number</strong> of each problem, so you can fix it in your spreadsheet.</div>
-<h3>Comparing blends</h3>
-<p>The <strong>“Compare blends” row</strong>, at the top of the Catalogue page just above the search field — or the <strong>chart</strong> icon in the top bar, or the button at the bottom of a blend's card — puts <strong>two or three blends side by side</strong>. You can mix the sources freely: a tobacco from your cellar, a catalogue blend you do not own, a wish from your list.</p>
-<div class="note"><strong>The columns do not all answer the same questions, and that is deliberate.</strong> The <em>factual</em> half — family, cut, composition, strength, room note, taste, ageing — exists for every source, and that is where a purchase is decided. The half about <em>your own experience</em> — your rating, stock, oldest lot, sessions, average session rating, cost per bowl, aromas you perceived — exists only for what you own: on a catalogue blend those rows stay at "—". The rows that <strong>differ</strong> are highlighted.</div>
-
-<h3>Applying the catalogue data</h3>
-<p>The <strong>button at the top right of the Catalogue page</strong> (reached via the 📖 icon in the inventory bar) compares your whole cellar and wishlist against the reference catalogue, then updates the <strong>factual fields</strong> in a single pass: category, cut, composition, strength, room note, taste, maximum ageing, description. The app first shows you what would change (how many entries, how many fields); nothing is written until you confirm.</p>
-<div class="note"><strong>Your personal data is never overwritten:</strong> tasting notes, rating, "don't rebuy", photo, lots (weights, prices, dates), collections, the wishlist's personal note. <strong>Name and brand</strong> are left alone too — that is how you recognise your tin, and it is also the key used to avoid duplicates on import. Entries absent from the catalogue stay unchanged, and an <strong>"Undo"</strong> toast puts everything back for a few seconds after the pass.</div>
-<div class="note"><strong>Pin an entry you curated by hand.</strong> At the very bottom of a tobacco or wishlist form, the <strong>“Never overwrite from the catalogue”</strong> checkbox puts that entry out of the bulk update's reach: it is skipped entirely, and the catalogue is not even consulted for it. Useful when you corrected a composition yourself, measured a strength, or rewrote a description. The confirmation dialog tells you how many entries are pinned. It does not block the <em>manual sync</em> from the entry itself (next section): there you see the difference on screen before accepting.</div>
-
+<div class="note"><strong>The AI and the catalogue answer the same question by two different routes.</strong> The <a href="#en-catalogue">catalogue</a> is your file: instant, offline, free, but it only knows what you put in it. The AI agent queries an online provider: it knows blends your file does not carry, but it asks for a key, a connection, and it is billed by your provider. The setting below decides which of the two is consulted first.</div>
 <h3>Preferred source</h3>
 <p>Set in <em>Settings → Data → AI Assistant → Preferred source</em>:</p>
 <ul>
-  <li><strong>AI agent</strong> — queries your provider first, with a silent fallback to the local catalog on error.</li>
-  <li><strong>Catalogue</strong> (default) — instant, offline, no key. Pick this without an API key, or to save your quota.</li>
+  <li><strong>AI agent</strong> — queries your provider first, with a silent fallback to the catalogue on error.</li>
+  <li><strong>Catalogue</strong> (default) — instant, offline, no key. Pick this without an API key, or to save your quota. With no catalogue loaded there is nothing to consult, and the app tells you so.</li>
 </ul>
-<p>After a fill from the catalog, a <strong>"Cross-check with AI"</strong> button gets a second opinion and shows a diff of the divergent fields — you then pick <em>Apply AI</em> or <em>Keep catalogue</em>.</p>
-<h3>Update an already-entered card from the catalog</h3>
-<p>Typed a tobacco by hand and want the catalog's correct values? <strong>Open the card in edit mode</strong> (Edit button on a tobacco or a wish). If the brand + name match a catalog entry and at least one field differs, a <em>"Catalog update available"</em> banner appears automatically <strong>at the top of the form</strong>. It lists the gaps (category, cut, blend, strength, room note, taste, max age, description) with your value and the catalog value side by side:</p>
-<ul>
-  <li><strong>Sync</strong> replaces your values with the catalog's in one tap (you can still tweak before saving).</li>
-  <li><strong>Keep my values</strong> hides the banner for that card.</li>
-</ul>
-<div class="note">Your <strong>personal notes</strong>, photos, star rating, "rebuy" flag and lots are never touched — they're not in the catalog.</div>
+<p>After a fill from the catalogue, a <strong>"Cross-check with AI"</strong> button gets a second opinion and shows a diff of the divergent fields — you then pick <em>Apply AI</em> or <em>Keep catalogue</em>.</p>
 <h3>AI agent (providers)</h3>
 <table>
   <tr><th>Provider</th><th>API key</th></tr>
@@ -1033,7 +1086,7 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
 <div class="note">Your key is stored locally. By default it is <strong>excluded</strong> from exports and backups; to include it, disable <em>Exclude API keys from exports</em> in the same section.</div>
 <h3>Scan the tin</h3>
 <p>In the tobacco (and wish) form, the <strong>Scan the tin</strong> button lets you photograph the tin (or pick a photo from your library): the AI reads the label to fill the <strong>brand</strong>, the <strong>name</strong> and the <strong>composition</strong> when readable, then automatically chains the usual search to complete the rest. One photo, a complete sheet. The photo is downscaled before upload and <strong>never stored</strong>. If it's unreadable, a message invites you to retry; nothing is overwritten.</p>
-<div class="note">To <strong>browse the catalog</strong> and add a blend in one tap, see <a href="#en-tobacco">section 5 "Adding a tobacco"</a>.</div>
+<div class="note">The reference catalogue — getting one, loading it, browsing it, applying its data — has a <a href="#en-catalogue">section 4</a> of its own. For the three ways to create a tobacco, see <a href="#en-tobacco">section 5</a>.</div>
 
 <h2 id="en-stats">13. Statistics and charts</h2>
 <p>Accessible via the <strong>Stats</strong> button (chart icon) in the navigation bar. Displays SVG charts computed in real time from your data.</p>
@@ -1078,6 +1131,12 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
   <li><strong>📂 Import file</strong> — restore from a JSON file (Replace / Merge / Select, see below).</li>
   <li><strong>Import tobaccos (.csv)</strong> — adds tobaccos (and their lots) from a spreadsheet. Columns are matched <strong>by header name</strong> (accents and case ignored, FR/EN aliases): only <em>Brand</em> and <em>Name</em> are required. Rows sharing the same brand + name collapse into one multi-lot tobacco. The import always runs as a <strong>Merge</strong> (never a replace: your pipes and sessions are never wiped, and duplicates are de-duplicated on brand + name). Use <strong>Download CSV template</strong> to start from a ready-to-fill file. The <em>Category</em> and <em>Cut</em> columns must use the app's own taxonomy (lists in section 5) — common trade labels are recognised (« Navy Cut », « Cigar »), an unknown value is set to « Autre », and the detail appears under the button with the line number.</li>
 </ul>
+<div class="warn"><strong>Two different CSV files are loaded from this screen. Do not confuse them.</strong>
+<ul>
+  <li><strong>Import tobaccos (.csv)</strong>, above — these are <em>your tins</em>. Columns <em>Brand</em>, <em>Name</em>, weight, price, dates. The file <strong>is added</strong> to your cellar by merging and creates lots. Its template is the <strong>Download CSV template</strong> button, in this same section.</li>
+  <li><strong>Load a catalogue (.csv)</strong>, in the <em>Reference catalogue</em> section above — these are <em>descriptive entries</em>. Columns <em>brand_key</em>, <em>blend_name</em>, <em>category</em>, <em>cut</em>… The file <strong>replaces</strong> the previous catalogue and adds <strong>nothing</strong> to your cellar. Its template is the <strong>Download the template</strong> button, in that other section. See <a href="#en-catalogue">section 4</a>.</li>
+</ul>
+The two formats have neither the same columns nor the same effect: loading one in place of the other destroys nothing, but the app will tell you it could not read anything.</div>
 <div class="note"><strong>Explicit CSV-import errors.</strong> If the file holds no readable tobacco, a message reminds you of the expected columns. If you pick a <em>JSON backup file</em> by mistake, the app points you to <strong>Import file (.json)</strong>. A full multi-section export CSV is accepted: only its tobacco part is imported, with a note.</div>
 <div class="note"><strong>Replace, Merge or Select.</strong> After you pick the file, a picker offers three modes: <strong>Replace</strong> (wipes your local data and installs the imported file), <strong>Merge</strong> (keeps your data and only appends missing items — matched on brand + name, sessions de-duplicated) or <strong>Select items</strong> (you pick exactly which tobaccos / pipes / wishes / accessories / sessions to import). The same picker appears on a cloud restore.</div>
 <div class="warn">The <strong>Replace</strong> mode overwrites all your local data. Export a backup first if in doubt, or use <em>Merge</em>.</div>
