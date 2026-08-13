@@ -54,8 +54,15 @@ const VALUE_TOKENS: Record<string, string[]> = {
     "PBKDF2",                        // key derivation
     "nominatim.openstreetmap.org",   // reverse-geocoding host
     "console.anthropic.com",         // AI provider key host
-    "smokingpipes.com",              // AI source priority #1
-    "tobaccoreviews.com",            // AI source priority #2
+    // ("smokingpipes.com" and "tobaccoreviews.com" were here, as the AI's first
+    // and second source. The guide deliberately stopped naming them: that
+    // ordering is a PROMPT INSTRUCTION, so the model may not follow it, the
+    // search is capped at three uses, and nothing verifies what was actually
+    // consulted — the guide was stating as fact a mechanism the app does not
+    // guarantee. No gate watched the list either, so a change to the prompt
+    // would have left the six guides quietly wrong. What the guide keeps is
+    // what it can stand behind: Anthropic searches the web, OpenAI and Gemini
+    // do not. Do not re-add them without a label contract on the prompt.)
     "OpenStreetMap",                 // map provider name
     "OAuth",                         // cloud auth
   ],
