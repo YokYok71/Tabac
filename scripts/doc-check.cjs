@@ -126,6 +126,7 @@ const HELP_SECTION_IDS = [
   { key: "install",         ids: { fr: "fr-install",    en: "en-install",         es: "es-install",         de: "de-install",         it: "it-install", pt: "pt-install" } },
   { key: "concepts",        ids: { fr: "fr-concepts",   en: "en-concepts",        es: "es-concepts",        de: "de-concepts",        it: "it-concepts", pt: "pt-concepts" } },
   { key: "cycle",           ids: { fr: "fr-cycle",      en: "en-cycle",           es: "es-cycle",           de: "de-cycle",           it: "it-cycle", pt: "pt-cycle" } },
+  { key: "catalogue",       ids: { fr: "fr-catalogue",  en: "en-catalogue",       es: "es-catalogue",       de: "de-catalogue",       it: "it-catalogue", pt: "pt-catalogue" } },
   { key: "tobacco",         ids: { fr: "fr-tabac",      en: "en-tobacco",         es: "es-tobacco",         de: "de-tobacco",         it: "it-tobacco", pt: "pt-tobacco" } },
   { key: "lots",            ids: { fr: "fr-lots",       en: "en-lots",            es: "es-lots",            de: "de-lots",            it: "it-lots", pt: "pt-lots" } },
   { key: "inventory",       ids: { fr: "fr-inventaire", en: "en-inventory",       es: "es-inventory",       de: "de-inventory",       it: "it-inventory", pt: "pt-inventory" } },
