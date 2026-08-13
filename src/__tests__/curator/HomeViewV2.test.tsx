@@ -1,0 +1,273 @@
+// Smoke tests for the alternative Home layout (HomeViewV2).
+// Uses the mock t() that returns the key, so we assert on zone-title keys.
+
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { AppCtx } from "../../AppContext.tsx";
+import { CuratorHomeViewV2 } from "../../views/curator/HomeViewV2.tsx";
+import { monthsShort } from "../../constants.ts";
+
+const recentDate = () => new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+
+const baseCtx = {
+  view: "home",
+  lang: "fr",
+  t: (k: string) => k,
+  xl: (v: any) => v,
+  nav: () => {},
+  setStatusFilter: () => {},
+  setSearchOpen: () => {},
+  setImportModal: () => {},
+  setSettingsTab: () => {},
+  setDetail: () => {},
+  setPipeDet: () => {},
+  navToInvFiltered: () => {},
+  pipeIsActive: (p: any) => p.status !== "finished",
+  ageLabel: (d: number | null) => (d == null ? "—" : `${d}j`),
+  weightUnit: "g",
+  currencySymbol: "€",
+  imgLocal: {},
+  data: {
+    tobaccos: [
+      { id: 1, brand: "Halvorsen", name: "Duskfall", category: "Anglais", rating: 5,
+        lots: [{ status: "cellar", weightG: "50", dateProduction: "2020-01-01" }], aromas: [] },
+    ],
+    pipes: [{ id: 1, brand: "Halvorsen", name: "SH", shape: "Calabash", rating: 4, status: "active" }],
+    accessories: [],
+    sessions: [{ id: 1, tobaccoId: 1, pipeId: 1, date: recentDate(), duration: "30", rating: 5, weightG: "3", aromas: ["leather", "smoky"] }],
+    wishlist: [],
+  },
+  stats: {
+    activeRefs: 1, cellar: 1, jars: 0, wt: 50, avg: "5.0",
+    cats: [["Anglais", 1]], brands: [["Halvorsen", 1]],
+    pipesActive: 1, pipeVal: 200, tobVal: 100,
+    lotsFinished: 0, lotsOveraged: 0, lotsApproaching: 0, wish: 0,
+  },
+};
+
+function renderWith(ctx: any) {
+  return render(
+    <AppCtx.Provider value={ctx}>
+      <CuratorHomeViewV2 />
+    </AppCtx.Provider>
+  );
+}
+
+describe("CuratorHomeViewV2", () => {
+  it("returns null when view !== home", () => {
+    const { container } = renderWith({ ...baseCtx, view: "inv" });
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders the three zone headers + library title", () => {
+    renderWith(baseCtx);
+    expect(screen.getByText("sec_library")).toBeInTheDocument();
+    expect(screen.getByText("home_zone_act")).toBeInTheDocument();
+    expect(screen.getByText("home_zone_dash")).toBeInTheDocument();
+    expect(screen.getByText("home_zone_moments")).toBeInTheDocument();
+  });
+
+  // The privacy link must stay on the Home page — Google OAuth
+  // verification requires the privacy policy to be reachable from the app, and
+  // it was dropped when HomeViewV2 replaced the classic home. This test fails
+  // if the footer link is removed again.
+  it("renders a privacy link on the Home that navigates to the privacy page", () => {
+    const nav = vi.fn();
+    renderWith({ ...baseCtx, nav });
+    const link = screen.getByText("btn_privacy");
+    expect(link).toBeInTheDocument();
+    fireEvent.click(link);
+    expect(nav).toHaveBeenCalledWith("privacy");
+  });
+
+  it("labels the activity heatmap with month ticks", () => {
+    renderWith(baseCtx);
+    // The last heatmap column is the current month → its short label must show.
+    const currentMonth = monthsShort("fr")[new Date().getMonth()]!;
+    expect(screen.getAllByText(currentMonth).length).toBeGreaterThan(0);
+  });
+
+  it("tapping a day cell selects it and links into the journal", () => {
+    const navToJournalFilteredByDate = vi.fn();
+    const { container } = renderWith({ ...baseCtx, navToJournalFilteredByDate });
+    // The only day carrying a session is recentDate() → its cell's aria-label
+    // ends with "· 1" (all other cells read "· 0").
+    const cell = Array.from(container.querySelectorAll("button"))
+      .find((b) => /· 1$/.test(b.getAttribute("aria-label") || ""));
+    expect(cell, "expected a day cell with one session").toBeTruthy();
+    fireEvent.click(cell!);
+    // The selection line now renders a journal link (contains "→").
+    const link = Array.from(container.querySelectorAll("button"))
+      .find((b) => (b.textContent || "").includes("→"));
+    expect(link, "expected a journal link on the selection line").toBeTruthy();
+    fireEvent.click(link!);
+    expect(navToJournalFilteredByDate).toHaveBeenCalledWith(recentDate());
+  });
+
+  it("shows the maintenance reminder at page end when a pipe is overdue", () => {
+    // The reminder opens the pipe fiche via crossOpenDetail (so
+    // back returns to Home), not a bare setPipeDet.
+    const crossOpenDetail = vi.fn();
+    const duePipe = { id: 1, brand: "Halvorsen", name: "SH", shape: "Calabash", rating: 4, status: "active", maintenance: [] };
+    const sessions = Array.from({ length: 12 }, (_, i) => ({ id: i, tobaccoId: 1, pipeId: 1, date: "2026-06-01", duration: "30", rating: 4, weightG: "3", aromas: [] }));
+    const { container, getByText } = renderWith({
+      ...baseCtx, crossOpenDetail,
+      data: { ...baseCtx.data, pipes: [duePipe], sessions },
+    });
+    expect(container.textContent).toContain("maint_due"); // section title
+    expect(container.textContent).toContain("maint_never"); // 12 sessions, never cleaned
+    fireEvent.click(getByText("maint_never"));
+    expect(crossOpenDetail).toHaveBeenCalledWith({ view: "pipes", kind: "pipe", obj: duePipe });
+  });
+
+  it("respects a custom maintenance threshold from ctx", () => {
+    const duePipe = { id: 1, brand: "Halvorsen", name: "SH", shape: "Calabash", rating: 4, status: "active", maintenance: [] };
+    const sessions = Array.from({ length: 3 }, (_, i) => ({ id: i, tobaccoId: 1, pipeId: 1, date: "2026-06-01", duration: "30", rating: 4, weightG: "3", aromas: [] }));
+    // 3 sessions is below the default (10) but at a custom threshold of 3 → due.
+    const { container } = renderWith({
+      ...baseCtx, maintReminderThreshold: 3,
+      data: { ...baseCtx.data, pipes: [duePipe], sessions },
+    });
+    expect(container.textContent).toContain("maint_due");
+  });
+
+  it("hides the maintenance reminder when no pipe is overdue", () => {
+    const okPipe = { id: 1, brand: "Halvorsen", name: "SH", shape: "Calabash", rating: 4, status: "active", maintenance: [] };
+    const { container } = renderWith({
+      ...baseCtx,
+      data: { ...baseCtx.data, pipes: [okPipe], sessions: [{ id: 1, tobaccoId: 1, pipeId: 1, date: "2026-06-01", duration: "30", rating: 4, weightG: "3", aromas: [] }] },
+    });
+    expect(container.textContent).not.toContain("maint_never");
+    expect(container.textContent).not.toContain("maint_due");
+  });
+
+  it("hides the maintenance reminder when the master switch is off", () => {
+    const duePipe = { id: 1, brand: "Halvorsen", name: "SH", shape: "Calabash", rating: 4, status: "active", maintenance: [] };
+    const sessions = Array.from({ length: 12 }, (_, i) => ({ id: i, tobaccoId: 1, pipeId: 1, date: "2026-06-01", duration: "30", rating: 4, weightG: "3", aromas: [] }));
+    // Same overdue pipe as the test, but maintRemindersEnabled=false
+    // must suppress the whole "À entretenir" section.
+    const { container } = renderWith({
+      ...baseCtx, maintRemindersEnabled: false,
+      data: { ...baseCtx.data, pipes: [duePipe], sessions },
+    });
+    expect(container.textContent).not.toContain("maint_due");
+    expect(container.textContent).not.toContain("maint_never");
+  });
+
+  it("makes the 'Votre profil' families and aromas clickable", () => {
+    const navToInvFiltered = vi.fn();
+    const navToInvByAroma = vi.fn();
+    // baseCtx has an Anglais 5★ tobacco + a 5★ session with leather/smoky
+    // aromas → computeTasteProfile yields a family + signature aromas.
+    const { container } = renderWith({ ...baseCtx, navToInvFiltered, navToInvByAroma });
+    const buttons = Array.from(container.querySelectorAll("button"));
+    const famBtn = buttons.find((b) => (b.textContent || "").trim() === "Anglais");
+    expect(famBtn, "family should be a clickable button").toBeTruthy();
+    fireEvent.click(famBtn!);
+    expect(navToInvFiltered).toHaveBeenCalledWith("Anglais", "");
+    const aromaBtn = buttons.find((b) => /^aroma_(leather|smoky)$/.test((b.textContent || "").trim()));
+    expect(aromaBtn, "aroma should be a clickable button").toBeTruthy();
+    fireEvent.click(aromaBtn!);
+    expect(navToInvByAroma).toHaveBeenCalledTimes(1);
+    expect(String(navToInvByAroma.mock.calls[0]![0])).toMatch(/leather|smoky/);
+  });
+
+  // The "Tabacs" top-bar tile shows the OWNED count (activeRefs),
+  // so its drill must land on the "active" list — not "all" (which adds
+  // fully-finished tabacs). Previously it set "all".
+  it("the 'Tabacs' top-bar tile drills to the OWNED (active) inventory", () => {
+    const nav = vi.fn();
+    const setStatusFilter = vi.fn();
+    renderWith({ ...baseCtx, nav, setStatusFilter });
+    // PressCard renders <div role="button"> — click the tile via its label.
+    const tile = screen.getByText("nav_tobaccos").closest('[role="button"]');
+    expect(tile, "expected a Tabacs tile").toBeTruthy();
+    fireEvent.click(tile!);
+    expect(nav).toHaveBeenCalledWith("inv");
+    expect(setStatusFilter).toHaveBeenCalledWith("active");
+    expect(setStatusFilter).not.toHaveBeenCalledWith("all");
+  });
+
+  // The average-rating tile used to be inert (no onClick); it now
+  // drills to the Statistics page.
+  it("the 'Moyenne' top-bar tile navigates to the Statistics page", () => {
+    const nav = vi.fn();
+    renderWith({ ...baseCtx, nav });
+    const tile = screen.getByText("stat_avg").closest('[role="button"]');
+    expect(tile, "expected a Moyenne tile").toBeTruthy();
+    fireEvent.click(tile!);
+    expect(nav).toHaveBeenCalledWith("stats");
+  });
+
+  // The "À point" positive-maturity section lists tobaccos matured
+  // into their optimal window and cross-opens the fiche (back → Home).
+  it("shows the 'À point' section for a tobacco in its optimal window", () => {
+    const crossOpenDetail = vi.fn();
+    // A separate open-jar tin becomes the "Ce soir ?" hero; the optimal tin must
+    // therefore NOT be the hero to land in "À point".
+    const heroTin = {
+      id: 1, brand: "Pellworm", name: "HeroJar", category: "Aromatique", agingMax: "3",
+      lots: [{ status: "jar", weightG: "30", dateProduction: new Date().toISOString().slice(0, 10) }],
+      aromas: [],
+    };
+    // agingMax "10" → optimal window starts at 4y; a 6y lot is optimal, no
+    // peak/tooOld lot. weightG 100 (> 50) so it isn't flagged "low stock".
+    const optimalTob = {
+      id: 7, brand: "Halvorsen", name: "Harbour Mixture", category: "Virginia", rating: 5, agingMax: "10",
+      lots: [{ status: "cellar", weightG: "100", dateProduction: new Date(Date.now() - 6 * 365.25 * 86400000).toISOString().slice(0, 10) }],
+      aromas: [],
+    };
+    const { container } = renderWith({
+      ...baseCtx, crossOpenDetail,
+      data: { tobaccos: [heroTin, optimalTob], pipes: [], accessories: [], sessions: [], wishlist: [] },
+    });
+    expect(container.textContent).toContain("home_peak_title");
+    // The "à point" row is the one carrying the home_peak_chip chip.
+    const peakRow = Array.from(container.querySelectorAll('[role="button"]'))
+      .find((b) => (b.textContent || "").includes("home_peak_chip"));
+    expect(peakRow, "expected an À-point row").toBeTruthy();
+    fireEvent.click(peakRow!);
+    expect(crossOpenDetail).toHaveBeenCalledWith({ view: "inv", kind: "tobacco", obj: optimalTob });
+  });
+
+  it("hides the 'À point' section when no tobacco is in its optimal window", () => {
+    // A young tin only (0.5y with agingMax 10 → young, not optimal).
+    const youngTob = {
+      id: 1, brand: "X", name: "Young", category: "Virginia", agingMax: "10",
+      lots: [{ status: "cellar", weightG: "50", dateProduction: new Date().toISOString().slice(0, 10) }],
+      aromas: [],
+    };
+    const { container } = renderWith({
+      ...baseCtx,
+      data: { tobaccos: [youngTob], pipes: [], accessories: [], sessions: [], wishlist: [] },
+    });
+    expect(container.textContent).not.toContain("home_peak_title");
+  });
+
+  // The shopping-list cart was REMOVED from the Home top bar (it
+  // lives only on the tobacco inventory top bar now). Even with something to
+  // buy, the Home must not render a cart icon.
+  it("never renders the shopping-list cart on the Home top bar", () => {
+    const lowTob = { id: 1, brand: "D", name: "N", category: "Virginia", rating: 4, agingMax: "",
+      lots: [{ status: "jar", weightG: "10" }], aromas: [] };
+    const { container } = renderWith({
+      ...baseCtx, watchLowWeight: "25",
+      data: { tobaccos: [lowTob], pipes: [], accessories: [], sessions: [], wishlist: [{ id: 9, brand: "W", name: "Want" }] },
+    });
+    const cart = Array.from(container.querySelectorAll("button"))
+      .find((b) => (b.getAttribute("aria-label") || "").includes("shopping_title"));
+    expect(cart).toBeFalsy();
+  });
+
+  it("renders without crashing on completely empty data", () => {
+    const empty = {
+      ...baseCtx,
+      data: { tobaccos: [], pipes: [], accessories: [], sessions: [], wishlist: [] },
+      stats: {},
+    };
+    const { container } = renderWith(empty);
+    expect(container.firstChild).not.toBeNull();
+    // zones still render (they don't depend on data presence)
+    expect(screen.getByText("home_zone_dash")).toBeInTheDocument();
+  });
+});

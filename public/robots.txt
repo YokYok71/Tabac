@@ -1,0 +1,24 @@
+# Crawler policy for t-cellar.app
+#
+# The app itself (index.html), in-app docs (help / changelog / privacy /
+# licenses), and the PWA manifest stay indexable so users can find the
+# tool via search engines. Admin files are NOT — they carry operational
+# metadata with no public-discovery value, which we would rather not
+# surface to scrapers and dataset aggregators.
+#
+# There is no reference-data entry here any more: the app ships no
+# catalogue. Each user loads their own CSV, which lives in IndexedDB on
+# their device and is never served from this origin.
+
+User-agent: *
+
+# Operational JSON (broadcast notices, version pin) — admin signals, not
+# user content. Drift-prone and meaningless out of context.
+Disallow: /notice.json
+Disallow: /version.json
+
+# Service worker source — same family as version.json (admin).
+Disallow: /sw.js
+
+# Data reset utility — internal recovery page, not a marketing surface.
+Disallow: /reset.html

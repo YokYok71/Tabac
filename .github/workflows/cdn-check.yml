@@ -1,0 +1,154 @@
+name: CDN dependency check
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Every Monday 08:00 UTC
+  workflow_dispatch:
+
+# See deploy.yml — same rationale.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Default-deny GITHUB_TOKEN at workflow level; each job opts in to the
+# minimum scope it needs (the `check` job below adds issues:write +
+# contents:read). Without this, a future job added to the file would
+# inherit the repository default scope. Same pattern as the other 3
+# workflows in this repo.
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Extract current versions
+        id: cur
+        run: |
+          # React: read from package.json (npm dependency since Vite migration)
+          echo "react=$(node -e "console.log(require('./package.json').dependencies.react.replace(/[\^~]/,''))")" >> $GITHUB_OUTPUT
+          # JSZip is loaded via cdnjs from useExportImport.ts (since the
+          # legacy App.tsx loader was extracted). Grep both files so a
+          # future move stays detected without a workflow edit.
+          echo "jszip=$(grep -hoP 'jszip/\K[0-9]+\.[0-9]+\.[0-9]+' src/App.tsx src/hooks/useExportImport.ts 2>/dev/null | head -1)" >> $GITHUB_OUTPUT
+
+      - name: Fetch latest versions from npm registry
+        id: npm
+        run: |
+          RN=$(curl -sf https://registry.npmjs.org/react/latest 2>/dev/null \
+            | python3 -c 'import sys,json;print(json.load(sys.stdin)["version"])' 2>/dev/null || echo "")
+          ZN=$(curl -sf https://registry.npmjs.org/jszip/latest 2>/dev/null \
+            | python3 -c 'import sys,json;print(json.load(sys.stdin)["version"])' 2>/dev/null || echo "")
+          echo "react=$RN" >> $GITHUB_OUTPUT
+          echo "jszip=$ZN" >> $GITHUB_OUTPUT
+
+      - name: Create or update issue
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const rc = '${{ steps.cur.outputs.react }}';
+            const rn = '${{ steps.npm.outputs.react }}';
+            const zc = '${{ steps.cur.outputs.jszip }}';
+            const zn = '${{ steps.npm.outputs.jszip }}';
+
+            if (!rn || !zn) {
+              console.log('npm registry unreachable — skipping.');
+              return;
+            }
+
+            const getMajor = v => parseInt(v.split('.')[0]);
+            const updates = [];
+
+            if (rc !== rn) {
+              if (getMajor(rn) > getMajor(rc)) {
+                // Major bump: flag it but note it needs migration evaluation
+                updates.push(`- **React / ReactDOM** : \`${rc}\` → \`${rn}\` ⚠️ saut majeur — évaluer les breaking changes`);
+              } else {
+                updates.push(`- **React / ReactDOM** : \`${rc}\` → \`${rn}\``);
+              }
+            }
+
+            if (zc !== zn) updates.push(`- **JSZip** (CDN dynamique) : \`${zc}\` → \`${zn}\``);
+
+            // Find an existing open issue
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const existing = openIssues.find(i => i.title.startsWith('🔄 Mises à jour CDN'));
+
+            if (updates.length === 0) {
+              console.log(`All up to date (React ${rc}, JSZip ${zc})`);
+              if (existing) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  body: '✅ Toutes les dépendances sont à jour.',
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  state: 'closed',
+                });
+              }
+              return;
+            }
+
+            const body = [
+              '## Mises à jour disponibles',
+              '',
+              ...updates,
+              '',
+              '## React / ReactDOM (dépendance npm)',
+              '',
+              '```bash',
+              '# Mettre à jour package.json et package-lock.json',
+              'npm install react@latest react-dom@latest',
+              'npm run build   # vérifier que le build passe',
+              'npm test        # vérifier que les tests passent',
+              '# Pousser sur main',
+              '```',
+              '',
+              '## JSZip (CDN dynamique dans src/App.tsx)',
+              '',
+              '```bash',
+              '# 1. Télécharger le fichier et recalculer le hash SRI',
+              'curl -sL https://cdnjs.cloudflare.com/ajax/libs/jszip/NEW/jszip.min.js \\',
+              '  | openssl dgst -sha384 -binary | openssl base64 -A',
+              '',
+              '# 2. Dans src/App.tsx, mettre à jour :',
+              '#    - l\'URL cdnjs (version jszip)',
+              '#    - l\'attribut integrity (nouveau hash sha384)',
+              '# 3. Mettre à jour la section Security de CLAUDE.md',
+              '# 4. Bumper APP_BUILD et pousser sur main',
+              '```',
+            ].join('\n');
+
+            if (existing) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+              console.log(`Updated issue #${existing.number}`);
+            } else {
+              const result = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '🔄 Mises à jour CDN disponibles',
+                body,
+              });
+              console.log(`Created issue #${result.data.number}`);
+            }

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<!-- `frame-ancestors 'none'` below is INERT and is kept
+     deliberately. CSP Level 3 §3.3 requires a user agent to DROP that
+     directive (with report-uri and sandbox) from a policy delivered by a
+     <meta> element, so no browser has ever honoured it here; the header would
+     work and GitHub Pages cannot send one. It stays because it is the correct
+     directive the day this is served behind something that can, and because
+     deleting it invites the next reader to "add clickjacking protection" and
+     put it straight back. THE REAL DEFENCE IS src/utils/frameGuard.ts, which
+     refuses to render a framed document — do not remove it believing this
+     line covers you. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://accounts.google.com https://apis.google.com; connect-src 'self' https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://api.dropboxapi.com https://content.dropboxapi.com https://nominatim.openstreetmap.org; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self'; object-src 'none'; base-uri 'self'; worker-src 'self'; form-action 'self' https://accounts.google.com; frame-src https://www.openstreetmap.org; frame-ancestors 'none'; upgrade-insecure-requests;">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cave Tabac">
+<meta name="theme-color" content="#0a0a0a">
+<title>Ma Cave à Tabac</title>
+<link rel="manifest" href="%BASE_URL%manifest.json">
+<link rel="apple-touch-icon" href="%BASE_URL%icon-192.png">
+<!-- The tab icon for EVERY OTHER browser. The line above is
+     iOS-only, so Android Chrome and every desktop browser had no declared
+     icon at all: they fall back to requesting /favicon.ico, which this site
+     does not serve, so each got a 404 on every page load and a blank tab.
+     An iOS-specific affordance with no equivalent for the other platform is
+     exactly the iOS/Android parity invariant, and the browser tab is the
+     first thing a visitor sees before installing anything. A PNG is fine —
+     .ico has not been required since IE. -->
+<link rel="icon" type="image/png" href="%BASE_URL%icon-192.png">
+<link rel="preload" href="%BASE_URL%fonts/dm-sans-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="%BASE_URL%fonts/newsreader-var.woff2" as="font" type="font/woff2" crossorigin>
+<style>@font-face{font-family:'DM Sans';font-style:normal;font-weight:400 700;font-display:swap;src:url('%BASE_URL%fonts/dm-sans-var.woff2') format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Newsreader';font-style:normal;font-weight:400 600;font-display:swap;src:url('%BASE_URL%fonts/newsreader-var.woff2') format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Newsreader';font-style:italic;font-weight:400 500;font-display:swap;src:url('%BASE_URL%fonts/newsreader-italic-var.woff2') format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('%BASE_URL%fonts/ibm-plex-mono-400.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('%BASE_URL%fonts/ibm-plex-mono-500.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;src:url('%BASE_URL%fonts/ibm-plex-mono-600.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:700;font-display:swap;src:url('%BASE_URL%fonts/ibm-plex-mono-700.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{background:var(--c-bg,#0a0a0a);font-family:'DM Sans',-apple-system,system-ui,sans-serif;overflow-x:clip}#root{min-height:100vh}button{touch-action:manipulation}</style>
+</head>
+<body>
+<style>@keyframes fadeInSlow{from{opacity:0}to{opacity:1}}</style>
+<div id="root"><div style="min-height:100vh;background:var(--c-bg,#0a0a0a);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:sans-serif;font-size:14px;color:#655846">Chargement…<a href="./reset.html" style="font-size:12px;color:#cb8528;text-decoration:none;opacity:0;animation:fadeInSlow 1s 5s forwards">Rien ne se passe ? Réparer l'application →</a></div></div>
+<noscript><a href="./privacy.html">Politique de confidentialité / Privacy policy</a></noscript>
+<script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

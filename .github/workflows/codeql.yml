@@ -1,0 +1,65 @@
+name: CodeQL
+
+# CodeQL "Advanced setup" — we own the workflow YAML so we
+# can pin action versions explicitly instead of relying on GitHub's
+# Default setup (disabled in repo Settings → Code security → Code
+# scanning). Do NOT re-enable Default setup: both workflows would run
+# in parallel and uploads would collide (GitHub Code Scanning rejects
+# duplicate SARIF for the same category+commit, the symptom was "Code
+# Scanning could not process the submitted SARIF file").
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly scan on Sundays at 03:00 UTC, catches the case where a
+    # dependency advisory lands without a code push to wake CodeQL up.
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions: {}
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          # Default query suite. Add `+security-extended` later if we
+          # want stricter rules — for now matches the default-setup
+          # behaviour so security findings stay consistent.
+          queries: security-and-quality
+          # Exclude test files from the scan. See the
+          # config for rationale (CodeQL flags test-only assertion
+          # patterns as security findings; the tests aren't shipped).
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

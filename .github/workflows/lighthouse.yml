@@ -1,0 +1,59 @@
+name: Lighthouse CI
+
+# Performance budgets enforced via Lighthouse CI. Runs after
+# every push to main and every PR. Assertions live in .lighthouserc.json
+# (mobile profile, throttled 4G, 3-run median). Failures block the PR
+# check; warnings show in the workflow log but don't fail.
+#
+# The point: catch perf regressions before they reach production.
+# Current baseline (dist):
+#   - vendor-react.js : 60 KB gzip
+#   - index.js (app)  : 147.2 KB gzip   (re-measured)
+#   - HTML + assets   : ~3 KB gzip
+# Total 303.2 KB gzip — still under the 500 KB script budget, but note this
+# is 91% of the tighter local `size:check` budget (332 KB). See CLAUDE.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions: {}
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lhci:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Fail fast on a bundle-size regression (e.g. the catalog
+      # descriptions leaking back into the base chunk, as once happened) BEFORE
+      # the slower 3-run Lighthouse pass. Cheap, deterministic, clear message.
+      - name: Bundle-size guard
+        run: npm run size:check
+
+      - name: Run Lighthouse CI
+        run: npx --yes @lhci/cli@0.15.x autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}

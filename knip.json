@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "project": [
+    "src/**/*.{ts,tsx,js,jsx}",
+    "scripts/**/*.{cjs,js,ts}",
+    "eslint-rules/**/*.cjs"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "ignore": [
+    "eslint-rules/string-locale-compare.cjs"
+  ],
+  "ignoreDependencies": [
+    "playwright-core"
+  ],
+  "rules": {
+    "files": "warn",
+    "dependencies": "error",
+    "devDependencies": "warn",
+    "exports": "warn",
+    "types": "warn",
+    "duplicates": "warn"
+  }
+}

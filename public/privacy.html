@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Politique de confidentialité — Ma Cave à Tabac</title>
+<style>
+  body{background:#13110e;color:#c8b99a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:680px;margin:0 auto;padding:32px 20px;line-height:1.7;}
+  h1{color:#e8dcc6;font-size:24px;margin-bottom:4px;}
+  h2{color:#e8dcc6;font-size:14px;margin-top:32px;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;}
+  p,li{font-size:15px;color:#c8b99a;}
+  ul{padding-left:20px;}
+  a{color:#cb8528;text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  .subtitle{color:#655846;font-size:13px;margin-bottom:40px;}
+  hr{border:none;border-top:1px solid #3d3428;margin:32px 0;}
+  .back{display:inline-block;margin-bottom:24px;color:#8f7f68;font-size:14px;}
+  code{background:#1b1713;padding:2px 6px;border-radius:4px;font-size:13px;}
+  .lang-btn{float:right;margin-top:4px;padding:4px 12px;border-radius:6px;border:1px solid #3d3428;background:transparent;color:#8f7f68;font-size:12px;cursor:pointer;font-weight:700;letter-spacing:1px;}
+  .lang-btn:hover{color:#c8b99a;border-color:#655846;}
+  .section{display:none;}
+  .section.active{display:block;}
+</style>
+</head>
+<body>
+<script>
+  (function(){
+    function blocks(){return Array.prototype.slice.call(document.querySelectorAll('[id^="sec-"]'));}
+    function codes(){return blocks().map(function(b){return b.id.slice(4);});}
+    function resolve(req){
+      var c=codes();
+      if(c.indexOf(req)>=0)return req;
+      if(c.indexOf("en")>=0)return "en";
+      if(c.indexOf("fr")>=0)return "fr";
+      return c[0];
+    }
+    // `stored` is a SNAPSHOT of the global preference and is never reassigned;
+    // `lang` is the in-page view and changes on every tap. An earlier version computed
+    // `persist` from `lang` — which switchLang rewrites at the end of its own
+    // body — so only the FIRST tap was guarded and the second overwrote the
+    // preference anyway. The two must be separate variables.
+    var stored=localStorage.getItem("cave-lang")||"";
+    var lang=stored;
+    function render(){
+      var cur=resolve(lang),c=codes(),next=c[(c.indexOf(cur)+1)%c.length];
+      blocks().forEach(function(b){b.className="section"+(b.id==="sec-"+cur?" active":"");});
+      Array.prototype.slice.call(document.querySelectorAll(".lang-btn")).forEach(function(btn){btn.textContent=next.toUpperCase();});
+      document.documentElement.lang=cur;
+      // The tab title once followed no language at all — privacy.html read
+      // French for a German reader, and that page is served standalone at a
+      // public URL (the link CLAUDE.md preserves for Google OAuth review), so
+      // its title is the first thing a reviewer sees. Taken from the active
+      // section's own <h1> rather than a per-language table, which keeps a new
+      // language additive: author the section, the title follows.
+      try{
+        var _b=document.getElementById("sec-"+cur),_h=_b&&_b.querySelector("h1");
+        if(_h&&_h.textContent){
+          var _t=_h.textContent.replace(/^[^A-Za-zÀ-ÿ]+/,"").trim();
+          if(_t) document.title=_t+" — Ma Cave à Tabac";
+        }
+      }catch(e){/* title is cosmetic; never let it break the page */}
+    }
+    window.switchLang=function(){
+      var c=codes(),cur=resolve(lang);
+      // Only PERSIST the choice when the stored language is one this page
+      // actually carries. Every doc page ships all six languages today, so this
+      // condition is ALWAYS TRUE and the guard never fires — it is DELIBERATELY
+      // KEPT, not dead code, and here is what it costs to lose. A page carrying
+      // a SUBSET used to exist (an fr/en archive). A Spanish reader tapping the
+      // toggle there had their WHOLE app switched to French in one tap, and
+      // since the toggle only cycled fr<->en there was no way back to Spanish
+      // from that page. Measured by replaying this logic: codes=[fr,en] with a
+      // stored "es" wrote cave-lang="fr".
+      // The moment any doc page ships in fewer than six languages the guard
+      // matters again, and whoever adds it will not think of this. Page-local
+      // toggling is unaffected either way; only the global write is gated.
+      // Persist unless this page would NARROW a preference it cannot offer back.
+      // Read the SNAPSHOT, not `lang`: `lang` is rewritten on the line below, so
+      // reading it here made every tap after the first look "available" and
+      // defeated the guard entirely. An EMPTY stored value means no
+      // preference exists yet, so there is nothing to narrow and persisting is
+      // correct — that version also broke that case on the five-language pages, where
+      // a visitor arriving from a bookmark lost their first choice.
+      var persist=stored===""||c.indexOf(stored)>=0;
+      lang=c[(c.indexOf(cur)+1)%c.length];
+      if(persist)localStorage.setItem("cave-lang",lang);
+      render();
+    };
+    document.addEventListener("DOMContentLoaded",render);
+  })();
+</script>
+
+<!-- ═══════════════ FRANÇAIS ═══════════════ -->
+<div id="sec-fr" class="section">
+<a class="back" href="./">← Ma Cave à Tabac</a>
+<button class="lang-btn" id="lang-toggle-fr" onclick="switchLang()">EN</button>
+<h1>Politique de confidentialité</h1>
+<p class="subtitle">Ma Cave à Tabac — t-cellar.app &nbsp;·&nbsp; Dernière mise à jour : août 2026</p>
+
+<h2>Résumé</h2>
+<p>Ma Cave à Tabac est une application web progressive (PWA) personnelle, mise à disposition gratuitement, en mode « best effort ». Elle ne collecte aucune donnée utilisateur sur un serveur. Toutes vos données restent sur votre appareil.</p>
+
+<h2>Données stockées localement</h2>
+<p>L'application stocke les informations suivantes exclusivement sur votre appareil via <code>localStorage</code> :</p>
+<ul>
+  <li>Votre collection de tabacs (noms, marques, notes, lots, photos)</li>
+  <li>Votre collection de pipes</li>
+  <li>Votre liste de souhaits</li>
+  <li>Vos accessoires</li>
+  <li>Votre journal de séances</li>
+  <li>Vos préférences d'interface (langue, clé API)</li>
+  <li>Un token d'accès cloud temporaire (Google Drive ou Dropbox, si la sauvegarde automatique est activée), conservé le temps de sa validité (~1 heure pour Google Drive, ~4 heures pour Dropbox, plus un refresh token Dropbox long terme pour le renouvellement silencieux)</li>
+</ul>
+<p>Ces données ne quittent jamais votre appareil sauf si vous utilisez la sauvegarde cloud (Google Drive ou Dropbox — voir ci-dessous).</p>
+<p><strong>Effacer toutes les données</strong> (Paramètres → Données) efface aussi les identifiants conservés : les jetons de connexion Google Drive et Dropbox (y compris le jeton de renouvellement Dropbox longue durée), les clés d'API de l'assistant IA, et l'adresse e-mail du compte Google mémorisée pour vous ré-authentifier plus vite. Après ce bouton, il ne reste rien de vous sur l'appareil — utile avant de le prêter, de le revendre ou d'en publier une capture d'écran. Vos sauvegardes déjà déposées sur le cloud ne sont pas supprimées.</p>
+
+<h2>Google Drive (sauvegarde optionnelle)</h2>
+<p>Si vous choisissez d'utiliser la fonctionnalité de sauvegarde, l'application demande l'accès au scope <strong>drive.appdata</strong> de votre compte Google. Ce scope permet uniquement :</p>
+<ul>
+  <li>De lire et écrire des fichiers de sauvegarde horodatés (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) dans un dossier privé réservé à l'application, invisible dans votre Google Drive. L'application conserve au maximum 3 sauvegardes manuelles et un fichier de sauvegarde automatique horodaté (<code>cave-tabac-auto-….json</code>, écrasé en place à chaque sauvegarde) ; les fichiers manuels les plus anciens sont supprimés automatiquement.</li>
+</ul>
+<p>L'application n'accède à aucun autre fichier de votre Google Drive. L'authentification est gérée directement par Google via OAuth 2.0. Aucun token ni donnée Google n'est transmis à un tiers.</p>
+
+<h2>Catalogue de référence (votre fichier)</h2>
+<p>L'application n'embarque <strong>aucun catalogue</strong>. Si vous en chargez un (Paramètres → Données → Catalogue de référence), le fichier CSV que vous fournissez est conservé <strong>localement</strong>, dans une base de données du navigateur qui lui est réservée (IndexedDB « cave-catalogue »), avec une version analysée pour accélérer les recherches. Il n'est envoyé à aucun service tiers et n'est jamais transmis à un fournisseur d'IA.</p>
+<p>Il <strong>ne quitte votre appareil que sur votre action</strong> : le bouton « Sauvegarder le catalogue dans le cloud » téléverse le CSV tel quel dans le même dossier privé que vos sauvegardes (fichier <code>cave-tabac-catalogue-….csv</code>), et une seule copie y est conservée. Le catalogue voyage dans son propre fichier, séparé des sauvegardes de votre cave. « Retirer le catalogue » l'efface de votre appareil ; la copie éventuellement présente dans le cloud reste, jusqu'à ce que vous la supprimiez depuis « Voir mes sauvegardes ».</p>
+
+<h2>Photos (locales uniquement)</h2>
+<p>Les photos s'ajoutent uniquement en <strong>important une image depuis votre appareil</strong> (bouton « Importer une photo »). Elles sont stockées localement (IndexedDB) et ne transitent par aucun service tiers. Elles <strong>ne quittent votre appareil que si vous activez la sauvegarde cloud</strong> (Google Drive ou Dropbox) : les photos sont alors incluses dans le fichier de sauvegarde, comme le reste de vos données — et chiffrées avec lui si vous avez activé le chiffrement. Elles sont également incluses dans vos exports JSON et ZIP, qui restent sur votre appareil jusqu'à ce que vous les partagiez.</p>
+
+<h2>Dropbox (sauvegarde optionnelle)</h2>
+<p>Si vous choisissez <strong>Dropbox</strong> comme destination de sauvegarde (Paramètres → Données → Sauvegarde cloud), l'application demande l'accès à un <strong>dossier d'application dédié</strong> (« App folder ») — Dropbox confine l'application à ce seul dossier ; elle ne voit jamais le reste de votre Dropbox. L'authentification s'effectue directement auprès de Dropbox (<strong>www.dropbox.com</strong>) via OAuth 2.0 + PKCE ; les sauvegardes transitent ensuite par <strong>api.dropboxapi.com</strong> et <strong>content.dropboxapi.com</strong>. Comme pour Google Drive, aucun jeton ni donnée Dropbox n'est transmis à un tiers, et le contenu peut être chiffré avant envoi si vous avez activé le chiffrement des sauvegardes.</p>
+
+<h2>Localisation des séances (optionnel)</h2>
+<p>Vous pouvez, si vous le souhaitez, attacher une <strong>position géographique</strong> à une séance du journal (bouton « Ajouter ma position » dans le formulaire de séance). La position n'est <strong>jamais capturée automatiquement</strong> — uniquement sur votre action explicite, et votre navigateur vous demande l'autorisation la première fois. Les coordonnées (latitude / longitude) sont stockées localement sur la séance, exactement comme les autres champs ; elles partent donc dans vos exports JSON / CSV et dans vos sauvegardes cloud.</p>
+<p>Lorsque vous ouvrez le détail d'une séance qui porte une position, l'application affiche une petite carte fournie par <strong>OpenStreetMap</strong> (<strong>www.openstreetmap.org</strong>). Votre navigateur envoie alors les coordonnées de cette séance à OpenStreetMap pour récupérer l'image de la carte. OpenStreetMap est une organisation à but non lucratif ; aucune autre donnée (vos fiches, vos clés, votre identité) ne lui est transmise. Si vous ne renseignez aucune position, aucune requête n'est faite à ce service.</p>
+<p>Lorsque vous attachez une position (à la capture), l'application peut déduire un <strong>nom de lieu</strong> à partir des coordonnées via le service de géocodage inverse d'OpenStreetMap, <strong>nominatim.openstreetmap.org</strong>. Seules les coordonnées de la séance lui sont envoyées ; le nom obtenu est enregistré localement et reste modifiable. Aucune autre donnée n'est transmise, et aucune requête n'est faite si vous n'attachez pas de position.</p>
+
+<h2>Assistant IA (optionnel)</h2>
+<p>Si vous configurez une clé API (Anthropic, OpenAI ou Google Gemini), l'application envoie directement depuis votre navigateur des requêtes aux API correspondantes pour l'auto-complétion des fiches tabac et pipe. Seules les informations saisies dans le champ de recherche sont transmises. <strong>Une exception : la fonction « Scanner la boîte »</strong> — si vous l'utilisez, la photo de la boîte est envoyée au fournisseur d'IA que vous avez choisi pour en lire la marque et le nom. Cette photo est réduite avant l'envoi et n'est jamais conservée par l'application. La clé API est stockée localement sur votre appareil.</p>
+<p>Par défaut, la clé API est <strong>exclue</strong> des exports JSON et des sauvegardes cloud (Google Drive ou Dropbox). Elle n'est jamais transmise à un service tiers autre que le fournisseur d'IA que vous avez choisi. Si vous souhaitez l'inclure dans vos sauvegardes afin de faciliter la restauration sur un autre appareil, désactivez l'option <strong>Exclure les clés API des exports</strong> dans ⚙️ Paramètres → section <em>Assistant IA</em>.</p>
+<p>À l'inverse, une clé d'API présente dans une sauvegarde que vous importez n'est installée sur cet appareil que si vous choisissez <strong>Remplacer</strong>. Une <strong>fusion</strong> ne l'installe jamais : c'est ainsi que l'on accepte la sauvegarde de quelqu'un d'autre, et sa clé n'a pas à devenir la vôtre.</p>
+
+<h2>Aucun serveur propre, aucun tracking</h2>
+<p>Ma Cave à Tabac est hébergée sur GitHub Pages. L'application ne dispose d'aucun serveur propre, ne pose aucun cookie de tracking et n'intègre aucun outil d'analyse (Google Analytics, etc.).</p>
+<p>Une exception technique : lors d'un <strong>export ZIP</strong>, la bibliothèque de compression (JSZip) est téléchargée à la demande depuis le CDN <strong>cdnjs.cloudflare.com</strong> (avec vérification d'intégrité du fichier). Ce CDN voit alors une requête de téléchargement standard (adresse IP, comme toute ressource web) — aucune de vos données n'y transite ; la compression elle-même s'effectue entièrement sur votre appareil.</p>
+
+<h2>Plateforme</h2>
+<p>L'application fonctionne sur navigateur web (Safari, Chrome, Firefox, etc.) et peut être installée comme PWA sur l'écran d'accueil iOS et Android. Il n'existe pas de version native iOS ou Android distribuée via l'App Store ou le Play Store.</p>
+
+<h2>Garanties et responsabilité</h2>
+<p>Ma Cave à Tabac est un projet personnel mis à disposition <strong>gratuitement</strong>, en mode <strong>« best effort »</strong> et <strong>« tel quel » (en l'état)</strong>, sans aucune garantie. L'application est fonctionnelle et testée, mais aucune assurance n'est donnée concernant :</p>
+<ul>
+  <li>la disponibilité continue du service ;</li>
+  <li>l'absence de bugs, d'interruptions ou d'erreurs ;</li>
+  <li>la conservation des données stockées sur votre appareil — un navigateur peut effacer son cache local, un appareil peut être perdu, endommagé ou réinitialisé ;</li>
+  <li>l'adéquation à un usage particulier.</li>
+</ul>
+<p>L'utilisation se fait sous votre seule responsabilité. Il est recommandé de :</p>
+<ul>
+  <li><strong>Exporter régulièrement vos données</strong> via ⚙️ Paramètres → <em>Exporter JSON</em> ou <em>Backup ZIP</em> ;</li>
+  <li>activer la <strong>sauvegarde automatique cloud</strong> (Google Drive ou Dropbox) si vous souhaitez une copie distante (voir section ci-dessus) ;</li>
+  <li>conserver au moins une copie de sauvegarde sur un emplacement distinct de votre appareil principal.</li>
+</ul>
+<p>L'auteur ne saurait être tenu responsable d'une perte de données, d'une interruption de service ou de tout dommage direct ou indirect lié à l'utilisation de l'application.</p>
+
+<h2>Contact</h2>
+<p>Pour toute question concernant vos données : <a href="mailto:macaveatabac@gmail.com">macaveatabac@gmail.com</a></p>
+
+<hr>
+<p style="font-size:13px;color:#655846;">Cette politique s'applique à l'application accessible sur <a href="https://t-cellar.app">t-cellar.app</a>.</p>
+</div><!-- end sec-fr -->
+
+<!-- ═══════════════ ENGLISH ═══════════════ -->
+<div id="sec-en" class="section">
+<a class="back" href="./">← My Tobacco Cellar</a>
+<button class="lang-btn" id="lang-toggle-en" onclick="switchLang()">FR</button>
+<h1>Privacy Policy</h1>
+<p class="subtitle">My Tobacco Cellar — t-cellar.app &nbsp;·&nbsp; Last updated: August 2026</p>
+
+<h2>Summary</h2>
+<p>My Tobacco Cellar is a personal Progressive Web App (PWA), provided free of charge on a best-effort basis. It does not collect any user data on a server. All your data stays on your device.</p>
+
+<h2>Locally stored data</h2>
+<p>The app stores the following data exclusively on your device via <code>localStorage</code>:</p>
+<ul>
+  <li>Your tobacco collection (names, brands, notes, lots, photos)</li>
+  <li>Your pipe collection</li>
+  <li>Your wishlist</li>
+  <li>Your accessories</li>
+  <li>Your session journal</li>
+  <li>Your UI preferences (language, API key)</li>
+  <li>A temporary cloud access token (Google Drive or Dropbox, when auto-backup is enabled), kept only for its validity (~1 hour for Google Drive, ~4 hours for Dropbox, plus a long-lived Dropbox refresh token for silent renewal)</li>
+</ul>
+<p>This data never leaves your device unless you use the cloud backup feature (Google Drive or Dropbox — see below).</p>
+<p><strong>Erase all data</strong> (Settings → Data) also erases the stored credentials: the Google Drive and Dropbox access tokens (including the long-lived Dropbox refresh token), the AI assistant's API keys, and the Google account e-mail address kept to re-authenticate you faster. After that button nothing of yours is left on the device — useful before lending it, selling it, or posting a screenshot of it. Backups already stored in the cloud are not deleted.</p>
+
+<h2>Google Drive (optional backup)</h2>
+<p>If you choose to use the backup feature, the app requests access to the <strong>drive.appdata</strong> scope of your Google account. This scope only allows:</p>
+<ul>
+  <li>Reading and writing timestamped backup files (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in a private folder dedicated to the app, invisible in your Google Drive. The app keeps at most 3 manual backups plus one timestamped auto-save file (<code>cave-tabac-auto-….json</code>, overwritten in place on each save); the oldest manual files are deleted automatically.</li>
+</ul>
+<p>The app never accesses any other file in your Google Drive. Authentication is handled directly by Google via OAuth 2.0. No token or Google data is transmitted to any third party.</p>
+
+<h2>Reference catalogue (your file)</h2>
+<p>The app ships <strong>no catalogue</strong>. If you load one (Settings → Data → Reference catalogue), the CSV file you supply is kept <strong>locally</strong>, in a browser database reserved for it (the “cave-catalogue” IndexedDB), together with a parsed copy that makes lookups fast. It is sent to no third-party service and is never passed to an AI provider.</p>
+<p>It <strong>leaves your device only when you ask</strong>: the “Save the catalogue to the cloud” button uploads the CSV as-is into the same private folder as your backups (a <code>cave-tabac-catalogue-….csv</code> file), and only one copy is kept there. The catalogue travels in its own file, separate from your cellar backups. “Remove the catalogue” erases it from your device; any copy already in the cloud stays until you delete it from “View my backups”.</p>
+
+<h2>Photos (local only)</h2>
+<p>Photos are added only by <strong>importing an image from your device</strong> (the "Import a photo" button). They are stored locally (IndexedDB) and go through no third-party service. They <strong>only leave your device if you enable cloud backup</strong> (Google Drive or Dropbox): photos are then included in the backup file like the rest of your data — and encrypted along with it if you enabled encryption. They are also included in your JSON and ZIP exports, which stay on your device until you share them.</p>
+
+<h2>Dropbox (optional backup)</h2>
+<p>If you pick <strong>Dropbox</strong> as your backup destination (Settings → Data → Cloud backup), the app requests access to a <strong>dedicated app folder</strong> — Dropbox confines the app to that single folder; it never sees the rest of your Dropbox. Authentication happens directly with Dropbox (<strong>www.dropbox.com</strong>) via OAuth 2.0 + PKCE; backups then travel through <strong>api.dropboxapi.com</strong> and <strong>content.dropboxapi.com</strong>. As with Google Drive, no token or Dropbox data is transmitted to any third party, and the content can be encrypted before upload if you enabled backup encryption.</p>
+
+<h2>Session location (optional)</h2>
+<p>You may optionally attach a <strong>geographic location</strong> to a journal session ("Add my location" button in the session form). The location is <strong>never captured automatically</strong> — only on your explicit tap, and your browser asks for permission the first time. The coordinates (latitude / longitude) are stored locally on the session, exactly like the other fields; they therefore travel with your JSON / CSV exports and your cloud backups.</p>
+<p>When you open the detail of a session that carries a location, the app shows a small map provided by <strong>OpenStreetMap</strong> (<strong>www.openstreetmap.org</strong>). Your browser then sends that session's coordinates to OpenStreetMap to fetch the map image. OpenStreetMap is a non-profit organisation; no other data (your entries, your keys, your identity) is sent to it. If you never set a location, no request is made to this service.</p>
+<p>When you attach a location (at capture time), the app may derive a <strong>place name</strong> from the coordinates using OpenStreetMap's reverse-geocoding service, <strong>nominatim.openstreetmap.org</strong>. Only the session's coordinates are sent to it; the resulting name is stored locally and stays editable. No other data is transmitted, and no request is made if you don't attach a location.</p>
+
+<h2>AI Assistant (optional)</h2>
+<p>If you configure an API key (Anthropic, OpenAI or Google Gemini), the app sends requests directly from your browser to the corresponding API for auto-completion of tobacco and pipe entries. Only the text you type in the search field is transmitted. <strong>One exception: the “Scan the tin” feature</strong> — if you use it, the photo of the tin is sent to the AI provider you chose so it can read the brand and name. That photo is downscaled before upload and is never stored by the app. The API key is stored locally on your device.</p>
+<p>By default, the API key is <strong>excluded</strong> from JSON exports and cloud backups (Google Drive or Dropbox). It is never transmitted to any third party other than the AI provider you have chosen. To include it in backups for easier restoration on another device, turn off <strong>Exclude API keys from exports</strong> in ⚙️ Settings → <em>AI Assistant</em> section.</p>
+<p>Conversely, an API key present in a backup you import is installed on this device only if you choose <strong>Replace</strong>. A <strong>merge</strong> never installs it: merging is how you accept someone else's backup, and their key has no business becoming yours.</p>
+
+<h2>No own server, no tracking</h2>
+<p>My Tobacco Cellar is hosted on GitHub Pages. The app has no server of its own, sets no tracking cookies and bundles no analytics tools (Google Analytics, etc.).</p>
+<p>One technical exception: during a <strong>ZIP export</strong>, the compression library (JSZip) is downloaded on demand from the <strong>cdnjs.cloudflare.com</strong> CDN (with file integrity verification). That CDN then sees a standard download request (IP address, like any web resource) — none of your data passes through it; the compression itself runs entirely on your device.</p>
+
+<h2>Platform</h2>
+<p>The app runs in any web browser (Safari, Chrome, Firefox, etc.) and can be installed as a PWA on the iOS and Android home screen. There is no native iOS or Android version distributed via the App Store or the Play Store.</p>
+
+<h2>Warranty and liability</h2>
+<p>My Tobacco Cellar is a personal project provided <strong>free of charge</strong>, on a <strong>"best-effort"</strong> basis and <strong>"as is"</strong>, with no warranty. The app is functional and tested, but no assurance is given regarding:</p>
+<ul>
+  <li>continuous service availability;</li>
+  <li>the absence of bugs, interruptions or errors;</li>
+  <li>the preservation of data stored on your device — a browser may wipe its local cache, a device may be lost, damaged or reset;</li>
+  <li>fitness for any particular purpose.</li>
+</ul>
+<p>Use is at your own risk. It is recommended that you:</p>
+<ul>
+  <li><strong>Export your data regularly</strong> via ⚙️ Settings → <em>Export JSON</em> or <em>Backup ZIP</em>;</li>
+  <li>enable the <strong>automatic cloud backup</strong> (Google Drive or Dropbox) if you want a remote copy (see section above);</li>
+  <li>keep at least one backup copy in a location separate from your main device.</li>
+</ul>
+<p>The author may not be held liable for data loss, service interruption or any direct or indirect damage related to the use of the app.</p>
+
+<h2>Contact</h2>
+<p>For any question about your data: <a href="mailto:macaveatabac@gmail.com">macaveatabac@gmail.com</a></p>
+
+<hr>
+<p style="font-size:13px;color:#655846;">This policy applies to the app accessible at <a href="https://t-cellar.app">t-cellar.app</a>.</p>
+</div><!-- end sec-en -->
+
+
+<div id="sec-es" class="section">
+<h1>Política de privacidad</h1>
+<p class="subtitle">Mi Bodega de Tabaco — t-cellar.app &nbsp;·&nbsp; Última actualización: agosto de 2026</p>
+
+<h2>Resumen</h2>
+<p>Mi Bodega de Tabaco es una aplicación web progresiva (PWA) personal, ofrecida de forma gratuita y según el mejor esfuerzo posible. No recopila ningún dato de usuario en un servidor. Todos tus datos permanecen en tu dispositivo.</p>
+
+<h2>Datos almacenados localmente</h2>
+<p>La aplicación almacena los siguientes datos exclusivamente en tu dispositivo mediante <code>localStorage</code>:</p>
+<ul>
+  <li>Tu colección de tabacos (nombres, marcas, notas, lotes, fotos)</li>
+  <li>Tu colección de pipas</li>
+  <li>Tu lista de deseos</li>
+  <li>Tus accesorios</li>
+  <li>Tu diario de sesiones</li>
+  <li>Tus preferencias de interfaz (idioma, clave de API)</li>
+  <li>Un token temporal de acceso a la nube (Google Drive o Dropbox, cuando la copia de seguridad automática está activada), conservado únicamente durante su validez (~1 hora para Google Drive, ~4 horas para Dropbox, más un token de actualización de larga duración de Dropbox para la renovación silenciosa)</li>
+</ul>
+<p>Estos datos nunca salen de tu dispositivo, a menos que utilices la función de copia de seguridad en la nube (Google Drive o Dropbox, véase más abajo).</p>
+<p><strong>Borrar todos los datos</strong> (Ajustes → Datos) borra también las credenciales guardadas: los tokens de conexión de Google Drive y Dropbox (incluido el token de actualización de larga duración de Dropbox), las claves de API del asistente de IA y la dirección de correo de la cuenta de Google memorizada para volver a autenticarte más rápido. Después de ese botón no queda nada tuyo en el dispositivo — útil antes de prestarlo, venderlo o publicar una captura de pantalla. Tus copias de seguridad ya guardadas en la nube no se eliminan.</p>
+
+<h2>Google Drive (copia de seguridad opcional)</h2>
+<p>Si decides usar la función de copia de seguridad, la aplicación solicita acceso al ámbito <strong>drive.appdata</strong> de tu cuenta de Google. Este ámbito solo permite:</p>
+<ul>
+  <li>Leer y escribir archivos de copia de seguridad con marca de tiempo (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) en una carpeta privada dedicada a la aplicación, invisible en tu Google Drive. La aplicación conserva como máximo 3 copias de seguridad manuales más un archivo de guardado automático con marca de tiempo (<code>cave-tabac-auto-….json</code>, sobrescrito en el mismo lugar en cada guardado); los archivos manuales más antiguos se eliminan automáticamente.</li>
+</ul>
+<p>La aplicación nunca accede a ningún otro archivo de tu Google Drive. La autenticación la gestiona directamente Google mediante OAuth 2.0. Ningún token ni dato de Google se transmite a terceros.</p>
+
+<h2>Catálogo de referencia (tu archivo)</h2>
+<p>La app <strong>no incluye ningún catálogo</strong>. Si cargas uno (Ajustes → Datos → Catálogo de referencia), el archivo CSV que aportas se guarda <strong>localmente</strong>, en una base de datos del navegador reservada para él (IndexedDB «cave-catalogue»), junto con una versión analizada que acelera las búsquedas. No se envía a ningún servicio de terceros y nunca se transmite a un proveedor de IA.</p>
+<p><strong>Solo sale de tu dispositivo si tú lo pides</strong>: el botón «Guardar el catálogo en la nube» sube el CSV tal cual a la misma carpeta privada que tus copias de seguridad (un archivo <code>cave-tabac-catalogue-….csv</code>), y allí se conserva una sola copia. El catálogo viaja en su propio archivo, separado de las copias de tu bodega. «Quitar el catálogo» lo borra de tu dispositivo; la copia que hubiera en la nube permanece hasta que la elimines desde «Ver mis copias».</p>
+
+<h2>Fotos (solo locales)</h2>
+<p>Las fotos se añaden únicamente <strong>importando una imagen desde tu dispositivo</strong> (el botón «Importar una foto»). Se almacenan localmente (IndexedDB) y no pasan por ningún servicio de terceros. <strong>Solo salen de tu dispositivo si activas la copia de seguridad en la nube</strong> (Google Drive o Dropbox): las fotos se incluyen entonces en el archivo de copia como el resto de tus datos, y se cifran con él si has activado el cifrado. También se incluyen en tus exportaciones JSON y ZIP, que permanecen en tu dispositivo hasta que las compartas.</p>
+
+<h2>Dropbox (copia de seguridad opcional)</h2>
+<p>Si eliges <strong>Dropbox</strong> como destino de tu copia de seguridad (Ajustes → Datos → Copia de seguridad en la nube), la aplicación solicita acceso a una <strong>carpeta de aplicación dedicada</strong>: Dropbox limita la aplicación a esa única carpeta; nunca ve el resto de tu Dropbox. La autenticación se realiza directamente con Dropbox (<strong>www.dropbox.com</strong>) mediante OAuth 2.0 + PKCE; las copias de seguridad viajan luego a través de <strong>api.dropboxapi.com</strong> y <strong>content.dropboxapi.com</strong>. Al igual que con Google Drive, ningún token ni dato de Dropbox se transmite a terceros, y el contenido puede cifrarse antes de subirse si has activado el cifrado de las copias de seguridad.</p>
+
+<h2>Ubicación de la sesión (opcional)</h2>
+<p>Puedes adjuntar opcionalmente una <strong>ubicación geográfica</strong> a una sesión del diario (botón «Añadir mi ubicación» en el formulario de sesión). La ubicación <strong>nunca se captura automáticamente</strong>: solo con tu toque explícito, y tu navegador te pide permiso la primera vez. Las coordenadas (latitud / longitud) se almacenan localmente en la sesión, exactamente igual que los demás campos; por lo tanto, se incluyen en tus exportaciones JSON / CSV y en tus copias de seguridad en la nube.</p>
+<p>Cuando abres el detalle de una sesión que lleva una ubicación, la aplicación muestra un pequeño mapa proporcionado por <strong>OpenStreetMap</strong> (<strong>www.openstreetmap.org</strong>). Tu navegador envía entonces las coordenadas de esa sesión a OpenStreetMap para obtener la imagen del mapa. OpenStreetMap es una organización sin ánimo de lucro; no se le envía ningún otro dato (tus entradas, tus claves, tu identidad). Si nunca defines una ubicación, no se realiza ninguna solicitud a este servicio.</p>
+<p>Cuando adjuntas una ubicación (en el momento de la captura), la aplicación puede derivar un <strong>nombre de lugar</strong> a partir de las coordenadas usando el servicio de geocodificación inversa de OpenStreetMap, <strong>nominatim.openstreetmap.org</strong>. Solo se le envían las coordenadas de la sesión; el nombre resultante se almacena localmente y sigue siendo editable. No se transmite ningún otro dato, y no se realiza ninguna solicitud si no adjuntas una ubicación.</p>
+
+<h2>Asistente de IA (opcional)</h2>
+<p>Si configuras una clave de API (Anthropic, OpenAI o Google Gemini), la aplicación envía solicitudes directamente desde tu navegador a la API correspondiente para autocompletar entradas de tabacos y pipas. Solo se transmite el texto que escribes en el campo de búsqueda. <strong>Una excepción: la función «Escanear la lata»</strong>: si la usas, la foto de la lata se envía al proveedor de IA que hayas elegido para leer la marca y el nombre. Esa foto se reduce antes del envío y la aplicación nunca la conserva. La clave de API se almacena localmente en tu dispositivo.</p>
+<p>De forma predeterminada, la clave de API está <strong>excluida</strong> de las exportaciones JSON y de las copias de seguridad en la nube (Google Drive o Dropbox). Nunca se transmite a ningún tercero que no sea el proveedor de IA que hayas elegido. Para incluirla en las copias de seguridad y facilitar la restauración en otro dispositivo, desactiva <strong>Excluir las claves de API de las exportaciones</strong> en ⚙️ Ajustes → sección <em>Asistente de IA</em>.</p>
+<p>A la inversa, una clave de API presente en una copia de seguridad que importas solo se instala en este dispositivo si eliges <strong>Reemplazar</strong>. Una <strong>fusión</strong> nunca la instala: fusionar es la forma de aceptar la copia de otra persona, y su clave no tiene por qué convertirse en la tuya.</p>
+
+<h2>Sin servidor propio, sin seguimiento</h2>
+<p>Mi Bodega de Tabaco está alojada en GitHub Pages. La aplicación no tiene servidor propio, no instala ninguna cookie de seguimiento y no incluye ninguna herramienta de análisis (Google Analytics, etc.).</p>
+<p>Una excepción técnica: durante una <strong>exportación ZIP</strong>, la biblioteca de compresión (JSZip) se descarga bajo demanda desde el CDN <strong>cdnjs.cloudflare.com</strong> (con verificación de integridad del archivo). Ese CDN ve entonces una solicitud de descarga estándar (dirección IP, como cualquier recurso web): ninguno de tus datos pasa por él; la compresión en sí se ejecuta por completo en tu dispositivo.</p>
+
+<h2>Plataforma</h2>
+<p>La aplicación funciona en cualquier navegador web (Safari, Chrome, Firefox, etc.) y puede instalarse como PWA en la pantalla de inicio de iOS y Android. No existe una versión nativa de iOS o Android distribuida a través de la App Store o de Play Store.</p>
+
+<h2>Garantía y responsabilidad</h2>
+<p>Mi Bodega de Tabaco es un proyecto personal ofrecido <strong>de forma gratuita</strong>, según el <strong>«mejor esfuerzo»</strong> y <strong>«tal cual»</strong>, sin ninguna garantía. La aplicación es funcional y está probada, pero no se ofrece ninguna garantía respecto a:</p>
+<ul>
+  <li>la disponibilidad continua del servicio;</li>
+  <li>la ausencia de errores, interrupciones o fallos;</li>
+  <li>la conservación de los datos almacenados en tu dispositivo: un navegador puede borrar su caché local, un dispositivo puede perderse, dañarse o restablecerse;</li>
+  <li>la idoneidad para un propósito determinado.</li>
+</ul>
+<p>El uso es bajo tu propia responsabilidad. Se recomienda que:</p>
+<ul>
+  <li><strong>Exportes tus datos con regularidad</strong> mediante ⚙️ Ajustes → <em>Exportar JSON</em> o <em>Copia de seguridad ZIP</em>;</li>
+  <li>actives la <strong>copia de seguridad automática en la nube</strong> (Google Drive o Dropbox) si quieres una copia remota (véase la sección anterior);</li>
+  <li>conserves al menos una copia de seguridad en un lugar separado de tu dispositivo principal.</li>
+</ul>
+<p>No se podrá responsabilizar al autor por la pérdida de datos, la interrupción del servicio ni por ningún daño directo o indirecto relacionado con el uso de la aplicación.</p>
+
+<h2>Contacto</h2>
+<p>Para cualquier pregunta sobre tus datos: <a href="mailto:macaveatabac@gmail.com">macaveatabac@gmail.com</a></p>
+
+<hr>
+<p style="font-size:13px;color:#655846;">Esta política se aplica a la aplicación accesible en <a href="https://t-cellar.app">t-cellar.app</a>.</p>
+</div><!-- end sec-es -->
+
+<div id="sec-de" class="section">
+<h1>Datenschutzerklärung</h1>
+<p class="subtitle">Mein Tabakkeller — t-cellar.app &nbsp;·&nbsp; Zuletzt aktualisiert: August 2026</p>
+
+<h2>Zusammenfassung</h2>
+<p>Mein Tabakkeller ist eine persönliche Progressive Web App (PWA), die kostenlos und nach bestem Bemühen bereitgestellt wird. Sie erfasst keine Nutzerdaten auf einem Server. Alle deine Daten bleiben auf deinem Gerät.</p>
+
+<h2>Lokal gespeicherte Daten</h2>
+<p>Die App speichert die folgenden Daten ausschließlich auf deinem Gerät über <code>localStorage</code>:</p>
+<ul>
+  <li>Deine Tabaksammlung (Namen, Marken, Notizen, Chargen, Fotos)</li>
+  <li>Deine Pfeifensammlung</li>
+  <li>Deine Wunschliste</li>
+  <li>Dein Zubehör</li>
+  <li>Dein Sitzungstagebuch</li>
+  <li>Deine Oberflächeneinstellungen (Sprache, API-Schlüssel)</li>
+  <li>Ein temporäres Cloud-Zugriffstoken (Google Drive oder Dropbox, wenn die automatische Sicherung aktiviert ist), das nur für die Dauer seiner Gültigkeit aufbewahrt wird (~1 Stunde bei Google Drive, ~4 Stunden bei Dropbox, zuzüglich eines langlebigen Dropbox-Refresh-Tokens für die stille Erneuerung)</li>
+</ul>
+<p>Diese Daten verlassen dein Gerät nie, es sei denn, du nutzt die Cloud-Sicherungsfunktion (Google Drive oder Dropbox – siehe unten).</p>
+<p><strong>Alle Daten löschen</strong> (Einstellungen → Daten) löscht auch die gespeicherten Zugangsdaten: die Zugriffstoken von Google Drive und Dropbox (einschließlich des langlebigen Dropbox-Refresh-Tokens), die API-Schlüssel des KI-Assistenten und die E-Mail-Adresse des Google-Kontos, die für eine schnellere erneute Anmeldung gemerkt wird. Nach dieser Schaltfläche bleibt nichts von dir auf dem Gerät zurück – nützlich, bevor du es verleihst, verkaufst oder einen Screenshot davon veröffentlichst. Bereits in der Cloud abgelegte Sicherungen werden nicht gelöscht.</p>
+
+<h2>Google Drive (optionale Sicherung)</h2>
+<p>Wenn du die Sicherungsfunktion nutzen möchtest, fordert die App Zugriff auf den Bereich <strong>drive.appdata</strong> deines Google-Kontos an. Dieser Bereich erlaubt nur:</p>
+<ul>
+  <li>Das Lesen und Schreiben von Sicherungsdateien mit Zeitstempel (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in einem privaten, der App vorbehaltenen Ordner, der in deinem Google Drive unsichtbar ist. Die App bewahrt höchstens 3 manuelle Sicherungen sowie eine automatische Sicherungsdatei mit Zeitstempel auf (<code>cave-tabac-auto-….json</code>, die bei jeder Sicherung an Ort und Stelle überschrieben wird); die ältesten manuellen Dateien werden automatisch gelöscht.</li>
+</ul>
+<p>Die App greift nie auf eine andere Datei in deinem Google Drive zu. Die Authentifizierung wird direkt von Google über OAuth 2.0 abgewickelt. Es werden keine Tokens oder Google-Daten an Dritte übermittelt.</p>
+
+<h2>Referenzkatalog (deine Datei)</h2>
+<p>Die App enthält <strong>keinen Katalog</strong>. Wenn du einen lädst (Einstellungen → Daten → Referenzkatalog), wird die von dir bereitgestellte CSV-Datei <strong>lokal</strong> gespeichert, in einer eigens dafür reservierten Browser-Datenbank (IndexedDB „cave-catalogue“), zusammen mit einer ausgewerteten Fassung für schnelle Suchen. Sie geht an keinen Drittanbieterdienst und wird nie an einen KI-Anbieter übermittelt.</p>
+<p>Sie <strong>verlässt dein Gerät nur auf deine Aktion hin</strong>: Die Schaltfläche „Katalog in die Cloud sichern“ lädt die CSV-Datei unverändert in denselben privaten Ordner wie deine Sicherungen (eine Datei <code>cave-tabac-catalogue-….csv</code>), und dort wird nur eine Kopie aufbewahrt. Der Katalog reist in seiner eigenen Datei, getrennt von den Sicherungen deines Bestands. „Katalog entfernen“ löscht ihn von deinem Gerät; eine bereits in der Cloud liegende Kopie bleibt, bis du sie unter „Meine Sicherungen ansehen“ löschst.</p>
+
+<h2>Fotos (nur lokal)</h2>
+<p>Fotos werden nur durch das <strong>Importieren eines Bildes von deinem Gerät</strong> hinzugefügt (Schaltfläche „Foto importieren“). Sie werden lokal gespeichert (IndexedDB) und durchlaufen keinen Drittanbieterdienst. Sie <strong>verlassen dein Gerät nur, wenn du die Cloud-Sicherung aktivierst</strong> (Google Drive oder Dropbox): Die Fotos sind dann wie deine übrigen Daten in der Sicherungsdatei enthalten – und mit ihr verschlüsselt, falls du die Verschlüsselung aktiviert hast. Sie sind ebenfalls in deinen JSON- und ZIP-Exporten enthalten, die auf deinem Gerät bleiben, bis du sie weitergibst.</p>
+
+<h2>Dropbox (optionale Sicherung)</h2>
+<p>Wenn du <strong>Dropbox</strong> als Ziel deiner Sicherung wählst (Einstellungen → Daten → Cloud-Sicherung), fordert die App Zugriff auf einen <strong>dedizierten App-Ordner</strong> an – Dropbox beschränkt die App auf diesen einen Ordner; sie sieht den Rest deiner Dropbox nie. Die Authentifizierung erfolgt direkt bei Dropbox (<strong>www.dropbox.com</strong>) über OAuth 2.0 + PKCE; die Sicherungen wandern dann über <strong>api.dropboxapi.com</strong> und <strong>content.dropboxapi.com</strong>. Wie bei Google Drive werden keine Tokens oder Dropbox-Daten an Dritte übermittelt, und der Inhalt kann vor dem Hochladen verschlüsselt werden, wenn du die Verschlüsselung der Sicherungen aktiviert hast.</p>
+
+<h2>Sitzungsstandort (optional)</h2>
+<p>Du kannst einer Tagebuchsitzung optional einen <strong>geografischen Standort</strong> hinzufügen (Schaltfläche „Meinen Ort hinzufügen“ im Sitzungsformular). Der Standort wird <strong>nie automatisch erfasst</strong> – nur auf deine ausdrückliche Berührung hin, und dein Browser fragt beim ersten Mal um Erlaubnis. Die Koordinaten (Breitengrad / Längengrad) werden lokal in der Sitzung gespeichert, genau wie die anderen Felder; sie wandern daher mit deinen JSON-/CSV-Exporten und deinen Cloud-Sicherungen mit.</p>
+<p>Wenn du die Detailansicht einer Sitzung öffnest, die einen Standort enthält, zeigt die App eine kleine Karte an, die von <strong>OpenStreetMap</strong> (<strong>www.openstreetmap.org</strong>) bereitgestellt wird. Dein Browser sendet dann die Koordinaten dieser Sitzung an OpenStreetMap, um das Kartenbild abzurufen. OpenStreetMap ist eine gemeinnützige Organisation; es werden keine weiteren Daten (deine Einträge, deine Schlüssel, deine Identität) an sie gesendet. Wenn du nie einen Standort festlegst, wird an diesen Dienst keine Anfrage gestellt.</p>
+<p>Wenn du einen Standort hinzufügst (zum Zeitpunkt der Erfassung), kann die App aus den Koordinaten einen <strong>Ortsnamen</strong> ableiten, indem sie den Reverse-Geocoding-Dienst von OpenStreetMap, <strong>nominatim.openstreetmap.org</strong>, verwendet. Es werden nur die Koordinaten der Sitzung an ihn gesendet; der resultierende Name wird lokal gespeichert und bleibt bearbeitbar. Es werden keine weiteren Daten übermittelt, und es wird keine Anfrage gestellt, wenn du keinen Standort hinzufügst.</p>
+
+<h2>KI-Assistent (optional)</h2>
+<p>Wenn du einen API-Schlüssel konfigurierst (Anthropic, OpenAI oder Google Gemini), sendet die App Anfragen direkt aus deinem Browser an die entsprechende API, um Tabak- und Pfeifeneinträge automatisch zu vervollständigen. Es wird nur der Text übermittelt, den du in das Suchfeld eingibst. <strong>Eine Ausnahme: die Funktion „Dose scannen“</strong> – wenn du sie nutzt, wird das Foto der Dose an den von dir gewählten KI-Anbieter gesendet, damit Marke und Name gelesen werden können. Dieses Foto wird vor dem Senden verkleinert und von der App niemals gespeichert. Der API-Schlüssel wird lokal auf deinem Gerät gespeichert.</p>
+<p>Standardmäßig ist der API-Schlüssel von JSON-Exporten und Cloud-Sicherungen (Google Drive oder Dropbox) <strong>ausgeschlossen</strong>. Er wird nie an einen anderen Dritten als den von dir gewählten KI-Anbieter übermittelt. Um ihn zur einfacheren Wiederherstellung auf einem anderen Gerät in die Sicherungen aufzunehmen, deaktiviere <strong>API-Schlüssel aus Exporten ausschließen</strong> in ⚙️ Einstellungen → Abschnitt <em>KI-Assistent</em>.</p>
+<p>Umgekehrt wird ein API-Schlüssel, der in einer von dir importierten Sicherung enthalten ist, nur dann auf diesem Gerät eingerichtet, wenn du <strong>Ersetzen</strong> wählst. Ein <strong>Zusammenführen</strong> richtet ihn nie ein: So nimmt man die Sicherung einer anderen Person an, und deren Schlüssel soll nicht zu deinem werden.</p>
+
+<h2>Kein eigener Server, kein Tracking</h2>
+<p>Mein Tabakkeller wird auf GitHub Pages gehostet. Die App hat keinen eigenen Server, setzt keine Tracking-Cookies und bindet keine Analysewerkzeuge (Google Analytics usw.) ein.</p>
+<p>Eine technische Ausnahme: Während eines <strong>ZIP-Exports</strong> wird die Komprimierungsbibliothek (JSZip) bei Bedarf vom CDN <strong>cdnjs.cloudflare.com</strong> heruntergeladen (mit Integritätsprüfung der Datei). Dieses CDN sieht dann eine standardmäßige Download-Anfrage (IP-Adresse, wie bei jeder Web-Ressource) – keine deiner Daten durchläuft es; die Komprimierung selbst läuft vollständig auf deinem Gerät ab.</p>
+
+<h2>Plattform</h2>
+<p>Die App läuft in jedem Webbrowser (Safari, Chrome, Firefox usw.) und kann als PWA auf dem Startbildschirm von iOS und Android installiert werden. Es gibt keine native iOS- oder Android-Version, die über den App Store oder den Play Store vertrieben wird.</p>
+
+<h2>Gewährleistung und Haftung</h2>
+<p>Mein Tabakkeller ist ein persönliches Projekt, das <strong>kostenlos</strong>, nach <strong>„bestem Bemühen“</strong> und <strong>„wie besehen“</strong> ohne jegliche Gewährleistung bereitgestellt wird. Die App ist funktionsfähig und getestet, es wird jedoch keine Zusicherung gegeben hinsichtlich:</p>
+<ul>
+  <li>der kontinuierlichen Verfügbarkeit des Dienstes;</li>
+  <li>der Abwesenheit von Fehlern, Unterbrechungen oder Störungen;</li>
+  <li>der Erhaltung der auf deinem Gerät gespeicherten Daten – ein Browser kann seinen lokalen Cache löschen, ein Gerät kann verloren gehen, beschädigt oder zurückgesetzt werden;</li>
+  <li>der Eignung für einen bestimmten Zweck.</li>
+</ul>
+<p>Die Nutzung erfolgt auf eigenes Risiko. Es wird empfohlen, dass du:</p>
+<ul>
+  <li><strong>Deine Daten regelmäßig exportierst</strong> über ⚙️ Einstellungen → <em>JSON exportieren</em> oder <em>ZIP-Sicherung</em>;</li>
+  <li>die <strong>automatische Cloud-Sicherung</strong> (Google Drive oder Dropbox) aktivierst, wenn du eine entfernte Kopie möchtest (siehe Abschnitt oben);</li>
+  <li>mindestens eine Sicherungskopie an einem von deinem Hauptgerät getrennten Ort aufbewahrst.</li>
+</ul>
+<p>Der Autor kann nicht für Datenverlust, Dienstunterbrechungen oder direkte oder indirekte Schäden haftbar gemacht werden, die mit der Nutzung der App zusammenhängen.</p>
+
+<h2>Kontakt</h2>
+<p>Bei Fragen zu deinen Daten: <a href="mailto:macaveatabac@gmail.com">macaveatabac@gmail.com</a></p>
+
+<hr>
+<p style="font-size:13px;color:#655846;">Diese Richtlinie gilt für die unter <a href="https://t-cellar.app">t-cellar.app</a> zugängliche App.</p>
+</div><!-- end sec-de -->
+
+<div id="sec-it" class="section">
+<h1>Informativa sulla privacy</h1>
+<p class="subtitle">La Mia Cantina del Tabacco — t-cellar.app &nbsp;·&nbsp; Ultimo aggiornamento: agosto 2026</p>
+
+<h2>In breve</h2>
+<p>La Mia Cantina del Tabacco è un'applicazione web progressiva (PWA) personale, offerta gratuitamente e secondo il miglior impegno possibile. Non raccoglie alcun dato dell'utente su un server. Tutti i tuoi dati restano sul tuo dispositivo.</p>
+
+<h2>Dati memorizzati localmente</h2>
+<p>L'applicazione memorizza i seguenti dati esclusivamente sul tuo dispositivo tramite <code>localStorage</code>:</p>
+<ul>
+  <li>La tua collezione di tabacchi (nomi, marche, note, lotti, foto)</li>
+  <li>La tua collezione di pipe</li>
+  <li>La tua lista dei desideri</li>
+  <li>I tuoi accessori</li>
+  <li>Il tuo diario delle sessioni</li>
+  <li>Le tue preferenze dell'interfaccia (lingua, chiave API)</li>
+  <li>Un token temporaneo di accesso al cloud (Google Drive o Dropbox, quando il backup automatico è attivo), conservato solo per la durata della sua validità (~1 ora per Google Drive, ~4 ore per Dropbox, più un token di aggiornamento Dropbox a lunga durata per il rinnovo silenzioso)</li>
+</ul>
+<p>Questi dati non lasciano mai il tuo dispositivo, a meno che tu non utilizzi la funzione di backup nel cloud (Google Drive o Dropbox, vedi sotto).</p>
+<p><strong>Cancellare tutti i dati</strong> (Impostazioni → Dati) cancella anche le credenziali conservate: i token di accesso di Google Drive e Dropbox (compreso il token di rinnovo Dropbox a lunga durata), le chiavi API dell'assistente IA e l'indirizzo e-mail dell'account Google memorizzato per riautenticarti più rapidamente. Dopo quel pulsante non resta nulla di tuo sul dispositivo — utile prima di prestarlo, rivenderlo o pubblicarne uno screenshot. I backup già depositati nel cloud non vengono eliminati.</p>
+
+<h2>Google Drive (backup opzionale)</h2>
+<p>Se scegli di usare la funzione di backup, l'applicazione richiede l'accesso all'ambito <strong>drive.appdata</strong> del tuo account Google. Questo ambito consente solo di:</p>
+<ul>
+  <li>Leggere e scrivere file di backup con marca temporale (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in una cartella privata dedicata all'applicazione, invisibile nel tuo Google Drive. L'applicazione conserva al massimo 3 backup manuali più un file di salvataggio automatico con marca temporale (<code>cave-tabac-auto-….json</code>, sovrascritto sul posto a ogni salvataggio); i file manuali più vecchi vengono eliminati automaticamente.</li>
+</ul>
+<p>L'applicazione non accede mai ad alcun altro file del tuo Google Drive. L'autenticazione è gestita direttamente da Google tramite OAuth 2.0. Nessun token o dato Google viene trasmesso a terzi.</p>
+
+<h2>Catalogo di riferimento (il tuo file)</h2>
+<p>L'app <strong>non include alcun catalogo</strong>. Se ne carichi uno (Impostazioni → Dati → Catalogo di riferimento), il file CSV che fornisci resta <strong>in locale</strong>, in un database del browser riservato a esso (IndexedDB «cave-catalogue»), insieme a una versione già analizzata che rende rapide le ricerche. Non viene inviato ad alcun servizio di terzi e non è mai trasmesso a un fornitore di IA.</p>
+<p><strong>Lascia il tuo dispositivo solo su tua richiesta</strong>: il pulsante «Salva il catalogo nel cloud» carica il CSV così com'è nella stessa cartella privata delle tue copie (un file <code>cave-tabac-catalogue-….csv</code>), e lì ne viene conservata una sola. Il catalogo viaggia nel suo file, separato dalle copie della tua cantina. «Rimuovi il catalogo» lo cancella dal tuo dispositivo; l'eventuale copia nel cloud rimane finché non la elimini da «Vedi le mie copie».</p>
+
+<h2>Foto (solo locali)</h2>
+<p>Le foto si aggiungono solo <strong>importando un'immagine dal dispositivo</strong> (il pulsante «Importa una foto»). Vengono archiviate localmente (IndexedDB) e non passano attraverso alcun servizio di terzi. <strong>Lasciano il dispositivo solo se attivi il backup nel cloud</strong> (Google Drive o Dropbox): le foto vengono allora incluse nel file di backup come il resto dei tuoi dati, e cifrate con esso se hai attivato la cifratura. Sono incluse anche nelle esportazioni JSON e ZIP, che restano sul tuo dispositivo fino a quando non le condividi.</p>
+
+<h2>Dropbox (backup opzionale)</h2>
+<p>Se scegli <strong>Dropbox</strong> come destinazione del tuo backup (Impostazioni → Dati → Backup nel cloud), l'applicazione richiede l'accesso a una <strong>cartella dedicata all'app</strong> – Dropbox limita l'applicazione a quella singola cartella; non vede mai il resto del tuo Dropbox. L'autenticazione avviene direttamente con Dropbox (<strong>www.dropbox.com</strong>) tramite OAuth 2.0 + PKCE; i backup viaggiano poi attraverso <strong>api.dropboxapi.com</strong> e <strong>content.dropboxapi.com</strong>. Come con Google Drive, nessun token o dato Dropbox viene trasmesso a terzi, e il contenuto può essere cifrato prima del caricamento se hai attivato la cifratura dei backup.</p>
+
+<h2>Posizione della sessione (opzionale)</h2>
+<p>Puoi facoltativamente allegare una <strong>posizione geografica</strong> a una sessione del diario (pulsante «Aggiungi la mia posizione» nel modulo della sessione). La posizione <strong>non viene mai acquisita automaticamente</strong>: solo con il tuo tocco esplicito, e il tuo browser chiede il permesso la prima volta. Le coordinate (latitudine / longitudine) vengono memorizzate localmente nella sessione, esattamente come gli altri campi; viaggiano quindi con le tue esportazioni JSON / CSV e con i tuoi backup nel cloud.</p>
+<p>Quando apri il dettaglio di una sessione che contiene una posizione, l'applicazione mostra una piccola mappa fornita da <strong>OpenStreetMap</strong> (<strong>www.openstreetmap.org</strong>). Il tuo browser invia quindi le coordinate di quella sessione a OpenStreetMap per recuperare l'immagine della mappa. OpenStreetMap è un'organizzazione senza scopo di lucro; nessun altro dato (le tue voci, le tue chiavi, la tua identità) le viene inviato. Se non imposti mai una posizione, non viene effettuata alcuna richiesta a questo servizio.</p>
+<p>Quando alleghi una posizione (al momento dell'acquisizione), l'applicazione può ricavare un <strong>nome di luogo</strong> dalle coordinate usando il servizio di geocodifica inversa di OpenStreetMap, <strong>nominatim.openstreetmap.org</strong>. Gli vengono inviate solo le coordinate della sessione; il nome risultante viene memorizzato localmente e resta modificabile. Nessun altro dato viene trasmesso, e non viene effettuata alcuna richiesta se non alleghi una posizione.</p>
+
+<h2>Assistente IA (opzionale)</h2>
+<p>Se configuri una chiave API (Anthropic, OpenAI o Google Gemini), l'applicazione invia richieste direttamente dal tuo browser all'API corrispondente per il completamento automatico delle voci di tabacchi e pipe. Viene trasmesso solo il testo che digiti nel campo di ricerca. <strong>Un'eccezione: la funzione «Scansiona la latta»</strong>: se la usi, la foto della scatola viene inviata al fornitore di IA che hai scelto per leggerne marca e nome. Questa foto viene ridotta prima dell'invio e non viene mai conservata dall'applicazione. La chiave API viene memorizzata localmente sul tuo dispositivo.</p>
+<p>Per impostazione predefinita, la chiave API è <strong>esclusa</strong> dalle esportazioni JSON e dai backup nel cloud (Google Drive o Dropbox). Non viene mai trasmessa ad alcun terzo diverso dal fornitore di IA che hai scelto. Per includerla nei backup e facilitare il ripristino su un altro dispositivo, disattiva <strong>Escludi le chiavi API dalle esportazioni</strong> in ⚙️ Impostazioni → sezione <em>Assistente IA</em>.</p>
+<p>Viceversa, una chiave API presente in un backup che importi viene installata su questo dispositivo solo se scegli <strong>Sostituisci</strong>. Una <strong>fusione</strong> non la installa mai: è così che si accetta il backup di qualcun altro, e la sua chiave non deve diventare la tua.</p>
+
+<h2>Nessun server proprio, nessun tracciamento</h2>
+<p>La Mia Cantina del Tabacco è ospitata su GitHub Pages. L'applicazione non ha un server proprio, non imposta alcun cookie di tracciamento e non include alcuno strumento di analisi (Google Analytics, ecc.).</p>
+<p>Un'eccezione tecnica: durante un'<strong>esportazione ZIP</strong>, la libreria di compressione (JSZip) viene scaricata su richiesta dal CDN <strong>cdnjs.cloudflare.com</strong> (con verifica dell'integrità del file). Quel CDN vede quindi una normale richiesta di download (indirizzo IP, come qualsiasi risorsa web): nessuno dei tuoi dati vi transita; la compressione stessa avviene interamente sul tuo dispositivo.</p>
+
+<h2>Piattaforma</h2>
+<p>L'applicazione funziona in qualsiasi browser web (Safari, Chrome, Firefox, ecc.) e può essere installata come PWA sulla schermata iniziale di iOS e Android. Non esiste una versione nativa iOS o Android distribuita tramite l'App Store o il Play Store.</p>
+
+<h2>Garanzia e responsabilità</h2>
+<p>La Mia Cantina del Tabacco è un progetto personale offerto <strong>gratuitamente</strong>, secondo il <strong>«miglior impegno»</strong> e <strong>«così com'è»</strong>, senza alcuna garanzia. L'applicazione è funzionante e testata, ma non viene fornita alcuna assicurazione riguardo a:</p>
+<ul>
+  <li>la disponibilità continua del servizio;</li>
+  <li>l'assenza di bug, interruzioni o errori;</li>
+  <li>la conservazione dei dati memorizzati sul tuo dispositivo: un browser può cancellare la sua cache locale, un dispositivo può essere perso, danneggiato o ripristinato;</li>
+  <li>l'idoneità a uno scopo particolare.</li>
+</ul>
+<p>L'uso è a tuo rischio. Si raccomanda di:</p>
+<ul>
+  <li><strong>Esportare i tuoi dati regolarmente</strong> tramite ⚙️ Impostazioni → <em>Esporta JSON</em> o <em>Backup ZIP</em>;</li>
+  <li>attivare il <strong>backup automatico nel cloud</strong> (Google Drive o Dropbox) se desideri una copia remota (vedi la sezione sopra);</li>
+  <li>conservare almeno una copia di backup in un luogo separato dal tuo dispositivo principale.</li>
+</ul>
+<p>L'autore non può essere ritenuto responsabile per la perdita di dati, l'interruzione del servizio o qualsiasi danno diretto o indiretto legato all'uso dell'applicazione.</p>
+
+<h2>Contatto</h2>
+<p>Per qualsiasi domanda sui tuoi dati: <a href="mailto:macaveatabac@gmail.com">macaveatabac@gmail.com</a></p>
+
+<hr>
+<p style="font-size:13px;color:#655846;">Questa informativa si applica all'applicazione accessibile su <a href="https://t-cellar.app">t-cellar.app</a>.</p>
+</div><!-- end sec-it -->
+<div id="sec-pt" class="section">
+<a class="back" href="./">← A Minha Adega de Tabaco</a>
+<button class="lang-btn" id="lang-toggle-pt" onclick="switchLang()">FR</button>
+<h1>Política de Privacidade</h1>
+<p class="subtitle">A Minha Adega de Tabaco — t-cellar.app &nbsp;·&nbsp; Última atualização: agosto de 2026</p>
+
+<h2>Resumo</h2>
+<p>A Minha Adega de Tabaco é uma aplicação web progressiva (PWA) pessoal, disponibilizada gratuitamente e na medida do possível. Não recolhe quaisquer dados do utilizador num servidor. Todos os seus dados permanecem no seu dispositivo.</p>
+
+<h2>Dados guardados localmente</h2>
+<p>A aplicação guarda os seguintes dados exclusivamente no seu dispositivo através de <code>localStorage</code>:</p>
+<ul>
+  <li>A sua coleção de tabacos (nomes, marcas, notas, lotes, fotografias)</li>
+  <li>A sua coleção de cachimbos</li>
+  <li>A sua lista de desejos</li>
+  <li>Os seus acessórios</li>
+  <li>O seu diário de sessões</li>
+  <li>As suas preferências de interface (idioma, chave de API)</li>
+  <li>Um token temporário de acesso à nuvem (Google Drive ou Dropbox, quando a cópia de segurança automática está ativa), conservado apenas durante a sua validade (~1 hora no Google Drive, ~4 horas no Dropbox, mais um token de renovação de longa duração do Dropbox para renovação silenciosa)</li>
+</ul>
+<p>Estes dados nunca saem do seu dispositivo, exceto se utilizar a funcionalidade de cópia de segurança na nuvem (Google Drive ou Dropbox — ver abaixo).</p>
+<p><strong>Apagar todos os dados</strong> (Definições → Dados) apaga também as credenciais guardadas: os tokens de ligação ao Google Drive e ao Dropbox (incluindo o token de renovação de longa duração do Dropbox), as chaves de API do assistente de IA e o endereço de e-mail da conta Google memorizado para o voltar a autenticar mais depressa. Depois deste botão não fica nada de si no dispositivo — útil antes de o emprestar, de o vender ou de publicar uma captura de ecrã. As cópias de segurança já guardadas na nuvem não são eliminadas.</p>
+
+<h2>Google Drive (cópia de segurança opcional)</h2>
+<p>Se optar por utilizar a funcionalidade de cópia de segurança, a aplicação solicita acesso ao âmbito <strong>drive.appdata</strong> da sua conta Google. Este âmbito permite apenas:</p>
+<ul>
+  <li>Ler e escrever ficheiros de cópia de segurança com data e hora (<code>cave-tabac-AAAAMMDD-HHMMSS-….json</code>) numa pasta privada dedicada à aplicação, invisível no seu Google Drive. A aplicação conserva no máximo 3 cópias manuais mais um ficheiro de gravação automática com data e hora (<code>cave-tabac-auto-….json</code>, substituído no mesmo lugar em cada gravação); os ficheiros manuais mais antigos são eliminados automaticamente.</li>
+</ul>
+<p>A aplicação nunca acede a qualquer outro ficheiro do seu Google Drive. A autenticação é feita diretamente pela Google através de OAuth 2.0. Nenhum token nem dados da Google são transmitidos a terceiros.</p>
+
+<h2>Catálogo de referência (o seu ficheiro)</h2>
+<p>A aplicação <strong>não inclui qualquer catálogo</strong>. Se carregar um (Definições → Dados → Catálogo de referência), o ficheiro CSV que fornece fica guardado <strong>localmente</strong>, numa base de dados do navegador reservada para ele (IndexedDB «cave-catalogue»), juntamente com uma versão já analisada que torna as pesquisas rápidas. Não é enviado a qualquer serviço de terceiros e nunca é transmitido a um fornecedor de IA.</p>
+<p><strong>Só sai do seu aparelho por acção sua</strong>: o botão «Guardar o catálogo na nuvem» envia o CSV tal como está para a mesma pasta privada das suas cópias (um ficheiro <code>cave-tabac-catalogue-….csv</code>), e aí é conservada uma única cópia. O catálogo viaja no seu próprio ficheiro, separado das cópias da sua cave. «Remover o catálogo» apaga-o do seu aparelho; a cópia que exista na nuvem permanece até a eliminar em «Ver as minhas cópias».</p>
+
+<h2>Fotografias (apenas locais)</h2>
+<p>As fotografias são adicionadas apenas através da <strong>importação de uma imagem do seu dispositivo</strong> (botão «Importar uma foto»). São guardadas localmente (IndexedDB) e não passam por qualquer serviço de terceiros. <strong>Só saem do seu dispositivo se ativar a cópia de segurança na nuvem</strong> (Google Drive ou Dropbox): as fotografias são então incluídas no ficheiro de cópia de segurança, tal como os restantes dados — e cifradas com ele se tiver ativado a cifragem. São também incluídas nas suas exportações JSON e ZIP, que permanecem no seu dispositivo até as partilhar.</p>
+
+<h2>Dropbox (cópia de segurança opcional)</h2>
+<p>Se escolher o <strong>Dropbox</strong> como destino da cópia de segurança (Configurações → Dados → Cópia de segurança na nuvem), a aplicação solicita acesso a uma <strong>pasta dedicada à aplicação</strong> — o Dropbox confina a aplicação a essa única pasta; nunca vê o resto do seu Dropbox. A autenticação é feita diretamente com o Dropbox (<strong>www.dropbox.com</strong>) através de OAuth 2.0 + PKCE; as cópias de segurança circulam depois por <strong>api.dropboxapi.com</strong> e <strong>content.dropboxapi.com</strong>. Tal como no Google Drive, nenhum token nem dados do Dropbox são transmitidos a terceiros, e o conteúdo pode ser cifrado antes do envio se tiver ativado a cifragem das cópias de segurança.</p>
+
+<h2>Localização das sessões (opcional)</h2>
+<p>Pode, opcionalmente, associar uma <strong>localização geográfica</strong> a uma sessão do diário (botão «Adicionar a minha posição» no formulário da sessão). A localização <strong>nunca é captada automaticamente</strong> — apenas quando premir explicitamente, e o seu navegador pede autorização na primeira vez. As coordenadas (latitude / longitude) são guardadas localmente na sessão, exatamente como os outros campos; acompanham por isso as suas exportações JSON / CSV e as suas cópias de segurança na nuvem.</p>
+<p>Quando abre o detalhe de uma sessão que tem uma localização, a aplicação mostra um pequeno mapa fornecido pelo <strong>OpenStreetMap</strong> (<strong>www.openstreetmap.org</strong>). O seu navegador envia então as coordenadas dessa sessão ao OpenStreetMap para obter a imagem do mapa. O OpenStreetMap é uma organização sem fins lucrativos; nenhum outro dado (os seus registos, as suas chaves, a sua identidade) lhe é enviado. Se nunca definir uma localização, não é feito qualquer pedido a este serviço.</p>
+<p>Quando associa uma localização (no momento da captação), a aplicação pode obter um <strong>nome de local</strong> a partir das coordenadas, utilizando o serviço de geocodificação inversa do OpenStreetMap, <strong>nominatim.openstreetmap.org</strong>. Só as coordenadas da sessão lhe são enviadas; o nome obtido é guardado localmente e permanece editável. Nenhum outro dado é transmitido e não é feito qualquer pedido se não associar uma localização.</p>
+
+<h2>Assistente de IA (opcional)</h2>
+<p>Se configurar uma chave de API (Anthropic, OpenAI ou Google Gemini), a aplicação envia pedidos diretamente do seu navegador para a API correspondente, para preenchimento automático dos registos de tabacos e cachimbos. Apenas o texto que escreve no campo de pesquisa é transmitido. <strong>Uma exceção: a funcionalidade «Digitalizar a lata»</strong> — se a utilizar, a fotografia da lata é enviada ao fornecedor de IA que escolheu para que possa ler a marca e o nome. Essa fotografia é reduzida antes do envio e nunca é guardada pela aplicação. A chave de API é guardada localmente no seu dispositivo.</p>
+<p>Por predefinição, a chave de API é <strong>excluída</strong> das exportações JSON e das cópias de segurança na nuvem (Google Drive ou Dropbox). Nunca é transmitida a terceiros além do fornecedor de IA que escolheu. Para a incluir nas cópias de segurança e facilitar o restauro noutro dispositivo, desative <strong>Excluir as chaves de API das exportações</strong> em ⚙️ Configurações → secção <em>Assistente de IA</em>.</p>
+<p>Inversamente, uma chave de API presente numa cópia de segurança que importe só é instalada neste dispositivo se escolher <strong>Substituir</strong>. Uma <strong>fusão</strong> nunca a instala: é assim que se aceita a cópia de segurança de outra pessoa, e a chave dela não tem de passar a ser a sua.</p>
+
+<h2>Sem servidor próprio, sem rastreio</h2>
+<p>A Minha Adega de Tabaco está alojada no GitHub Pages. A aplicação não tem servidor próprio, não define cookies de rastreio e não integra ferramentas de análise (Google Analytics, etc.).</p>
+<p>Uma exceção técnica: durante uma <strong>exportação ZIP</strong>, a biblioteca de compressão (JSZip) é descarregada a pedido da CDN <strong>cdnjs.cloudflare.com</strong> (com verificação da integridade do ficheiro). Essa CDN vê então um pedido de descarregamento normal (endereço IP, como em qualquer recurso web) — nenhum dos seus dados passa por ela; a compressão é feita inteiramente no seu dispositivo.</p>
+
+<h2>Plataforma</h2>
+<p>A aplicação funciona em qualquer navegador web (Safari, Chrome, Firefox, etc.) e pode ser instalada como PWA no ecrã inicial do iOS e do Android. Não existe versão nativa iOS ou Android distribuída através da App Store ou da Play Store.</p>
+
+<h2>Garantia e responsabilidade</h2>
+<p>A Minha Adega de Tabaco é um projeto pessoal disponibilizado <strong>gratuitamente</strong>, na <strong>«medida do possível»</strong> e <strong>«tal como está»</strong>, sem qualquer garantia. A aplicação é funcional e testada, mas não é dada qualquer garantia quanto a:</p>
+<ul>
+  <li>disponibilidade contínua do serviço;</li>
+  <li>ausência de erros, interrupções ou falhas;</li>
+  <li>conservação dos dados guardados no seu dispositivo — um navegador pode limpar a sua cache local, um dispositivo pode ser perdido, danificado ou reiniciado de origem;</li>
+  <li>adequação a qualquer finalidade específica.</li>
+</ul>
+<p>A utilização é feita por sua conta e risco. Recomenda-se que:</p>
+<ul>
+  <li><strong>Exporte os seus dados regularmente</strong> em ⚙️ Configurações → <em>Exportar JSON</em> ou <em>Cópia de segurança ZIP</em>;</li>
+  <li>ative a <strong>cópia de segurança automática na nuvem</strong> (Google Drive ou Dropbox) se quiser uma cópia remota (ver secção acima);</li>
+  <li>guarde pelo menos uma cópia de segurança num local separado do seu dispositivo principal.</li>
+</ul>
+<p>O autor não pode ser responsabilizado por perda de dados, interrupção do serviço ou qualquer dano direto ou indireto relacionado com a utilização da aplicação.</p>
+
+<h2>Contacto</h2>
+<p>Para qualquer questão sobre os seus dados: <a href="mailto:macaveatabac@gmail.com">macaveatabac@gmail.com</a></p>
+
+<hr>
+<p style="font-size:13px;color:#655846;">Esta política aplica-se à aplicação acessível em <a href="https://t-cellar.app">t-cellar.app</a>.</p>
+</div><!-- end sec-pt -->
+
+</body>
+</html>

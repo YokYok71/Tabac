@@ -1,0 +1,91 @@
+name: Checks
+
+# Three gates the repo has always DESCRIBED as CI gates were in
+# no workflow at all:
+#   · CLAUDE.md called `npm run typecheck` "the canonical CI gate"
+#   · .github/dependabot.yml called `npm run lint` "a CI gate"
+#   · eslint.config.js said its error-level rules "block CI instead of adding
+#     silent warning noise"
+#   · `npm run prune` was promoted to a gate under the note "a check nobody runs
+#     is documentation, not a check"
+# None of it was true: deploy.yml ran only `npm test` / `npm run build` /
+# `npm run doc:check`, and lighthouse.yml `npm run build` + `size:check`.
+#
+# So every custom `tabac-local/*` rule — the ones written specifically to stop
+# hardcoded French strings, raw enum renders, unguarded storage writes and
+# mode-blind colours from reaching users — had NO enforcement anywhere. A commit
+# with a `tsc` error or a French label merged and deployed green.
+#
+# This runs on pull_request too, not just push, so the gate fires BEFORE merge
+# rather than after deploy. Deliberately separate from deploy.yml: a lint or
+# typecheck failure should not cancel a Pages deploy already in flight, and
+# these three are fast (~2 s each) and need no build.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# CodeQL js/actions/missing-workflow-permissions — deny by default, opt in.
+permissions: {}
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - run: npm ci
+
+      # Each step runs even if an earlier one failed, so one push surfaces
+      # every class of problem at once instead of one per re-run.
+      - name: TypeScript (strict)
+        if: ${{ !cancelled() }}
+        run: npm run typecheck
+
+      - name: ESLint
+        if: ${{ !cancelled() }}
+        run: npm run lint
+
+      - name: Dead code (knip)
+        if: ${{ !cancelled() }}
+        run: npm run prune
+
+      # `npm test` and `doc:check` once ran ONLY on push to main
+      # (deploy.yml), so the two heaviest gates in the repo fired AFTER the
+      # merge — while this file's own header comment argues a gate should
+      # fire before it. The asymmetry was defensible under the
+      # always-push-to-main convention and written down nowhere, which is the
+      # part that makes it a bug rather than a choice.
+      #
+      # PULL-REQUEST ONLY, deliberately: deploy.yml already runs both on every
+      # push to main, and it must keep doing so — it gates the Pages deploy
+      # itself, and a parallel job in another workflow cannot gate it. Running
+      # them here on push as well would duplicate ~2 min per commit and gate
+      # nothing extra.
+      - name: Tests (pull requests — push is covered by deploy.yml)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        run: npm test
+
+      - name: Documentation & i18n check (pull requests)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          # Same reason as deploy.yml: the bump guard compares against the
+          # last APP_BUILD bump and is meaningless on a branch that has not
+          # bumped yet. Every other gate in doc:check still runs.
+          DOC_CHECK_SKIP_BUMP: "1"
+        run: npm run doc:check

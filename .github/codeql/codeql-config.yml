@@ -1,0 +1,27 @@
+name: "Tabac CodeQL config"
+
+# Scope CodeQL scanning to the production
+# code base. Tests are excluded — every CodeQL alert we've seen in
+# `src/__tests__/**` so far has been a false positive triggered by
+# pattern-matching assertions (e.g. `calls.some(u =>
+# u.includes("googleapis.com"))` flagged as "incomplete URL substring
+# sanitization", even though the URLs are fully controlled by the
+# test code and not user input). The CodeQL queries don't have a way
+# to distinguish test code from production code, so we filter at the
+# config level — tests aren't shipped in the bundle, so their attack
+# surface is zero.
+#
+# The two production alerts that surfaced (gdrive-tk token storage
+# in localStorage, errCode passed to recordOAuthEvent in
+# oauthReturn) are documented in CLAUDE.md under "Security
+# invariants" and tagged as accepted risk / false positive in the
+# Code scanning UI rather than suppressed here. Suppressing real
+# code-path findings via the config would hide them on every future
+# scan; keeping them dismissed-with-reason on GitHub keeps the audit
+# trail visible.
+
+paths-ignore:
+  - "src/__tests__/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "scripts/**"

@@ -1,0 +1,379 @@
+{
+  "_comment": "Allowlist for the doc:check i18n identical-values warning. Each entry maps a key to the LANGUAGES in which its value is legitimately identical to the French one (cognate, brand name, emoji) — e.g. \"catalog_title\": [\"en\"] silences fr/en only, so a future Italian left as \"Catalogue\" STILL warns. Use \"*\" for a value identical in every language by nature (an emoji, a brand). This per-language shape replaced a flat key list, which silenced a key across all four pairs at once. Before adding a language to an entry, confirm the word really is the same in that language — that is the whole point of the warning.",
+  "_dynamic_comment": "`dynamicKeyPrefixes` / `dynamicKeys` suppress the 'defined but never called as t(\"…\")' UNUSED warning for keys that ARE live but are built dynamically (t(prefix+var), resolved via a map, or read as L.<key> property access in class components like EB). doc:check can only see literal t(\"key\") + LANG[..]?.key, so these looked unused. Each prefix maps to a fixed data-driven family/enum (AROMA_WHEEL, DOCK_ITEMS, SHAPE_FAMILIES, *_FAMILIES, MAINT_KINDS/TASKS, the maturity bands, the plural-entity helpers, the autosave/EB/storage diagnostic groups). Keeping the list here means the unused warning goes back to ~0, so a genuinely-new dead key shows up again.",
+  "dynamicKeyPrefixes": [
+    "ai_err_",
+    "aroma_",
+    "autosave_diag_",
+    "bak_word_",
+    "bowlmat_fam_",
+    "btn_dropbox_",
+    "btn_gdrive_",
+    "cat_fam_",
+    "cmp_",
+    "cloudcheck_diag_",
+    "cut_fam_",
+    "diag_violations_",
+    "dock_",
+    "eb_",
+    "ent_",
+    "home_mat_",
+    "kind_",
+    "maint_kind_",
+    "maint_task_",
+    "mat_",
+    "sess_err_",
+    "shape_family_",
+    "stemmat_fam_",
+    "storage_hint_",
+    "tasting_err_",
+    "upd_why_",
+    "warn_storage_"
+  ],
+  "_dynamic_keys_comment": "`lbl_deleted` / `lbl_updated` are the two verbs of the undo toast's overline, resolved through the UNDO_KIND table in Overlays.tsx (kind -> {kind, verb}) rather than called as literals. Listed here because `lbl_deleted` was passing gate 11 for the WRONG reason — `extractTKeys` matches inside COMMENTS, and the prose above that table quotes `t(\"lbl_deleted\")`, so the key looked used purely because its name appears in an explanation. Same shape as the traps recorded for doc:check gate 15 / gridTracksCanShrink / topBannerInset, one gate over. Not fixed by stripping comments in `extractTKeys`: MEASURED, a naive stripper blanks a live `t(\"ai_scan_btn\")` call in AICard.tsx, and gate 9 (a called key must exist in every dictionary) is an ERROR gate riding on the same extraction — weakening it to silence two warn-only lines is the wrong trade. Doing it properly needs a real tokeniser.",
+  "dynamicKeys": [
+    "fam_other",
+    "lbl_in_stock",
+    "lbl_deleted",
+    "lbl_updated",
+    "tasting_autoend_notice"
+  ],
+  "identical": {
+    "abbr_force": [
+      "pt"
+    ],
+    "abbr_room_note": [
+      "pt"
+    ],
+    "age_m": [
+      "en",
+      "es",
+      "it",
+      "pt"
+    ],
+    "age_y": [
+      "pt"
+    ],
+    "ai_model_ok": [
+      "es"
+    ],
+    "ai_src_local": [
+      "en"
+    ],
+    "autofill_src_local": [
+      "en"
+    ],
+    "aria_journal": [
+      "en"
+    ],
+    "aria_pipes": [
+      "en"
+    ],
+    "aroma_anise": [
+      "de",
+      "pt"
+    ],
+    "aroma_caramel": [
+      "en"
+    ],
+    "aroma_floral": [
+      "en",
+      "es",
+      "pt"
+    ],
+    "aroma_honey": [
+      "es"
+    ],
+    "aroma_vanilla": [
+      "de"
+    ],
+    "bak_word_total": [
+      "en",
+      "es",
+      "pt"
+    ],
+    "btn_contact": [
+      "en"
+    ],
+    "cat_fam_burley": [
+      "fr",
+      "en",
+      "es",
+      "de",
+      "it",
+      "pt"
+    ],
+    "cat_fam_virginia": [
+      "fr",
+      "en",
+      "de"
+    ],
+    "catalog_results": [
+      "en",
+      "pt"
+    ],
+    "catalog_title": [
+      "en"
+    ],
+    "cmp_src_catalogue": [
+      "en"
+    ],
+    "dock_acc": [
+      "en",
+      "it"
+    ],
+    "dock_journal": [
+      "en"
+    ],
+    "dock_pipes": [
+      "en"
+    ],
+    "dock_stats": [
+      "en"
+    ],
+    "ent_pipe_p": [
+      "en"
+    ],
+    "ent_pipe_s": [
+      "en"
+    ],
+    "f_all_types": [
+      "en"
+    ],
+    "home_activity_weeks": [
+      "es",
+      "pt"
+    ],
+    "home_tonight_sub": [
+      "en"
+    ],
+    "home_zone_act": [
+      "pt"
+    ],
+    "icl_pipes_lbl": [
+      "en"
+    ],
+    "import_dup_short": [
+      "pt"
+    ],
+    "journal_title_word": [
+      "en"
+    ],
+    "kind_catalogue": [
+      "en"
+    ],
+    "kind_pipe": [
+      "en"
+    ],
+    "lbl_acc_short": [
+      "en",
+      "es",
+      "it"
+    ],
+    "lbl_cloud_provider": [
+      "en"
+    ],
+    "lbl_date": [
+      "en"
+    ],
+    "lbl_desc": [
+      "en"
+    ],
+    "lbl_fuel": [
+      "es"
+    ],
+    "lbl_image": [
+      "en"
+    ],
+    "lbl_in_stock": [
+      "es"
+    ],
+    "lbl_initial": [
+      "en"
+    ],
+    "lbl_latitude": [
+      "en",
+      "pt"
+    ],
+    "lbl_longitude": [
+      "en",
+      "pt"
+    ],
+    "lbl_lot": [
+      "en"
+    ],
+    "lbl_lots": [
+      "en"
+    ],
+    "lbl_lots_plural": [
+      "en"
+    ],
+    "lbl_notes": [
+      "en"
+    ],
+    "lbl_pipe_sel": [
+      "en"
+    ],
+    "lbl_pipe_simple": [
+      "en"
+    ],
+    "lbl_production": [
+      "en"
+    ],
+    "lbl_room_note": [
+      "en",
+      "it",
+      "pt"
+    ],
+    "lbl_spend_total": [
+      "en",
+      "es",
+      "pt"
+    ],
+    "lbl_src_ai": [
+      "pt"
+    ],
+    "lbl_src_db": [
+      "en"
+    ],
+    "lbl_theme_mode": [
+      "en"
+    ],
+    "lbl_type": [
+      "en"
+    ],
+    "lbl_wishlist": [
+      "en"
+    ],
+    "lot_for_detail": [
+      "en"
+    ],
+    "min_short": [
+      "en",
+      "es",
+      "it",
+      "pt"
+    ],
+    "nav_journal": [
+      "en"
+    ],
+    "nav_stats": [
+      "en",
+      "es",
+      "de",
+      "it",
+      "pt"
+    ],
+    "pipe_active_lbl": [
+      "en"
+    ],
+    "pipes_title_word": [
+      "en"
+    ],
+    "report_col_lots": [
+      "en"
+    ],
+    "search_grp_pipe": [
+      "en"
+    ],
+    "search_grp_wish": [
+      "en"
+    ],
+    "sec_acquisition": [
+      "en"
+    ],
+    "sec_diagnostic": [
+      "en"
+    ],
+    "sec_dimensions": [
+      "en"
+    ],
+    "sec_export_import": [
+      "en",
+      "de"
+    ],
+    "sec_image": [
+      "en"
+    ],
+    "sec_import": [
+      "en",
+      "de"
+    ],
+    "sec_notes": [
+      "en"
+    ],
+    "sec_pipe_lbl": [
+      "en"
+    ],
+    "sec_sections": [
+      "en"
+    ],
+    "sec_tags": [
+      "en"
+    ],
+    "sec_catalogue_lock": [
+      "en"
+    ],
+    "sec_wishlist": [
+      "en"
+    ],
+    "shape_family_bulldog": [
+      "fr",
+      "en",
+      "de"
+    ],
+    "shape_family_calabash": [
+      "fr",
+      "en",
+      "es",
+      "de",
+      "it",
+      "pt"
+    ],
+    "sort_date": [
+      "en"
+    ],
+    "sort_pipe": [
+      "en"
+    ],
+    "st_done": [
+      "en",
+      "es",
+      "de",
+      "it",
+      "pt"
+    ],
+    "st_images": [
+      "en"
+    ],
+    "st_zipping": [
+      "en",
+      "es",
+      "de",
+      "it",
+      "pt"
+    ],
+    "stat_pipes_word": [
+      "en"
+    ],
+    "tasting_btn_pause": [
+      "en",
+      "de"
+    ],
+    "ttl_catalogue": [
+      "en"
+    ],
+    "ttl_collection": [
+      "en"
+    ],
+    "unit_lots": [
+      "en"
+    ],
+    "wishlist_title_word": [
+      "en"
+    ],
+    "bak_word_catalogue": [
+      "en"
+    ]
+  }
+}

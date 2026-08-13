@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Reset…</title>
+<style>body{background:#0a0a0a;color:#d4d4d4;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column;gap:16px;}</style>
+</head>
+<body>
+<div id="msg">Nettoyage en cours…</div>
+<script>
+// This page was French-only, in all five UI languages — and it is the
+// far end of index.html's "repair the app" escape hatch, i.e. the one page a
+// user reaches when everything else is broken. It CAN localise itself inline
+// (unlike index.html, whose CSP is `script-src 'self'` with no 'unsafe-inline'):
+// this document ships no CSP meta and already carried this script.
+// `cave-lang` is written by main.jsx on first launch, so it is present here.
+var L = {
+  fr: ['Nettoyage en cours…', '✅ Cache nettoyé ! Redirection…', '✅ Redirection…'],
+  en: ['Cleaning up…', '✅ Cache cleared! Redirecting…', '✅ Redirecting…'],
+  es: ['Limpiando…', '✅ ¡Caché borrada! Redirigiendo…', '✅ Redirigiendo…'],
+  de: ['Wird aufgeräumt…', '✅ Cache geleert! Weiterleitung…', '✅ Weiterleitung…'],
+  it: ['Pulizia in corso…', '✅ Cache svuotata! Reindirizzamento…', '✅ Reindirizzamento…'],
+  // `pt` was missing — added in LANGUAGES but not here, so a
+  // Portuguese reader hit `L[lng] || L.en` and read English on the ONE page you
+  // reach when nothing else works. This file is outside doc:check's source tree,
+  // so gate 15 never looked at it. One row per LANGUAGES code, no exceptions.
+  pt: ['A limpar…', '✅ Cache limpa! A redirecionar…', '✅ A redirecionar…']
+};
+var lng = 'en';   // English is the app-wide fallback (the line below already says so)
+try { lng = (localStorage.getItem('cave-lang') || 'en').slice(0, 2); } catch (e) { /* private mode */ }
+var S = L[lng] || L.en;
+document.documentElement.lang = lng;
+async function reset() {
+  var msg = document.getElementById('msg');
+  msg.textContent = S[0];
+  try {
+    var regs = await navigator.serviceWorker.getRegistrations();
+    for (var r of regs) { await r.unregister(); }
+    var keys = await caches.keys();
+    for (var k of keys) { await caches.delete(k); }
+    msg.textContent = S[1];
+  } catch(e) {
+    msg.textContent = S[2];
+  }
+  // REPLACE, never assign. `location.href = …` pushes a history
+  // entry, so this page stayed BEHIND the app: a back gesture (or the left-edge
+  // swipe) returned here, which re-purged the caches and redirected forward
+  // again — the user saw "✅ Cache nettoyé ! Redirection…" as the answer to
+  // going back. A repair-and-redirect page must never be a back target; it is
+  // an action, not a place. Reported from the installed iOS PWA.
+  setTimeout(function(){ window.location.replace('./?_v=' + Date.now()); }, 1500);
+}
+reset();
+</script>
+</body>
+</html>

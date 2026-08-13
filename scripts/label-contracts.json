@@ -1,0 +1,676 @@
+{
+  "_doc": [
+    "Label contracts — the anti-drift registry behind doc:check gates 10 and 11.",
+    "",
+    "Motivation: six user-facing claims had silently drifted from the code by",
+    "at one point (the merge description, the photos/AI paragraphs of the privacy",
+    "policy, the device-name hint, the diagnostic 'repair' offer, and two lot",
+    "hints). Nothing in the pipeline connects a sentence to the behaviour it",
+    "describes: doc:check verified language PARITY and dev-fallback EQUALITY, but",
+    "never truthfulness. These two gates close that hole from both ends.",
+    "",
+    "── numeric ──────────────────────────────────────────────────────────────",
+    "A claim that quotes a NUMBER can be checked mechanically. Each entry reads",
+    "the number out of the code (source + match, capture group 1, optionally",
+    "divided), renders every `patterns` string with {n}, and asserts each one is",
+    "present in the doc. Change the constant without touching the prose and the",
+    "gate fails, naming both sides. Patterns are listed per language ONLY where",
+    "that wording was verified to exist — a pattern that is absent on day one",
+    "would make the gate permanently red and therefore worthless. Partial",
+    "coverage still catches a constant change; add the missing languages when the",
+    "wording is harmonised.",
+    "",
+    "── prose ────────────────────────────────────────────────────────────────",
+    "Prose semantics cannot be machine-compared to code. So instead of pretending",
+    "to verify meaning, the gate detects that the described behaviour MOVED and",
+    "forces a human to re-read the sentence. Each entry fingerprints a code",
+    "region delimited in the source by:",
+    "",
+    "    // LABEL-CONTRACT:start <id>",
+    "    // LABEL-CONTRACT:end <id>",
+    "",
+    "(whitespace-normalised, so a reformat is not a false positive). When the",
+    "fingerprint no longer matches, doc:check fails and lists the labels to",
+    "re-read. If they are still accurate, acknowledge explicitly:",
+    "",
+    "    node scripts/doc-check.cjs --accept <id>",
+    "",
+    "The markers also pay off at the code site: whoever edits the region sees",
+    "which sentence documents it, which is half the value of the whole scheme."
+  ],
+  "numeric": [
+    {
+      "id": "trash-retention-days",
+      "source": "src/constants.ts",
+      "match": "TRASH_RETENTION_DAYS\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} jours",
+            "{n} days",
+            "{n} días",
+            "{n} Tage",
+            "{n} giorni",
+            "{n} dias"
+          ]
+        },
+        {
+          "file": "src/i18n/fr.ts",
+          "patterns": [
+            "{n} jours"
+          ]
+        },
+        {
+          "file": "src/i18n/en.ts",
+          "patterns": [
+            "{n} days"
+          ]
+        },
+        {
+          "file": "src/i18n/es.ts",
+          "patterns": [
+            "{n} días"
+          ]
+        },
+        {
+          "file": "src/i18n/de.ts",
+          "patterns": [
+            "{n} Tage"
+          ]
+        },
+        {
+          "file": "src/i18n/it.ts",
+          "patterns": [
+            "{n} giorni"
+          ]
+        },
+        {
+          "file": "src/i18n/pt.ts",
+          "patterns": [
+            "{n} dias"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pipe-rest-target-days",
+      "source": "src/utils/rotation.ts",
+      "match": "PIPE_REST_TARGET_DAYS\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} jours",
+            "{n} days",
+            "{n} días",
+            "{n} Tagen",
+            "{n} giorni",
+            "{n} dias"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pipe-rest-min-hours",
+      "source": "src/utils/rotation.ts",
+      "match": "PIPE_REST_MIN_HOURS\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} h",
+            "{n} Std."
+          ]
+        },
+        {
+          "file": "src/i18n/fr.ts",
+          "patterns": [
+            "{n} h"
+          ]
+        },
+        {
+          "file": "src/i18n/en.ts",
+          "patterns": [
+            "{n} h"
+          ]
+        },
+        {
+          "file": "src/i18n/es.ts",
+          "patterns": [
+            "{n} h"
+          ]
+        },
+        {
+          "file": "src/i18n/de.ts",
+          "patterns": [
+            "{n} Std."
+          ]
+        },
+        {
+          "file": "src/i18n/it.ts",
+          "patterns": [
+            "{n} h"
+          ]
+        },
+        {
+          "file": "src/i18n/pt.ts",
+          "patterns": [
+            "{n} h"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "maint-sessions-threshold",
+      "source": "src/utils/pipeMaint.ts",
+      "match": "PIPE_MAINT_SESSIONS_THRESHOLD\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} séances",
+            "{n} sessions",
+            "{n} sesiones",
+            "{n} Sitzungen",
+            "{n} sessioni",
+            "{n} sessões"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tasting-overtime-minutes",
+      "source": "src/hooks/useTastingSession.ts",
+      "match": "OVERTIME_THRESHOLD_MS\\s*=\\s*(\\d+)\\s*\\*\\s*60\\s*\\*\\s*1000",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} min",
+            "{n} Min"
+          ]
+        },
+        {
+          "file": "src/i18n/fr.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        },
+        {
+          "file": "src/i18n/en.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        },
+        {
+          "file": "src/i18n/es.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        },
+        {
+          "file": "src/i18n/de.ts",
+          "patterns": [
+            "{n} Min"
+          ]
+        },
+        {
+          "file": "src/i18n/it.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        },
+        {
+          "file": "src/i18n/pt.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "passphrase-min-length",
+      "source": "src/views/curator/EncryptionPromptModal.tsx",
+      "match": "MIN_LEN\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} caractères",
+            "{n} characters",
+            "{n} caracteres",
+            "{n} Zeichen",
+            "{n} caratteri"
+          ]
+        },
+        {
+          "file": "src/i18n/fr.ts",
+          "patterns": [
+            "{n} caractères"
+          ]
+        },
+        {
+          "file": "src/i18n/en.ts",
+          "patterns": [
+            "{n} characters"
+          ]
+        },
+        {
+          "file": "src/i18n/es.ts",
+          "patterns": [
+            "{n} caracteres"
+          ]
+        },
+        {
+          "file": "src/i18n/de.ts",
+          "patterns": [
+            "{n} Zeichen"
+          ]
+        },
+        {
+          "file": "src/i18n/it.ts",
+          "patterns": [
+            "{n} caratteri"
+          ]
+        },
+        {
+          "file": "src/i18n/pt.ts",
+          "patterns": [
+            "{n} caracteres"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pipe-max-extra-photos",
+      "source": "src/constants.ts",
+      "match": "PIPE_MAX_EXTRA_PHOTOS\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} photos supplémentaires",
+            "{n} additional photos",
+            "{n} fotos adicionales",
+            "{n} weitere Fotos",
+            "{n} foto aggiuntive",
+            "{n} fotografias adicionais"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tasting-autoend-minutes",
+      "source": "src/hooks/useTastingSession.ts",
+      "match": "OVERTIME_AUTO_END_MS\\s*=\\s*(\\d+)\\s*\\*\\s*60\\s*\\*\\s*1000",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} min",
+            "{n} Min"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "low-stock-default-grams",
+      "source": "src/App.tsx",
+      "match": "\"cave-weight-unit\"\\)\\s*===\\s*\"oz\"\\s*\\?\\s*\"0\\.9\"\\s*:\\s*\"(\\d+)\"",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} g"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "home-watch-window",
+      "source": "src/views/curator/HomeViewV2.tsx",
+      "match": "dailyWindow\\(watchPool,\\s*Date\\.now\\(\\),\\s*(\\d+)\\)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "jusqu'à {n} à la fois",
+            "up to {n} at a time",
+            "hasta {n} a la vez",
+            "bis zu {n} auf einmal",
+            "fino a {n} alla volta",
+            "até {n} de cada vez"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "home-tonight-secondary",
+      "source": "src/views/curator/HomeViewV2.tsx",
+      "match": "ceSoirSecondary\\s*=[\\s\\S]{0,120}?\\.slice\\(0,\\s*(\\d+)\\)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "jusqu'à {n} autres",
+            "up to {n} more",
+            "hasta {n} más",
+            "bis zu {n} weitere",
+            "fino a {n} altri",
+            "até {n} outros"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gdrive-max-manual",
+      "source": "src/constants.ts",
+      "match": "GDRIVE_MAX_MANUAL\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "jusqu'à {n} sauvegardes",
+            "up to {n} manual",
+            "hasta {n} copias",
+            "bis zu {n} manuelle",
+            "fino a {n} backup",
+            "até {n} cópias manuais"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "photo-max-megabytes",
+      "source": "src/App.tsx",
+      "match": "file\\.size\\s*>\\s*(\\d+)\\s*\\*\\s*1024\\s*\\*\\s*1024",
+      "docs": [
+        {
+          "file": "src/i18n/fr.ts",
+          "patterns": [
+            "max {n} Mo"
+          ]
+        },
+        {
+          "file": "src/i18n/en.ts",
+          "patterns": [
+            "max {n} MB"
+          ]
+        },
+        {
+          "file": "src/i18n/es.ts",
+          "patterns": [
+            "máx. {n} MB"
+          ]
+        },
+        {
+          "file": "src/i18n/de.ts",
+          "patterns": [
+            "max. {n} MB"
+          ]
+        },
+        {
+          "file": "src/i18n/it.ts",
+          "patterns": [
+            "max {n} MB"
+          ]
+        },
+        {
+          "file": "src/i18n/pt.ts",
+          "patterns": [
+            "{n} MB"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "search-min-chars",
+      "source": "src/views/curator/SearchModal.tsx",
+      "match": "q\\.length\\s*<\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "src/i18n/fr.ts",
+          "patterns": [
+            "au moins {n} caractères"
+          ]
+        },
+        {
+          "file": "src/i18n/en.ts",
+          "patterns": [
+            "at least {n} characters"
+          ]
+        },
+        {
+          "file": "src/i18n/es.ts",
+          "patterns": [
+            "al menos {n} caracteres"
+          ]
+        },
+        {
+          "file": "src/i18n/de.ts",
+          "patterns": [
+            "mindestens {n} Zeichen"
+          ]
+        },
+        {
+          "file": "src/i18n/it.ts",
+          "patterns": [
+            "almeno {n} caratteri"
+          ]
+        },
+        {
+          "file": "src/i18n/pt.ts",
+          "patterns": [
+            "{n} caracteres"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tasting-autoend-total-minutes",
+      "sum": [
+        {
+          "source": "src/hooks/useTastingSession.ts",
+          "match": "OVERTIME_THRESHOLD_MS\\s*=\\s*(\\d+)\\s*\\*\\s*60\\s*\\*\\s*1000"
+        },
+        {
+          "source": "src/hooks/useTastingSession.ts",
+          "match": "OVERTIME_AUTO_END_MS\\s*=\\s*(\\d+)\\s*\\*\\s*60\\s*\\*\\s*1000"
+        }
+      ],
+      "docs": [
+        {
+          "file": "src/i18n/fr.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        },
+        {
+          "file": "src/i18n/en.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        },
+        {
+          "file": "src/i18n/es.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        },
+        {
+          "file": "src/i18n/de.ts",
+          "patterns": [
+            "{n} Min."
+          ]
+        },
+        {
+          "file": "src/i18n/it.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        },
+        {
+          "file": "src/i18n/pt.ts",
+          "patterns": [
+            "{n} min"
+          ]
+        }
+      ]
+    }
+  ],
+  "prose": [
+    {
+      "id": "backup-filename-device-name",
+      "region": "src/utils/gdriveApi.ts",
+      "labels": [
+        "i18n device_name_hint (all languages)",
+        "public/help.html — \"Nommer cet appareil\" paragraph (all languages)",
+        "CLAUDE.md — cave-device-name key entry"
+      ],
+      "why": "A change started appending the device name to every backup FILENAME. The hint kept claiming it was 'jamais dans les sauvegardes' for 20 releases, and the help paragraph contradicted itself in the same breath. If this function stops (or starts) embedding user-visible data in the name, all three places must be re-read.",
+      "fingerprint": "f6b67e53d76e85c4"
+    },
+    {
+      "id": "photos-in-backups",
+      "region": "src/hooks/useGdriveSync.ts",
+      "labels": [
+        "public/privacy.html — \"Photos\" paragraph (all languages)"
+      ],
+      "why": "gatherLocalImages is what makes photos leave the device: it collects the base64 blobs into the backup payload. The policy claimed photos 'ne quittent jamais votre appareil'. Any change to what this walks (entities, pipe.photos, session snapshots) changes what the policy must disclose.",
+      "fingerprint": "999ff007b056bb88"
+    },
+    {
+      "id": "ai-tin-scan-upload",
+      "region": "src/hooks/useAiAutoFill.ts",
+      "labels": [
+        "public/privacy.html — \"Assistant IA\" paragraph (all languages)"
+      ],
+      "why": "This is the only path that uploads an IMAGE to a third party. The policy said only the search-field text was transmitted, omitting it entirely from the day the scan shipped. A privacy policy that under-discloses an image upload is the most expensive kind of drift.",
+      "fingerprint": "cccd06bacbfb8bd9",
+      "domains": [
+        "api.anthropic.com",
+        "api.openai.com",
+        "generativelanguage.googleapis.com"
+      ]
+    },
+    {
+      "id": "merge-entity-lww",
+      "region": "src/hooks/useImportConfirm.ts",
+      "labels": [
+        "i18n import_merge_desc (all languages)",
+        "public/help.html — import Replace/Merge description (all languages)"
+      ],
+      "why": "import_merge_desc promised 'only items not already present are added' — falsified by the changes that made the merge append lots onto an existing blend and overwrite a dup entity's fields by last-write-wins. The text sits at the Replace/Merge decision point, so drift here mis-informs a data-affecting choice.",
+      "fingerprint": "23ce5aefeb470c21"
+    },
+    {
+      "id": "aging-cellar-only",
+      "region": "src/utils.ts",
+      "labels": [
+        "i18n mat_peak / mat_old / original_status_hint",
+        "public/help.html — \"Vieillissement\" + \"Maturité des lots\" (all languages)"
+      ],
+      "why": "Aging was restricted to CELLAR lots, with open jars given a neutral 'ouvert depuis' signal instead. Several help paragraphs assert 'en cave uniquement'; if this predicate widens again, they all become wrong.",
+      "fingerprint": "eef2f0f30b91ce34"
+    },
+    {
+      "id": "osm-reverse-geocoding",
+      "region": "src/utils/geo.ts",
+      "labels": [
+        "public/privacy.html — \"Localisation des séances\" / reverse-geocoding paragraph (all languages)",
+        "doc:check gate 8 (privacy domain disclosure) — nominatim.openstreetmap.org"
+      ],
+      "why": "This is the only call that sends a user's coordinates to a third party (Nominatim). The policy promises that ONLY the coordinates are sent, that nothing is sent when no position is attached, and that the resulting name is stored locally. Widen what this function transmits and all three promises need re-reading.",
+      "fingerprint": "172f7841c0eeaa29",
+      "domains": [
+        "nominatim.openstreetmap.org",
+        "www.openstreetmap.org"
+      ]
+    },
+    {
+      "id": "jszip-cdn",
+      "region": "src/hooks/useExportImport.ts",
+      "labels": [
+        "public/privacy.html — \"Aucun serveur propre, aucun tracking\" / JSZip CDN exception (all languages)",
+        "LICENSE + public/licenses.html — JSZip attribution"
+      ],
+      "why": "The policy discloses cdnjs.cloudflare.com as a one-off, on-demand download with an integrity check, and states no user data transits it. If the URL, the pinned version or the SRI hash changes — or the library stops being CDN-loaded — the disclosure and the licence attribution both need re-reading.",
+      "fingerprint": "8f49a1e43f3c1ae2",
+      "domains": [
+        "cdnjs.cloudflare.com"
+      ]
+    },
+    {
+      "id": "drive-oauth-scope",
+      "region": "src/hooks/useGdriveAuth.ts",
+      "labels": [
+        "public/privacy.html — \"Google Drive\" paragraph: scope, appDataFolder, no other file accessed (all languages)",
+        "CLAUDE.md — Google Integration section (scope + iOS redirect invariant)"
+      ],
+      "why": "The policy states the app requests drive.appdata ONLY, can therefore touch nothing else in the user's Drive, and that no token leaves the device. Any change to the requested scope or to where the token goes makes those statements wrong — and this is the paragraph a Google OAuth reviewer reads.",
+      "fingerprint": "21c002fc6b53ca55",
+      "domains": [
+        "accounts.google.com",
+        "oauth2.googleapis.com",
+        "www.googleapis.com"
+      ]
+    },
+    {
+      "id": "dropbox-oauth-scope",
+      "region": "src/utils/dropboxAuthCore.ts",
+      "domains": [
+        "www.dropbox.com"
+      ],
+      "labels": [
+        "public/privacy.html — \"Dropbox\" paragraph: App-folder confinement, OAuth 2.0 + PKCE, no token to a third party (all languages)"
+      ],
+      "why": "The authorisation URL is where the requested Dropbox scope is decided. The policy states the app is confined to its own App folder and never sees the rest of your Dropbox — a claim that lives or dies on what this URL asks for.",
+      "fingerprint": "b4152fe0537762db"
+    },
+    {
+      "id": "dropbox-wire",
+      "region": "src/utils/cloudProvider.ts",
+      "domains": [
+        "api.dropboxapi.com",
+        "content.dropboxapi.com"
+      ],
+      "labels": [
+        "public/privacy.html — \"Dropbox\" paragraph: the two api./content.dropboxapi.com transfer hosts (all languages)"
+      ],
+      "why": "These are the five wire operations that actually move a backup to Dropbox. The policy names both hosts and says the payload can be encrypted before it leaves; a new endpoint or a changed host must be disclosed.",
+      "fingerprint": "6a169f14c12d7d8e"
+    },
+    {
+      "id": "ai-model-catalogue",
+      "region": "src/hooks/useAiAutoFill.ts",
+      "labels": [
+        "public/help.html — \"Choix du modèle\" note in the AI section (all languages): the families offered per provider, which one is the default, and the promise that each provider's choice is remembered (now qualified: a retired model is remapped)",
+        "CLAUDE.md — the AI Integration provider/default table + the model-selection paragraph"
+      ],
+      "why": "Vendor model line-ups now move every few months, and each refresh silently invalidates prose. One refresh proved the cost twice over: gemini-2.0-flash — the app's own Gemini DEFAULT — had been shut down for four months with every Gemini auto-fill failing, and gpt-4o had left OpenAI's list. The help note is deliberately family-only (Haiku / Sonnet / Opus), which is what kept it TRUE through that refresh — so check that property still holds before anything else. Then re-read: is the named default still the default and still the cheap tier? Does every family the note names still exist in AI_MODEL_OPTIONS? And if AI_MODEL_ALIASES changed, is the remapping sentence still accurate — a live model must never be aliased to a costlier one, and no alias may cross provider families.",
+      "fingerprint": "fcb882c0bd21415c"
+    },
+    {
+      "id": "bowl-weight-estimate",
+      "region": "src/utils/bowlEstimate.ts",
+      "labels": [
+        "public/help.html — the \"grammage par défaut\" note in the Journal/session section (all languages): the estimate = chamber volume × tobacco cut × pipe shape, the worked comparison \"un flake dense pèse plus qu'un ribbon aéré à volume égal\", the claim that a conical chamber (Dublin family, or Bulldog/Rhodesian) holds LESS than a straight one, and the fallback to the default weight when the pipe has no chamber dimensions",
+        "CLAUDE.md — the bowlEstimate.ts entry, which reproduces the whole CUT_DENSITY table value by value"
+      ],
+      "why": "These numbers have already moved three times and CLAUDE.md quotes the ENTIRE table verbatim, so a single density edit silently makes the docs wrong. Two claims in the help are orderings, not prose, and are separately asserted in bowlEstimate.test.ts — if a density edit inverts Flake vs Ribbon, or makes a conical factor ≥ 1, that test fails FIRST and the help sentence is what has to change. Re-read for: is the cut still the second input (not, say, the tobacco's own weight)? Do the shape families named in the help still match CONICAL_SHAPES_MILD / _STRONG? Is the no-dimensions fallback still the global default weight? And does the CLAUDE.md table still match line for line?",
+      "fingerprint": "4d48b0a8ae9dac5d"
+    },
+    {
+      "id": "ui-language-on-demand",
+      "region": "src/i18n.ts",
+      "labels": [
+        "i18n lang_offline_err + lang_offline_reload + lang_loading (all languages)",
+        "public/help.html — the \"Langue\" bullet in Préférences (all languages): that a language can be changed at any time, that each one is downloaded on first pick and then kept offline, and what happens when it cannot be downloaded",
+        "CLAUDE.md — the src/i18n.ts structure-tree entry and the \"i18n ON-DEMAND dictionaries\" paragraph"
+      ],
+      "why": "Four of the five dictionaries became on-demand chunks, which made a language change something that can FAIL — and the help still promised it could be changed 'à tout moment' with no caveat, in all five languages, for three releases. A follow-up then found the error copy itself was wrong: it said 'reconnect and try again', but a failed dynamic import is cached AS A FAILURE in the browser's module map, so retrying in the same page makes no network request at all (measured in Chromium: offline tap -> reconnect -> tap again = ONE request, both attempts fail; only a reload clears it). Re-read for: can a switch still fail, and does the copy still name the ONLY action that recovers it? Is English still both the compiled-in dictionary and the fallback? Does a language still stay available offline once fetched? And does a failure still LEAVE the current language rather than silently switching?",
+      "fingerprint": "27fc67f9aee99cae"
+    }
+  ]
+}

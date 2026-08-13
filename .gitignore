@@ -1,0 +1,24 @@
+# Claude Code agent artifacts
+.claude/
+
+# macOS
+.DS_Store
+
+node_modules/
+dist/
+
+# Assets temporaires
+assets/
+www/
+
+# Playwright e2e artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+i18n-layout-shots/
+
+# Working copies of a personal tobacco catalogue. The app ships NO catalogue —
+# each user loads their own CSV (Réglages → Données). These files were tracked
+# and public for a long time before anyone noticed; keep them out for good.
+db_temp*

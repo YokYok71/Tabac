@@ -1,0 +1,162 @@
+MIT License
+
+Copyright (c) 2026 YokYok71
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+Third-Party Notices
+===============================================================================
+
+This product bundles or loads at runtime the following third-party software.
+Their respective licenses and copyright notices are reproduced below.
+
+-------------------------------------------------------------------------------
+React (bundled)
+-------------------------------------------------------------------------------
+https://github.com/facebook/react
+
+MIT License
+
+Copyright (c) Meta Platforms, Inc. and affiliates.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-------------------------------------------------------------------------------
+JSZip (loaded on demand from cdnjs.cloudflare.com for ZIP export only)
+-------------------------------------------------------------------------------
+https://github.com/Stuk/jszip
+
+JSZip is dual-licensed. You may use this library under the MIT License OR the
+GPLv3 license, at your option.
+
+The MIT License
+
+Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger,
+António Afonso
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-------------------------------------------------------------------------------
+Google Identity Services (loaded on demand from accounts.google.com)
+-------------------------------------------------------------------------------
+https://developers.google.com/identity
+
+The Google Identity Services library is provided by Google and is subject to
+Google's terms of service (https://policies.google.com/terms). It is loaded
+on demand when the user signs in to enable the optional Google Drive backup
+feature. No Google source code is bundled with this app.
+
+-------------------------------------------------------------------------------
+OpenStreetMap (map tiles for the session-location feature)
+-------------------------------------------------------------------------------
+https://www.openstreetmap.org/copyright
+
+The session-location feature embeds an OpenStreetMap iframe that displays
+map tiles loaded from www.openstreetmap.org. Map data is © OpenStreetMap
+contributors and is available under the Open Database License (ODbL):
+https://opendatacommons.org/licenses/odbl/. No OpenStreetMap source is
+bundled with this app.
+
+-------------------------------------------------------------------------------
+Dropbox API (optional backup destination)
+-------------------------------------------------------------------------------
+https://www.dropbox.com/developers
+
+The optional Dropbox backup feature calls the Dropbox API directly from the
+browser (api.dropboxapi.com / content.dropboxapi.com). No Dropbox source code
+is bundled with this app; usage is subject to Dropbox's terms of service
+(https://www.dropbox.com/terms).
+
+-------------------------------------------------------------------------------
+Webfonts (redistributed under public/fonts/)
+-------------------------------------------------------------------------------
+
+The app self-hosts three typefaces instead of loading them from a font CDN.
+The .woff2 files are REDISTRIBUTED as part of this repository and of every
+deployed build, so their notices travel with them, as SIL OFL 1.1 section 2
+requires. Full licence text: https://scripts.sil.org/OFL
+
+  DM Sans (public/fonts/dm-sans-var.woff2)
+    Copyright 2014 The DM Sans Project Authors
+    https://github.com/googlefonts/dm-fonts
+    Licensed under the SIL Open Font License, Version 1.1.
+
+  Newsreader (public/fonts/newsreader-var.woff2,
+              public/fonts/newsreader-italic-var.woff2)
+    Copyright 2020 The Newsreader Project Authors
+    http://github.com/productiontype/Newsreader
+    Licensed under the SIL Open Font License, Version 1.1.
+
+  IBM Plex Mono (public/fonts/ibm-plex-mono-{400,500,600,700}.woff2)
+    Copyright 2017 IBM Corp. All rights reserved.
+    https://github.com/IBM/plex
+    Licensed under the SIL Open Font License, Version 1.1.
+
+-------------------------------------------------------------------------------
+Build-time and development tools (not redistributed)
+-------------------------------------------------------------------------------
+
+The following tools are used only during development and to produce the
+distribution bundle. Their source is not included in shipped artifacts:
+
+  - Vite (MIT, https://vitejs.dev)
+  - TypeScript (Apache-2.0, https://www.typescriptlang.org)
+  - ESLint (MIT, https://eslint.org)
+  - typescript-eslint (MIT, https://typescript-eslint.io)
+  - eslint-plugin-react-hooks (MIT, https://reactjs.org)
+  - Vitest (MIT, https://vitest.dev)
+  - @testing-library/react and related packages (MIT,
+    https://testing-library.com)
+  - jsdom (MIT, https://github.com/jsdom/jsdom)
+  - jest-axe (MIT, https://github.com/nickcolley/jest-axe)
+  - axe-core (MPL-2.0, https://github.com/dequelabs/axe-core)
+  - @playwright/test (Apache-2.0, https://playwright.dev)

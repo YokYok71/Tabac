@@ -1,0 +1,153 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Node 20 is being deprecated on GitHub Actions runners
+# (forced to Node 24 on June 2nd, 2026, removed September 16th, 2026).
+# `node-version: "24"` in setup-node only controls what `npm test` /
+# `npm run build` see — the actions THEMSELVES (checkout, setup-node,
+# upload-artifact) still run on whatever Node version they declare
+# (currently 20). This env var forces ALL JavaScript actions to use
+# Node 24 right now, silencing the deprecation warning on every run.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# CodeQL js/actions/missing-workflow-permissions: declare the
+# minimum permissions explicitly at the top level (deny everything)
+# then opt in per job. Defends against a compromised action that
+# would otherwise inherit the default GITHUB_TOKEN's write scope.
+permissions: {}
+
+# Serialize Pages deploys. Without `concurrency`, every
+# push starts a parallel deploy that GitHub Pages then queues
+# (the github-pages environment allows only one concurrent deploy).
+# When many commits land in quick succession this creates a backlog
+# where each deploy waits ~5-10 min in "Queued" status. With this
+# group, an in-progress deploy is cancelled when a newer push starts,
+# so only the latest commit ever holds the slot.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Build (Vite) or prepare static files
+        id: build
+        run: |
+          if [ -f "package.json" ]; then
+            npm ci
+            npm test
+            npm run build
+            echo "ARTIFACT_PATH=dist" >> $GITHUB_ENV
+          else
+            mkdir -p _site
+            cp index.html reset.html help.html changelog.html privacy.html \
+               manifest.json icon-192.png icon-512.png sw.js _site/
+            echo "ARTIFACT_PATH=_site" >> $GITHUB_ENV
+          fi
+
+      # i18n parity + key-existence + length checks. The bump
+      # guard is intentionally skipped in CI (developer discipline +
+      # local pre-push handle that). CI's job here is to catch i18n
+      # parity bugs and allowlist drift before they reach main.
+      #
+      # Warnings (⚠) are re-emitted as ::warning:: annotations so they
+      # surface in the GH Actions UI timeline without scrolling logs.
+      # Errors still fail the step (script exit 1).
+      - name: Documentation & i18n check
+        if: ${{ hashFiles('package.json') != '' }}
+        env:
+          DOC_CHECK_SKIP_BUMP: "1"
+        run: |
+          set +e
+          npm run doc:check 2>&1 | tee /tmp/doc-check.log
+          rc=${PIPESTATUS[0]}
+          # Each warning line starts with two spaces then ⚠ (printed in
+          # doc-check.cjs). The grep -c is tolerant of zero matches.
+          n=$(grep -c '^  ⚠ ' /tmp/doc-check.log || true)
+          if [ "$n" -gt 0 ]; then
+            echo "::warning title=doc:check::Produced $n warning(s) — see job log"
+            # Also emit one ::warning:: per warning so they all appear
+            # individually in the timeline / PR Checks tab. The grep
+            # captures the rest of the line for context.
+            grep '^  ⚠ ' /tmp/doc-check.log | sed 's/^  ⚠ /::warning::/'
+          fi
+          exit $rc
+
+      # THE GATES GATE THE DEPLOY.
+      #
+      # Until this step existed, `checks.yml` ran typecheck / lint / prune and
+      # `lighthouse.yml` ran size:check — both IN PARALLEL
+      # with this workflow, neither able to stop it. So a push that failed any
+      # of them still uploaded its artifact and shipped to Pages; the red X
+      # arrived afterwards, on a build users already had. An earlier pass fixed
+      # "these gates run nowhere"; it did not fix "they gate nothing".
+      #
+      # The reachable case is not hypothetical: Vite/Rolldown transpiles
+      # without typechecking, so a `tsc` error builds and deploys perfectly
+      # happily. (`catalogue:check` was a fifth gate here until the app
+      # stopped shipping a catalogue at all — it now needs a
+      # `--csv` argument and is a reviewer tool, not a CI gate.)
+      #
+      # They run AFTER build (size:check needs dist/) and BEFORE the upload,
+      # each with `!cancelled()` so one push reports every class at once
+      # instead of one per re-run. Total added: ~12 s on a ~3 min job.
+      #
+      # Yes, this duplicates checks.yml on a push to main. That is deliberate
+      # and it is the cheap half of the trade: checks.yml gives fast, isolated
+      # feedback (and is the ONLY gate on pull requests), while this copy is
+      # the one that can actually hold the artifact back. A gate in a parallel
+      # workflow cannot block a deploy — that is the whole finding.
+      - name: TypeScript (strict)
+        if: ${{ !cancelled() && hashFiles('package.json') != '' }}
+        run: npm run typecheck
+
+      - name: ESLint
+        if: ${{ !cancelled() && hashFiles('package.json') != '' }}
+        run: npm run lint
+
+      - name: Dead code (knip)
+        if: ${{ !cancelled() && hashFiles('package.json') != '' }}
+        run: npm run prune
+
+      # The ONE gate that needs the build step to have SUCCEEDED, not merely to
+      # have been attempted. `npm test` and `npm run build` share that step, so
+      # a failing test means dist/ was never produced — and this gate then
+      # reported `dist/ not found`, which is the LAST error in the log and the
+      # first thing a reader sees. That is how a flaky test in the suite got
+      # diagnosed as a build problem. The `!cancelled()` intent is unchanged:
+      # every other gate still reports its own class on the same push.
+      - name: Bundle size budget
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
+        run: npm run size:check
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ env.ARTIFACT_PATH }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v5
+        id: deployment

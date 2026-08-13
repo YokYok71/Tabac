@@ -1,0 +1,95 @@
+# Automated dependency updates.
+#
+# Dependabot opens PRs when a new version of a dependency is available
+# OR when a CVE is published against one of our deps. We get the alert
+# without polling npm audit manually.
+#
+# Two ecosystems we depend on:
+#   - npm        : React, Vite, Vitest, fast-check, jsdom… (~70 deps)
+#   - github-actions : checkout, setup-node, deploy-pages, codeql-action…
+#
+# Schedule weekly so the PR backlog stays manageable. CVE alerts ignore
+# the schedule and fire immediately — Dependabot security updates run
+# regardless of the cadence below (controlled via repo Settings →
+# Code security → Dependabot alerts / security updates, enabled by
+# default on public repos).
+#
+# Auto-merge: NOT enabled. Each PR runs through CI (deploy.yml + codeql)
+# and a human eyeballs the changelog before merging — we don't want a
+# silent breaking minor.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
+    # Group patch + minor bumps of the same scope into a single PR.
+    # Major bumps get their own PR (more careful review needed).
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+        update-types: ["minor", "patch"]
+      vite:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+        update-types: ["minor", "patch"]
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+        update-types: ["minor", "patch"]
+      testing:
+        patterns:
+          - "@testing-library/*"
+          - "jest-axe"
+          - "fast-check"
+          - "jsdom"
+        update-types: ["minor", "patch"]
+      typescript:
+        patterns:
+          - "typescript"
+          - "@types/*"
+        update-types: ["minor", "patch"]
+      lint:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "typescript-eslint"
+          - "eslint-plugin-*"
+        update-types: ["minor", "patch"]
+    # Hold TypeScript on the v6 line. TS 7 (the native rewrite)
+    # type-checks our code cleanly, but `typescript-eslint`'s
+    # `typescript-estree` parser crashes on TS 7's changed compiler
+    # internals ("Cannot read properties of undefined (reading 'Cjs')"), so
+    # `npm run lint` — a CI gate — breaks. This ignores ONLY the TypeScript
+    # MAJOR bump; minor/patch on the v6 line still flow (see the `typescript`
+    # group above), and Dependabot SECURITY updates (CVEs) fire regardless
+    # of this ignore. Because the block hides the reminder PR, issue #97 is
+    # the persistent tracker: LIFT this ignore + bump TS when
+    # typescript-eslint ships TS 7 support (the unblock is a typescript-
+    # eslint release, NOT a new TS version).
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+    labels:
+      - "dependencies"
+      - "npm"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "github-actions"

@@ -1,0 +1,723 @@
+{
+  "blends": {
+    "halvorsen|duskfall": {
+      "name": "Duskfall",
+      "category": "Anglais",
+      "cut": "Ribbon",
+      "blend": "Virginia, Latakia, Perique",
+      "force": 4,
+      "roomNote": 3,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Duskfall, un anglais de démonstration.",
+        "en": "Synthetic sample: Duskfall, a demonstration anglais.",
+        "es": "Ejemplo sintético: Duskfall, un anglais de demostración.",
+        "de": "Synthetisches Beispiel: Duskfall, ein Demonstrations-Anglais.",
+        "it": "Esempio sintetico: Duskfall, un anglais dimostrativo.",
+        "pt": "Exemplo sintético: Duskfall, um anglais de demonstração."
+      },
+      "aliases": [
+        "Dusk Fall"
+      ]
+    },
+    "halvorsen|early tide": {
+      "name": "Early Tide",
+      "category": "Virginia",
+      "cut": "Flake",
+      "blend": "Golden Virginia",
+      "force": 2,
+      "roomNote": 2,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Early Tide, un virginia de démonstration.",
+        "en": "Synthetic sample: Early Tide, a demonstration virginia.",
+        "es": "Ejemplo sintético: Early Tide, un virginia de demostración.",
+        "de": "Synthetisches Beispiel: Early Tide, ein Demonstrations-Virginia.",
+        "it": "Esempio sintetico: Early Tide, un virginia dimostrativo.",
+        "pt": "Exemplo sintético: Early Tide, um virginia de demonstração."
+      }
+    },
+    "halvorsen|harbour mixture": {
+      "name": "Harbour Mixture",
+      "category": "Balkan",
+      "cut": "Ribbon",
+      "blend": "Virginia, Oriental",
+      "force": 3,
+      "roomNote": 3,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Harbour Mixture, un balkan de démonstration.",
+        "en": "Synthetic sample: Harbour Mixture, a demonstration balkan.",
+        "es": "Ejemplo sintético: Harbour Mixture, un balkan de demostración.",
+        "de": "Synthetisches Beispiel: Harbour Mixture, ein Demonstrations-Balkan.",
+        "it": "Esempio sintetico: Harbour Mixture, un balkan dimostrativo.",
+        "pt": "Exemplo sintético: Harbour Mixture, um balkan de demonstração."
+      }
+    },
+    "halvorsen|regent mixture": {
+      "name": "Regent Mixture",
+      "category": "Anglais",
+      "cut": "Ready Rubbed",
+      "blend": "Virginia, Latakia",
+      "force": 3,
+      "roomNote": 2,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Regent Mixture, un anglais de démonstration.",
+        "en": "Synthetic sample: Regent Mixture, a demonstration anglais.",
+        "es": "Ejemplo sintético: Regent Mixture, un anglais de demostración.",
+        "de": "Synthetisches Beispiel: Regent Mixture, ein Demonstrations-Anglais.",
+        "it": "Esempio sintetico: Regent Mixture, un anglais dimostrativo.",
+        "pt": "Exemplo sintético: Regent Mixture, um anglais de demonstração."
+      }
+    },
+    "r.t. mallow|kestrel": {
+      "name": "Kestrel",
+      "category": "Virginia",
+      "cut": "Flake",
+      "blend": "Red Virginia",
+      "force": 3,
+      "roomNote": 2,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Kestrel, un virginia de démonstration.",
+        "en": "Synthetic sample: Kestrel, a demonstration virginia.",
+        "es": "Ejemplo sintético: Kestrel, un virginia de demostración.",
+        "de": "Synthetisches Beispiel: Kestrel, ein Demonstrations-Virginia.",
+        "it": "Esempio sintetico: Kestrel, un virginia dimostrativo.",
+        "pt": "Exemplo sintético: Kestrel, um virginia de demonstração."
+      },
+      "aliases": [
+        "Kestrel"
+      ]
+    },
+    "r.t. mallow|windlass": {
+      "name": "Windlass",
+      "category": "Latakia",
+      "cut": "Ribbon",
+      "blend": "Latakia, Virginia",
+      "force": 4,
+      "roomNote": 4,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Windlass, un latakia de démonstration.",
+        "en": "Synthetic sample: Windlass, a demonstration latakia.",
+        "es": "Ejemplo sintético: Windlass, un latakia de demostración.",
+        "de": "Synthetisches Beispiel: Windlass, ein Demonstrations-Latakia.",
+        "it": "Esempio sintetico: Windlass, un latakia dimostrativo.",
+        "pt": "Exemplo sintético: Windlass, um latakia de demonstração."
+      }
+    },
+    "marlow & finch|crown of the north": {
+      "name": "Crown of the North",
+      "category": "Anglais",
+      "cut": "Ribbon",
+      "blend": "Latakia, Virginia, Oriental",
+      "force": 4,
+      "roomNote": 3,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Crown of the North, un anglais de démonstration.",
+        "en": "Synthetic sample: Crown of the North, a demonstration anglais.",
+        "es": "Ejemplo sintético: Crown of the North, un anglais de demostración.",
+        "de": "Synthetisches Beispiel: Crown of the North, ein Demonstrations-Anglais.",
+        "it": "Esempio sintetico: Crown of the North, un anglais dimostrativo.",
+        "pt": "Exemplo sintético: Crown of the North, um anglais de demonstração."
+      },
+      "aliases": [
+        "Crown of the North"
+      ]
+    },
+    "marlow & finch|adagio green": {
+      "name": "Adagio Green",
+      "category": "Aromatique",
+      "cut": "Ribbon",
+      "blend": "Cavendish",
+      "force": 2,
+      "roomNote": 3,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Adagio Green, un aromatique de démonstration.",
+        "en": "Synthetic sample: Adagio Green, a demonstration aromatique.",
+        "es": "Ejemplo sintético: Adagio Green, un aromatique de demostración.",
+        "de": "Synthetisches Beispiel: Adagio Green, ein Demonstrations-Aromatique.",
+        "it": "Esempio sintetico: Adagio Green, un aromatique dimostrativo.",
+        "pt": "Exemplo sintético: Adagio Green, um aromatique de demonstração."
+      }
+    },
+    "vondel|red label": {
+      "name": "Red Label",
+      "category": "VaPer",
+      "cut": "Flake",
+      "blend": "Virginia, Perique",
+      "force": 3,
+      "roomNote": 2,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Red Label, un vaper de démonstration.",
+        "en": "Synthetic sample: Red Label, a demonstration vaper.",
+        "es": "Ejemplo sintético: Red Label, un vaper de demostración.",
+        "de": "Synthetisches Beispiel: Red Label, ein Demonstrations-VaPer.",
+        "it": "Esempio sintetico: Red Label, un vaper dimostrativo.",
+        "pt": "Exemplo sintético: Red Label, um vaper de demonstração."
+      },
+      "aliases": [
+        "131",
+        "Vondel 131"
+      ]
+    },
+    "vondel|blue label": {
+      "name": "Blue Label",
+      "category": "Virginia",
+      "cut": "Flake",
+      "blend": "Virginia",
+      "force": 2,
+      "roomNote": 2,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Blue Label, un virginia de démonstration.",
+        "en": "Synthetic sample: Blue Label, a demonstration virginia.",
+        "es": "Ejemplo sintético: Blue Label, un virginia de demostración.",
+        "de": "Synthetisches Beispiel: Blue Label, ein Demonstrations-Virginia.",
+        "it": "Esempio sintetico: Blue Label, un virginia dimostrativo.",
+        "pt": "Exemplo sintético: Blue Label, um virginia de demonstração."
+      },
+      "aliases": [
+        "127",
+        "Vondel 127"
+      ]
+    },
+    "aldwych|centenary pipe tobacco": {
+      "name": "Centenary Pipe Tobacco",
+      "category": "Anglais",
+      "cut": "Ready Rubbed",
+      "blend": "Latakia, Virginia, Oriental",
+      "force": 4,
+      "roomNote": 3,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Centenary Pipe Tobacco, un anglais de démonstration.",
+        "en": "Synthetic sample: Centenary Pipe Tobacco, a demonstration anglais.",
+        "es": "Ejemplo sintético: Centenary Pipe Tobacco, un anglais de demostración.",
+        "de": "Synthetisches Beispiel: Centenary Pipe Tobacco, ein Demonstrations-Anglais.",
+        "it": "Esempio sintetico: Centenary Pipe Tobacco, un anglais dimostrativo.",
+        "pt": "Exemplo sintético: Centenary Pipe Tobacco, um anglais de demonstração."
+      },
+      "aliases": [
+        "50th Anniversary",
+        "Centenary",
+        "Centenary - 50th Anniversary"
+      ]
+    },
+    "fauconnier|rivière dorée": {
+      "name": "Rivière Dorée",
+      "category": "VaPer",
+      "cut": "Coins",
+      "blend": "Virginia, Perique",
+      "force": 3,
+      "roomNote": 2,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Rivière Dorée, un vaper de démonstration.",
+        "en": "Synthetic sample: Rivière Dorée, a demonstration vaper.",
+        "es": "Ejemplo sintético: Rivière Dorée, un vaper de demostración.",
+        "de": "Synthetisches Beispiel: Rivière Dorée, ein Demonstrations-VaPer.",
+        "it": "Esempio sintetico: Rivière Dorée, un vaper dimostrativo.",
+        "pt": "Exemplo sintético: Rivière Dorée, um vaper de demonstração."
+      },
+      "aliases": [
+        "Rivière Dorée"
+      ]
+    },
+    "corvane|flake blue": {
+      "name": "Flake Blue",
+      "category": "Virginia",
+      "cut": "Flake",
+      "blend": "Bright Virginia",
+      "force": 3,
+      "roomNote": 2,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Flake Blue, un virginia de démonstration.",
+        "en": "Synthetic sample: Flake Blue, a demonstration virginia.",
+        "es": "Ejemplo sintético: Flake Blue, un virginia de demostración.",
+        "de": "Synthetisches Beispiel: Flake Blue, ein Demonstrations-Virginia.",
+        "it": "Esempio sintetico: Flake Blue, un virginia dimostrativo.",
+        "pt": "Exemplo sintético: Flake Blue, um virginia de demonstração."
+      },
+      "aliases": [
+        "Corvane Flake Blue"
+      ]
+    },
+    "corvane|flake gold": {
+      "name": "Flake Gold",
+      "category": "Virginia",
+      "cut": "Flake",
+      "blend": "Golden Virginia",
+      "force": 2,
+      "roomNote": 2,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Flake Gold, un virginia de démonstration.",
+        "en": "Synthetic sample: Flake Gold, a demonstration virginia.",
+        "es": "Ejemplo sintético: Flake Gold, un virginia de demostración.",
+        "de": "Synthetisches Beispiel: Flake Gold, ein Demonstrations-Virginia.",
+        "it": "Esempio sintetico: Flake Gold, un virginia dimostrativo.",
+        "pt": "Exemplo sintético: Flake Gold, um virginia de demonstração."
+      }
+    },
+    "brackwater|tidewalk": {
+      "name": "Tidewalk",
+      "category": "Burley",
+      "cut": "Ready Rubbed",
+      "blend": "Burley, Virginia",
+      "force": 4,
+      "roomNote": 3,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Tidewalk, un burley de démonstration.",
+        "en": "Synthetic sample: Tidewalk, a demonstration burley.",
+        "es": "Ejemplo sintético: Tidewalk, un burley de demostración.",
+        "de": "Synthetisches Beispiel: Tidewalk, ein Demonstrations-Burley.",
+        "it": "Esempio sintetico: Tidewalk, un burley dimostrativo.",
+        "pt": "Exemplo sintético: Tidewalk, um burley de demonstração."
+      }
+    },
+    "østergaard|amber room": {
+      "name": "Amber Room",
+      "category": "Cavendish",
+      "cut": "Ribbon",
+      "blend": "Black Cavendish",
+      "force": 2,
+      "roomNote": 4,
+      "taste": 2,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Amber Room, un cavendish de démonstration.",
+        "en": "Synthetic sample: Amber Room, a demonstration cavendish.",
+        "es": "Ejemplo sintético: Amber Room, un cavendish de demostración.",
+        "de": "Synthetisches Beispiel: Amber Room, ein Demonstrations-Cavendish.",
+        "it": "Esempio sintetico: Amber Room, un cavendish dimostrativo.",
+        "pt": "Exemplo sintético: Amber Room, um cavendish de demonstração."
+      }
+    },
+    "pellworm|north light": {
+      "name": "North Light",
+      "category": "Écossais",
+      "cut": "Flake",
+      "blend": "Virginia, Latakia",
+      "force": 3,
+      "roomNote": 2,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : North Light, un écossais de démonstration.",
+        "en": "Synthetic sample: North Light, a demonstration écossais.",
+        "es": "Ejemplo sintético: North Light, un écossais de demostración.",
+        "de": "Synthetisches Beispiel: North Light, ein Demonstrations-Écossais.",
+        "it": "Esempio sintetico: North Light, un écossais dimostrativo.",
+        "pt": "Exemplo sintético: North Light, um écossais de demonstração."
+      }
+    },
+    "quillon|slate harbour": {
+      "name": "Slate Harbour",
+      "category": "Dark Fired",
+      "cut": "Plug",
+      "blend": "Dark Fired Kentucky",
+      "force": 5,
+      "roomNote": 3,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Slate Harbour, un dark fired de démonstration.",
+        "en": "Synthetic sample: Slate Harbour, a demonstration dark fired.",
+        "es": "Ejemplo sintético: Slate Harbour, un dark fired de demostración.",
+        "de": "Synthetisches Beispiel: Slate Harbour, ein Demonstrations-Dark Fired.",
+        "it": "Esempio sintetico: Slate Harbour, un dark fired dimostrativo.",
+        "pt": "Exemplo sintético: Slate Harbour, um dark fired de demonstração."
+      }
+    },
+    "ravensmoor|hedgerow": {
+      "name": "Hedgerow",
+      "category": "Aromatique",
+      "cut": "Loose Cut",
+      "blend": "Cavendish, Virginia",
+      "force": 2,
+      "roomNote": 4,
+      "taste": 2,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Hedgerow, un aromatique de démonstration.",
+        "en": "Synthetic sample: Hedgerow, a demonstration aromatique.",
+        "es": "Ejemplo sintético: Hedgerow, un aromatique de demostración.",
+        "de": "Synthetisches Beispiel: Hedgerow, ein Demonstrations-Aromatique.",
+        "it": "Esempio sintetico: Hedgerow, un aromatique dimostrativo.",
+        "pt": "Exemplo sintético: Hedgerow, um aromatique de demonstração."
+      }
+    },
+    "saltcote|marram": {
+      "name": "Marram",
+      "category": "Oriental",
+      "cut": "Shag",
+      "blend": "Oriental, Virginia",
+      "force": 3,
+      "roomNote": 3,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Marram, un oriental de démonstration.",
+        "en": "Synthetic sample: Marram, a demonstration oriental.",
+        "es": "Ejemplo sintético: Marram, un oriental de demostración.",
+        "de": "Synthetisches Beispiel: Marram, ein Demonstrations-Oriental.",
+        "it": "Esempio sintetico: Marram, un oriental dimostrativo.",
+        "pt": "Exemplo sintético: Marram, um oriental de demonstração."
+      }
+    },
+    "thurlow|old bench": {
+      "name": "Old Bench",
+      "category": "Virginia/Burley",
+      "cut": "Broken Flake",
+      "blend": "Virginia, Burley",
+      "force": 3,
+      "roomNote": 2,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Old Bench, un virginia/burley de démonstration.",
+        "en": "Synthetic sample: Old Bench, a demonstration virginia/burley.",
+        "es": "Ejemplo sintético: Old Bench, un virginia/burley de demostración.",
+        "de": "Synthetisches Beispiel: Old Bench, ein Demonstrations-Virginia/Burley.",
+        "it": "Esempio sintetico: Old Bench, un virginia/burley dimostrativo.",
+        "pt": "Exemplo sintético: Old Bench, um virginia/burley de demonstração."
+      }
+    },
+    "underhill|copperplate": {
+      "name": "Copperplate",
+      "category": "Perique",
+      "cut": "Rope",
+      "blend": "Perique, Virginia",
+      "force": 5,
+      "roomNote": 3,
+      "taste": 5,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Copperplate, un perique de démonstration.",
+        "en": "Synthetic sample: Copperplate, a demonstration perique.",
+        "es": "Ejemplo sintético: Copperplate, un perique de demostración.",
+        "de": "Synthetisches Beispiel: Copperplate, ein Demonstrations-Perique.",
+        "it": "Esempio sintetico: Copperplate, un perique dimostrativo.",
+        "pt": "Exemplo sintético: Copperplate, um perique de demonstração."
+      }
+    },
+    "vellacott|ember lane": {
+      "name": "Ember Lane",
+      "category": "Lakeland",
+      "cut": "Flake",
+      "blend": "Virginia, Cavendish",
+      "force": 3,
+      "roomNote": 4,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Ember Lane, un lakeland de démonstration.",
+        "en": "Synthetic sample: Ember Lane, a demonstration lakeland.",
+        "es": "Ejemplo sintético: Ember Lane, un lakeland de demostración.",
+        "de": "Synthetisches Beispiel: Ember Lane, ein Demonstrations-Lakeland.",
+        "it": "Esempio sintetico: Ember Lane, un lakeland dimostrativo.",
+        "pt": "Exemplo sintético: Ember Lane, um lakeland de demonstração."
+      }
+    },
+    "wrayburn|tallow hill": {
+      "name": "Tallow Hill",
+      "category": "Cigare",
+      "cut": "Ribbon",
+      "blend": "Cigar Leaf, Burley",
+      "force": 4,
+      "roomNote": 3,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Tallow Hill, un cigare de démonstration.",
+        "en": "Synthetic sample: Tallow Hill, a demonstration cigare.",
+        "es": "Ejemplo sintético: Tallow Hill, un cigare de demostración.",
+        "de": "Synthetisches Beispiel: Tallow Hill, ein Demonstrations-Cigare.",
+        "it": "Esempio sintetico: Tallow Hill, un cigare dimostrativo.",
+        "pt": "Exemplo sintético: Tallow Hill, um cigare de demonstração."
+      }
+    },
+    "yarrowmere|green fell": {
+      "name": "Green Fell",
+      "category": "Turkish",
+      "cut": "Ribbon",
+      "blend": "Turkish, Virginia",
+      "force": 2,
+      "roomNote": 2,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Green Fell, un turkish de démonstration.",
+        "en": "Synthetic sample: Green Fell, a demonstration turkish.",
+        "es": "Ejemplo sintético: Green Fell, un turkish de demostración.",
+        "de": "Synthetisches Beispiel: Green Fell, ein Demonstrations-Turkish.",
+        "it": "Esempio sintetico: Green Fell, un turkish dimostrativo.",
+        "pt": "Exemplo sintético: Green Fell, um turkish de demonstração."
+      }
+    },
+    "zelkova|paper lantern": {
+      "name": "Paper Lantern",
+      "category": "Anglais aromatique",
+      "cut": "Ribbon",
+      "blend": "Latakia, Cavendish",
+      "force": 3,
+      "roomNote": 4,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Paper Lantern, un anglais aromatique de démonstration.",
+        "en": "Synthetic sample: Paper Lantern, a demonstration anglais aromatique.",
+        "es": "Ejemplo sintético: Paper Lantern, un anglais aromatique de demostración.",
+        "de": "Synthetisches Beispiel: Paper Lantern, ein Demonstrations-Anglais aromatique.",
+        "it": "Esempio sintetico: Paper Lantern, un anglais aromatique dimostrativo.",
+        "pt": "Exemplo sintético: Paper Lantern, um anglais aromatique de demonstração."
+      }
+    },
+    "ashgrove|winter barrow": {
+      "name": "Winter Barrow",
+      "category": "Virginia/Latakia",
+      "cut": "Cube Cut",
+      "blend": "Virginia, Latakia",
+      "force": 3,
+      "roomNote": 3,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Winter Barrow, un virginia/latakia de démonstration.",
+        "en": "Synthetic sample: Winter Barrow, a demonstration virginia/latakia.",
+        "es": "Ejemplo sintético: Winter Barrow, un virginia/latakia de demostración.",
+        "de": "Synthetisches Beispiel: Winter Barrow, ein Demonstrations-Virginia/Latakia.",
+        "it": "Esempio sintetico: Winter Barrow, un virginia/latakia dimostrativo.",
+        "pt": "Exemplo sintético: Winter Barrow, um virginia/latakia de demonstração."
+      }
+    },
+    "bellhaven|kiln road": {
+      "name": "Kiln Road",
+      "category": "Américain",
+      "cut": "Ribbon",
+      "blend": "Burley, Virginia",
+      "force": 3,
+      "roomNote": 3,
+      "taste": 3,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Kiln Road, un américain de démonstration.",
+        "en": "Synthetic sample: Kiln Road, a demonstration américain.",
+        "es": "Ejemplo sintético: Kiln Road, un américain de demostración.",
+        "de": "Synthetisches Beispiel: Kiln Road, ein Demonstrations-Américain.",
+        "it": "Esempio sintetico: Kiln Road, un américain dimostrativo.",
+        "pt": "Exemplo sintético: Kiln Road, um américain de demonstração."
+      }
+    },
+    "cranmere|salt marsh": {
+      "name": "Salt Marsh",
+      "category": "Balkan",
+      "cut": "Ribbon",
+      "blend": "Oriental, Latakia",
+      "force": 4,
+      "roomNote": 3,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Salt Marsh, un balkan de démonstration.",
+        "en": "Synthetic sample: Salt Marsh, a demonstration balkan.",
+        "es": "Ejemplo sintético: Salt Marsh, un balkan de demostración.",
+        "de": "Synthetisches Beispiel: Salt Marsh, ein Demonstrations-Balkan.",
+        "it": "Esempio sintetico: Salt Marsh, un balkan dimostrativo.",
+        "pt": "Exemplo sintético: Salt Marsh, um balkan de demonstração."
+      }
+    },
+    "dunmarrow|foxglove": {
+      "name": "Foxglove",
+      "category": "Latakia",
+      "cut": "Twist",
+      "blend": "Virginia",
+      "force": 4,
+      "roomNote": 3,
+      "taste": 4,
+      "agingMax": "",
+      "description": {
+        "fr": "Exemple synthétique : Foxglove, un latakia de démonstration.",
+        "en": "Synthetic sample: Foxglove, a demonstration latakia.",
+        "es": "Ejemplo sintético: Foxglove, un latakia de demostración.",
+        "de": "Synthetisches Beispiel: Foxglove, ein Demonstrations-Latakia.",
+        "it": "Esempio sintetico: Foxglove, un latakia dimostrativo.",
+        "pt": "Exemplo sintético: Foxglove, um latakia de demonstração."
+      }
+    }
+  },
+  "brands": {
+    "halvorsen": {
+      "displayName": "Halvorsen",
+      "country": "?",
+      "tier": 3,
+      "status": "active",
+      "aliases": [
+        "Halvorsen & Son",
+        "Halvorsen of Bergen"
+      ]
+    },
+    "r.t. mallow": {
+      "displayName": "R.T. Mallow",
+      "country": "?",
+      "tier": 3,
+      "status": "active",
+      "aliases": [
+        "RT Mallow"
+      ]
+    },
+    "marlow & finch": {
+      "displayName": "Marlow & Finch",
+      "country": "?",
+      "tier": 3,
+      "status": "active",
+      "aliases": [
+        "M&F",
+        "Marlow and Finch"
+      ]
+    },
+    "vondel": {
+      "displayName": "Vondel",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "aldwych": {
+      "displayName": "Aldwych",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "fauconnier": {
+      "displayName": "Fauconnier",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "corvane": {
+      "displayName": "Corvane",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "brackwater": {
+      "displayName": "Brackwater",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "østergaard": {
+      "displayName": "Østergaard",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "pellworm": {
+      "displayName": "Pellworm",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "quillon": {
+      "displayName": "Quillon",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "ravensmoor": {
+      "displayName": "Ravensmoor",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "saltcote": {
+      "displayName": "Saltcote",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "thurlow": {
+      "displayName": "Thurlow",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "underhill": {
+      "displayName": "Underhill",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "vellacott": {
+      "displayName": "Vellacott",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "wrayburn": {
+      "displayName": "Wrayburn",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "yarrowmere": {
+      "displayName": "Yarrowmere",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "zelkova": {
+      "displayName": "Zelkova",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "ashgrove": {
+      "displayName": "Ashgrove",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "bellhaven": {
+      "displayName": "Bellhaven",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "cranmere": {
+      "displayName": "Cranmere",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    },
+    "dunmarrow": {
+      "displayName": "Dunmarrow",
+      "country": "?",
+      "tier": 3,
+      "status": "active"
+    }
+  }
+}

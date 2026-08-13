@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nouveautés — Ma Cave à Tabac</title>
+<style>
+  body{background:#13110e;color:#c8b99a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:680px;margin:0 auto;padding:32px 20px;line-height:1.7;}
+  h1{color:#e8dcc6;font-size:24px;margin-bottom:4px;}
+  h2{color:#e8dcc6;font-size:18px;margin-top:32px;margin-bottom:6px;border-bottom:1px solid #3d3428;padding-bottom:4px;}
+  h3{color:#cb8528;font-size:14px;margin-top:14px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;}
+  p,li{font-size:15px;color:#c8b99a;}
+  ul{padding-left:20px;margin:4px 0 10px;}
+  li{margin-bottom:3px;}
+  a{color:#cb8528;text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  .subtitle{color:#655846;font-size:13px;margin-bottom:32px;}
+  .back{display:inline-block;margin-bottom:24px;color:#8f7f68;font-size:14px;}
+  .tag{display:inline-block;background:#252019;border:1px solid #3d3428;border-radius:6px;padding:2px 10px;font-size:12px;color:#cb8528;margin-right:6px;vertical-align:middle;}
+  hr{border:none;border-top:1px solid #3d3428;margin:28px 0;}
+  strong{color:#e8dcc6;}
+  .date{font-size:12px;color:#655846;margin-left:4px;}
+  .lang-btn{float:right;margin-top:4px;padding:4px 12px;border-radius:6px;border:1px solid #3d3428;background:transparent;color:#8f7f68;font-size:12px;cursor:pointer;font-weight:700;letter-spacing:1px;}
+  .lang-btn:hover{color:#c8b99a;border-color:#655846;}
+  .section{display:none;}
+  .section.active{display:block;}
+</style>
+</head>
+<body>
+<script>
+  (function(){
+    function blocks(){return Array.prototype.slice.call(document.querySelectorAll('[id^="sec-"]'));}
+    function codes(){return blocks().map(function(b){return b.id.slice(4);});}
+    function resolve(req){
+      var c=codes();
+      if(c.indexOf(req)>=0)return req;
+      if(c.indexOf("en")>=0)return "en";
+      if(c.indexOf("fr")>=0)return "fr";
+      return c[0];
+    }
+    // `stored` is a SNAPSHOT of the global preference and is never reassigned;
+    // `lang` is the in-page view and changes on every tap. An earlier version computed
+    // `persist` from `lang` — which switchLang rewrites at the end of its own
+    // body — so only the FIRST tap was guarded and the second overwrote the
+    // preference anyway. The two must be separate variables.
+    var stored=localStorage.getItem("cave-lang")||"";
+    var lang=stored;
+    function render(){
+      var cur=resolve(lang),c=codes(),next=c[(c.indexOf(cur)+1)%c.length];
+      blocks().forEach(function(b){b.className="section"+(b.id==="sec-"+cur?" active":"");});
+      Array.prototype.slice.call(document.querySelectorAll(".lang-btn")).forEach(function(btn){btn.textContent=next.toUpperCase();});
+      document.documentElement.lang=cur;
+      // The tab title once followed no language at all — privacy.html read
+      // French for a German reader, and that page is served standalone at a
+      // public URL (the link CLAUDE.md preserves for Google OAuth review), so
+      // its title is the first thing a reviewer sees. Taken from the active
+      // section's own <h1> rather than a per-language table, which keeps a new
+      // language additive: author the section, the title follows.
+      try{
+        var _b=document.getElementById("sec-"+cur),_h=_b&&_b.querySelector("h1");
+        if(_h&&_h.textContent){
+          var _t=_h.textContent.replace(/^[^A-Za-zÀ-ÿ]+/,"").trim();
+          if(_t) document.title=_t+" — Ma Cave à Tabac";
+        }
+      }catch(e){/* title is cosmetic; never let it break the page */}
+    }
+    window.switchLang=function(){
+      var c=codes(),cur=resolve(lang);
+      // Only PERSIST the choice when the stored language is one this page
+      // actually carries. Every doc page ships all six languages today, so this
+      // condition is ALWAYS TRUE and the guard never fires — it is DELIBERATELY
+      // KEPT, not dead code, and here is what it costs to lose. A page carrying
+      // a SUBSET used to exist (an fr/en archive). A Spanish reader tapping the
+      // toggle there had their WHOLE app switched to French in one tap, and
+      // since the toggle only cycled fr<->en there was no way back to Spanish
+      // from that page. Measured by replaying this logic: codes=[fr,en] with a
+      // stored "es" wrote cave-lang="fr".
+      // The moment any doc page ships in fewer than six languages the guard
+      // matters again, and whoever adds it will not think of this. Page-local
+      // toggling is unaffected either way; only the global write is gated.
+      // Persist unless this page would NARROW a preference it cannot offer back.
+      // Read the SNAPSHOT, not `lang`: `lang` is rewritten on the line below, so
+      // reading it here made every tap after the first look "available" and
+      // defeated the guard entirely. An EMPTY stored value means no
+      // preference exists yet, so there is nothing to narrow and persisting is
+      // correct — that version also broke that case on the five-language pages, where
+      // a visitor arriving from a bookmark lost their first choice.
+      var persist=stored===""||c.indexOf(stored)>=0;
+      lang=c[(c.indexOf(cur)+1)%c.length];
+      if(persist)localStorage.setItem("cave-lang",lang);
+      render();
+    };
+    document.addEventListener("DOMContentLoaded",render);
+  })();
+</script>
+
+<!-- ═══════════════ FRANÇAIS ═══════════════ -->
+<div id="sec-fr" class="section">
+<a class="back" href="./">← Ma Cave à Tabac</a>
+<button class="lang-btn" id="lang-toggle" onclick="switchLang()">EN</button>
+<h1>📋 Nouveautés</h1>
+<p class="subtitle">Ma Cave à Tabac v1.0</p>
+<h2><span class="tag">v1.0 · Build 1</span> Première version publique <span class="date">août 2026</span></h2>
+<h3>Nouveau</h3>
+<ul>
+  <li><strong>Ma Cave à Tabac 1.0.</strong> L'application gère votre cave de tabac à pipe et votre collection de pipes : tabacs et lots, pipes et carnet d'entretien, accessoires, journal de dégustation, statistiques, liste d'envies et liste de courses.</li>
+  <li>Tout reste <strong>sur votre appareil</strong>. La sauvegarde vers Google Drive ou Dropbox est optionnelle, et l'export en JSON, CSV ou ZIP vous appartient.</li>
+  <li>Six langues, thème clair et sombre, trois palettes, et une taille de texte réglable.</li>
+</ul>
+</div>
+
+
+<!-- ═══════════════ ENGLISH ═══════════════ -->
+<div id="sec-en" class="section">
+<a class="back" href="./">← My Tobacco Cellar</a>
+<button class="lang-btn" id="lang-toggle" onclick="switchLang()">FR</button>
+<h1>📋 What's new</h1>
+<p class="subtitle">My Tobacco Cellar v1.0</p>
+<h2><span class="tag">v1.0 · Build 1</span> First public release <span class="date">August 2026</span></h2>
+<h3>New</h3>
+<ul>
+  <li><strong>My Tobacco Cellar 1.0.</strong> The app manages your pipe-tobacco cellar and your pipe collection: tobaccos and lots, pipes and their maintenance log, accessories, a tasting journal, statistics, a wishlist and a shopping list.</li>
+  <li>Everything stays <strong>on your device</strong>. Backing up to Google Drive or Dropbox is optional, and the JSON, CSV and ZIP exports are yours.</li>
+  <li>Six languages, light and dark mode, three palettes, and an adjustable text size.</li>
+</ul>
+</div>
+
+
+<!-- ═══════════════ ESPAÑOL ═══════════════ -->
+<div id="sec-es" class="section">
+<h1>📋 Novedades</h1>
+<p class="subtitle">Mi Bodega de Tabaco v1.0</p>
+<h2><span class="tag">v1.0 · Build 1</span> Primera versión pública <span class="date">agosto de 2026</span></h2>
+<h3>Novedad</h3>
+<ul>
+  <li><strong>Mi Bodega de Tabaco 1.0.</strong> La aplicación gestiona tu bodega de tabaco de pipa y tu colección de pipas: tabacos y lotes, pipas y su libro de mantenimiento, accesorios, diario de catas, estadísticas, lista de deseos y lista de la compra.</li>
+  <li>Todo permanece <strong>en tu dispositivo</strong>. La copia de seguridad en Google Drive o Dropbox es opcional, y las exportaciones en JSON, CSV y ZIP son tuyas.</li>
+  <li>Seis idiomas, modo claro y oscuro, tres paletas y un tamaño de texto ajustable.</li>
+</ul>
+</div>
+
+
+<!-- ═══════════════ DEUTSCH ═══════════════ -->
+<div id="sec-de" class="section">
+<h1>📋 Neuigkeiten</h1>
+<p class="subtitle">Mein Tabakkeller v1.0</p>
+<h2><span class="tag">v1.0 · Build 1</span> Erste öffentliche Version <span class="date">August 2026</span></h2>
+<h3>Neu</h3>
+<ul>
+  <li><strong>Mein Tabakkeller 1.0.</strong> Die App verwaltet deinen Pfeifentabak-Keller und deine Pfeifensammlung: Tabake und Chargen, Pfeifen und ihr Pflegebuch, Zubehör, Verkostungs-Journal, Statistiken, Wunschliste und Einkaufsliste.</li>
+  <li>Alles bleibt <strong>auf deinem Gerät</strong>. Die Sicherung in Google Drive oder Dropbox ist optional, und die JSON-, CSV- und ZIP-Exporte gehören dir.</li>
+  <li>Sechs Sprachen, heller und dunkler Modus, drei Paletten und eine einstellbare Textgröße.</li>
+</ul>
+</div>
+
+
+<!-- ═══════════════ ITALIANO ═══════════════ -->
+<div id="sec-it" class="section">
+<h1>📋 Novità</h1>
+<p class="subtitle">La Mia Cantina di Tabacco v1.0</p>
+<h2><span class="tag">v1.0 · Build 1</span> Prima versione pubblica <span class="date">agosto 2026</span></h2>
+<h3>Novità</h3>
+<ul>
+  <li><strong>La Mia Cantina di Tabacco 1.0.</strong> L'app gestisce la tua cantina di tabacco da pipa e la tua collezione di pipe: tabacchi e lotti, pipe e il loro libretto di manutenzione, accessori, diario delle degustazioni, statistiche, lista dei desideri e lista della spesa.</li>
+  <li>Tutto resta <strong>sul tuo dispositivo</strong>. Il backup su Google Drive o Dropbox è facoltativo, e le esportazioni in JSON, CSV e ZIP sono tue.</li>
+  <li>Sei lingue, tema chiaro e scuro, tre palette e una dimensione del testo regolabile.</li>
+</ul>
+</div>
+<div id="sec-pt" class="section">
+<a class="back" href="./">← A Minha Adega de Tabaco</a>
+<button class="lang-btn" id="lang-toggle" onclick="switchLang()">FR</button>
+<h1>📋 Novidades</h1>
+<p class="subtitle">A Minha Adega de Tabaco v1.0</p>
+<h2><span class="tag">v1.0 · Build 1</span> Primeira versão pública <span class="date">agosto de 2026</span></h2>
+<h3>Novo</h3>
+<ul>
+  <li><strong>A Minha Adega de Tabaco 1.0.</strong> A aplicação gere a sua adega de tabaco de cachimbo e a sua coleção de cachimbos: tabacos e lotes, cachimbos e o respetivo livro de manutenção, acessórios, diário de provas, estatísticas, lista de desejos e lista de compras.</li>
+  <li>Tudo permanece <strong>no seu dispositivo</strong>. A cópia de segurança para o Google Drive ou Dropbox é opcional, e os ficheiros exportados em JSON, CSV e ZIP são seus.</li>
+  <li>Seis idiomas, modo claro e escuro, três paletas e um tamanho de texto ajustável.</li>
+</ul>
+</div>
+
+
+<!-- ═══════════════ ESPAÑOL ═══════════════ -->
+
+</body>
+</html>
