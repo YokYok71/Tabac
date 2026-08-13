@@ -53,7 +53,7 @@ export var APP_VERSION = "1.0";
  * about to move backwards or restart.
  */
 export var APP_GENERATION = 2;
-export var APP_BUILD = "4";
+export var APP_BUILD = "5";
 
 export var CATS = ["Américain","Anglais","Anglais aromatique","Aromatique","Balkan","Burley","Cavendish","Cigare","Dark Fired","Écossais","Lakeland","Latakia","Oriental","Perique","Turkish","VaPer","Virginia","Virginia/Burley","Virginia/Latakia","Autre"] as const;
 export var CATS_EN: Record<string, string> = {"Américain":"American",Anglais:"English","Anglais aromatique":"English aromatic",Aromatique:"Aromatic",Balkan:"Balkan",Burley:"Burley",Cavendish:"Cavendish",Cigare:"Cigar","Dark Fired":"Dark Fired","Écossais":"Scottish",Lakeland:"Lakeland",Latakia:"Latakia",Oriental:"Oriental",Perique:"Perique",Turkish:"Turkish",VaPer:"VaPer",Virginia:"Virginia","Virginia/Burley":"Virginia/Burley","Virginia/Latakia":"Virginia/Latakia",Autre:"Other"};
@@ -145,6 +145,47 @@ export var CUT_MAP: Record<string, string> = Object.assign(Object.create(null), 
   "Granulated": "Loose Cut",
   "Mixture": "Loose Cut",
 });
+
+// THE VALUE A FILE MAY CARRY IS THE VALUE THE FORM OFFERS. The two
+// maps above hold the trade labels a source writes; this fold adds the labels
+// the APP ITSELF shows. Without it the entry form and the import contract
+// disagreed: the form imposes a closed list rendered through `xl()`, so a
+// Spanish user picks « Cigarro » on screen — and writing that same word into a
+// catalogue CSV was refused, because canonicalisation folded against `CATS`
+// (French) and the English aliases alone. MEASURED at the time: 26 of the
+// values the guide listed, across the five non-French languages, were ones the
+// app rejected. A user cannot be asked to write a word their app never shows
+// them.
+//
+// DERIVED, never typed. The per-language maps ARE the dropdown, so reading them
+// here is what stops the two drifting — the failure this repo has paid for with
+// `FAMILY_AGING_MAX` mirrored into an importer and `CATS` copied into a
+// validator. A new language, or a relabelled value, reaches the import contract
+// with no edit here.
+//
+// Nothing skips a collision on purpose: a translation that lands on an
+// already-canonical value must fail LOUDLY in `enumMapsSingleSource.test.ts`
+// rather than be silently dropped here, since `mapCategory` reads these maps
+// directly and would otherwise misroute it. Canonical values still win inside
+// `buildCanon`, which appends them last.
+(function foldDisplayLabelsIntoImportMaps() {
+  var pairs: [Record<string, string>, Record<string, string>[]][] = [
+    [CAT_MAP, [CATS_EN, CATS_ES, CATS_DE, CATS_IT, CATS_PT]],
+    [CUT_MAP, [CUTS_EN, CUTS_ES, CUTS_DE, CUTS_IT, CUTS_PT]],
+  ];
+  for (var i = 0; i < pairs.length; i++) {
+    var target = pairs[i]![0], sources = pairs[i]![1];
+    for (var j = 0; j < sources.length; j++) {
+      var m = sources[j]!;
+      for (var canonical in m) {
+        var label = m[canonical];
+        if (!label || label === canonical) continue;
+        if (target[label] === undefined) target[label] = canonical;
+      }
+    }
+  }
+})();
+
 /** Canonicalise a delivered / user-supplied category label. Unknown labels are
  *  returned VERBATIM — the CALLER decides whether that is a defect. The one
  *  consumer left is the browser importer, which keeps the label and reports
