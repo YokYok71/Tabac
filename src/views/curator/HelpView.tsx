@@ -131,7 +131,20 @@ const HELP_BODY_STYLES = `
 .help-body table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: ${fs(15)}; }
 .help-body th { background: ${C.bg2}; color: ${C.ivory}; text-align: left; padding: 8px 12px; border-bottom: 1px solid ${C.rule}; }
 .help-body td { padding: 8px 12px; border-bottom: 1px solid ${C.bg2}; vertical-align: top; color: ${C.tx}; }
-.help-body td:first-child { color: ${C.brass}; white-space: nowrap; font-weight: 500; }
+/* The label column stops being \`nowrap\`, and it is the TABLE that was
+   broken, not the row that revealed it. \`white-space: nowrap\` on a column
+   means the table can never be narrower than its longest label, so a table
+   whose \`width: 100%\` promises to fit its parent silently did not: MEASURED
+   in German at the "L" text size on a 360 px screen, all SEVEN tables of the
+   guide ran 346-450 px inside a 334 px body, and the right-hand column was
+   painted off the page. It surfaced the day a row was added whose second cell
+   reached far enough right for \`i18n:layout\` to flag the text — the overflow
+   itself predated it by a long way.
+   \`nowrap\` was there to keep a two-word label ("Room Note ★") on one line;
+   \`balance\` keeps that intent where there is room and lets the label wrap
+   where there is not, which is the only way a 100 %-width table can honour
+   its own width. */
+.help-body td:first-child { color: ${C.brass}; text-wrap: balance; font-weight: 500; }
 .help-body .badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: ${fs(14)}; font-weight: 700; white-space: nowrap; }
 .help-body .badge-cave { background: ${C.docBadgeCave}; color: ${C.sage}; }
 .help-body .badge-pot { background: ${C.docBadgePot}; color: ${C.brassHi}; }
