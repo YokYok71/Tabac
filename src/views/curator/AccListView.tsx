@@ -478,7 +478,14 @@ function AccessoryCard({
             }}>{t ? t("acc_retired") : "Retiré"}</div>
           )}
         </div>
-        <div style={{ flex: 1, padding: "12px 14px" }}>
+        {/* `minWidth: 0` for the same reason as the tobacco and pipe cards: a
+            flex item defaults to `min-width: auto`, so without it this column
+            cannot shrink below its widest child and pushes the card's hidden
+            overflow. The pipe card was measurably cut in German at the "L" text
+            size; this one is the twin that had not been looked at, and the
+            layout matrix passing on it today is a property of the seeded
+            strings, not of the layout. */}
+        <div style={{ flex: 1, minWidth: 0, padding: "12px 14px" }}>
           <Lbl color={color}>{a.brand || "—"}</Lbl>
           <div style={{
             fontFamily: F.display, fontSize: fs(20), color: C.ivory,

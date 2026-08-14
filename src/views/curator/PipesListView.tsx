@@ -583,8 +583,19 @@ function PipeCard({ p, idx, onOpen, restDays, maintDue }: {
             ? <div style={{ width: "100%", height: "100%", background: `${safeBgUrl(photoSrc)} center/contain no-repeat` }} />
             : <Ico name="pipe" size={36} sw={1.2} />}
         </div>
-        <div style={{ flex: 1, padding: "12px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        {/* `minWidth: 0` is load-bearing: a flex item defaults to
+            `min-width: auto`, so this column refused to shrink below its own
+            min-content and pushed its children past the card's hidden overflow.
+            MEASURED at 360px in German at the "L" text size: the column wanted
+            253px where the card offered 234, and the name, the spec line and
+            the retired badge were each cut 5px short. Same default, same fix as
+            the inventory toggles, the Stats legend and the Settings rows. */}
+        <div style={{ flex: 1, minWidth: 0, padding: "12px 14px" }}>
+          {/* Wraps because the badge is a single unbreakable word — German
+              "AUSGEMUSTERT" alone measures 117px of the 206 this row gets — so
+              shrinking is not available and the alternative to a second line is
+              clipping the brand. Costs a line only where the pair does not fit. */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
             <Lbl color={color}>{p.brand || "—"}</Lbl>
             {!active && (
               <span style={{
