@@ -1810,22 +1810,21 @@ function App() {
   //     gesture and the guide's own × both return to the page you were reading
   //     — `pushDrillOrigin` rather than `pushLoc`, because a bare dock page is
   //     exactly what `pushLoc` skips.
-  // (2) It EXPANDS the section for that page and asks the view to scroll to
-  //     it. A guide that opens at section 1 makes the reader hunt for what they
-  //     were already looking at; the sections are collapsible, so leaving the
-  //     rest folded is free.
+  // (2) It asks the view to scroll to the section for that page, with
+  //     EVERYTHING FOLDED. Opening at section 1 would make the reader hunt for
+  //     what they were already looking at; opening with that one section
+  //     unfolded — which is what this did at first — drops them into a wall of
+  //     prose instead of the list of what the guide covers. Folded and
+  //     positioned is both: they see the whole table of contents AND where
+  //     they are in it. Requested from the app.
   // (3) `helpFocusKey` is consumed ONCE by HelpView and cleared — the
   //     `catalogSeed` / `wishFocusId` shape — so re-opening the guide from
   //     Settings later does not silently re-scroll to a page you have left.
   function openHelp(sectionKey?: string) {
     navHistoryRef.current = pushDrillOrigin(navHistoryRef.current, captureLoc());
-    if (sectionKey) {
-      // Expanding is a WRITE to the user's persisted fold state, and that is
-      // deliberate: they asked to read this section, so it stays open next
-      // time too. Collapsing anything else would not be.
-      if (collapsedHelpSections[sectionKey]) toggleHelpSection(sectionKey);
-      setHelpFocusKey(sectionKey);
-    }
+    // The FOLDING itself happens in HelpView, not here: the section keys come
+    // from the fetched document, which App has never parsed.
+    if (sectionKey) setHelpFocusKey(sectionKey);
     restoringBackRef.current = true;
     try { nav("help"); }
     finally { restoringBackRef.current = false; }

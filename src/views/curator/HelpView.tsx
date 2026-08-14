@@ -235,6 +235,16 @@ export function CuratorHelpView() {
   // re-render — a search keystroke, a fold toggled — would yank the page back.
   useEffect(() => {
     if (view !== "help" || !helpFocusKey || !sections) return;
+    // Fold everything FIRST, and return without consuming the key. Collapsing
+    // changes the page height, so a scroll computed in this same pass would
+    // aim at the pre-fold layout; returning lets the re-render come back
+    // through here with the final geometry, and the guard below makes that
+    // exactly one extra pass. Requested from the app: arriving on a wall of
+    // open prose hid the list of what the guide covers.
+    if (setAllHelpSectionsCollapsed && sections.some(x => !(collapsedHelpSections && collapsedHelpSections[x.key]))) {
+      setAllHelpSectionsCollapsed(true, sections.map(x => x.key));
+      return;
+    }
     const el = document.querySelector(`[data-help-key="${helpFocusKey}"]`);
     if (el) {
       const bar = document.querySelector("[data-topbar]");
@@ -244,7 +254,7 @@ export function CuratorHelpView() {
       catch (_e) { window.scrollTo(0, Math.max(0, y)); }
     }
     if (setHelpFocusKey) setHelpFocusKey("");
-  }, [view, helpFocusKey, sections, setHelpFocusKey]);
+  }, [view, helpFocusKey, sections, setHelpFocusKey, collapsedHelpSections, setAllHelpSectionsCollapsed]);
 
   const allKeys = sections ? sections.map(s => s.key) : [];
   const anyExpanded = allKeys.some(k => !(collapsedHelpSections && collapsedHelpSections[k]));
