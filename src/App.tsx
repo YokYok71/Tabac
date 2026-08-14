@@ -2227,9 +2227,6 @@ function App() {
     withPhotos,
     tkClear,
     tkGet,
-    backupsMeta,
-    setBackupsMeta,
-    gdriveRefreshBackupsMeta,
     gdriveDeleteBackupById,
     catalogueCloudSave,
     catalogueCloudRestore,
@@ -3469,9 +3466,6 @@ function App() {
     autoSaveDrive,
     setAutoSaveDrive,
     lastAutoSaveTs,
-    backupsMeta,
-    setBackupsMeta,
-    gdriveRefreshBackupsMeta,
     gdriveDeleteBackupById,
     // The catalogue's own cloud stream. Wrapped so the
     // Settings section can refresh its meta line after a restore — the hook

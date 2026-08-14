@@ -9,17 +9,17 @@
 //     clipboard call sites in the app handled the promise; this one, the
 //     newest, did not.
 //
-//   • BackupsListPanel counted auto / manual / unknown and charged the bytes
-//     of ALL files, so the catalogue stream was in the total and
-//     in no count: a 3.77 MB catalogue read as « 1 auto · 0 manuelle · total
-//     3,9 Mo », megabytes no line accounted for, above a row the user can
-//     delete. The panel's own prop type omitted "catalogue" too, which is why
-//     the mistyped file went unnoticed — TypeScript flagged it the moment the
-//     count was added.
+//   • SyncDiagView's counts line charges the bytes of ALL files and once
+//     named auto / manual / unknown only, so the catalogue stream was in the
+//     total and in no count: a 3.77 MB catalogue read as « 1 auto · 0
+//     manuelle · total 3,9 Mo », megabytes no line accounted for, above a row
+//     the user can delete. That guarantee used to live on a second panel over
+//     the same file list; the two were merged (« les mêmes informations
+//     s'affichent »), and it travelled with the counts rather than lapsing.
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent, waitFor } from "@testing-library/react";
-import { IssueListPanel, BackupsListPanel } from "../../views/curator/SettingsModal";
+import { IssueListPanel, SyncDiagView } from "../../views/curator/SettingsModal";
 
 const t = (k: string) => k;
 
@@ -120,49 +120,54 @@ describe("IssueListPanel — the chrome it must always carry", () => {
   });
 });
 
-describe("BackupsListPanel — every file in the total is in a count", () => {
-  const f = (id: string, type: string, size: string, name?: string) =>
-    ({ id, name: name || (id + ".json"), size, modifiedTime: "2026-01-01T00:00:00Z", type });
+describe("SyncDiagView — every file in the total is in a count", () => {
+  const f = (id: string, kind: string, size: string, name?: string) =>
+    ({ id, name: name || (id + ".json"), size, kind, ts: 1767225600000, status: "ignored", reason: "older" });
 
-  function renderBackups(all: any[]) {
-    const totalBytes = all.reduce((a, e) => a + (parseInt(e.size, 10) || 0), 0);
+  function renderRows(rows: any[]) {
     return render(
-      <BackupsListPanel
-        meta={{ auto: null, all, totalBytes, fetchedAt: 1 }}
+      <SyncDiagView
+        diag={{ deviceId: "abc123", provider: "gdrive", rows, devices: [] }}
         t={t as any} lang="fr"
       />,
     );
   }
 
   it("THE DEFECT: a catalogue file is counted, not only charged", () => {
-    const { container } = renderBackups([
+    const { container } = renderRows([
       f("a", "auto", "1000"),
       f("c", "catalogue", "3770000", "cave-tabac-catalogue-20260101.csv"),
     ]);
-    const head = container.textContent || "";
-    expect(head, "the catalogue count").toContain("1 bak_word_catalogue");
-    expect(head, "auto still counted").toContain("1 auto");
+    const txt = container.textContent || "";
+    expect(txt, "the catalogue count").toContain("1 bak_word_catalogue");
+    expect(txt, "auto still counted").toContain("1 auto");
   });
 
   it("…and says nothing about it when there is none", () => {
-    const { container } = renderBackups([f("a", "auto", "1000")]);
+    const { container } = renderRows([f("a", "auto", "1000")]);
     expect(container.textContent || "").not.toContain("bak_word_catalogue");
   });
 
   it("the row is identifiable rather than anonymous", () => {
     // It used to fall through to the `unknown` styling with no icon at all,
     // beside a delete button.
-    const { container } = renderBackups([f("c", "catalogue", "10", "cave-tabac-catalogue-x.csv")]);
+    const { container } = renderRows([f("c", "catalogue", "10", "cave-tabac-catalogue-x.csv")]);
     expect(container.textContent || "").toContain("📖");
   });
 
-  it("the three older kinds are unchanged", () => {
-    const { container } = renderBackups([
-      f("a", "auto", "1"), f("m", "manual", "1"), f("u", "unknown", "1"),
-    ]);
-    const head = container.textContent || "";
-    expect(head).toContain("1 auto");
-    expect(head).toContain("1 bak_word_manual");
-    expect(head).toContain("1 bak_word_other");
+  it("the size travels on the row, which is what made the merge free", () => {
+    // The second panel existed for the sizes. `explainCloudBackups` already
+    // received them and dropped them; carrying the size is what let one panel
+    // answer both questions with no extra fetch.
+    const { container } = renderRows([f("a", "auto", "1536")]);
+    expect(container.textContent || "").toContain("1.5 KB");
+  });
+
+  it("the total counts EVERY file, not the twenty displayed", () => {
+    const rows = Array.from({ length: 25 }, (_, i) => f("f" + i, "auto", "1000"));
+    const { container } = renderRows(rows);
+    const txt = container.textContent || "";
+    expect(txt, "25 x 1000 B = 24.4 KB").toContain("24.4 KB");
+    expect(txt, "the overflow is stated").toContain("backup_and_more");
   });
 });

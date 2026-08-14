@@ -492,23 +492,11 @@ export function useGdriveSync({
     ),
     lastAutoSaveTs = _lat[0],
     setLastAutoSaveTs = _lat[1];
-  // Backup metadata: exposes the current auto file and the
-  // full backup listing to the Settings UI for the indicator + the
-  // "Voir mes sauvegardes" panel. Populated by gdriveSaveQuiet (auto)
-  // and gdriveRefreshBackupsMeta (on-demand).
-  var _bmeta = useState<{
-    auto: { id: string; name: string; size?: string; modifiedTime?: string } | null;
-    all: Array<{ id: string; name: string; size?: string; modifiedTime?: string; type: "auto" | "manual" | "catalogue" | "unknown" }>;
-    totalBytes: number;
-    fetchedAt: number;
-  }>({
-    auto: null,
-    all: [],
-    totalBytes: 0,
-    fetchedAt: 0,
-  });
-  var backupsMeta = _bmeta[0];
-  var setBackupsMeta = _bmeta[1];
+  // (`backupsMeta` lived here — a second listing of the same cloud files,
+  // feeding a second Settings panel beside the multi-device diagnostic. The two
+  // were merged into one panel fed by `syncDiag`, so this state, its fetch pair
+  // and the optimistic writes that maintained it all went with it. One listing,
+  // one panel: the delete now updates the rows the user is looking at.)
   // Auth domain composed in — useGdriveAuth owns the token
   // ref, the OAuth capture (pendingOAuth), gdriveGetToken, reconnect
   // and the iOS save-tap reauth. The DISPATCHER effect below stays
@@ -589,18 +577,15 @@ export function useGdriveSync({
     triggerIosAutosaveReauthGdrive();
   }
 
-  // Hide the "Voir mes sauvegardes" panel when the user
-  // switches provider. backupsMeta is provider-scoped (Drive files
-  // vs. Dropbox files have different ids and counts), so showing the
-  // previous provider's list after a switch is misleading. The user
-  // can re-tap the button to fetch the new provider's list.
-  // Skip the first render so an initial cloudProviderId set at mount
-  // doesn't wipe a freshly-mounted panel.
+  // Drop every provider-scoped surface when the user switches provider: the
+  // file lists are not interchangeable (Drive and Dropbox ids and counts
+  // differ), so anything built from provider A is misleading — or worse,
+  // executes A's opaque file ids against B. Skip the first render so an
+  // initial cloudProviderId set at mount doesn't wipe a fresh panel.
   var prevCloudProviderId = useRef(cloudProviderId);
   useEffect(function () {
     if (prevCloudProviderId.current === cloudProviderId) return;
     prevCloudProviderId.current = cloudProviderId;
-    setBackupsMeta({ auto: null, all: [], totalBytes: 0, fetchedAt: 0 });
     // Every OTHER provider-scoped surface must go too.
     //
     // Only `backupsMeta` was cleared, so a restore picker, a newer-backup
@@ -1383,14 +1368,10 @@ export function useGdriveSync({
           runSyncDiagnostic(tk);
           return;
         }
-        setGdriveStatus(t("st_connecting"));
-        _gdriveListBackupsMeta(tk)
-          .then(function () { setGdriveStatus(null); })
-          .catch(function (e: any) {
-            var msg = (e && (e.message || e.error)) || t("err_prefix");
-            setGdriveStatus(t("err_prefix") + ": " + String(msg).substring(0, 150));
-            scheduleStatusClear(4000);
-          });
+        // The "list" action had two possible panels behind it and now has
+        // one: "Voir mes sauvegardes" and the multi-device diagnostic were
+        // merged, so every resumption of this action lands on the same view.
+        runSyncDiagnostic(tk);
         return;
       }
       // Banner-driven restore-by-id. The user tapped
@@ -1468,7 +1449,7 @@ export function useGdriveSync({
         return;
       }
       if (ac === "list") {
-        gdriveRefreshBackupsMeta();
+        runSyncDiagnostic();
         return;
       }
       // Banner-driven restore-by-id (Dropbox parity with
@@ -2235,17 +2216,6 @@ export function useGdriveSync({
             if (f && !f.error) {
               if (f.id) lsSet(AUTO_FID_KEY, f.id);
               _onSuccess();
-              // Optimistically refresh autoFileMeta with the freshly
-              // posted file's name + (approximate) size from the body
-              // we just sent. Drive returns id/name on POST but not
-              // size — we estimate from the JSON length. Settings can
-              // call gdriveRefreshBackupsMeta to get authoritative
-              // numbers later.
-              setBackupsMeta(function (prev) {
-                return Object.assign({}, prev, {
-                  auto: { id: f.id || "", name: newName, size: String(json.length), modifiedTime: new Date().toISOString() },
-                });
-              });
               // Even on a fresh POST, sweep this device's
               // own (and legacy unstamped) auto stragglers from the prior
               // listing — that's exactly the "lost auto-fid → new file
@@ -2299,11 +2269,6 @@ export function useGdriveSync({
               var keepId = f.id || fid;
               lsSet(AUTO_FID_KEY, keepId);
               _onSuccess();
-              setBackupsMeta(function (prev) {
-                return Object.assign({}, prev, {
-                  auto: { id: keepId, name: newName, size: String(json.length), modifiedTime: new Date().toISOString() },
-                });
-              });
               // Sweep this device's own + legacy auto
               // stragglers, keeping only the file we just wrote (keepId).
               // For Drive, keepId === fid (PATCH in place) so the target
@@ -2645,106 +2610,30 @@ export function useGdriveSync({
         // immediately; recompute total + auto pointer. If Drive
         // accepted the DELETE, the next refresh confirms; if it
         // didn't, the user can re-open the panel to re-sync.
-        setBackupsMeta(function (prev) {
-          var newAll = (prev.all || []).filter(function (e: any) { return e.id !== fileId; });
-          var newTotal = newAll.reduce(function (acc: number, e: any) {
-            return acc + (parseInt(e.size, 10) || 0);
-          }, 0);
-          var newAuto = prev.auto && prev.auto.id === fileId ? null : prev.auto;
-          // If we just deleted the cached auto file, drop its fid so
-          // the next gdriveSaveQuiet POSTs a fresh one.
-          if (newAuto === null) {
-            lsRemove(AUTO_FID_KEY);
-          }
-          return {
-            auto: newAuto,
-            all: newAll,
-            totalBytes: newTotal,
-            fetchedAt: prev.fetchedAt,
-          };
+        // Keyed on `syncDiag` now that the file list and the multi-device
+        // diagnostic are ONE panel — the counts, the total and the per-device
+        // roll-up are all derived from these rows, so dropping the row updates
+        // every one of them at once.
+        setSyncDiag(function (prev: any) {
+          if (!prev || !prev.rows) return prev;
+          var rows = prev.rows.filter(function (r: any) { return r.id !== fileId; });
+          return Object.assign({}, prev, {
+            rows: rows,
+            devices: summariseCloudDevices(rows, getDeviceId()),
+          });
         });
+        // Functional, not cosmetic: if the file just deleted is the auto file
+        // THIS device tracks, drop the fid so the next quiet save posts a
+        // fresh one instead of PATCHing a file that no longer exists. Read
+        // straight from storage rather than from a panel's state, which is
+        // what it always meant.
+        try {
+          if (localStorage.getItem(AUTO_FID_KEY) === fileId) lsRemove(AUTO_FID_KEY);
+        } catch (_e) { /* private mode — the next save recovers via POST */ }
       });
     });
   }
 
-  // Pure fetch helper shared by `gdriveRefreshBackupsMeta` (synchronous
-  // popup path) and the iOS OAuth callback ("list" action). Given a
-  // valid access token, list every backup in the appDataFolder and
-  // commit the result to `backupsMeta`. Returns the list array on
-  // success; throws Drive errors so the caller can surface them.
-  // On 401/403 throws `{ __retry__: true }` (like the
-  // sibling helpers in this file) so the caller can transparently
-  // retry with a fresh OAuth token instead of surfacing a hard
-  // "credentials error" on the first tap of "View my backups".
-  function _gdriveListBackupsMeta(token: string) {
-    return cloud.list(token, {
-      fields: "files(id,name,size,modifiedTime)",
-      orderBy: "modifiedTime+desc",
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (list: any) {
-        if (list && list.error) {
-          if (list.error.code === 401 || list.error.code === 403) {
-            cloudTokenInvalidate();
-            throw { __retry__: true };
-          }
-          throw list.error;
-        }
-        var files: any[] = (list && list.files) || [];
-        var all = files.map(function (f: any) {
-          var kind = classifyBackup(f.name);
-          return {
-            id: f.id,
-            name: f.name,
-            size: f.size,
-            modifiedTime: f.modifiedTime,
-            type: kind,
-          };
-        });
-        var autoEntry = all.find(function (e: any) { return e.type === "auto"; });
-        var total = all.reduce(function (acc: number, e: any) {
-          return acc + (parseInt(e.size, 10) || 0);
-        }, 0);
-        setBackupsMeta({
-          auto: autoEntry
-            ? { id: autoEntry.id, name: autoEntry.name, size: autoEntry.size, modifiedTime: autoEntry.modifiedTime }
-            : null,
-          all: all,
-          totalBytes: total,
-          fetchedAt: Date.now(),
-        });
-        return all;
-      });
-  }
-
-  function gdriveRefreshBackupsMeta(_retried?: boolean): Promise<any> {
-    setGdriveStatus(t("st_connecting"));
-    // Use a dedicated "list" action so the iOS standalone
-    // redirect flow doesn't re-enter `gdriveRestore` on the way back —
-    // before the rename, the OAuth callback dispatcher (pendingOAuth
-    // effect) treated this token as a Restore action and forced the
-    // backup picker open, hijacking the user's "View my backups" tap.
-    return getCloudToken("list").then(function (tk: any) {
-      var token = tk as string;
-      cloudTokenPersist(token);
-      return _gdriveListBackupsMeta(token);
-    }).then(function (all) {
-      setGdriveStatus(null);
-      return all;
-    }).catch(function (e: any) {
-      // Auto-retry on 401/403. _gdriveListBackupsMeta
-      // throws `{ __retry__: true }` after wiping the stale token in
-      // tkClear; we re-run with a fresh OAuth round-trip so the user
-      // doesn't see a hard "credentials" error on the first tap.
-      if (e && e.__retry__ && !_retried) {
-        return gdriveRefreshBackupsMeta(true);
-      }
-      var msg = (e && (e.message || e.error)) || t("err_prefix");
-      setGdriveStatus(t("err_prefix") + ": " + String(msg).substring(0, 150));
-      scheduleStatusClear(4000);
-      throw e;
-    });
-  }
 
   // ── The CATALOGUE stream ──────────────────────────────────────────────────
   //
@@ -2926,9 +2815,6 @@ export function useGdriveSync({
       lsRemove("dropbox-fid");
       lsRemove("dropbox-auto-fid");
     },
-    backupsMeta,
-    setBackupsMeta,
-    gdriveRefreshBackupsMeta,
     gdriveDeleteBackupById,
     // The catalogue's own cloud stream (it is excluded
     // from every cellar mechanism; these are what write to it).

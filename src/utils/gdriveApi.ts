@@ -399,6 +399,8 @@ export interface CloudBackupDiag {
   // "catalogue" is the user's own reference catalogue,
   // a separate stream that the cellar guard must ignore.
   kind: "auto" | "manual" | "catalogue";
+  /** Byte count as the provider reported it, "" when it reported none. */
+  size: string;
   counts: ReturnType<typeof parseBackupCounts>;
   status: "proposed" | "candidate" | "ignored";
   // proposed | candidate | own_device | own_legacy | dismissed_name
@@ -488,6 +490,13 @@ export function explainCloudBackups(
         id: String(f.id || ""), name: name, modifiedTime: mt,
         ts: isNaN(parsed) ? 0 : parsed, deviceId: did,
         deviceName: backupDeviceName(name), kind: kind,
+        // Carried so ONE panel can both explain a verdict and manage the
+        // files. The listing has always had it; this row simply dropped it,
+        // which is why the guide needed two panels over the same files —
+        // one showing sizes and a delete, the other showing verdicts — and
+        // why a user reasonably read them as the same screen twice.
+        // "" when the provider omits it (Drive does on some folder entries).
+        size: f.size === undefined || f.size === null ? "" : String(f.size),
         counts: parseBackupCounts(name), status: status, reason: reason,
       };
     }

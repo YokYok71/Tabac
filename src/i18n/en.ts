@@ -617,7 +617,6 @@ export var EN = {
   lbl_purchase_short:"Purchase",
   btn_view_backups:"View my backups",
   btn_check_cloud_newer:"Check cloud backups",
-  btn_sync_diag:"Multi-device diagnostic",
   sync_diag_device:"This device",
   sync_diag_lastsave:"Last save",
   sync_diag_lastedit:"Last edit",

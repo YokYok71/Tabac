@@ -596,38 +596,40 @@ describe("SettingsModal — Dropbox-first selector + view-backups toggle", () =>
     expect(labels.slice(0, 2)).toEqual(["Dropbox", "Google Drive"]);
   });
 
-  it("view-backups button: first click fetches, second click collapses", () => {
-    const gdriveRefreshBackupsMeta = vi.fn().mockResolvedValue(undefined);
-    const setBackupsMeta = vi.fn();
-    // First render: panel is closed (fetchedAt 0) → button should call refresh.
+  it("view-backups button: first click runs the diagnostic, second collapses", () => {
+    // ONE button over the cloud files where there were two — the second
+    // listing was dropped, so this tap now drives the diagnostic rather than a
+    // separate metadata fetch. What must survive the merge is the toggle: a
+    // control that opens a panel and cannot close it was reported once already
+    // ("je ne peux jamais le fermer… ça ne fait que rafraîchir les données").
+    const runSyncDiagnostic = vi.fn();
+    const dismissSyncDiag = vi.fn();
+    // First render: no panel → the button should run the diagnostic.
     const closed = renderWithCtx(<CuratorSettingsModal />, {
       ...base,
-      backupsMeta: { auto: null, all: [], totalBytes: 0, fetchedAt: 0 },
-      gdriveRefreshBackupsMeta,
-      setBackupsMeta,
+      syncDiag: null, syncDiagSource: "", runSyncDiagnostic, dismissSyncDiag,
     });
     const btn1 = Array.from(closed.container.querySelectorAll("[role='button']"))
       .find(b => /btn_view_backups|Voir mes sauvegardes|View my backups/.test(b.textContent || ""));
     expect(btn1).toBeTruthy();
     fireEvent.click(btn1!);
-    expect(gdriveRefreshBackupsMeta).toHaveBeenCalled();
-    expect(setBackupsMeta).not.toHaveBeenCalled();
+    expect(runSyncDiagnostic).toHaveBeenCalled();
+    expect(dismissSyncDiag).not.toHaveBeenCalled();
     closed.unmount();
 
-    // Second render: panel is open (fetchedAt > 0) → button should reset (collapse), not re-fetch.
-    gdriveRefreshBackupsMeta.mockClear();
-    setBackupsMeta.mockClear();
+    // Second render: the panel is open AND it is this button's own result
+    // (`syncDiagSource === "diag"`) → the tap dismisses instead of re-running.
+    runSyncDiagnostic.mockClear();
     const open = renderWithCtx(<CuratorSettingsModal />, {
       ...base,
-      backupsMeta: { auto: null, all: [{ id: "f1", name: "x.json", size: "100", modifiedTime: "" }], totalBytes: 100, fetchedAt: Date.now() },
-      gdriveRefreshBackupsMeta,
-      setBackupsMeta,
+      syncDiag: { deviceId: "abc", provider: "gdrive", rows: [], devices: [] },
+      syncDiagSource: "diag", runSyncDiagnostic, dismissSyncDiag,
     });
     const btn2 = Array.from(open.container.querySelectorAll("[role='button']"))
       .find(b => /btn_view_backups|Voir mes sauvegardes|View my backups/.test(b.textContent || ""));
     fireEvent.click(btn2!);
-    expect(setBackupsMeta).toHaveBeenCalledWith({ auto: null, all: [], totalBytes: 0, fetchedAt: 0 });
-    expect(gdriveRefreshBackupsMeta).not.toHaveBeenCalled();
+    expect(dismissSyncDiag).toHaveBeenCalled();
+    expect(runSyncDiagnostic).not.toHaveBeenCalled();
   });
 });
 
@@ -862,7 +864,7 @@ describe("SettingsModal — 'check cloud backups' stays live", () => {
     expect(diagIdx).toBeLessThan(nextBtnIdx);
   });
 
-  it("keeps the diagnostic button's own answer under the diagnostic button", () => {
+  it("keeps the cloud-files button's own answer under that button", () => {
     const diag = {
       deviceId: "abc123", deviceName: "iPhone", provider: "dropbox",
       localRef: 0, localEdited: 0, dismissedTs: 0, dismissedName: null,
@@ -872,17 +874,20 @@ describe("SettingsModal — 'check cloud backups' stays live", () => {
       ...base, syncDiag: diag, syncDiagSource: "diag",
     });
     const html = container.innerHTML;
-    expect(html.indexOf("sync_diag_device")).toBeGreaterThan(html.indexOf("btn_sync_diag"));
+    expect(html.indexOf("sync_diag_device")).toBeGreaterThan(html.indexOf("btn_view_backups"));
   });
 });
 
 // The toggle must only consider its OWN result.
 //
 // An earlier release let "Vérifier les sauvegardes" write the same syncDiag /
-// syncDiagErr slots as "Diagnostic multi-appareils". The diagnostic button
-// toggles on those slots, so after a check its first tap took the DISMISS
-// branch — clearing a panel that renders under the other button, i.e. doing
-// nothing visible. A dead tap introduced one build after fixing a dead tap.
+// syncDiagErr slots as the cloud-files button. That button toggles on those
+// slots, so after a check its first tap took the DISMISS branch — clearing a
+// panel that renders under the other button, i.e. doing nothing visible. A
+// dead tap introduced one build after fixing a dead tap. The two buttons now
+// share ONE panel, which does not retire the rule: the panel still renders
+// under whichever of them raised it, so the source tag is what keeps this tap
+// from dismissing something the user is not looking at.
 describe("SettingsModal — sync-diag toggle is source-scoped", () => {
   const base = {
     importModal: true,
@@ -897,7 +902,7 @@ describe("SettingsModal — sync-diag toggle is source-scoped", () => {
   };
   function findDiagBtn(container: HTMLElement) {
     return Array.from(container.querySelectorAll("[role='button']")).find(b =>
-      /btn_sync_diag|Diagnostic multi/i.test(b.textContent || ""),
+      /btn_view_backups|Voir mes sauvegardes|View my backups/i.test(b.textContent || ""),
     ) as HTMLElement;
   }
 

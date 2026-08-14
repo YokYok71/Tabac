@@ -67,7 +67,6 @@ export function CuratorSettingsModal() {
     deviceName, saveDeviceName,
     autoSaveDrive, setAutoSaveDrive, lastAutoSaveTs,
     cloudProviderId = "gdrive", saveCloudProviderId, dropboxDisconnect,
-    backupsMeta, gdriveRefreshBackupsMeta,
     backupStatus, doExport, doExportCSV, doBackupZip, doCollectionReport,
     doDownloadCsvTemplate, doImportCsvFile, csvIssues, clearCsvIssues, doImportFile,
     catalogueMeta, catalogueBusy, catalogueOutcome,
@@ -493,8 +492,8 @@ export function CuratorSettingsModal() {
               disconnect row, the device name and the sync diagnostic — so on
               a phone tapping "Restaurer" appeared to do nothing at all: the
               backup list was eight rows further down, off-screen. Same fix as
-              the save status above. (BackupsListPanel below stays gated
-              on !gdriveConfirm, so the two panels still never show together,
+              the save status above. (The cloud panel below stays gated on
+              !gdriveConfirm, so the two panels still never show together,
               whatever the render order.) */}
           {gdriveConfirm && (
             <GDriveConfirmPanel
@@ -529,31 +528,8 @@ export function CuratorSettingsModal() {
             <Notice tone="error">{(t ? t("err_prefix") : "Erreur") + " : " + syncDiagErr}</Notice>
           )}
           {syncDiagSource === "check" && syncDiag && (
-            <SyncDiagView diag={syncDiag} t={t} onClose={dismissSyncDiag} />
-          )}
-          {/* This button toggles the panel — re-clicking
-              while the list is visible collapses it. */}
-          <ActionBtn icon="chart"
-            label={t ? t("btn_view_backups") : "Voir mes sauvegardes"}
-            onClick={() => {
-              if (backupsMeta && backupsMeta.fetchedAt > 0) {
-                ctx.setBackupsMeta && ctx.setBackupsMeta({ auto: null, all: [], totalBytes: 0, fetchedAt: 0 });
-              } else if (gdriveRefreshBackupsMeta) {
-                gdriveRefreshBackupsMeta().catch(() => {});
-              }
-            }}
-            accent={C.brassHi} small />
-          {/* Hidden while the restore picker (gdriveConfirm) is open — the
-              picker already lists every backup with counts and a selector,
-              so showing this side panel at the same time is redundant. */}
-          {!gdriveConfirm && backupsMeta && backupsMeta.fetchedAt > 0 && (
-            <BackupsListPanel
-              meta={backupsMeta}
-              t={t}
-              lang={lang}
-              onClose={() => ctx.setBackupsMeta && ctx.setBackupsMeta({ auto: null, all: [], totalBytes: 0, fetchedAt: 0 })}
-              onDeleteEntry={(id: string) => ctx.gdriveDeleteBackupById && ctx.gdriveDeleteBackupById(id)}
-            />
+            <SyncDiagView diag={syncDiag} t={t} lang={lang} onClose={dismissSyncDiag}
+              onDeleteEntry={(id: string) => ctx.gdriveDeleteBackupById && ctx.gdriveDeleteBackupById(id)} />
           )}
           {cloudProviderId === "dropbox" && (
             <ActionBtn icon="close" label={t ? t("btn_dropbox_disconnect") : "Déconnecter Dropbox"}
@@ -604,19 +580,20 @@ export function CuratorSettingsModal() {
                 ...(dnRing.style || {}),
               }} />
           </Row>
-          {/* The "Diagnostic multi-appareils" button + panel are
-              VISIBLE again (user request) — a read-only, on-demand inspector of
-              the cloud backups (per-device roll-up + per-file propose/ignore
-              reasoning). The separate OAuth touchpoint debug line above stays
-              gated on SHOW_DEBUG_DIAGNOSTICS. */}
-          {/* Read-only multi-device diagnostic — shows, per
-              cloud file, whether the launch banner would propose or ignore
-              it and WHY (own device / older / muted by "seen" marker…), plus
-              the per-device roll-up. The button is a
-              TOGGLE — re-tapping while the panel (or an error) is visible
-              closes it, mirroring "Voir mes sauvegardes". */}
+          {/* ONE button over the cloud files, where there were two.
+              "Voir mes sauvegardes" listed each file with its size and a
+              delete; "Diagnostic multi-appareils" listed the same files with
+              their verdict (proposed / this device / already seen / older /
+              unreadable date) and the per-device roll-up. Reported, and
+              fairly: « les mêmes informations s'affichent » — the first thing
+              a reader sees in either is the same column of filenames, and
+              neither said what question it answered. The panel now carries
+              both halves, so the second button and its second listing are
+              gone. It stays a TOGGLE (re-tapping closes it); the separate
+              OAuth touchpoint debug line above stays gated on
+              SHOW_DEBUG_DIAGNOSTICS. */}
           <ActionBtn icon="cloud"
-            label={t ? t("btn_sync_diag") : "Diagnostic multi-appareils"}
+            label={t ? t("btn_view_backups") : "Voir mes sauvegardes"}
             onClick={() => {
               // The toggle must only ever consider ITS OWN
               // result. "Vérifier" used to write the same syncDiag /
@@ -640,7 +617,8 @@ export function CuratorSettingsModal() {
             <Notice tone="error">{(t ? t("err_prefix") : "Erreur") + " : " + syncDiagErr}</Notice>
           )}
           {syncDiagSource === "diag" && syncDiag && (
-            <SyncDiagView diag={syncDiag} t={t} onClose={dismissSyncDiag} />
+            <SyncDiagView diag={syncDiag} t={t} lang={lang} onClose={dismissSyncDiag}
+              onDeleteEntry={(id: string) => ctx.gdriveDeleteBackupById && ctx.gdriveDeleteBackupById(id)} />
           )}
           {/* The duplicate utility. Hidden entirely when there is
               nothing to resolve — an always-present button for a condition most
@@ -2148,7 +2126,7 @@ function Toggle({
 // closed at all; tapping the button again just re-ran the check, which is
 // exactly what was reported ("je ne peux jamais le fermer… ça ne fait que
 // rafraîchir les données"). A panel must not depend on the button that opened
-// it for its way out. Same × as BackupsListPanel, the panel two rows above.
+// it for its way out. Same × as the cloud panel, which now serves both buttons.
 /**
  * « Which ROW? » — the shared result panel.
  *
@@ -2178,9 +2156,9 @@ function Toggle({
  * family at the extraction, so a rewording of one feature cannot silently
  * reword the other.
  */
-// Exported for tests: both carry a rule a source-level
-// assertion cannot check — a promise the clipboard may reject, and a file kind
-// that must appear in the counts and not only in the bytes.
+// Exported for tests: it carries a rule a source-level assertion cannot
+// check — a clipboard write is a PROMISE, so a refusal (denied permission,
+// insecure context, Safari without a gesture) is only visible to a render.
 export function IssueListPanel({ title, ok, scope, sections, issues, truncated, t, onClose }: {
   title: string; ok: string; scope: string;
   sections: Array<{ kind: string; n: number; label: string }>;
@@ -2279,7 +2257,37 @@ export function IssueListPanel({ title, ok, scope, sections, issues, truncated, 
   );
 }
 
-function SyncDiagView({ diag, t, onClose }: { diag: any; t: (k: string) => string; onClose?: (() => void) | undefined }) {
+// THE cloud-backup panel — what is stored, and what the app makes of it.
+//
+// It used to be two panels over the SAME file list, opened by two neighbouring
+// buttons. "Voir mes sauvegardes" showed each file's size, the total occupied
+// and a delete; this one showed each file's VERDICT — proposed, this device,
+// already seen, older, unreadable date — plus the device identity the verdicts
+// are computed against. Reported, and fairly: « les mêmes informations
+// s'affichent ». They were not the same, but the only part a reader sees first
+// is the list of filenames, which was common to both, and neither panel said
+// what question it answered.
+//
+// So they are one panel: the files, each with its size, its verdict and its
+// delete. `explainCloudBackups` already received the raw listing and simply
+// dropped the size — carrying it is what made the merge free of a second fetch.
+const MAX_BACKUP_ROWS = 20;
+
+// Exported for tests: the counts line carries a rule a source-level assertion
+// cannot check — every file in the TOTAL must also be in a count. The
+// catalogue stream is a third kind, and it was once charged in the bytes and
+// named in no count, so a 3.77 MB catalogue read as « 1 auto · 0 manuelle ·
+// total 3,9 Mo »: megabytes no line accounted for, above a row the user can
+// delete. That guarantee moved here with the panel merge.
+export function SyncDiagView({ diag, t, lang, onClose, onDeleteEntry }: {
+  diag: any;
+  t: (k: string) => string;
+  lang?: string | undefined;
+  onClose?: (() => void) | undefined;
+  /** Absent while a delete cannot be issued (no provider action wired). */
+  onDeleteEntry?: ((id: string) => Promise<void> | void) | undefined;
+}) {
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const dotColor = (s: string) => (s === "proposed" ? C.sageHi : s === "candidate" ? C.brass : C.tx3);
   function reasonLabel(reason: string): string {
     switch (reason) {
@@ -2319,6 +2327,23 @@ function SyncDiagView({ diag, t, onClose }: { diag: any; t: (k: string) => strin
         <div>{t("sync_diag_lastedit")} — <span style={{ color: C.tx2 }}>{diag.localEdited ? fmtDateTime(diag.localEdited) : "—"}</span></div>
         <div>{t("sync_diag_marker")} — <span style={{ color: C.tx2 }}>{diag.dismissedName || t("sync_diag_marker_none")}</span></div>
       </div>
+      {/* What is stored, and how much room it takes — the half that used to
+          live in a second panel. Counted over EVERY row, not the twenty
+          displayed, so the total is the real one. */}
+      {diag.rows && diag.rows.length > 0 && (() => {
+        const rows = diag.rows as any[];
+        const n = (k: string) => rows.filter((r) => r.kind === k).length;
+        const nAuto = n("auto"), nManual = n("manual"), nCat = n("catalogue");
+        const bytes = rows.reduce((acc: number, r: any) => acc + (parseInt(r.size || "0", 10) || 0), 0);
+        const manW = plural(nManual, t("bak_word_manual"), t("bak_word_manual_p"), lang);
+        return (
+          <div style={{ fontFamily: F.mono, fontSize: fs(12.5), color: C.tx3, borderTop: `1px solid ${C.rule}`, paddingTop: 8 }}>
+            {`${nAuto} auto · ${nManual} ${manW}`}
+            {nCat ? ` · ${nCat} ${t("bak_word_catalogue")}` : ""}
+            {` · ${t("bak_word_total")} ${fmtBytes(bytes)}`}
+          </div>
+        );
+      })()}
       {/* Per-device roll-up — one synthetic line per device that
           wrote a backup (own device / other devices / manual & legacy files). */}
       {diag.devices && diag.devices.length > 0 && (
@@ -2366,23 +2391,73 @@ function SyncDiagView({ diag, t, onClose }: { diag: any; t: (k: string) => strin
       )}
       {(!diag.rows || diag.rows.length === 0)
         ? <Lbl color={C.tx3}>{t("sync_diag_nofiles")}</Lbl>
-        : diag.rows.map((r: any, i: number) => (
-          <div key={i} style={{
-            display: "flex", alignItems: "flex-start", gap: 8,
-            borderTop: i ? `1px solid ${C.rule}` : "none", paddingTop: i ? 8 : 0,
-          }}>
-            <span style={{ width: 8, height: 8, borderRadius: 4, marginTop: 4, flexShrink: 0, background: dotColor(r.status) }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: F.mono, fontSize: fs(12), color: C.tx2, wordBreak: "break-all" }}>{r.name}</div>
-              <div style={{
-                fontFamily: F.body, fontSize: fs(13), marginTop: 2,
-                color: r.status === "proposed" ? C.sageHi : r.status === "ignored" ? C.tx3 : C.brass,
-              }}>
-                {(r.ts ? fmtDateTime(r.ts) + " · " : "") + reasonLabel(r.reason)}
+        : diag.rows.slice(0, MAX_BACKUP_ROWS).map((r: any, i: number) => {
+          const isConfirm = confirmId === r.id;
+          return (
+            <div key={r.id || i} style={{
+              display: "flex", alignItems: "flex-start", gap: 8,
+              borderTop: i ? `1px solid ${C.rule}` : "none", paddingTop: i ? 8 : 0,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: 4, marginTop: 4, flexShrink: 0, background: dotColor(r.status) }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: F.mono, fontSize: fs(12), color: C.tx2, wordBreak: "break-all" }}>
+                  {r.kind === "auto" ? "🔄 " : r.kind === "manual" ? "💾 " : r.kind === "catalogue" ? "📖 " : ""}
+                  {r.name}
+                </div>
+                <div style={{
+                  fontFamily: F.body, fontSize: fs(13), marginTop: 2,
+                  color: r.status === "proposed" ? C.sageHi : r.status === "ignored" ? C.tx3 : C.brass,
+                }}>
+                  {(r.ts ? fmtDateTime(r.ts) + " · " : "")
+                    + reasonLabel(r.reason)
+                    + (r.size ? " · " + fmtBytes(parseInt(r.size, 10) || 0) : "")}
+                </div>
               </div>
+              {/* Two taps to delete, and the confirmation replaces the bin
+                  rather than opening a dialog: this is a list, and a modal per
+                  row would bury which file is about to go. */}
+              {onDeleteEntry && !isConfirm && (
+                <button type="button" onClick={() => setConfirmId(r.id)}
+                  aria-label={t("aria_delete_backup")}
+                  style={{
+                    flexShrink: 0, padding: "3px 7px", borderRadius: 5,
+                    background: "transparent", color: C.oxbloodHi,
+                    border: `1px solid ${alpha(C.oxblood, "88")}`, cursor: "pointer",
+                    fontSize: fs(13.5),
+                  }}>🗑</button>
+              )}
+              {onDeleteEntry && isConfirm && (
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button type="button"
+                    onClick={() => { setConfirmId(null); Promise.resolve(onDeleteEntry(r.id)).catch(() => {}); }}
+                    aria-label={t("aria_confirm_delete")}
+                    style={{
+                      padding: "3px 7px", borderRadius: 5,
+                      background: alpha(C.oxblood, "33"), color: C.oxbloodHi,
+                      border: `1px solid ${alpha(C.oxblood, "88")}`, cursor: "pointer",
+                      fontFamily: F.mono, fontSize: fs(11.5), fontWeight: 700,
+                      letterSpacing: 0.5, textTransform: "uppercase",
+                    }}>{t("lbl_yes")}</button>
+                  <button type="button" onClick={() => setConfirmId(null)}
+                    aria-label={t("btn_cancel")}
+                    style={{
+                      padding: "3px 7px", borderRadius: 5,
+                      background: "transparent", color: C.tx3,
+                      border: `1px solid ${C.rule}`, cursor: "pointer",
+                      fontFamily: F.mono, fontSize: fs(11.5),
+                    }}>×</button>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
+      {/* No silent cap: a list that quietly stopped at twenty would read as
+          "that is everything". */}
+      {diag.rows && diag.rows.length > MAX_BACKUP_ROWS && (
+        <div style={{ marginTop: 2, color: C.tx3, fontSize: fs(12.5) }}>
+          {String(t("backup_and_more")).replace("{n}", String(diag.rows.length - MAX_BACKUP_ROWS))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2919,137 +2994,6 @@ function fmtBytes(n: number): string {
   if (n < 1024) return n + " B";
   if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
   return (n / (1024 * 1024)).toFixed(2) + " MB";
-}
-
-// Exported for tests: both carry a rule a source-level
-// assertion cannot check — a promise the clipboard may reject, and a file kind
-// that must appear in the counts and not only in the bytes.
-export function BackupsListPanel({
-  meta, t, lang, onClose, onDeleteEntry,
-}: {
-  meta: {
-    auto: { id: string; name: string; size?: string; modifiedTime?: string } | null;
-    all: Array<{ id: string; name: string; size?: string; modifiedTime?: string; type: "auto" | "manual" | "catalogue" | "unknown" }>;
-    totalBytes: number;
-    fetchedAt: number;
-  };
-  t?: ((k: string) => string) | undefined;
-  /** Needed for `plural()` — the manual/auto backup counts used the
-   *  French rule for all five languages (see the note at the call below). */
-  lang?: string | undefined;
-  onClose?: (() => void) | undefined;
-  onDeleteEntry?: ((id: string) => Promise<void> | void) | undefined;
-}) {
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-  if (!meta.fetchedAt) return null;
-  var nAuto = meta.all.filter(function (e) { return e.type === "auto"; }).length;
-  var nManual = meta.all.filter(function (e) { return e.type === "manual"; }).length;
-  var nOther = meta.all.filter(function (e) { return e.type === "unknown"; }).length;
-  // The catalogue stream is a THIRD kind, and it
-  // was in none of the counts while its bytes were in `totalBytes` — so a
-  // 3.77 MB catalogue read as « 1 auto · 0 manuelle · total 3,9 Mo », a header
-  // whose megabytes no line accounted for, above a row the user could delete.
-  var nCat = meta.all.filter(function (e) { return e.type === "catalogue"; }).length;
-  return (
-    <div style={{
-      marginTop: 8, padding: "10px 12px", borderRadius: 8,
-      background: C.bg2, border: `1px solid ${C.rule}`,
-      fontSize: fs(13.5), fontFamily: F.body, color: C.tx2, lineHeight: 1.5,
-    }}>
-      <div style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        marginBottom: 6,
-      }}>
-        <div style={{ fontFamily: F.mono, fontSize: fs(12.5), color: C.tx3 }}>
-          {/* Kept inline — heavy pluralization + interpolation
-            where t() with placeholders would be more complex than the
-            ternary. Edge case in the backup picker info row. */}
-          {(() => {
-            // Was `nManual > 1`, i.e. the FRENCH rule applied to all
-            // five. With only auto backups in the cloud (nManual === 0, common)
-            // es showed "0 manual" instead of "0 manuales", it "0 manuale"
-            // instead of "0 manuali".
-            const manW = t
-              ? plural(nManual, t("bak_word_manual"), t("bak_word_manual_p"), lang)
-              : "manuelle";
-            const othW = t ? t("bak_word_other") : "autre";
-            const catW = t ? t("bak_word_catalogue") : "catalogue";
-            const totW = t ? t("bak_word_total") : "total";
-            return `${nAuto} auto · ${nManual} ${manW}${nCat ? " · " + nCat + " " + catW : ""}${nOther ? " · " + nOther + " " + othW : ""} · ${totW} ${fmtBytes(meta.totalBytes)}`;
-          })()}
-        </div>
-        {onClose && (
-          <button type="button" onClick={onClose} aria-label={t ? t("btn_close") : "Fermer"}
-            style={{
-              // The house target is 44 (WCAG 2.2 AA asks 24;
-              // this project adopted the stricter AAA figure). These four panel
-              // closes measured 30x26 — under BOTH — and they are the only way
-              // out of a panel opened from a non-toggle button.
-              minWidth: 44, minHeight: 44, padding: "0 9px", borderRadius: 5, lineHeight: 1,
-              background: "transparent", color: C.tx3,
-              border: `1px solid ${C.rule}`, cursor: "pointer",
-              fontFamily: F.mono, fontSize: fs(14.5), fontWeight: 700,
-            }}>×</button>
-        )}
-      </div>
-      {meta.all.slice(0, 20).map(function (e) {
-        var isConfirm = confirmId === e.id;
-        return (
-          <div key={e.id} style={{
-            padding: "4px 0", borderTop: `1px dashed ${C.rule}`,
-            display: "flex", alignItems: "center", gap: 8,
-            fontFamily: F.mono, fontSize: fs(12.5), wordBreak: "break-all",
-          }}>
-            <span style={{ flex: 1, color: e.type === "auto" ? C.brassHi : e.type === "manual" ? C.sageHi : e.type === "catalogue" ? C.steelHi : C.tx2 }}>
-              {e.type === "auto" ? "🔄 " : e.type === "manual" ? "💾 " : e.type === "catalogue" ? "📖 " : ""}
-              {e.name}
-            </span>
-            <span style={{ color: C.tx3, whiteSpace: "nowrap" }}>
-              {fmtBytes(parseInt(e.size || "0", 10))}
-            </span>
-            {onDeleteEntry && !isConfirm && (
-              <button type="button" onClick={() => setConfirmId(e.id)}
-                aria-label={t ? t("aria_delete_backup") : "Supprimer cette sauvegarde"}
-                style={{
-                  padding: "3px 7px", borderRadius: 5,
-                  background: "transparent", color: C.oxbloodHi,
-                  border: `1px solid ${alpha(C.oxblood, "88")}`, cursor: "pointer",
-                  fontSize: fs(13.5),
-                }}>🗑</button>
-            )}
-            {onDeleteEntry && isConfirm && (
-              <>
-                <button type="button"
-                  onClick={() => { setConfirmId(null); Promise.resolve(onDeleteEntry(e.id)).catch(() => {}); }}
-                  aria-label={t ? t("aria_confirm_delete") : "Confirmer la suppression"}
-                  style={{
-                    padding: "3px 7px", borderRadius: 5,
-                    background: alpha(C.oxblood, "33"), color: C.oxbloodHi,
-                    border: `1px solid ${alpha(C.oxblood, "88")}`, cursor: "pointer",
-                    fontFamily: F.mono, fontSize: fs(11.5), fontWeight: 700,
-                    letterSpacing: 0.5, textTransform: "uppercase",
-                  }}>{t ? t("lbl_yes") : "Oui"}</button>
-                <button type="button" onClick={() => setConfirmId(null)}
-                  aria-label={t ? t("btn_cancel") : "Annuler"}
-                  style={{
-                    padding: "3px 7px", borderRadius: 5,
-                    background: "transparent", color: C.tx3,
-                    border: `1px solid ${C.rule}`, cursor: "pointer",
-                    fontFamily: F.mono, fontSize: fs(11.5),
-                  }}>×</button>
-              </>
-            )}
-          </div>
-        );
-      })}
-      {meta.all.length > 20 && (
-        <div style={{ marginTop: 6, color: C.tx3, fontSize: fs(12.5) }}>
-          {/* Kept inline — interpolation around a count. */}
-          {t ? String(t("backup_and_more")).replace("{n}", String(meta.all.length - 20)) : `…et ${meta.all.length - 20} de plus.`}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ─────────────────────────────────────────────────────────────

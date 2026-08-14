@@ -1411,13 +1411,12 @@ describe("OAuth callback dispatcher — reconnect does not open Settings", () =>
 });
 
 // ── "list" action — "View my backups" round-trip ─────────────────
-// Tapping "Voir mes sauvegardes" in Settings runs `gdriveRefreshBackupsMeta`,
-// which now uses the dedicated "list" action so the iOS standalone redirect
-// flow doesn't re-enter `gdriveRestore` on the way back. The OAuth callback
-// must:
+// Tapping "Voir mes sauvegardes" in Settings runs `runSyncDiagnostic`, which
+// uses the dedicated "list" action so the iOS standalone redirect flow doesn't
+// re-enter `gdriveRestore` on the way back. The OAuth callback must:
 //   1. Treat ac="list" as a whitelisted action (not silently ignored).
 //   2. NOT open the restore picker — the user's intent is read-only.
-//   3. Persist the fresh token + fetch the metadata + populate backupsMeta.
+//   3. Persist the fresh token + fetch the listing + populate the panel.
 
 describe("OAuth callback dispatcher — 'list' action", () => {
   beforeEach(() => {
@@ -1437,7 +1436,12 @@ describe("OAuth callback dispatcher — 'list' action", () => {
     localStorage.removeItem("gdrive-account-hint");
   });
 
-  it("Token flow: ac='list' fetches the backups list (no picker dispatch)", async () => {
+  // The "list" action used to have TWO panels behind it — the backups list and
+  // the multi-device diagnostic — and resumed into the first. They are one
+  // panel now, so every resumption lands on the same view. What this still
+  // guards is the part that mattered: the action lists files and does NOT open
+  // the destructive restore picker.
+  it("Token flow: ac='list' lists the files without dispatching the picker", async () => {
     (window as any).__PENDING_GDRIVE_ACTION__ = "list";
     (window as any).__PENDING_GDRIVE_TOKEN__ = "fresh-token";
     mockFetch.mockResolvedValueOnce({
@@ -1452,15 +1456,17 @@ describe("OAuth callback dispatcher — 'list' action", () => {
     const props = makeProps({ setImportModal });
     const { result } = renderHook(() => useGdriveSync(props as any));
     await waitFor(() => {
-      expect(result.current.backupsMeta.fetchedAt).toBeGreaterThan(0);
+      expect(result.current.syncDiag).toBeTruthy();
     });
-    expect(result.current.backupsMeta.all).toHaveLength(2);
-    expect(result.current.backupsMeta.auto).toBeTruthy();
+    expect(result.current.syncDiag!.rows).toHaveLength(2);
+    // The size travels with the row now — that is what let the two panels
+    // become one, so a row that lost it would silently un-merge them.
+    expect(result.current.syncDiag!.rows.map((r: any) => r.size)).toEqual(["1500", "1000"]);
     // The restore picker (gdriveConfirm) must NOT have been opened.
     expect(result.current.gdriveConfirm).toBeFalsy();
   });
 
-  it("Token flow: ac='list' surfaces Drive errors via gdriveStatus", async () => {
+  it("Token flow: ac='list' surfaces Drive errors in the panel", async () => {
     (window as any).__PENDING_GDRIVE_ACTION__ = "list";
     (window as any).__PENDING_GDRIVE_TOKEN__ = "fresh-token";
     mockFetch.mockResolvedValueOnce({
@@ -1469,16 +1475,14 @@ describe("OAuth callback dispatcher — 'list' action", () => {
     const props = makeProps();
     const { result } = renderHook(() => useGdriveSync(props as any));
     await waitFor(() => {
-      expect(result.current.gdriveStatus).toMatch(/err_prefix.*boom/);
+      expect(result.current.syncDiagErr).toMatch(/boom/);
     });
   });
 });
 
-// gdriveRefreshBackupsMeta's status/error surfacing is exercised through the
-// "list" action tests above (iOS callback path). The popup-mode error branch
-// requires mocking `window.google.accounts.oauth2` — out of scope here; the
-// shared `_gdriveListBackupsMeta` helper IS covered by the "ac='list'
-// surfaces Drive errors via gdriveStatus" test.
+// The listing's status/error surfacing is exercised through the "list" action
+// tests above (iOS callback path). The popup-mode error branch requires
+// mocking `window.google.accounts.oauth2` — out of scope here.
 
 // ── account-hint lifecycle (incl. the PII clear) ─────────────────────────────
 // The persisted `gdrive-account-hint` email lets re-auth skip Google's account
@@ -1768,40 +1772,36 @@ describe("post-picker token routing under Dropbox", () => {
   });
 });
 
-// ── resetting the backups panel on provider switch ────────────────
-// backupsMeta is provider-scoped (Drive ids ≠ Dropbox ids); leaving the
-// panel populated with the OTHER provider's listing after a switch was
-// misleading. A useEffect now wipes it when cloudProviderId changes.
+// ── resetting the cloud panel on a provider switch ────────────────
+// The panel is provider-scoped (Drive ids ≠ Dropbox ids); leaving it populated
+// with the OTHER provider's listing after a switch was misleading. A useEffect
+// wipes it when cloudProviderId changes.
 
-describe("backups panel reset on provider switch", () => {
-  it("resets backupsMeta when cloudProviderId flips, keeps it on first mount", () => {
-    const props = makeProps({ cloudProviderId: "gdrive" });
+describe("the cloud panel resets on a provider switch", () => {
+  // Drive and Dropbox file ids are not interchangeable, so a panel built from
+  // one provider must not survive a switch to the other — it would show
+  // foreign files, and its delete would execute one provider's opaque id
+  // against the other. This used to be asserted on `backupsMeta`; that state
+  // is gone with the panel merge, and `syncDiag` is what the single panel
+  // reads, so the guarantee moved with it rather than lapsing.
+  it("drops syncDiag when cloudProviderId flips", async () => {
+    sessionStorage.setItem("gdrive-tk", JSON.stringify({ t: "tok-123", x: Date.now() + 3500000 }));
+    mockFetch.mockResolvedValue({
+      json: () => Promise.resolve({
+        files: [{ id: "g1", name: "cave-tabac-20250101-100000-t1-p1-w0-a0-j0.json", size: "10", modifiedTime: "2025-01-01T10:00:00Z" }],
+      }),
+    });
     const { result, rerender } = renderHook(
       (p: any) => useGdriveSync(p as any),
-      { initialProps: props },
+      { initialProps: makeProps({ cloudProviderId: "gdrive" }) },
     );
-    // Seed the panel as if a fetch had populated it under Google Drive.
-    act(() => {
-      result.current.setBackupsMeta({
-        auto: null,
-        all: [{ id: "g1", name: "cave-tabac-x.json", size: "10", modifiedTime: "" } as any],
-        totalBytes: 10, fetchedAt: Date.now(),
-      });
-    });
-    expect(result.current.backupsMeta.fetchedAt).toBeGreaterThan(0);
-    // Switch to Dropbox — the panel must collapse.
+    // Populate through the real path rather than a test-only setter — the
+    // panel is fed by runSyncDiagnostic and by nothing else.
+    await act(async () => { result.current.runSyncDiagnostic(); });
+    await waitFor(() => expect(result.current.syncDiag).not.toBeNull());
+
     rerender(makeProps({ cloudProviderId: "dropbox" }) as any);
-    expect(result.current.backupsMeta).toEqual({ auto: null, all: [], totalBytes: 0, fetchedAt: 0 });
-    // Switch back — collapsed again (no surprise re-fetch).
-    act(() => {
-      result.current.setBackupsMeta({
-        auto: null,
-        all: [{ id: "d1", name: "cave-tabac-y.json", size: "20", modifiedTime: "" } as any],
-        totalBytes: 20, fetchedAt: Date.now(),
-      });
-    });
-    rerender(makeProps({ cloudProviderId: "gdrive" }) as any);
-    expect(result.current.backupsMeta.fetchedAt).toBe(0);
+    expect(result.current.syncDiag).toBeNull();
   });
 });
 
