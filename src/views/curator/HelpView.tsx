@@ -151,6 +151,7 @@ export function CuratorHelpView() {
   const {
     view, lang, t, nav, closeDocPage,
     collapsedHelpSections, toggleHelpSection, setAllHelpSectionsCollapsed,
+    helpFocusKey, setHelpFocusKey,
   } = ctx;
 
   const [sections, setSections] = useState<ParsedSection[] | null>(null);
@@ -207,6 +208,30 @@ export function CuratorHelpView() {
   }, [sections, q, lang]);
 
   if (view !== "help") return null;
+
+  // Scroll to the section the « ? » asked for, ONCE.
+  //
+  // It waits for `sections` because the cards do not exist until the guide has
+  // been fetched and parsed — this view renders nothing before that. It reads
+  // the TopBar's MEASURED height rather than a constant: that bar is sticky and
+  // overlays the content, and it grows with the safe-area inset and with the
+  // user's text-size setting, so a hardcoded offset is wrong on most devices
+  // (the same reason `data-topbar` exists for the wishlist reveal).
+  //
+  // `setHelpFocusKey("")` is what makes it once-only: without it, every later
+  // re-render — a search keystroke, a fold toggled — would yank the page back.
+  useEffect(() => {
+    if (view !== "help" || !helpFocusKey || !sections) return;
+    const el = document.querySelector(`[data-help-key="${helpFocusKey}"]`);
+    if (el) {
+      const bar = document.querySelector("[data-topbar]");
+      const barH = bar ? Math.round(bar.getBoundingClientRect().height) : 0;
+      const y = window.scrollY + el.getBoundingClientRect().top - barH - 8;
+      try { window.scrollTo({ top: Math.max(0, y), behavior: "auto" }); }
+      catch (_e) { window.scrollTo(0, Math.max(0, y)); }
+    }
+    if (setHelpFocusKey) setHelpFocusKey("");
+  }, [view, helpFocusKey, sections, setHelpFocusKey]);
 
   const allKeys = sections ? sections.map(s => s.key) : [];
   const anyExpanded = allKeys.some(k => !(collapsedHelpSections && collapsedHelpSections[k]));
@@ -338,7 +363,7 @@ export function CuratorHelpView() {
             const forceOpen = q.length > 0;
             const open = forceOpen || !collapsed;
             return (
-              <div key={s.key} style={{
+              <div key={s.key} data-help-key={s.key} style={{
                 marginBottom: 12,
                 background: CARD_BG, border: `1px solid ${C.rule}`, borderRadius: 10,
                 overflow: "hidden",

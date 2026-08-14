@@ -31,6 +31,7 @@ import { countryNameToFlag, countryNameToIso2, iso2ToCountryName } from "../../u
 export function CuratorStatsView() {
   const ctx = useAppCtx();
   const {
+    openHelp,
     view, t, lang, dateFormat, xl, chartData = {}, weightUnit = "g", data,
     currencySymbol = "€",
     setSearchOpen,
@@ -388,6 +389,7 @@ export function CuratorStatsView() {
           leading={<Orn color={C.brass} />}
           title={t ? t("sec_stats") : "Statistiques"}
           trailing={<>
+            <IconBtn icon="help" onClick={() => openHelp && openHelp("stats")} ariaLabel={t ? t("aria_help_page") : "Aide sur cette page"} />
             <CuratorTrashIndicator />
             <IconBtn icon="search"
               onClick={() => setSearchOpen && setSearchOpen(true)}

@@ -82,6 +82,7 @@ function Tile({ value, label, accent, prefix, suffix, delay, onClick }: {
 export function CuratorHomeViewV2() {
   const ctx = useAppCtx();
   const {
+    openHelp,
     view, t, xl, lang, nav, stats, data,
     tasting, tastingResume, tastingStart, sessDefaultWeight,
     setStatusFilter, setSearchOpen, setImportModal, setSettingsTab,
@@ -467,11 +468,28 @@ export function CuratorHomeViewV2() {
             STICKY (same frosted recipe as the shared TopBar / FormScreen) so
             the masthead stays visible while the Home scrolls under it. */}
         <div style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 14px)", paddingLeft: 18, paddingRight: 14, paddingBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 20, background: `linear-gradient(180deg, ${C.bg}, ${alpha(C.bg, "cc")})`, backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          {/* The app NAME is gone from this bar, and the arithmetic is why.
+              MEASURED at 360 px in German at the "L" text size: the bar offers
+              328 px, the branding needs 157 (ornament + gap + « Mein
+              Tabakkeller » at 130) and five 44 px icons need 244. 401 into 328.
+              With the name kept, `i18n:layout` failed two ways in succession —
+              first a 5 px horizontal PAGE overflow (the group had no
+              `minWidth: 0`, the min-content trap this repo keeps paying for),
+              then, once it could shrink, a CLIPPED title at 71 px for 130
+              needed. No font size rescues it: fitting 130 px into 71 means
+              ~10 px type, which is not branding, it is debris.
+
+              So the name yields, because it is the cheapest thing here. It
+              names the app on a screen the user has already opened; the `<h1>`
+              two rows below names the PAGE (« Bibliothèque »), which is what a
+              screen reader and a scrolling eye both need; and every OTHER page
+              uses this slot for a functional label rather than the app's name,
+              so the Home becomes consistent with them instead of unique. The
+              ornament stays: it is the visual signature and it costs 18 px. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 9, flex: 1, minWidth: 0 }}>
             <Orn color={C.brass} />
-            <span style={{ fontFamily: F.display, fontStyle: "italic", fontSize: fs(17), color: C.title, letterSpacing: 0.2 }}>{t ? t("app_name") : "Ma Cave à Tabac"}</span>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
             <CuratorTrashIndicator />
             {/* The shopping-list cart lives ONLY on the tobacco
                 inventory top bar now (removed from the Home per user request). */}
@@ -480,6 +498,7 @@ export function CuratorHomeViewV2() {
             <IconBtn icon="cloud" size={ib.width} color={driveStatus ? driveColor : C.tx2}
               onClick={() => { if (setSettingsTab) setSettingsTab("data"); if (setImportModal) setImportModal(true); }}
               ariaLabel={driveTip || (t ? t("sec_cloud") : "☁️ Sauvegarde cloud")} />
+            <IconBtn icon="help" size={ib.width} onClick={() => openHelp && openHelp("concepts")} ariaLabel={t ? t("aria_help_page") : "Aide sur cette page"} />
             <IconBtn icon="search" size={ib.width} onClick={() => setSearchOpen && setSearchOpen(true)} ariaLabel={t ? t("btn_search") : "Rechercher"} />
             <IconBtn icon="settings" size={ib.width} onClick={() => { if (setSettingsTab) setSettingsTab("prefs"); if (setImportModal) setImportModal(true); }} ariaLabel={t ? t("btn_settings") : "Paramètres"} />
           </div>

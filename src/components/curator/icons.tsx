@@ -10,7 +10,8 @@ export type IcoName =
   | "plus" | "settings" | "flame" | "play" | "pause" | "edit" | "trash"
   | "box" | "chevron" | "heart" | "clock" | "filter"
   | "sliders" | "more" | "diamond" | "close" | "check"
-  | "cloud" | "camera" | "contrast" | "stop" | "cart" | "copy" | "restore";
+  | "cloud" | "camera" | "contrast" | "stop" | "cart" | "copy" | "restore"
+  | "help";
 
 const PATHS: Record<IcoName, React.ReactNode> = {
   home:    <path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z" />,
@@ -115,6 +116,16 @@ const PATHS: Record<IcoName, React.ReactNode> = {
   diamond: <path d="M12 2 22 12 12 22 2 12z" fill="currentColor" />,
   // Light/dark theme-mode glyph — circle outline with the
   // left half filled (the classic "contrast" mark).
+  // "help" — a circled question mark, the one glyph every
+  // platform agrees on for "explain this screen". Drawn stroke-only like the
+  // rest of the set: a ring, the hook of the question mark, and the dot as a
+  // 0-length line so it inherits the same stroke width and cap instead of
+  // needing a filled shape (a filled dot reads heavier than the ring at 17px).
+  help:    <g>
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M9.6 9.4a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.6"/>
+    <path d="M12 17.1v.01"/>
+  </g>,
   contrast:<g>
     <circle cx="12" cy="12" r="9"/>
     <path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none"/>

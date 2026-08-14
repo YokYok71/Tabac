@@ -332,6 +332,7 @@ export var FR = {
   btn_contact:"Contact",
   btn_privacy:"Confidentialité",
   btn_help:"Mode d'emploi",
+  aria_help_page:"Aide sur cette page",
   nav_stats:"📊",
   dock_home:"Cave",
   dock_inv:"Tabacs",

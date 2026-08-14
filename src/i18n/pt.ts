@@ -339,6 +339,7 @@ export var PT = {
   btn_contact:"Contacto",
   btn_privacy:"Privacidade",
   btn_help:"Guia de utilização",
+  aria_help_page:"Ajuda sobre esta página",
   nav_stats:"📊",
   dock_home:"Adega",
   dock_inv:"Tabacos",
