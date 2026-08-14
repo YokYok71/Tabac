@@ -625,6 +625,7 @@ export var ES = {
   sync_diag_this_device:"Este dispositivo",
   sync_diag_manual_files:"Copias manuales",
   sync_diag_legacy_files:"Archivos heredados",
+  sync_diag_catalogue_file:"Archivo de catálogo",
   sync_diag_files:"{n} archivo(s)",
   device_name_label:"Nombre de este dispositivo",
   device_name_hint:"Se muestra en el diagnóstico multidispositivo y se añade al nombre de los archivos de copia para reconocerlos. No forma parte de tus datos.",

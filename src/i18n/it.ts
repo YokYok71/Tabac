@@ -625,6 +625,7 @@ export var IT = {
   sync_diag_this_device:"Questo dispositivo",
   sync_diag_manual_files:"Backup manuali",
   sync_diag_legacy_files:"File legacy",
+  sync_diag_catalogue_file:"File catalogo",
   sync_diag_files:"{n} file",
   device_name_label:"Nome di questo dispositivo",
   device_name_hint:"Mostrato nella diagnostica multi-dispositivo e aggiunto al nome dei file di backup per riconoscerli. Non fa parte dei tuoi dati.",

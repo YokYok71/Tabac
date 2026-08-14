@@ -963,6 +963,30 @@ describe("SettingsModal — per-device roll-up names the other device", () => {
     });
   }
 
+  it("names the catalogue file instead of calling it a legacy one", () => {
+    // The catalogue has no device identity BY CONSTRUCTION: its name is a
+    // `.csv` with no device id and no counts, so neither `autoFileDeviceId`
+    // nor `backupDeviceName` can read anything from it, and it fell into the
+    // last bucket — labelled « Fichiers hérités » under a heading reading
+    // PAR APPAREIL, about the one file no device wrote. Reported by
+    // screenshot.
+    const { container } = withDevices([
+      { deviceId: null, deviceName: "", isOwn: false, kind: "catalogue", count: 1, latestTs: 1 },
+    ]);
+    const txt = container.textContent || "";
+    expect(txt).toContain("sync_diag_catalogue_file");
+    expect(txt).not.toContain("sync_diag_legacy_files");
+  });
+
+  it("…and a genuinely legacy file is still called one", () => {
+    const { container } = withDevices([
+      { deviceId: null, deviceName: "", isOwn: false, kind: "auto", count: 1, latestTs: 1 },
+    ]);
+    const txt = container.textContent || "";
+    expect(txt).toContain("sync_diag_legacy_files");
+    expect(txt).not.toContain("sync_diag_catalogue_file");
+  });
+
   it("shows the foreign device's NAME beside its id, never 'this device'", () => {
     const { container } = withDevices([
       { deviceId: "unr52hzxv1", deviceName: "ipad", isOwn: true, kind: "auto", count: 1, latestTs: 1 },
@@ -1040,11 +1064,53 @@ describe("SettingsModal — the sync panel closes itself", () => {
     expect(dismissSyncDiag).toHaveBeenCalled();
   });
 
-  it("the check button stays a RE-CHECK, never a toggle", () => {
+  // REVERSAL, recorded here rather than in a commit message. This case used
+  // to be named "the check button stays a RE-CHECK, never a toggle" and
+  // asserted the opposite of what follows. That rule was right while the
+  // button was the ONLY way out of the panel it opened — closing on a second
+  // tap would have left no way to close at all. The × above removed that
+  // constraint, and a second tap closing was then requested from the app. The
+  // × is still what guarantees a way out, so it is asserted just above; this
+  // is the convenience on top of it, not a replacement for it.
+  it("the check button toggles its OWN panel closed", () => {
     const checkCloudNewerNow = vi.fn();
     const dismissSyncDiag = vi.fn();
     const { container } = renderWithCtx(<CuratorSettingsModal />, {
       ...base, syncDiag: diag, syncDiagSource: "check",
+      checkCloudNewerNow, dismissSyncDiag,
+    });
+    const btn = Array.from(container.querySelectorAll("[role='button']")).find(b =>
+      /btn_check_cloud_newer/i.test(b.textContent || ""),
+    ) as HTMLElement;
+    fireEvent.click(btn);
+    expect(dismissSyncDiag).toHaveBeenCalled();
+    expect(checkCloudNewerNow).not.toHaveBeenCalled();
+  });
+
+  it("…and RE-CHECKS once nothing of its own is on screen", () => {
+    // The third tap of the reported sequence: close, then reopen AND refresh.
+    const checkCloudNewerNow = vi.fn();
+    const dismissSyncDiag = vi.fn();
+    const { container } = renderWithCtx(<CuratorSettingsModal />, {
+      ...base, syncDiag: null, syncDiagErr: "", syncDiagSource: "",
+      checkCloudNewerNow, dismissSyncDiag,
+    });
+    const btn = Array.from(container.querySelectorAll("[role='button']")).find(b =>
+      /btn_check_cloud_newer/i.test(b.textContent || ""),
+    ) as HTMLElement;
+    fireEvent.click(btn);
+    expect(checkCloudNewerNow).toHaveBeenCalled();
+    expect(dismissSyncDiag).not.toHaveBeenCalled();
+  });
+
+  it("re-checks rather than dismissing a panel the OTHER button raised", () => {
+    // Source-scoped, exactly like its neighbour: dismissing a panel rendered
+    // under the cloud-files button would be a tap with no visible effect —
+    // the dead tap this whole series is about.
+    const checkCloudNewerNow = vi.fn();
+    const dismissSyncDiag = vi.fn();
+    const { container } = renderWithCtx(<CuratorSettingsModal />, {
+      ...base, syncDiag: diag, syncDiagSource: "diag",
       checkCloudNewerNow, dismissSyncDiag,
     });
     const btn = Array.from(container.querySelectorAll("[role='button']")).find(b =>

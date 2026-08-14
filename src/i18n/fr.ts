@@ -625,6 +625,7 @@ export var FR = {
   sync_diag_this_device:"Cet appareil",
   sync_diag_manual_files:"Sauvegardes manuelles",
   sync_diag_legacy_files:"Fichiers hérités",
+  sync_diag_catalogue_file:"Fichier catalogue",
   sync_diag_files:"{n} fichier(s)",
   device_name_label:"Nom de cet appareil",
   device_name_hint:"Affiché dans le diagnostic multi-appareils et ajouté au nom des fichiers de sauvegarde pour les reconnaître. Ne fait pas partie de vos données.",

@@ -625,6 +625,7 @@ export var DE = {
   sync_diag_this_device:"Dieses Gerät",
   sync_diag_manual_files:"Manuelle Sicherungen",
   sync_diag_legacy_files:"Alte Dateien",
+  sync_diag_catalogue_file:"Katalogdatei",
   sync_diag_files:"{n} Datei(en)",
   device_name_label:"Name dieses Geräts",
   device_name_hint:"Wird in der geräteübergreifenden Diagnose angezeigt und an die Namen der Sicherungsdateien angehängt, damit sie erkennbar sind. Nicht Teil deiner Daten.",

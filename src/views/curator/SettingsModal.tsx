@@ -515,10 +515,29 @@ export function CuratorSettingsModal() {
               dead for the 3-4 s any other cloud status lingered (including
               this one's own former success message). Reported as "I click
               check backups and nothing happens". It now disables only while
-              IT is running, and answers directly underneath. */}
+              IT is running, and answers directly underneath.
+
+              It is a TOGGLE, like its neighbour — and that REVERSES an
+              earlier decision recorded on the panel below ("this button is
+              NOT a toggle and must not become one: re-checking is the whole
+              point of it"). That reasoning held while the button was the only
+              way to close what it opened, which is exactly the dead end the
+              panel's own × was added for. With the × there, closing on a
+              second tap costs nothing: re-checking is still one tap away, it
+              just reopens rather than refreshing in place, and the two cloud
+              buttons now behave identically instead of one being a toggle and
+              its neighbour not. Requested from the app. Source-scoped like
+              the other one, so a panel raised by the OTHER button is
+              re-checked rather than dismissed out from under the reader. */}
           <ActionBtn icon="cloud"
             label={t ? t("btn_check_cloud_newer") : "Vérifier les sauvegardes cloud"}
-            onClick={() => { checkCloudNewerNow && checkCloudNewerNow(); }}
+            onClick={() => {
+              if (syncDiagSource === "check" && (syncDiag || syncDiagErr)) {
+                dismissSyncDiag && dismissSyncDiag();
+              } else if (checkCloudNewerNow) {
+                checkCloudNewerNow();
+              }
+            }}
             accent={C.brass}
             disabled={!!syncDiagBusy || !!gdriveConfirm} small />
           {syncDiagSource === "check" && syncDiagBusy && (
@@ -2119,14 +2138,21 @@ function Toggle({
 // default) — kept intact so the debug panel can be flipped back on.
 // The panel carries its OWN close button.
 //
-// It used to be dismissable only by re-tapping "Diagnostic multi-appareils",
-// which is a toggle. "Vérifier les sauvegardes cloud" was later given the same
-// panel — and that button is NOT a toggle and must not become one: re-checking
-// is the whole point of it. So a panel opened from the check could not be
-// closed at all; tapping the button again just re-ran the check, which is
-// exactly what was reported ("je ne peux jamais le fermer… ça ne fait que
-// rafraîchir les données"). A panel must not depend on the button that opened
-// it for its way out. Same × as the cloud panel, which now serves both buttons.
+// It used to be dismissable only by re-tapping the button that opened it,
+// and "Vérifier les sauvegardes cloud" was NOT a toggle — so a panel opened
+// from the check could not be closed at all; tapping again just re-ran it,
+// which is exactly what was reported ("je ne peux jamais le fermer… ça ne
+// fait que rafraîchir les données"). A panel must not depend on the button
+// that opened it for its way out — that is why this × exists, and it is the
+// durable half of the fix.
+//
+// The check button HAS since become a toggle too (requested from the app: a
+// second tap should close, a third reopen and refresh). The argument that
+// kept it from being one — "re-checking is the whole point of it" — only
+// held while it was the sole way out; with the × here, re-checking is still
+// one tap away and both cloud buttons behave alike. The × is not made
+// redundant by that: a toggle is only reachable if the button is on screen,
+// and this panel can be long enough to push it out of view.
 /**
  * « Which ROW? » — the shared result panel.
  *
@@ -2375,6 +2401,15 @@ export function SyncDiagView({ diag, t, lang, onClose, onDeleteEntry }: {
                         : t("sync_diag_other_device") + " " + String(d.deviceId))
                   : dn
                     ? dn
+                    // A CATALOGUE file has no device identity by construction:
+                    // `autoFileDeviceId` only reads auto names, and
+                    // `backupDeviceName` only matches a `.json` carrying the
+                    // `-tN-pN-…` counts, so a `.csv` yields neither an id nor
+                    // a name and lands in this last bucket. It was therefore
+                    // labelled « Fichiers hérités » — reported by screenshot,
+                    // under a heading that reads PAR APPAREIL, about the one
+                    // file no device wrote. It is named for what it is.
+                    : d.kind === "catalogue" ? t("sync_diag_catalogue_file")
                     : (d.kind === "manual" ? t("sync_diag_manual_files") : t("sync_diag_legacy_files"));
               const count = String(t("sync_diag_files")).replace("{n}", String(d.count));
               return (
