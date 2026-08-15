@@ -140,6 +140,7 @@ const HELP_SECTION_IDS = [
   { key: "updates",         ids: { fr: "fr-maj",        en: "en-updates",         es: "es-updates",         de: "de-updates",         it: "it-updates", pt: "pt-updates" } },
   { key: "troubleshooting", ids: { fr: "fr-depannage",  en: "en-troubleshooting", es: "es-troubleshooting", de: "de-troubleshooting", it: "it-troubleshooting", pt: "pt-troubleshooting" } },
   { key: "trash",           ids: { fr: "fr-corbeille",  en: "en-trash",           es: "es-trash",           de: "de-trash",           it: "it-trash", pt: "pt-trash" } },
+  { key: "settings",        ids: { fr: "fr-parametres", en: "en-settings",        es: "es-settings",        de: "de-settings",        it: "it-settings", pt: "pt-settings" } },
 ];
 try {
   const { JSDOM } = require("jsdom");

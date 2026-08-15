@@ -45,6 +45,20 @@ const QUOTED: Array<{ key: string; marker: RegExp }> = [
   { key: "enc_toggle_label", marker: /<strong>[^<]{0,60}<\/strong>[^<]{0,20}(protège|protects|protege|schützt|protegge)/ },
   // The auto-fill source option.
   { key: "autofill_src_local", marker: /<strong>[^<]{0,30}<\/strong>\s*\(/ },
+  // The setting that option lives under, quoted in the catalogue section of all
+  // six blocks. Portuguese said « Fonte preferida » — the Italian label,
+  // translated — against the app's « Fonte prioritária »; every other language
+  // was right, which is what identifies it as translation drift rather than a
+  // stale guide. The marker keys on the CLAUSE that follows the quotation,
+  // since the label itself is what may be wrong.
+  { key: "lbl_autofill_source", marker: /<em>[^<]{0,40}<\/em>[^<]{0,40}(permet d'inverser|lets you reverse|permite invertir|lässt sich diese Reihenfolge|permette di invertire|permite inverter)/ },
+  // The accounting toggle, quoted in <strong> by every block. German said
+  // « Buchhaltung » — seven times, heading and breadcrumb included — where the
+  // app says « Abrechnung ». Nothing could see it: the label is prose, not an
+  // enum value, so gate 23 does not reach it, and the German guide was
+  // internally consistent, which is what makes this kind of drift read as
+  // correct until you put it beside the dictionary.
+  { key: "sec_accounting", marker: /<h3>[^<]{0,40}\((Mengenerfassung|déduction|deduction|deducción|deduzione|dedução)[^<]{0,40}<\/h3>/ },
   // The catalogue check, quoted in the file-format note of all six
   // blocks. The marker keys on the sentence's own subject — the LINE NUMBER —
   // because that is what the button is being recommended for, and it is

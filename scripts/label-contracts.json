@@ -517,6 +517,25 @@
           ]
         }
       ]
+    },
+    {
+      "id": "session-default-weight",
+      "source": "src/App.tsx",
+      "match": "\"cave-session-default-weight\"\\)\\s*\\|\\|\\s*\"(\\d+)\"",
+      "why": "Section 18 of the guide quotes this default in all six languages. It is an inline fallback in App.tsx rather than a named constant, so nothing else tied it to the prose.",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "Défaut : {n}.",
+            "Default: {n}.",
+            "Por defecto: {n}.",
+            "Standard: {n}.",
+            "Predefinito: {n}.",
+            "Predefinição: {n}."
+          ]
+        }
+      ]
     }
   ],
   "prose": [

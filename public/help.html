@@ -139,6 +139,7 @@
     <li><a href="#fr-maj">Mises à jour</a></li>
     <li><a href="#fr-depannage">Dépannage</a></li>
     <li><a href="#fr-corbeille">Corbeille (30 jours)</a></li>
+    <li><a href="#fr-parametres">Tous les paramètres, et ce qu'ils changent</a></li>
   </ol>
 </div>
 
@@ -724,6 +725,55 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
 </ul>
 <div class="note">Les sauvegardes JSON et Drive incluent les éléments en corbeille — vous retrouvez donc ce filet de sécurité de 30 jours même après une réinstallation ou une restauration. L'export CSV, lui, est un instantané de l'inventaire vivant : il ne contient pas la corbeille.</div>
 
+<h2 id="fr-parametres">18. Tous les paramètres, et ce qu'ils changent</h2>
+<p>Un récapitulatif de bout en bout, pour répondre à « où se règle ceci ? » sans relire le guide. Chaque réglage est déjà décrit dans sa section, où vous trouverez le raisonnement ; ici il n'y a que l'endroit, l'effet et la valeur par défaut. On y accède par l'icône <strong>engrenage</strong>, en haut de l'accueil.</p>
+
+<h3>Onglet Préférences</h3>
+<p>C'est l'onglet qui s'ouvre en premier. Rien ici ne touche à vos données : ce sont des réglages d'affichage et de comportement, propres à cet appareil — mais ils <strong>voyagent dans vos sauvegardes</strong> et une restauration en mode <em>Remplacer</em> installera ceux du fichier.</p>
+<ul>
+  <li><strong>Langue</strong> — Toute l'interface. Chaque langue se télécharge à son premier choix puis reste disponible hors ligne. <em>Défaut : celle du navigateur, sinon anglais.</em></li>
+  <li><strong>Taille du texte</strong> — Redimensionne l'interface entière d'un coup, pas seulement les paragraphes. <em>Défaut : Moyen.</em></li>
+  <li><strong>Thème</strong> — La couleur d'accent et l'ambiance : Laiton, Bleu acier ou Anglais. <em>Défaut : Laiton.</em></li>
+  <li><strong>Mode</strong> — Sombre ou Clair (fond parchemin). Indépendant du thème. <em>Défaut : Sombre.</em></li>
+  <li><strong>Format de date</strong> — L'affichage des dates <em>et</em> celles de l'export CSV. <em>Défaut : FR (15.03.2024).</em></li>
+  <li><strong>Unité de poids</strong> — Le suffixe partout : lots, poids des pipes, journal. <strong>Libellé seul</strong> — une valeur déjà saisie n'est pas reconvertie. <em>Défaut : g.</em></li>
+  <li><strong>Unité de longueur</strong> — La longueur des pipes. Libellé seul, comme ci-dessus. <em>Défaut : mm.</em></li>
+  <li><strong>Devise</strong> — Le symbole de tous les prix. Libellé seul : aucun taux de change. <em>Défaut : €.</em></li>
+  <li><strong>Grammage par défaut</strong> — Le poids proposé à l'ajout d'une séance, quand la pipe choisie n'a pas de dimensions de foyer. Sinon l'app estime depuis le foyer et la coupe. <em>Défaut : 3.</em></li>
+  <li><strong>Listes groupées</strong> — L'affichage initial des listes, groupé par marque ou à plat. Vous pouvez toujours basculer ponctuellement. <em>Défaut : Groupé.</em></li>
+  <li><strong>Comptabilité</strong> — Si l'app suit les quantités. Désactivée, le champ <em>Grammage</em> disparaît des séances, plus aucune déduction ni passage auto en Terminé — mais l'ouverture d'un lot en cave reste, c'est un événement physique. <em>Défaut : Activée.</em></li>
+  <li><strong>Rappels d'entretien</strong> — La pastille « à entretenir » sur les pipes et la section de l'accueil. Le carnet reste utilisable même désactivés. <em>Défaut : Activés.</em></li>
+  <li><strong>Seuil d'entretien</strong> — Le nombre de séances sans nettoyage avant le rappel. Seuls les nettoyages léger et complet remettent le compteur à zéro. <em>Défaut : 5 séances.</em></li>
+  <li><strong>Seuil de stock bas</strong> — Sous ce poids restant, un tabac passe dans « À surveiller » et dans la liste de courses — sauf s'il est marqué « à ne pas reprendre ». Dans votre unité de poids. <em>Défaut : 25 g.</em></li>
+  <li><strong>Sections</strong> — Masque Accessoires, Journal ou Statistiques : la section quitte la barre du bas et le tableau de bord. Les données restent. <em>Défaut : toutes visibles.</em></li>
+</ul>
+
+<h3>Onglet Données</h3>
+<p>Tout ce qui fait entrer ou sortir des données. C'est le seul onglet dont les actions sont irréversibles.</p>
+<ul>
+  <li><strong>Destination cloud</strong> — Dropbox ou Google Drive. <strong>La garde multi-appareils ne compare qu'à l'intérieur d'une même destination</strong> : choisissez la même sur tous vos appareils. <em>Défaut : Dropbox.</em></li>
+  <li><strong>Sauvegarde auto cloud</strong> — Une sauvegarde silencieuse part quelques secondes après chaque modification, et en quittant l'app. Chaque appareil garde son propre fichier. <em>Défaut : Désactivée.</em></li>
+  <li><strong>Chiffrer les sauvegardes</strong> — Chiffre chaque sauvegarde cloud avec une phrase secrète, avant l'envoi. <strong>La phrase n'est jamais stockée et ne se récupère pas.</strong> <em>Défaut : Désactivé.</em></li>
+  <li><strong>Nom de cet appareil</strong> — Rend cet appareil identifiable dans le panneau des sauvegardes et dans le <em>nom</em> des fichiers cloud. Pas dans leur contenu. <em>Défaut : vide.</em></li>
+  <li><strong>Catalogue de référence</strong> — Charge, exporte ou retire votre fichier de référence, et le sauvegarde dans le cloud à part. N'ajoute jamais rien à votre cave — voir <a href="#fr-catalogue">section 4</a>. <em>Défaut : aucun.</em></li>
+  <li><strong>Assistant IA</strong> — Fournisseur, modèle, clé API, et la <em>source prioritaire</em> : votre catalogue d'abord, ou l'IA d'abord. « Auto » laisse l'app prendre le modèle le moins cher et en changer s'il est retiré. <em>Défaut : Catalogue d'abord ; aucune clé.</em></li>
+  <li><strong>Exclure les clés API</strong> — Empêche votre clé de partir dans les exports et les sauvegardes. À laisser activé si vous partagez un fichier. <em>Défaut : Activé.</em></li>
+  <li><strong>Doublons</strong> — N'apparaît que s'il y a des fiches à fusionner — le nombre est la raison d'aller voir. <em>Défaut : caché.</em></li>
+  <li><strong>Effacer toutes les données</strong> — Vide la cave, les photos, les clés API et la connexion cloud de <em>cet appareil</em>. Vos sauvegardes déjà dans le cloud ne sont pas touchées. Irréversible. <em>Défaut : —.</em></li>
+</ul>
+
+<h3>Onglet Application</h3>
+<ul>
+  <li><strong>Installer cette app</strong> — La marche à suivre pour l'ajouter à l'écran d'accueil, propre à votre navigateur. <em>Défaut : —.</em></li>
+  <li><strong>Vérifier les mises à jour</strong> — Interroge le serveur, puis recharge l'app en vidant son cache. Vos données ne sont pas touchées. <em>Défaut : —.</em></li>
+  <li><strong>Diagnostic</strong> — Surveille la cohérence interne. Vert tant que tout va bien ; en cas d'anomalie, il liste les dernières occurrences et propose de les copier. <em>Défaut : —.</em></li>
+</ul>
+
+<h3>Onglet Aide</h3>
+<p>Des liens, aucun réglage : ce mode d'emploi, les nouveautés de la version, la politique de confidentialité, les licences des composants tiers, et de quoi nous écrire.</p>
+<div class="note"><strong>Ce qui n'est pas dans les Paramètres.</strong> Certains réglages vivent là où ils s'appliquent, parce qu'ils ne concernent qu'un écran : le tri et les filtres de chaque liste, le pliage des groupes, l'ordre de la wishlist, et le repli des sections de ce guide. Ils sont retenus d'une visite à l'autre, mais ils ne voyagent pas dans les sauvegardes.</div>
+
+
 <hr>
 <p style="font-size:13px;color:#655846;">Ma Cave à Tabac — <a href="https://t-cellar.app">t-cellar.app</a> &nbsp;·&nbsp; <a href="./privacy.html">Confidentialité</a> &nbsp;·&nbsp; <a href="mailto:macaveatabac@gmail.com">Contact</a></p>
 </div>
@@ -755,6 +805,7 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
     <li><a href="#en-updates">Updates</a></li>
     <li><a href="#en-troubleshooting">Troubleshooting</a></li>
     <li><a href="#en-trash">Trash (30 days)</a></li>
+    <li><a href="#en-settings">Every setting, and what it changes</a></li>
   </ol>
 </div>
 
@@ -1341,10 +1392,58 @@ The two formats have neither the same columns nor the same effect: loading one i
 </ul>
 <div class="note">JSON and Drive backups include trash items — you keep this 30-day safety net even after a reinstall or restore. The CSV export, however, is a snapshot of the live inventory: it does not include the trash.</div>
 
+<h2 id="en-settings">18. Every setting, and what it changes</h2>
+<p>An end-to-end recap, to answer "where do I set this?" without re-reading the guide. Each setting is already described in its own section, where you will find the reasoning; here you get only the place, the effect and the default. You reach them all through the <strong>gear</strong> icon at the top of the Home screen.</p>
+
+<h3>Preferences tab</h3>
+<p>This is the tab that opens first. Nothing here touches your data: these are display and behaviour settings, particular to this device — but they <strong>travel in your backups</strong>, and a restore in <em>Replace</em> mode will install the ones from the file.</p>
+<ul>
+  <li><strong>Language</strong> — The whole interface. Each language is downloaded the first time you pick it, then stays available offline. <em>Default: your browser's, else English.</em></li>
+  <li><strong>Text size</strong> — Rescales the entire interface at once, not just the paragraphs. <em>Default: Medium.</em></li>
+  <li><strong>Theme</strong> — The accent colour and the mood: Brass, Steel blue or English. <em>Default: Brass.</em></li>
+  <li><strong>Mode</strong> — Dark or Light (parchment background). Independent of the theme. <em>Default: Dark.</em></li>
+  <li><strong>Date format</strong> — How dates are displayed <em>and</em> the ones in the CSV export. <em>Default: FR (15.03.2024).</em></li>
+  <li><strong>Weight unit</strong> — The suffix everywhere: lots, pipe weights, journal. <strong>Label only</strong> — a value already entered is not converted. <em>Default: g.</em></li>
+  <li><strong>Length unit</strong> — Pipe length. Label only, as above. <em>Default: mm.</em></li>
+  <li><strong>Currency</strong> — The symbol on every price. Label only: no exchange rate. <em>Default: €.</em></li>
+  <li><strong>Default session weight</strong> — The weight offered when you add a session, when the chosen pipe has no chamber dimensions. Otherwise the app estimates it from the chamber and the cut. <em>Default: 3.</em></li>
+  <li><strong>Lists grouped</strong> — The initial display of lists, grouped by brand or flat. You can still toggle one list at a time. <em>Default: Grouped.</em></li>
+  <li><strong>Accounting (lot deductions)</strong> — Whether the app tracks quantities. Off, the <em>Weight</em> field disappears from sessions, and there is no deduction and no automatic switch to Finished — but opening a cellar lot remains, it is a physical event. <em>Default: On.</em></li>
+  <li><strong>Maintenance reminders</strong> — The "cleaning due" chip on pipes and the Home section. The log stays usable even when they are off. <em>Default: On.</em></li>
+  <li><strong>Maintenance reminder (sessions)</strong> — The number of sessions without a cleaning before the reminder. Only the light and full cleanings reset the counter. <em>Default: 5 sessions.</em></li>
+  <li><strong>Low-stock threshold</strong> — Below this remaining weight, a tobacco moves into "Watch list" and into the shopping list — unless it is marked "don't rebuy". In your weight unit. <em>Default: 25 g.</em></li>
+  <li><strong>Sections</strong> — Hides Accessories, Journal or Statistics: the section leaves the bottom bar and the dashboard. The data stays. <em>Default: all visible.</em></li>
+</ul>
+
+<h3>Data tab</h3>
+<p>Everything that brings data in or sends it out. It is the only tab whose actions cannot be undone.</p>
+<ul>
+  <li><strong>Cloud destination</strong> — Dropbox or Google Drive. <strong>The multi-device guard only ever compares within one destination</strong>: pick the same one on all your devices. <em>Default: Dropbox.</em></li>
+  <li><strong>Cloud auto-save</strong> — A silent backup leaves a few seconds after every change, and when you leave the app. Each device keeps its own file. <em>Default: Off.</em></li>
+  <li><strong>Encrypt cloud backups</strong> — Encrypts every cloud backup with a passphrase, before it is sent. <strong>The passphrase is never stored and cannot be recovered.</strong> <em>Default: Off.</em></li>
+  <li><strong>This device's name</strong> — Makes this device identifiable in the backups panel and in the <em>name</em> of the cloud files. Not in their contents. <em>Default: empty.</em></li>
+  <li><strong>Reference catalogue</strong> — Loads, exports or removes your reference file, and backs it up to the cloud separately. Never adds anything to your cellar — see <a href="#en-catalogue">section 4</a>. <em>Default: none.</em></li>
+  <li><strong>AI Assistant</strong> — Provider, model, API key, and the <em>Preferred source</em>: your catalogue first, or the AI first. "Auto" lets the app take the cheapest model and change it if that one is retired. <em>Default: Catalogue first; no key.</em></li>
+  <li><strong>Exclude API keys from exports and backups</strong> — Keeps your key on this device. Leave it on if you share a file. <em>Default: On.</em></li>
+  <li><strong>Duplicates (N)</strong> — Only appears when there are entries to merge — the count is the reason to go and look. <em>Default: hidden.</em></li>
+  <li><strong>Delete all data</strong> — Empties the cellar, the photos, the API keys and the cloud connection of <em>this device</em>. Your backups already in the cloud are untouched. Cannot be undone. <em>Default: —.</em></li>
+</ul>
+
+<h3>App tab</h3>
+<ul>
+  <li><strong>Install</strong> — How to add the app to your home screen, spelled out for your browser. <em>Default: —.</em></li>
+  <li><strong>Check for updates</strong> — Queries the server, then reloads the app and clears its cache. Your data is untouched. <em>Default: —.</em></li>
+  <li><strong>Diagnostic</strong> — Watches internal consistency. Green as long as all is well; on an anomaly it lists the latest occurrences and offers to copy them. <em>Default: —.</em></li>
+</ul>
+
+<h3>Help tab</h3>
+<p>Links, no settings: this guide, what's new in the version, the privacy policy, the licences of third-party components, and a way to write to us.</p>
+<div class="note"><strong>What is not in Settings.</strong> A few settings live where they apply, because they concern one screen only: each list's sort and filters, the folding of groups, the wishlist order, and the collapsing of this guide's sections. They are remembered from one visit to the next, but they do not travel in your backups.</div>
+
+
 <hr>
 <p style="font-size:13px;color:#655846;">My Tobacco Cellar — <a href="https://t-cellar.app">t-cellar.app</a> &nbsp;·&nbsp; <a href="./privacy.html">Privacy</a> &nbsp;·&nbsp; <a href="mailto:macaveatabac@gmail.com">Contact</a></p>
 </div>
-
 
 <div id="sec-es" class="section">
 <p class="subtitle">Mi Bodega de Tabaco &nbsp;·&nbsp; Guía completa</p>
@@ -1369,6 +1468,7 @@ The two formats have neither the same columns nor the same effect: loading one i
     <li><a href="#es-updates">Actualizaciones</a></li>
     <li><a href="#es-troubleshooting">Resolución de problemas</a></li>
     <li><a href="#es-trash">Papelera (30 días)</a></li>
+    <li><a href="#es-settings">Todos los ajustes, y qué cambia cada uno</a></li>
   </ol>
 </div>
 
@@ -1955,6 +2055,54 @@ Los dos formatos no tienen ni las mismas columnas ni el mismo efecto: cargar uno
 </ul>
 <div class="note">Las copias JSON y de Drive incluyen los elementos de la papelera — conservas esta red de seguridad de 30 días incluso tras una reinstalación o restauración. La exportación CSV, en cambio, es una instantánea del inventario en vivo: no incluye la papelera.</div>
 
+<h2 id="es-settings">18. Todos los ajustes, y qué cambia cada uno</h2>
+<p>Un resumen de principio a fin, para responder a «¿dónde se ajusta esto?» sin releer la guía. Cada ajuste ya está descrito en su sección, donde encontrarás el razonamiento; aquí solo tienes el sitio, el efecto y el valor por defecto. Se llega mediante el icono de <strong>engranaje</strong>, arriba en la pantalla de inicio.</p>
+
+<h3>Pestaña Preferencias</h3>
+<p>Es la pestaña que se abre primero. Nada de lo que hay aquí toca tus datos: son ajustes de visualización y de comportamiento, propios de este dispositivo — pero <strong>viajan en tus copias de seguridad</strong>, y una restauración en modo <em>Reemplazar</em> instalará los del archivo.</p>
+<ul>
+  <li><strong>Idioma</strong> — Toda la interfaz. Cada idioma se descarga la primera vez que lo eliges y luego queda disponible sin conexión. <em>Por defecto: el del navegador, si no inglés.</em></li>
+  <li><strong>Tamaño del texto</strong> — Redimensiona la interfaz entera de una vez, no solo los párrafos. <em>Por defecto: Mediano.</em></li>
+  <li><strong>Tema</strong> — El color de acento y el ambiente: Latón, Azul acero o Inglés. <em>Por defecto: Latón.</em></li>
+  <li><strong>Modo</strong> — Oscuro o Claro (fondo pergamino). Independiente del tema. <em>Por defecto: Oscuro.</em></li>
+  <li><strong>Formato de fecha</strong> — Cómo se muestran las fechas <em>y</em> las de la exportación CSV. <em>Por defecto: FR (15.03.2024).</em></li>
+  <li><strong>Unidad de peso</strong> — El sufijo en todas partes: lotes, peso de las pipas, diario. <strong>Solo la etiqueta</strong> — un valor ya introducido no se reconvierte. <em>Por defecto: g.</em></li>
+  <li><strong>Unidad de longitud</strong> — La longitud de las pipas. Solo la etiqueta, como arriba. <em>Por defecto: mm.</em></li>
+  <li><strong>Moneda</strong> — El símbolo de todos los precios. Solo la etiqueta: ningún tipo de cambio. <em>Por defecto: €.</em></li>
+  <li><strong>Peso por sesión predet.</strong> — El peso propuesto al añadir una sesión, cuando la pipa elegida no tiene dimensiones de cazoleta. Si las tiene, la app lo estima a partir de la cazoleta y el corte. <em>Por defecto: 3.</em></li>
+  <li><strong>Listas agrupadas</strong> — La visualización inicial de las listas, agrupada por marca o plana. Siempre puedes cambiarla puntualmente. <em>Por defecto: Agrupadas.</em></li>
+  <li><strong>Contabilidad</strong> — Si la app hace seguimiento de las cantidades. Desactivada, el campo <em>Peso</em> desaparece de las sesiones, y ya no hay descuento ni paso automático a Terminado — pero abrir un lote de bodega sigue ocurriendo, porque es un evento físico. <em>Por defecto: Activada.</em></li>
+  <li><strong>Recordatorios de mantenimiento</strong> — La etiqueta «limpieza pendiente» en las pipas y la sección de la pantalla de inicio. El registro sigue siendo utilizable aunque estén desactivados. <em>Por defecto: Activados.</em></li>
+  <li><strong>Recordatorio de mantenimiento (sesiones)</strong> — El número de sesiones sin limpieza antes del aviso. Solo las limpiezas ligera y completa reinician el contador. <em>Por defecto: 5 sesiones.</em></li>
+  <li><strong>Umbral de stock bajo</strong> — Por debajo de ese peso restante, un tabaco pasa a «Lista de vigilancia» y a la lista de la compra — salvo si está marcado «no volver a comprar». En tu unidad de peso. <em>Por defecto: 25 g.</em></li>
+  <li><strong>Secciones</strong> — Oculta Accesorios, Diario o Estadísticas: la sección sale de la barra inferior y del panel principal. Los datos se conservan. <em>Por defecto: todas visibles.</em></li>
+</ul>
+
+<h3>Pestaña Datos</h3>
+<p>Todo lo que hace entrar o salir datos. Es la única pestaña cuyas acciones son irreversibles.</p>
+<ul>
+  <li><strong>Destino en la nube</strong> — Dropbox o Google Drive. <strong>La protección multidispositivo solo compara dentro de un mismo destino</strong>: elige el mismo en todos tus dispositivos. <em>Por defecto: Dropbox.</em></li>
+  <li><strong>Autoguardado en la nube</strong> — Una copia silenciosa sale unos segundos después de cada modificación, y también al salir de la app. Cada dispositivo mantiene su propio archivo. <em>Por defecto: Desactivado.</em></li>
+  <li><strong>Cifrar copias en la nube</strong> — Cifra cada copia en la nube con una frase de contraseña, antes de enviarla. <strong>La frase nunca se almacena y no se puede recuperar.</strong> <em>Por defecto: Desactivado.</em></li>
+  <li><strong>Nombre de este dispositivo</strong> — Hace este dispositivo reconocible en el panel de copias y en el <em>nombre</em> de los archivos de la nube. No en su contenido. <em>Por defecto: vacío.</em></li>
+  <li><strong>Catálogo de referencia</strong> — Carga, exporta o quita tu archivo de referencia, y lo guarda aparte en la nube. Nunca añade nada a tu bodega — consulta la <a href="#es-catalogue">sección 4</a>. <em>Por defecto: ninguno.</em></li>
+  <li><strong>Asistente IA</strong> — Proveedor, modelo, clave de API y la <em>fuente preferida</em>: tu catálogo primero, o la IA primero. «Auto» deja que la app tome el modelo más económico y lo cambie si lo retiran. <em>Por defecto: Catálogo primero; sin clave.</em></li>
+  <li><strong>Excluir claves API</strong> — Impide que tu clave salga en las exportaciones y las copias. Déjalo activado si compartes un archivo. <em>Por defecto: Activado.</em></li>
+  <li><strong>Duplicados</strong> — Solo aparece si hay fichas que fusionar — la cifra es el motivo para ir a mirar. <em>Por defecto: oculto.</em></li>
+  <li><strong>Eliminar todos los datos</strong> — Vacía la bodega, las fotos, las claves de API y la conexión a la nube de <em>este dispositivo</em>. Tus copias ya guardadas en la nube no se tocan. Irreversible. <em>Por defecto: —.</em></li>
+</ul>
+
+<h3>Pestaña App</h3>
+<ul>
+  <li><strong>Instalar</strong> — Los pasos para añadir la app a la pantalla de inicio, propios de tu navegador. <em>Por defecto: —.</em></li>
+  <li><strong>Buscar actualizaciones</strong> — Consulta el servidor y luego recarga la app vaciando su caché. Tus datos no se tocan. <em>Por defecto: —.</em></li>
+  <li><strong>Diagnóstico</strong> — Vigila la coherencia interna. Verde mientras todo va bien; ante una anomalía, enumera las últimas ocurrencias y ofrece copiarlas. <em>Por defecto: —.</em></li>
+</ul>
+
+<h3>Pestaña Ayuda</h3>
+<p>Enlaces, ningún ajuste: esta guía, las novedades de la versión, la política de privacidad, las licencias de los componentes de terceros, y cómo escribirnos.</p>
+<div class="note"><strong>Lo que no está en Ajustes.</strong> Algunos ajustes viven allí donde se aplican, porque solo afectan a una pantalla: el orden y los filtros de cada lista, el plegado de los grupos, el orden de la lista de deseos y el plegado de las secciones de esta guía. Se recuerdan de una visita a otra, pero no viajan en las copias de seguridad.</div>
+
 <hr>
 <p style="font-size:13px;color:#655846;">Mi Bodega de Tabaco — <a href="https://t-cellar.app">t-cellar.app</a> &nbsp;·&nbsp; <a href="./privacy.html">Privacidad</a> &nbsp;·&nbsp; <a href="mailto:macaveatabac@gmail.com">Contacto</a></p>
 </div>
@@ -1982,6 +2130,7 @@ Los dos formatos no tienen ni las mismas columnas ni el mismo efecto: cargar uno
     <li><a href="#de-updates">Updates</a></li>
     <li><a href="#de-troubleshooting">Fehlerbehebung</a></li>
     <li><a href="#de-trash">Papierkorb (30 Tage)</a></li>
+    <li><a href="#de-settings">Alle Einstellungen und was sie bewirken</a></li>
   </ol>
 </div>
 
@@ -2042,13 +2191,13 @@ Los dos formatos no tienen ni las mismas columnas ni el mismo efecto: cargar uno
 <p>Ein aufgebrauchtes Los kann über <strong>Reaktivieren</strong> wieder zum Leben erweckt werden (ein Versehen oder eine wiederentdeckte Dose). Es erhält den Status zurück, mit dem es ins Inventar <em>gekommen</em> ist: <span class="badge badge-cave">Keller</span> bei einer verschlossenen Dose, <span class="badge badge-pot">Glas</span> bei einem direkt als Glas angelegten Los. Ein als <strong>🚮 Entsorgt</strong> markiertes Los lässt sich so von Hand reaktivieren — und nur so.</p>
 <div class="note">Du kannst ein Los auch direkt als „Glas" oder „Aufgebraucht" anlegen, um vergangene Historie zu erfassen.</div>
 
-<h3>Buchhaltung (Mengenerfassung)</h3>
-<p>Ein globaler Schalter <strong>Buchhaltung</strong> unter <em>Einstellungen → Präferenzen → Buchhaltung</em> legt fest, ob die App die gerauchten Tabakmengen erfasst. <strong>Standardmäßig aktiviert.</strong></p>
+<h3>Abrechnung (Mengenerfassung)</h3>
+<p>Ein globaler Schalter <strong>Abrechnung</strong> unter <em>Einstellungen → Präferenzen → Abrechnung</em> legt fest, ob die App die gerauchten Tabakmengen erfasst. <strong>Standardmäßig aktiviert.</strong></p>
 <ul>
   <li><strong>Aktiviert</strong> — jede Sitzung (und jede Verkostung) zieht ihr Gewicht von dem gewählten <span class="badge badge-pot">Glas</span>-Los ab. Erreicht ein Glas 0 g, wechselt es von selbst zu <span class="badge badge-fin">Aufgebraucht — ✓ Konsumiert</span>. Protokollierst du eine Sitzung gegen ein <span class="badge badge-cave">Keller</span>-Los (versiegelte Dose), bietet eine Bestätigung an, das Los zu <strong>öffnen</strong> (Keller → Glas, auf heute datiert), bevor abgezogen wird. Das Feld <em>Gewicht</em> ist im Sitzungsformular Pflicht, und diese Gewichte speisen die „gerauchter Tabak"-Diagramme in den <a href="#de-stats">Statistiken</a>.</li>
   <li><strong>Deaktiviert</strong> — das Feld <em>Gewicht</em> verschwindet aus dem Sitzungsformular <em>und</em> aus der Live-Verkostung: kein Abzug, kein automatischer Wechsel zu Aufgebraucht, und diese Sitzungen fließen nicht in die Rauchmengen-Diagramme ein (die Statistiken zeigen einen Hinweis, solange die Option aus ist). Wähle das, wenn du nur festhalten willst, <em>was</em> und <em>wann</em> du rauchst, ohne die Mengen zu verfolgen.</li>
 </ul>
-<div class="note"><strong>Hinweis:</strong> selbst bei deaktivierter Buchhaltung findet das Öffnen eines Keller-Loses zu einem Glas (Keller → Glas) weiterhin statt — es ist ein echtes physisches Ereignis (du hast eine Dose geöffnet), gesteuert durch den Status des Loses und nicht durch die Mengenerfassung.</div>
+<div class="note"><strong>Hinweis:</strong> selbst bei deaktivierter Abrechnung findet das Öffnen eines Keller-Loses zu einem Glas (Keller → Glas) weiterhin statt — es ist ein echtes physisches Ereignis (du hast eine Dose geöffnet), gesteuert durch den Status des Loses und nicht durch die Mengenerfassung.</div>
 <div class="note">Das <strong>Standard-Sitzungsgewicht</strong> (das das Gewichtsfeld einer neuen Sitzung vorbelegt) wird ebenfalls unter <em>Einstellungen → Präferenzen</em> eingestellt. Außerdem schätzt die App das Gewicht <strong>automatisch</strong>, wenn du eine Pfeife wählst, <strong>deren Kammermaße</strong> (Durchmesser + Tiefe) eingetragen sind — aus dem Kammervolumen und dem <strong>Schnitt des gewählten Tabaks</strong> (ein dichter Flake wiegt mehr als ein luftiger Ribbon bei gleichem Volumen). Auch die <strong>Pfeifenform</strong> fließt ein: eine konische Kammer (Acorn, Cutty, Dublin, Horn, Pear, Pickaxe, Tulpe, Woodstock, Zulu — und etwas schwächer Bulldog, Bullmoose, Rhodesian) fasst etwas weniger als eine gerade gleicher Maße. Ohne Kammermaße gilt das obige Standardgewicht. Die Schätzung bleibt von Hand änderbar.</div>
 
 <h3>Wo anfangen</h3>
@@ -2228,7 +2377,7 @@ Los dos formatos no tienen ni las mismas columnas ni el mismo efecto: cargar uno
 <p>Diese Listen verschwinden, wenn es nichts zu melden gibt.</p>
 <p>Unter den Zahlenkacheln der Startseite ist <strong>„Bald rauchen“</strong> keine bloße Zählung: es ist die Zahl der Tabake mit mindestens einem <em>überreifen</em> Los, und ein Tipp öffnet das darauf gefilterte Inventar.</p>
 
-<div class="note"><strong>Reife der Lose (nur Keller):</strong> <strong>nur Keller-Lose (versiegelt) werden eingestuft</strong> — nach Alter in vier Stufen: <em>Jung</em>, <em>Optimal</em>, <em>Nahe Höhepunkt</em>, <em>Überreif</em>. Ein Los im Glas (geöffnet) wird nicht eingestuft — es zeigt stattdessen „Offen · Dauer“. Die Schwelle hängt vom Tabak ab: trägt er ein „Reifealter“ (das du eingibst oder die KI vorschlägt), steuert dieses die Berechnung; sonst gilt ein Familien-Standardwert, anhand von Fachquellen kalibriert (Latakia und Aromatics reifen schnell und werden früher markiert, während Virginia und Perique am längsten halten). Die Reife wird pro Los in der Tabak-Detailseite und ihrem Detail-Dialog angezeigt, und die Inventarkarte zeigt die vollständige Chargenverteilung mit Anzahl (z. B. „Jung · 2 · Überreif · 1“). Auf der Startseite zeigt die Kachel „Keller-Reife" unten eine <strong>geschätzte Reichweite</strong> — wie lange dein Vorrat reicht, berechnet aus dem verbleibenden Gewicht und deinem jüngsten Rauchtempo (ausgeblendet, wenn die Gewichts-Buchhaltung aus ist).</div>
+<div class="note"><strong>Reife der Lose (nur Keller):</strong> <strong>nur Keller-Lose (versiegelt) werden eingestuft</strong> — nach Alter in vier Stufen: <em>Jung</em>, <em>Optimal</em>, <em>Nahe Höhepunkt</em>, <em>Überreif</em>. Ein Los im Glas (geöffnet) wird nicht eingestuft — es zeigt stattdessen „Offen · Dauer“. Die Schwelle hängt vom Tabak ab: trägt er ein „Reifealter“ (das du eingibst oder die KI vorschlägt), steuert dieses die Berechnung; sonst gilt ein Familien-Standardwert, anhand von Fachquellen kalibriert (Latakia und Aromatics reifen schnell und werden früher markiert, während Virginia und Perique am längsten halten). Die Reife wird pro Los in der Tabak-Detailseite und ihrem Detail-Dialog angezeigt, und die Inventarkarte zeigt die vollständige Chargenverteilung mit Anzahl (z. B. „Jung · 2 · Überreif · 1“). Auf der Startseite zeigt die Kachel „Keller-Reife" unten eine <strong>geschätzte Reichweite</strong> — wie lange dein Vorrat reicht, berechnet aus dem verbleibenden Gewicht und deinem jüngsten Rauchtempo (ausgeblendet, wenn die Gewichts-Abrechnung aus ist).</div>
 
 <h2 id="de-pipes">8. Pfeifensammlung</h2>
 <p>Tippe im Tab <strong>Pfeifen</strong> oben auf das <strong>+</strong>, um eine Pfeife anzulegen; tippe auf eine Karte, um ihre Seite zu öffnen, und dort auf <em>Bearbeiten</em>, um sie zu ändern. Der KI-Assistent findet Form und Kammermaße anhand von Marke und Modell (siehe <a href="#de-ai">KI-Assistent</a>).</p>
@@ -2462,7 +2611,7 @@ Die beiden Formate haben weder dieselben Spalten noch dieselbe Wirkung: das eine
 
 <h3>Einstellungen in 4 Reitern</h3>
 <ul>
-  <li><strong>Präferenzen</strong> (Standardreiter beim Öffnen) — Sprache, Textgröße, Datumsformat, Einheiten, Währung, Standard-Sitzungsgewicht, Listengruppierung, Buchhaltung, Pflege-Erinnerungen, Abschnitte.</li>
+  <li><strong>Präferenzen</strong> (Standardreiter beim Öffnen) — Sprache, Textgröße, Datumsformat, Einheiten, Währung, Standard-Sitzungsgewicht, Listengruppierung, Abrechnung, Pflege-Erinnerungen, Bereiche.</li>
   <li><strong>Daten</strong> — Cloud-Sicherung, Export &amp; Import, KI-Assistent.</li>
   <li><strong>App</strong> — App installieren, nach Updates suchen, Diagnose.</li>
   <li><strong>Hilfe</strong> — Links zu dieser Anleitung, Kontakt, Neuigkeiten, Datenschutz, Lizenzen.</li>
@@ -2481,7 +2630,7 @@ Die beiden Formate haben weder dieselben Spalten noch dieselbe Wirkung: das eine
   <li><strong>Währung</strong> — € (Standard), $, £, CHF, JPY. Ersetzt das Symbol in jeder Preisanzeige.</li>
   <li><strong>Standard-Sitzungsgewicht</strong> — beim Hinzufügen einer Sitzung vorgeschlagenes Gewicht (Standard: 3).</li>
   <li><strong>Listen standardmäßig gruppiert</strong> — Anfangsanzeige der Listen: <em>Gruppiert</em> (Standard) oder <em>Flach</em>. Du kannst pro Liste immer umschalten.</li>
-  <li><strong>Buchhaltung</strong> — eigener Unterabschnitt. <strong>An</strong> (Standard): die App zieht das Gewicht von dem Los ab, markiert es bei 0 als <em>Aufgebraucht</em> und bietet an, ein Keller-Los vor dem Abziehen zu öffnen. <strong>Aus</strong>: das Feld <em>Gewicht</em> verschwindet aus dem Sitzungsformular und der Verkostung, kein Abzug oder Auto-Aufbrauchen, und diese Sitzungen fließen nicht in die Diagramme zum gerauchten Gewicht ein. Das Öffnen eines Keller-Loses (Keller→Glas) bleibt aktiv — es ist ein physisches Ereignis.</li>
+  <li><strong>Abrechnung</strong> — eigener Unterabschnitt. <strong>An</strong> (Standard): die App zieht das Gewicht von dem Los ab, markiert es bei 0 als <em>Aufgebraucht</em> und bietet an, ein Keller-Los vor dem Abziehen zu öffnen. <strong>Aus</strong>: das Feld <em>Gewicht</em> verschwindet aus dem Sitzungsformular und der Verkostung, kein Abzug oder Auto-Aufbrauchen, und diese Sitzungen fließen nicht in die Diagramme zum gerauchten Gewicht ein. Das Öffnen eines Keller-Loses (Keller→Glas) bleibt aktiv — es ist ein physisches Ereignis.</li>
   <li><strong>Schwellenwert für niedrigen Bestand</strong> — unter <em>Beobachtungsliste</em>: unter diesem Restgewicht (Standard 25 g) wird ein Tabak im Abschnitt „Beobachtungsliste" der Startseite markiert (siehe <a href="#de-inventory">Abschnitt 7</a>), außer er ist als „nicht nachkaufen" markiert. In deiner Gewichtseinheit angegeben.</li>
 </ul>
 <div class="warn"><strong>Einheiten und Währung sind nur Etiketten</strong> — ein bereits eingegebener Wert wird nie umgerechnet. Siehe <a href="#de-cycle">Wo anfangen</a>, wo die Warnung hingehört: vor der ersten Eingabe.</div>
@@ -2567,6 +2716,53 @@ Die beiden Formate haben weder dieselben Spalten noch dieselbe Wirkung: das eine
   <li><strong>Sofort rückgängig machen:</strong> direkt nach jedem Löschen zeigt ein Toast unten 8 Sekunden lang eine Schaltfläche <em>Rückgängig</em> (sofortiges Sicherheitsnetz, neben dem langfristigen Netz, das der Papierkorb ist).</li>
 </ul>
 <div class="note">JSON- und Drive-Sicherungen enthalten Papierkorb-Elemente — du behältst dieses 30-Tage-Sicherheitsnetz auch nach einer Neuinstallation oder Wiederherstellung. Der CSV-Export ist jedoch ein Schnappschuss des aktiven Inventars: er enthält den Papierkorb nicht.</div>
+<h2 id="de-settings">18. Alle Einstellungen und was sie bewirken</h2>
+<p>Ein Überblick von Anfang bis Ende, um „wo stellt man das ein?“ zu beantworten, ohne die ganze Anleitung noch einmal zu lesen. Jede Einstellung ist bereits in ihrem Abschnitt beschrieben, dort findest du auch die Begründung; hier stehen nur der Ort, die Wirkung und der Standardwert. Du erreichst sie über das <strong>Zahnrad</strong>-Symbol oben auf der Startseite.</p>
+
+<h3>Reiter Präferenzen</h3>
+<p>Dieser Reiter öffnet sich zuerst. Nichts hier rührt deine Daten an: Es sind Anzeige- und Verhaltenseinstellungen dieses Geräts — aber sie <strong>reisen in deinen Sicherungen mit</strong>, und eine Wiederherstellung im Modus <em>Ersetzen</em> installiert die aus der Datei.</p>
+<ul>
+  <li><strong>Sprache</strong> — Die gesamte Oberfläche. Jede Sprache wird beim ersten Auswählen heruntergeladen und bleibt danach offline verfügbar. <em>Standard: die des Browsers, sonst Englisch.</em></li>
+  <li><strong>Textgröße</strong> — Skaliert die gesamte Oberfläche auf einmal, nicht nur die Absätze. <em>Standard: Mittel.</em></li>
+  <li><strong>Design</strong> — Die Akzentfarbe und die Gesamtstimmung: Messing, Stahlblau oder Englisch. <em>Standard: Messing.</em></li>
+  <li><strong>Modus</strong> — Dunkel oder Hell (Pergament-Hintergrund). Unabhängig vom Design. <em>Standard: Dunkel.</em></li>
+  <li><strong>Datumsformat</strong> — Die Anzeige der Daten <em>und</em> die des CSV-Exports. <em>Standard: FR (15.03.2024).</em></li>
+  <li><strong>Gewichtseinheit</strong> — Das Kürzel überall: Lose, Pfeifengewicht, Logbuch. <strong>Nur ein Etikett</strong> — ein bereits erfasster Wert wird nicht umgerechnet. <em>Standard: g.</em></li>
+  <li><strong>Längeneinheit</strong> — Die Länge der Pfeifen. Nur ein Etikett, wie oben. <em>Standard: mm.</em></li>
+  <li><strong>Währung</strong> — Das Symbol aller Preise. Nur ein Etikett: kein Wechselkurs. <em>Standard: €.</em></li>
+  <li><strong>Standard-Sitzungsgewicht</strong> — Das Gewicht, das beim Hinzufügen einer Sitzung vorgeschlagen wird, wenn die gewählte Pfeife keine Kammermaße hat. Andernfalls schätzt die App es aus Kammer und Schnitt. <em>Standard: 3.</em></li>
+  <li><strong>Listen gruppiert</strong> — Die Anfangsanzeige der Listen, nach Marke gruppiert oder flach. Du kannst jederzeit für den Moment umschalten. <em>Standard: Gruppiert.</em></li>
+  <li><strong>Abrechnung</strong> — Ob die App die Mengen verfolgt. Ausgeschaltet verschwindet das Feld <em>Gewicht</em> aus den Sitzungen, es wird nichts mehr abgezogen und nichts mehr automatisch auf Aufgebraucht gesetzt — das Öffnen eines Keller-Loses bleibt aber, denn das ist ein physisches Ereignis. <em>Standard: Aktiviert.</em></li>
+  <li><strong>Pflege-Erinnerungen</strong> — Die Markierung „zu pflegen“ auf den Pfeifen und den zugehörigen Abschnitt der Startseite. Das Pflegebuch bleibt auch ohne sie nutzbar. <em>Standard: Aktiviert.</em></li>
+  <li><strong>Pflege-Erinnerung (Sitzungen)</strong> — Die Zahl der Sitzungen ohne Reinigung bis zur Erinnerung. Nur die leichte und die vollständige Reinigung setzen den Zähler zurück. <em>Standard: 5 Sitzungen.</em></li>
+  <li><strong>Schwelle für niedrigen Bestand</strong> — Unter diesem Restgewicht wandert ein Tabak in die Beobachtungsliste und in die Einkaufsliste — außer er ist als „nicht nachkaufen“ markiert. In deiner Gewichtseinheit. <em>Standard: 25 g.</em></li>
+  <li><strong>Bereiche</strong> — Blendet Zubehör, Logbuch oder Statistiken aus: Der Bereich verlässt die untere Leiste und das Dashboard. Die Daten bleiben erhalten. <em>Standard: alle sichtbar.</em></li>
+</ul>
+
+<h3>Reiter Daten</h3>
+<p>Alles, was Daten herein- oder hinausbringt. Es ist der einzige Reiter, dessen Aktionen unumkehrbar sind.</p>
+<ul>
+  <li><strong>Cloud-Ziel</strong> — Dropbox oder Google Drive. <strong>Der Multi-Geräte-Schutz vergleicht nur innerhalb ein und desselben Ziels</strong>: Wähle auf all deinen Geräten dasselbe. <em>Standard: Dropbox.</em></li>
+  <li><strong>Cloud-Auto-Speichern</strong> — Wenige Sekunden nach jeder Änderung und beim Verlassen der App geht still eine Sicherung hinaus. Jedes Gerät behält seine eigene Datei. <em>Standard: Deaktiviert.</em></li>
+  <li><strong>Sicherungen verschlüsseln</strong> — Verschlüsselt jede Cloud-Sicherung vor dem Hochladen mit einer Passphrase. <strong>Die Passphrase wird nie gespeichert und lässt sich nicht wiederherstellen.</strong> <em>Standard: Deaktiviert.</em></li>
+  <li><strong>Name dieses Geräts</strong> — Macht dieses Gerät im Panel der Sicherungen und im <em>Namen</em> der Cloud-Dateien erkennbar. Nicht in deren Inhalt. <em>Standard: leer.</em></li>
+  <li><strong>Referenzkatalog</strong> — Lädt, exportiert oder entfernt deine Referenzdatei und sichert sie separat in der Cloud. Fügt deinem Keller nie etwas hinzu — siehe <a href="#de-catalogue">Abschnitt 4</a>. <em>Standard: keiner.</em></li>
+  <li><strong>KI-Assistent</strong> — Anbieter, Modell, API-Schlüssel und die <em>bevorzugte Quelle</em>: erst dein Katalog oder erst die KI. „Auto“ lässt die App das günstigste Modell nehmen und wechseln, sobald es eingestellt wird. <em>Standard: Katalog zuerst; kein Schlüssel.</em></li>
+  <li><strong>API-Schlüssel ausschließen</strong> — Verhindert, dass dein Schlüssel in Exporte und Sicherungen wandert. Lass es aktiviert, wenn du eine Datei weitergibst. <em>Standard: Aktiviert.</em></li>
+  <li><strong>Duplikate</strong> — Erscheint nur, wenn es Einträge zusammenzuführen gibt — die Zahl ist der Grund, nachzusehen. <em>Standard: ausgeblendet.</em></li>
+  <li><strong>Alle Daten löschen</strong> — Leert den Keller, die Fotos, die API-Schlüssel und die Cloud-Verbindung <em>dieses Geräts</em>. Deine Sicherungen, die schon in der Cloud liegen, bleiben unberührt. Unumkehrbar. <em>Standard: —.</em></li>
+</ul>
+
+<h3>Reiter App</h3>
+<ul>
+  <li><strong>Installieren</strong> — Die Schritte, um die App auf den Startbildschirm zu legen, passend zu deinem Browser. <em>Standard: —.</em></li>
+  <li><strong>Nach Updates suchen</strong> — Fragt den Server ab und lädt die App dann neu, wobei ihr Cache geleert wird. Deine Daten bleiben unberührt. <em>Standard: —.</em></li>
+  <li><strong>Diagnose</strong> — Überwacht die interne Konsistenz. Grün, solange alles in Ordnung ist; bei einer Anomalie listet sie die letzten Vorkommen auf und bietet an, sie zu kopieren. <em>Standard: —.</em></li>
+</ul>
+
+<h3>Reiter Hilfe</h3>
+<p>Links, keine Einstellungen: diese Anleitung, die Neuigkeiten der Version, die Datenschutzerklärung, die Lizenzen der Drittkomponenten und eine Möglichkeit, uns zu schreiben.</p>
+<div class="note"><strong>Was nicht in den Einstellungen steht.</strong> Manche Einstellungen leben dort, wo sie wirken, weil sie nur einen Bildschirm betreffen: die Sortierung und die Filter jeder Liste, das Ein- und Ausklappen der Gruppen, die Reihenfolge der Wunschliste und das Zuklappen der Abschnitte dieser Anleitung. Die App merkt sie sich von Besuch zu Besuch, aber sie reisen nicht in den Sicherungen mit.</div>
 </div>
 
 <div id="sec-it" class="section">
@@ -2592,6 +2788,7 @@ Die beiden Formate haben weder dieselben Spalten noch dieselbe Wirkung: das eine
     <li><a href="#it-updates">Aggiornamenti</a></li>
     <li><a href="#it-troubleshooting">Risoluzione dei problemi</a></li>
     <li><a href="#it-trash">Cestino (30 giorni)</a></li>
+    <li><a href="#it-settings">Tutte le impostazioni, e cosa cambiano</a></li>
   </ol>
 </div>
 
@@ -3178,9 +3375,58 @@ I due formati non hanno né le stesse colonne né lo stesso effetto: caricare l'
 </ul>
 <div class="note">I backup JSON e Drive includono gli elementi del cestino — mantieni questa rete di sicurezza di 30 giorni anche dopo una reinstallazione o un ripristino. L'esportazione CSV, invece, è un'istantanea dell'inventario attivo: non include il cestino.</div>
 
+<h2 id="it-settings">18. Tutte le impostazioni, e cosa cambiano</h2>
+<p>Un riepilogo dall'inizio alla fine, per rispondere alla domanda «dove si regola questo?» senza rileggere la guida. Ogni impostazione è già descritta nella sua sezione, dove trovi il ragionamento; qui ci sono soltanto il posto, l'effetto e il valore predefinito. Si arriva a tutto dall'icona <strong>ingranaggio</strong>, in alto nella schermata Home.</p>
+
+<h3>Scheda Preferenze</h3>
+<p>È la scheda che si apre per prima. Niente di ciò che si trova qui tocca i tuoi dati: sono impostazioni di visualizzazione e di comportamento, proprie di questo dispositivo — ma <strong>viaggiano nei tuoi backup</strong> e un ripristino in modalità <em>Sostituisci</em> installerà quelle del file.</p>
+<ul>
+  <li><strong>Lingua</strong> — Tutta l'interfaccia. Ogni lingua viene scaricata alla prima scelta e poi resta disponibile offline. <em>Predefinito: quella del browser, altrimenti l'inglese.</em></li>
+  <li><strong>Dimensione del testo</strong> — Ridimensiona l'intera interfaccia in una volta sola, non soltanto i paragrafi. <em>Predefinito: Medio.</em></li>
+  <li><strong>Tema</strong> — Il colore d'accento e l'atmosfera: Ottone, Blu acciaio o Inglese. <em>Predefinito: Ottone.</em></li>
+  <li><strong>Modalità</strong> — Scura o Chiara (sfondo pergamena). Indipendente dal tema. <em>Predefinito: Scura.</em></li>
+  <li><strong>Formato data</strong> — La visualizzazione delle date <em>e</em> quelle dell'esportazione CSV. <em>Predefinito: FR (15.03.2024).</em></li>
+  <li><strong>Unità di peso</strong> — Il suffisso ovunque: lotti, peso delle pipe, diario. <strong>Solo l'etichetta</strong> — un valore già inserito non viene riconvertito. <em>Predefinito: g.</em></li>
+  <li><strong>Unità di lunghezza</strong> — La lunghezza delle pipe. Solo l'etichetta, come sopra. <em>Predefinito: mm.</em></li>
+  <li><strong>Valuta</strong> — Il simbolo di tutti i prezzi. Solo l'etichetta: nessun tasso di cambio. <em>Predefinito: €.</em></li>
+  <li><strong>Peso predefinito sessione</strong> — Il peso proposto quando aggiungi una sessione, se la pipa scelta non ha le dimensioni del fornello. Altrimenti l'app lo stima dal fornello e dal taglio. <em>Predefinito: 3.</em></li>
+  <li><strong>Liste raggruppate</strong> — La visualizzazione iniziale delle liste, raggruppate per marca oppure piatte. Puoi comunque cambiare di volta in volta. <em>Predefinito: Raggruppate.</em></li>
+  <li><strong>Contabilità</strong> — Se l'app tiene il conto delle quantità. Disattivata, il campo <em>Peso</em> scompare dalle sessioni e non c'è più nessuna deduzione né passaggio automatico a Finito — ma l'apertura di un lotto in cantina resta, perché è un evento fisico. <em>Predefinito: Attiva.</em></li>
+  <li><strong>Promemoria manutenzione</strong> — Il chip “pulizia necessaria” sulle pipe e la sezione della schermata Home. Il registro resta utilizzabile anche se sono disattivati. <em>Predefinito: Attivi.</em></li>
+  <li><strong>Promemoria manutenzione (sessioni)</strong> — Il numero di sessioni senza pulizia prima del promemoria. Solo le pulizie leggera e completa azzerano il contatore. <em>Predefinito: 5 sessioni.</em></li>
+  <li><strong>Soglia scorta bassa</strong> — Sotto questo peso residuo, un tabacco entra in «Da tenere d'occhio» e nella lista della spesa — tranne se è contrassegnato «da non ricomprare». Nella tua unità di peso. <em>Predefinito: 25 g.</em></li>
+  <li><strong>Sezioni</strong> — Nasconde Accessori, Diario o Statistiche: la sezione lascia la barra in basso e la dashboard. I dati restano. <em>Predefinito: tutte visibili.</em></li>
+</ul>
+
+<h3>Scheda Dati</h3>
+<p>Tutto ciò che fa entrare o uscire dei dati. È l'unica scheda le cui azioni sono irreversibili.</p>
+<ul>
+  <li><strong>Destinazione</strong> — Dropbox o Google Drive. <strong>La protezione multi-dispositivo confronta soltanto all'interno di una stessa destinazione</strong>: scegli la stessa su tutti i tuoi dispositivi. <em>Predefinito: Dropbox.</em></li>
+  <li><strong>Salvataggio automatico cloud</strong> — Un backup silenzioso parte qualche secondo dopo ogni modifica, e quando lasci l'app. Ogni dispositivo conserva il proprio file. <em>Predefinito: Disattivato.</em></li>
+  <li><strong>Cripta i backup cloud</strong> — Cifra ogni backup cloud con una passphrase, prima dell'invio. <strong>La passphrase non viene mai memorizzata e non si può recuperare.</strong> <em>Predefinito: Disattivato.</em></li>
+  <li><strong>Nome di questo dispositivo</strong> — Rende questo dispositivo riconoscibile nel pannello dei backup e nel <em>nome</em> dei file cloud. Non nel loro contenuto. <em>Predefinito: vuoto.</em></li>
+  <li><strong>Catalogo di riferimento</strong> — Carica, esporta o rimuove il tuo file di riferimento, e lo salva nel cloud a parte. Non aggiunge mai nulla alla tua cantina — vedi la <a href="#it-catalogue">sezione 4</a>. <em>Predefinito: nessuno.</em></li>
+  <li><strong>Assistente IA</strong> — Fornitore, modello, chiave API e la <em>fonte preferita</em>: prima il tuo catalogo, oppure prima l'IA. «Auto» lascia che sia l'app a prendere il modello meno caro e a cambiarlo se viene ritirato. <em>Predefinito: prima il catalogo; nessuna chiave.</em></li>
+  <li><strong>Escludi le chiavi API</strong> — Impedisce alla tua chiave di finire nelle esportazioni e nei backup. Da lasciare attivo se condividi un file. <em>Predefinito: Attivo.</em></li>
+  <li><strong>Duplicati</strong> — Compare soltanto se ci sono schede da unire — il numero è il motivo per andare a guardare. <em>Predefinito: nascosto.</em></li>
+  <li><strong>Elimina tutti i dati</strong> — Svuota la cantina, le foto, le chiavi API e la connessione cloud di <em>questo dispositivo</em>. I tuoi backup già nel cloud non vengono toccati. Irreversibile. <em>Predefinito: —.</em></li>
+</ul>
+
+<h3>Scheda App</h3>
+<ul>
+  <li><strong>Installa</strong> — La procedura da seguire per aggiungere l'app alla schermata Home, specifica per il tuo browser. <em>Predefinito: —.</em></li>
+  <li><strong>Cerca aggiornamenti</strong> — Interroga il server, poi ricarica l'app svuotando la sua cache. I tuoi dati non vengono toccati. <em>Predefinito: —.</em></li>
+  <li><strong>Diagnostica</strong> — Sorveglia la coerenza interna. Verde finché va tutto bene; in caso di anomalia elenca le ultime occorrenze e propone di copiarle. <em>Predefinito: —.</em></li>
+</ul>
+
+<h3>Scheda Aiuto</h3>
+<p>Link, nessuna impostazione: questa guida, le novità della versione, l'informativa sulla privacy, le licenze dei componenti di terze parti e come scriverci.</p>
+<div class="note"><strong>Che cosa non è nelle Impostazioni.</strong> Alcune regolazioni vivono dove si applicano, perché riguardano un solo schermo: l'ordinamento e i filtri di ogni lista, il ripiegamento dei gruppi, l'ordine della lista dei desideri e il ripiegamento delle sezioni di questa guida. Vengono ricordate da una visita all'altra, ma non viaggiano nei backup.</div>
+
 <hr>
 <p style="font-size:13px;color:#655846;">La Mia Cantina di Tabacco — <a href="https://t-cellar.app">t-cellar.app</a> &nbsp;·&nbsp; <a href="./privacy.html">Privacy</a> &nbsp;·&nbsp; <a href="mailto:macaveatabac@gmail.com">Contatto</a></p>
 </div>
+
 <div id="sec-pt" class="section">
 <a class="back" href="./">← A Minha Adega de Tabaco</a>
 <button class="lang-btn" id="lang-toggle" onclick="switchLang()">FR</button>
@@ -3207,6 +3453,7 @@ I due formati non hanno né le stesse colonne né lo stesso effetto: caricare l'
     <li><a href="#pt-updates">Atualizações</a></li>
     <li><a href="#pt-troubleshooting">Resolução de problemas</a></li>
     <li><a href="#pt-trash">Reciclagem (30 dias)</a></li>
+    <li><a href="#pt-settings">Todas as definições, e o que mudam</a></li>
   </ol>
 </div>
 
@@ -3385,7 +3632,7 @@ I due formati non hanno né le stesse colonne né lo stesso effetto: caricare l'
 <div class="note"><strong>Já introduziu um tabaco à mão?</strong> Pode trazer os valores do catálogo para uma ficha existente: abra-a em modo de edição e um aviso <em>«Atualização do catálogo disponível»</em> propõe <strong>sincronizar</strong> os campos divergentes — ver <a href="#pt-catalogue">secção 4</a>.</div>
 
 <h3>② Introdução com preenchimento automático</h3>
-<p>Toque no <strong>+</strong> no topo do separador <strong>Tabacos</strong>, indique pelo menos a <strong>marca</strong> e o <strong>nome</strong> e depois o botão <strong>Pesquisar</strong> no cartão <em>Preenchimento automático</em>. A aplicação preenche categoria, corte, blend, força, room note, sabor, idade máxima e descrição (tudo editável). Por predefinição consulta primeiro <strong>o seu catálogo</strong>, se estiver carregado (<a href="#pt-catalogue">secção 4</a>), e só depois o seu assistente de IA, caso o blend não conste dele; a definição <em>Fonte preferida</em> permite inverter esta ordem, ver <a href="#pt-ai">Assistente de IA</a>. Sem catálogo e sem chave de API, este botão não tem nada para consultar e diz-lho — a introdução manual ③ está sempre disponível. Também pode <strong>digitalizar a lata</strong> para pré-preencher automaticamente a marca e o nome.</p>
+<p>Toque no <strong>+</strong> no topo do separador <strong>Tabacos</strong>, indique pelo menos a <strong>marca</strong> e o <strong>nome</strong> e depois o botão <strong>Pesquisar</strong> no cartão <em>Preenchimento automático</em>. A aplicação preenche categoria, corte, blend, força, room note, sabor, idade máxima e descrição (tudo editável). Por predefinição consulta primeiro <strong>o seu catálogo</strong>, se estiver carregado (<a href="#pt-catalogue">secção 4</a>), e só depois o seu assistente de IA, caso o blend não conste dele; a definição <em>Fonte prioritária</em> permite inverter esta ordem, ver <a href="#pt-ai">Assistente de IA</a>. Sem catálogo e sem chave de API, este botão não tem nada para consultar e diz-lho — a introdução manual ③ está sempre disponível. Também pode <strong>digitalizar a lata</strong> para pré-preencher automaticamente a marca e o nome.</p>
 <div class="note"><strong>Muitas vezes nem sequer terá de tocar em <em>Pesquisar</em>.</strong> Assim que a marca e o nome que escreve corresponderem a um blend do seu catálogo, aparece um aviso verde <strong>mesmo por baixo do campo Marca</strong>: «Este blend está no seu catálogo» e um botão <strong>Preencher a ficha</strong>. Um toque e fica tudo preenchido, sem ligação e sem chave de API. Está colocado aí, e não no topo do formulário, porque, depois de o teclado abrir, o topo do ecrã desapareceu. O aviso recolhe-se se o ignorar.</div>
 
 <h3>③ Introdução totalmente manual</h3>
@@ -3575,8 +3822,8 @@ O mesmo aviso reaparece <em>no momento em que serve</em>: se escolher esse cachi
 <h2 id="pt-ai">12. Assistente IA</h2>
 <p>Disponível nos formulários de tabaco, cachimbo e lista de desejos. Preencha o nome ou a marca e depois toque em <strong>Pesquisar</strong>. A aplicação preenche automaticamente a categoria, o blend, o corte ou a forma, a descrição — e, no caso dos tabacos: <strong>Força, Room Note, Sabor e Idade máxima em adega</strong>.</p>
 <div class="note"><strong>A IA e o catálogo respondem à mesma pergunta por dois caminhos.</strong> O <a href="#pt-catalogue">catálogo</a> é o seu ficheiro: instantâneo, offline, gratuito, mas só conhece aquilo que lá puser. O agente de IA consulta um fornecedor em linha: conhece blends que faltam ao seu ficheiro, mas exige uma chave, uma ligação, e é faturado pelo seu fornecedor. A definição abaixo decide qual dos dois é consultado primeiro.</div>
-<h3>Fonte preferida</h3>
-<p>Define-se em <em>Definições → Dados → Assistente IA → Fonte preferida</em>:</p>
+<h3>Fonte prioritária</h3>
+<p>Define-se em <em>Definições → Dados → Assistente IA → Fonte prioritária</em>:</p>
 <ul>
   <li><strong>Agente IA</strong> — consulta primeiro o seu fornecedor, com recurso silencioso ao catálogo local em caso de erro.</li>
   <li><strong>Catálogo</strong> (predefinição) — instantâneo, offline, sem chave. Escolha esta opção se não tiver chave de API, ou para poupar a sua quota. Sem catálogo carregado não há nada para consultar, e a aplicação diz-lho.</li>
@@ -3788,6 +4035,54 @@ Os dois formatos não têm as mesmas colunas nem o mesmo efeito: carregar um em 
   <li><strong>Anular imediatamente:</strong> logo após cada eliminação, um aviso em baixo mostra um botão <em>Desfazer</em> durante 8 segundos (rede de segurança imediata, ao lado da rede de longo prazo que é a reciclagem).</li>
 </ul>
 <div class="note">As cópias de segurança JSON e no Drive incluem os itens da reciclagem — mantém esta rede de segurança de 30 dias mesmo após uma reinstalação ou um restauro. A exportação CSV, por seu lado, é um instantâneo do inventário ativo: não inclui a reciclagem.</div>
+
+<h2 id="pt-settings">18. Todas as definições, e o que mudam</h2>
+<p>Um resumo de ponta a ponta, para responder a «onde é que isto se define?» sem reler o guia. Cada definição já está descrita na sua secção, onde encontrará o raciocínio; aqui ficam apenas o sítio, o efeito e o valor predefinido. Chega-se lá pelo ícone de <strong>engrenagem</strong>, no topo do ecrã inicial.</p>
+
+<h3>Separador Preferências</h3>
+<p>É o separador que abre primeiro. Nada aqui toca nos seus dados: são definições de apresentação e de comportamento, próprias deste dispositivo — mas <strong>viajam nas suas cópias de segurança</strong> e um restauro em modo <em>Substituir</em> instalará as do ficheiro.</p>
+<ul>
+  <li><strong>Idioma</strong> — Toda a interface. Cada idioma é descarregado na primeira vez que o escolhe e depois fica disponível offline. <em>Predefinição: o do navegador, senão inglês.</em></li>
+  <li><strong>Tamanho do texto</strong> — Redimensiona a interface inteira de uma só vez, e não apenas os parágrafos. <em>Predefinição: Médio.</em></li>
+  <li><strong>Tema</strong> — A cor de destaque e o ambiente: Latão, Azul-aço ou Inglês. <em>Predefinição: Latão.</em></li>
+  <li><strong>Modo</strong> — Escuro ou Claro (fundo pergaminho). Independente do tema. <em>Predefinição: Escuro.</em></li>
+  <li><strong>Formato de data</strong> — A apresentação das datas <em>e</em> as da exportação CSV. <em>Predefinição: FR (15.03.2024).</em></li>
+  <li><strong>Unidade de peso</strong> — O sufixo em todo o lado: lotes, peso dos cachimbos, diário. <strong>Apenas a etiqueta</strong> — um valor já introduzido não é reconvertido. <em>Predefinição: g.</em></li>
+  <li><strong>Unidade de comprimento</strong> — O comprimento dos cachimbos. Apenas a etiqueta, como acima. <em>Predefinição: mm.</em></li>
+  <li><strong>Moeda</strong> — O símbolo de todos os preços. Apenas a etiqueta: nenhuma taxa de câmbio. <em>Predefinição: €.</em></li>
+  <li><strong>Peso predefinido</strong> — O peso proposto ao adicionar uma sessão, quando o cachimbo escolhido não tem dimensões do fornilho. Caso contrário, a aplicação estima-o a partir do fornilho e do corte. <em>Predefinição: 3.</em></li>
+  <li><strong>Listas agrupadas</strong> — A apresentação inicial das listas, agrupada por marca ou simples. Pode sempre alternar pontualmente. <em>Predefinição: Agrupadas.</em></li>
+  <li><strong>Contabilidade</strong> — Se a aplicação controla as quantidades. Inativa, o campo <em>Peso</em> desaparece das sessões, deixa de haver dedução e passagem automática a Terminado — mas a abertura de um lote em adega mantém-se, é um acontecimento físico. <em>Predefinição: Ativa.</em></li>
+  <li><strong>Lembretes de manutenção</strong> — A etiqueta de limpeza em atraso nos cachimbos e a secção do ecrã inicial. O diário continua utilizável mesmo com eles desativados. <em>Predefinição: Ativos.</em></li>
+  <li><strong>Lembrete de manutenção (sessões)</strong> — O número de sessões sem limpeza antes do aviso. Só as limpezas ligeira e completa reiniciam o contador. <em>Predefinição: 5 sessões.</em></li>
+  <li><strong>Limiar de stock baixo</strong> — Abaixo deste peso restante, um tabaco passa para a «Lista de vigilância» e para a lista de compras — a menos que esteja marcado como «não recomprar». Na sua unidade de peso. <em>Predefinição: 25 g.</em></li>
+  <li><strong>Secções</strong> — Oculta Acessórios, Diário ou Estatísticas: a secção sai da barra inferior e do painel. Os dados mantêm-se. <em>Predefinição: todas visíveis.</em></li>
+</ul>
+
+<h3>Separador Dados</h3>
+<p>Tudo o que faz entrar ou sair dados. É o único separador cujas ações são irreversíveis.</p>
+<ul>
+  <li><strong>Destino na nuvem</strong> — Dropbox ou Google Drive. <strong>A proteção multidispositivo só compara dentro de um mesmo destino</strong>: escolha o mesmo em todos os seus dispositivos. <em>Predefinição: Dropbox.</em></li>
+  <li><strong>Backup auto na nuvem</strong> — Uma cópia silenciosa parte alguns segundos após cada alteração, e ao sair da aplicação. Cada dispositivo mantém o seu próprio ficheiro. <em>Predefinição: Desativado.</em></li>
+  <li><strong>Encriptar as cópias na nuvem</strong> — Cifra cada cópia na nuvem com uma frase-passe, antes do envio. <strong>A frase-passe nunca é guardada e não pode ser recuperada.</strong> <em>Predefinição: Desativado.</em></li>
+  <li><strong>Nome deste dispositivo</strong> — Torna este dispositivo identificável no painel das cópias de segurança e no <em>nome</em> dos ficheiros na nuvem. Não no seu conteúdo. <em>Predefinição: vazio.</em></li>
+  <li><strong>Catálogo de referência</strong> — Carrega, exporta ou remove o seu ficheiro de referência, e guarda-o na nuvem à parte. Nunca acrescenta nada à sua adega — ver <a href="#pt-catalogue">secção 4</a>. <em>Predefinição: nenhum.</em></li>
+  <li><strong>Assistente IA</strong> — Fornecedor, modelo, chave de API e a <em>fonte prioritária</em>: primeiro o seu catálogo, ou primeiro a IA. «Auto» deixa a aplicação escolher o modelo mais económico e mudá-lo se for descontinuado. <em>Predefinição: Catálogo primeiro; nenhuma chave.</em></li>
+  <li><strong>Excluir as chaves API</strong> — Impede que a sua chave saia nas exportações e nas cópias de segurança. Deixe ativado se partilhar um ficheiro. <em>Predefinição: Ativado.</em></li>
+  <li><strong>Duplicados</strong> — Só aparece se houver fichas para fundir — o número é a razão para ir ver. <em>Predefinição: oculto.</em></li>
+  <li><strong>Eliminar todos os dados</strong> — Esvazia a adega, as fotografias, as chaves de API e a ligação à nuvem <em>deste dispositivo</em>. As suas cópias já na nuvem não são tocadas. Irreversível. <em>Predefinição: —.</em></li>
+</ul>
+
+<h3>Separador Aplicação</h3>
+<ul>
+  <li><strong>Instalar</strong> — O procedimento para a acrescentar ao ecrã inicial, próprio do seu navegador. <em>Predefinição: —.</em></li>
+  <li><strong>Procurar atualizações</strong> — Interroga o servidor e depois recarrega a aplicação esvaziando a sua cache. Os seus dados não são tocados. <em>Predefinição: —.</em></li>
+  <li><strong>Diagnóstico</strong> — Vigia a coerência interna. Verde enquanto estiver tudo bem; numa anomalia, lista as últimas ocorrências e propõe copiá-las. <em>Predefinição: —.</em></li>
+</ul>
+
+<h3>Separador Ajuda</h3>
+<p>Ligações, nenhuma definição: este guia do utilizador, as novidades da versão, a política de privacidade, as licenças dos componentes de terceiros e a forma de nos escrever.</p>
+<div class="note"><strong>O que não está nas Definições.</strong> Algumas definições vivem onde se aplicam, porque só dizem respeito a um ecrã: a ordenação e os filtros de cada lista, o recolhimento dos grupos, a ordem da lista de desejos e o recolhimento das secções deste guia. São memorizados de uma visita para a outra, mas não viajam nas cópias de segurança.</div>
 
 <hr>
 <p style="font-size:13px;color:#655846;">A Minha Adega de Tabaco — <a href="https://t-cellar.app">t-cellar.app</a> &nbsp;·&nbsp; <a href="./privacy.html">Privacidade</a> &nbsp;·&nbsp; <a href="mailto:macaveatabac@gmail.com">Contacto</a></p>
