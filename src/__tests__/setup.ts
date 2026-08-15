@@ -2,7 +2,7 @@ import "@testing-library/jest-dom";
 import { afterAll } from "vitest";
 import { ensureLang } from "../i18n";
 import { LANGUAGES } from "../i18n/languages";
-import { drainSchedulerQueue } from "./drainScheduler";
+import { settleReactWork } from "./drainScheduler";
 
 // Let React finish what it has queued BEFORE Vitest deletes `window`.
 //
@@ -12,12 +12,18 @@ import { drainSchedulerQueue } from "./drainScheduler";
 // with an UNHANDLED `ReferenceError: window is not defined` while every test
 // reports as passed. See drainScheduler.ts for the trace and the measurements.
 //
+// `settleReactWork`, not `drainSchedulerQueue`: draining immediates alone never
+// crosses a 0 ms timer, and the file CI named leaves no immediates queued at
+// all — so the stray slice is scheduled on a delay. It drains, spends one timer
+// tick, and drains again.
+//
 // `afterAll`, not `afterEach`: RTL's auto-cleanup unmounts per test, and
 // unmounting itself schedules React work — so the drain has to come after it.
 //
 // The arrow is load-bearing: Vitest passes a suite context to hook callbacks,
-// and `afterAll(drainSchedulerQueue)` would land it in `maxTurns`.
-afterAll(() => drainSchedulerQueue());
+// and passing the function by reference would land that context in its first
+// parameter — which, on the drain itself, is the bound.
+afterAll(() => settleReactWork());
 
 // load every dictionary before the suite runs.
 //
