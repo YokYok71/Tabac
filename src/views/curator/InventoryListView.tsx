@@ -33,7 +33,6 @@ import type { Tobacco, WishlistItem } from "../../types.ts";
 export function CuratorInventoryListView() {
   const ctx = useAppCtx();
   const {
-    openHelp,
     view, detail, data, t, nav, filtered,
     statusFilter, setStatusFilter,
     catFilter, setCatFilter, cutFilter, setCutFilter,
@@ -424,33 +423,12 @@ export function CuratorInventoryListView() {
       <ScreenWash color={C.brass} opacity={0.05} />
       <div style={{ paddingBottom: 130 }}>
 
-        {/* No TopBar title on the TOBACCO side of this page, and it is a
-            removal, not an
-            oversight. This bar is the only one that can carry six icons
-            (corbeille + chariot + catalogue + aide + loupe + « + »), which
-            leaves 36 px for a label needing 86 — and `Lbl` is a plain span
-            with `overflow: visible`, so the word was not clipped but PAINTED
-            ACROSS the icon beside it. Seen in a screenshot at 390 px in
-            French at the default text size; no width fits it, so shortening
-            the word could not have helped.
-
-            What is lost is small and duplicated: this title was the app's
-            only TopBar label that named ANOTHER page, and tapping it opened
-            the catalogue — which the 📖 icon three centimetres to its right
-            still does, with its own accessible name. The big PageTitle just
-            below already names the page (« Les tabacs » / « La wishlist »),
-            so nothing here is unnamed. The four other list pages keep their
-            titles: their bars are not crowded.
-
-            The WISHLIST side keeps its title. « À chasser » is a genuine page
-            name, not a link elsewhere — `onTitleClick` was already undefined
-            there — so removing it was collateral damage, and the layout matrix
-            caught it by failing to reach the wishlist screen at all. */}
         <TopBar
           leading={<IconBtn icon="leaf" ariaLabel={t ? t("nav_tobaccos") : "Tabacs"} color={wishVisible ? C.oxbloodHi : C.brass} />}
-          {...(wishVisible ? { title: t ? t("ttl_wanted") : "À chasser" } : {})}
+          title={wishVisible ? (t ? t("ttl_wanted") : "À chasser") : (t ? t("ttl_catalogue") : "Catalogue")}
+          onTitleClick={wishVisible ? undefined : () => nav && nav("catalog")}
+          titleAriaLabel={t ? t("catalog_open_aria") : "Parcourir le catalogue"}
           trailing={<>
-            <IconBtn icon="help" onClick={() => openHelp && openHelp(wishVisible ? "wishlist" : "inventory")} ariaLabel={t ? t("aria_help_page") : "Aide sur cette page"} />
             <CuratorTrashIndicator />
             {shopCount > 0 && (
               <IconBtn icon="cart" color={C.sage} onClick={() => setShoppingOpen && setShoppingOpen(true)} ariaLabel={t ? t("shopping_title") : "Liste de courses"} />

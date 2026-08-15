@@ -332,7 +332,6 @@ export var ES = {
   btn_contact:"Contacto",
   btn_privacy:"Privacidad",
   btn_help:"Guía de uso",
-  aria_help_page:"Ayuda sobre esta página",
   nav_stats:"📊",
   dock_home:"Bodega",
   dock_inv:"Tabacos",

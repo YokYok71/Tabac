@@ -259,11 +259,6 @@ export interface AppCtxType {
   searchOpen?: boolean;
   setSearchOpen: (...args: any[]) => void;
   catalogSeed?: string | null;
-  /** The « ? » of a dock page: opens the guide at that page's section. */
-  openHelp: (sectionKey?: string) => void;
-  /** Consumed once by HelpView (expand + scroll), then cleared. */
-  helpFocusKey?: string | null;
-  setHelpFocusKey: (k: string) => void;
   setCatalogSeed: (...args: any[]) => void;
   // The wishlist item a global-search hit asked to be taken to.
   // Consumed once by InventoryListView, which reveals that card.

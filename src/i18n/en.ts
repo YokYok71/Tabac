@@ -332,7 +332,6 @@ export var EN = {
   btn_contact:"Contact",
   btn_privacy:"Privacy",
   btn_help:"User Guide",
-  aria_help_page:"Help for this page",
   nav_stats:"📊",
   dock_home:"Cellar",
   dock_inv:"Tobacco",

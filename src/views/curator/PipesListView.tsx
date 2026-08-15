@@ -46,7 +46,6 @@ export function PipeRestChip({ restDays, t }: {
 export function CuratorPipesListView() {
   const ctx = useAppCtx();
   const {
-    openHelp,
     view, pipeDet, setPipeDet, data, t, xl, nav, filteredPipes,
     setSearchOpen, maintReminderThreshold, maintRemindersEnabled,
     showFinishedPipes, setShowFinishedPipes,
@@ -222,7 +221,6 @@ export function CuratorPipesListView() {
           leading={<IconBtn icon="pipe" ariaLabel={t ? t("aria_pipes") : "Pipes"} color={C.oxbloodHi} />}
           title={t ? t("ttl_collection") : "Collection"}
           trailing={<>
-            <IconBtn icon="help" onClick={() => openHelp && openHelp("pipes")} ariaLabel={t ? t("aria_help_page") : "Aide sur cette page"} />
             <CuratorTrashIndicator />
             <IconBtn icon="search" onClick={() => setSearchOpen && setSearchOpen(true)} ariaLabel={t ? t("btn_search") : "Rechercher"} />
             <IconBtn icon="plus" onClick={openAddPipe}

@@ -28,7 +28,6 @@ const NOOP = () => {};
 export function CuratorJournalView() {
   const ctx = useAppCtx();
   const {
-    openHelp,
     view, data, t, lang, dateFormat, nav,
     setSearchOpen, weightUnit = "g",
     setSessForm, setEditSessId, BJ,
@@ -374,7 +373,6 @@ export function CuratorJournalView() {
           leading={<IconBtn icon="book" ariaLabel={t("aria_journal")} color={C.sage} />}
           title={t ? t("ttl_session_log") : "Carnet de séances"}
           trailing={<>
-            <IconBtn icon="help" onClick={() => openHelp && openHelp("journal")} ariaLabel={t ? t("aria_help_page") : "Aide sur cette page"} />
             <CuratorTrashIndicator />
             <IconBtn icon="search" onClick={() => setSearchOpen && setSearchOpen(true)} ariaLabel={t ? t("btn_search") : "Rechercher"} />
             <IconBtn icon="flame"

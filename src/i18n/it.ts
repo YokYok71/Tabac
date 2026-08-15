@@ -332,7 +332,6 @@ export var IT = {
   btn_contact:"Contatto",
   btn_privacy:"Privacy",
   btn_help:"Guida utente",
-  aria_help_page:"Aiuto su questa pagina",
   nav_stats:"📊",
   dock_home:"Cantina",
   dock_inv:"Tab.",

@@ -41,7 +41,6 @@ const TYPE_ICONS: Record<string, IcoName> = Object.assign(Object.create(null), {
 export function CuratorAccListView() {
   const ctx = useAppCtx();
   const {
-    openHelp,
     view, accDet, setAccDet, data, t, xl, nav,
     showRetiredAcc, setShowRetiredAcc, accIsActive,
     BA, setAccForm, setEditAccId,
@@ -172,7 +171,6 @@ export function CuratorAccListView() {
           leading={<IconBtn icon="flame" ariaLabel={t ? t("aria_accessories") : "Accessoires"} color={C.ember} />}
           title={t ? t("ttl_workshop") : "Atelier"}
           trailing={<>
-            <IconBtn icon="help" onClick={() => openHelp && openHelp("acc")} ariaLabel={t ? t("aria_help_page") : "Aide sur cette page"} />
             <CuratorTrashIndicator />
             <IconBtn icon="search" onClick={() => setSearchOpen && setSearchOpen(true)} ariaLabel={t ? t("btn_search") : "Rechercher"} />
             <IconBtn icon="plus" onClick={openAddAccessory}

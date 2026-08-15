@@ -629,13 +629,6 @@ function App() {
   var _cseed = useState<string>(""),
     catalogSeed = _cseed[0],
     setCatalogSeed = _cseed[1];
-  // Which guide section the « ? » asked for. Consumed once by
-  // HelpView (expand + scroll), then cleared — same shape as catalogSeed, and
-  // for the same reason: a value that survives its use would re-scroll the
-  // guide on a later, unrelated visit.
-  var _hfocus = useState<string>(""),
-    helpFocusKey = _hfocus[0],
-    setHelpFocusKey = _hfocus[1];
   // Which wishlist item the user asked to be taken to.
   // Same consumed-once shape as catalogSeed: SearchModal sets it alongside
   // nav("inv") + statusFilter "wish", InventoryListView reveals that card
@@ -1803,33 +1796,6 @@ function App() {
     drillOverlayRef.current = true;
   }
 
-  // The « ? » of every page reachable from the bottom dock.
-  //
-  // THREE things make it worth more than a link to the guide.
-  // (1) It records the CURRENT screen as the drill origin, so the system-back
-  //     gesture and the guide's own × both return to the page you were reading
-  //     — `pushDrillOrigin` rather than `pushLoc`, because a bare dock page is
-  //     exactly what `pushLoc` skips.
-  // (2) It asks the view to scroll to the section for that page, with
-  //     EVERYTHING FOLDED. Opening at section 1 would make the reader hunt for
-  //     what they were already looking at; opening with that one section
-  //     unfolded — which is what this did at first — drops them into a wall of
-  //     prose instead of the list of what the guide covers. Folded and
-  //     positioned is both: they see the whole table of contents AND where
-  //     they are in it. Requested from the app.
-  // (3) `helpFocusKey` is consumed ONCE by HelpView and cleared — the
-  //     `catalogSeed` / `wishFocusId` shape — so re-opening the guide from
-  //     Settings later does not silently re-scroll to a page you have left.
-  function openHelp(sectionKey?: string) {
-    navHistoryRef.current = pushDrillOrigin(navHistoryRef.current, captureLoc());
-    // The FOLDING itself happens in HelpView, not here: the section keys come
-    // from the fetched document, which App has never parsed.
-    if (sectionKey) setHelpFocusKey(sectionKey);
-    restoringBackRef.current = true;
-    try { nav("help"); }
-    finally { restoringBackRef.current = false; }
-  }
-
   // Open ONE session's read-only fiche from anywhere, recording
   // the origin so system-back returns there. The counterpart of
   // crossOpenDetail, for the one overlay that is not an entity fiche.
@@ -2784,16 +2750,9 @@ function App() {
       settingsReturnRef.current = null;
       setView(rv);
       if (setImportModal) setImportModal(true);
-      return;
+    } else {
+      nav("home");
     }
-    // The guide is now reachable from the « ? » of every dock page, which
-    // records that page as the drill origin — so the × must return there, not
-    // to Home. Delegating to goBack() is what keeps the BUTTON and the
-    // system-back GESTURE from ever disagreeing: one decision, two inputs. With
-    // an empty stack goBack falls through to fallbackParent("help") → home,
-    // which is the previous behaviour exactly. No recursion: goBack only calls
-    // back into here when `settingsReturnRef` is set, and it is not.
-    goBack();
   }
   function goBack() {
     // A swipe-back / system-back dismisses
@@ -3439,7 +3398,6 @@ function App() {
     searchOpen,
     setSearchOpen,
     catalogSeed,
-    openHelp, helpFocusKey, setHelpFocusKey,
     wishFocusId,
     setWishFocusId,
     setCatalogSeed,
