@@ -310,7 +310,7 @@ export var FR = {
   ai_model_ok:"disponible",
   ai_model_gone_short:"ne répond plus",
   ai_model_unchecked:"vérification impossible",
-  btn_check_update:"Rafraîchir les données",
+  btn_check_update:"Vérifier les mises à jour",
   upd_checking:"Vérification...",
   upd_check_stale:"Impossible de vérifier les mises à jour depuis un moment — vérifiez votre connexion.",
   upd_ok:"Application à jour — rafraîchissement des données…",

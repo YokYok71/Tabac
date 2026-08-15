@@ -310,7 +310,7 @@ export var IT = {
   ai_model_ok:"disponibile",
   ai_model_gone_short:"non risponde più",
   ai_model_unchecked:"verifica impossibile",
-  btn_check_update:"Aggiorna dati",
+  btn_check_update:"Cerca aggiornamenti",
   upd_checking:"Controllo...",
   upd_check_stale:"Da un po' non è possibile verificare gli aggiornamenti: controlla la connessione.",
   upd_ok:"App aggiornata — aggiornamento dati…",

@@ -1218,7 +1218,7 @@ export function CuratorSettingsModal() {
           })()}
           <Row label={(t ? t("app_name") : "Ma Cave à Tabac") + ` v${APP_VERSION} (${APP_BUILD})`}>
             <SettingsButton variant="ghost"
-              label={t ? t("btn_check_update") : "Rafraîchir les données"}
+              label={t ? t("btn_check_update") : "Vérifier les mises à jour"}
               onClick={checkUpdate}
               disabled={updateStatus === "checking"} />
           </Row>

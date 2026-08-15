@@ -310,7 +310,7 @@ export var EN = {
   ai_model_ok:"available",
   ai_model_gone_short:"no longer responding",
   ai_model_unchecked:"check failed",
-  btn_check_update:"Refresh data",
+  btn_check_update:"Check for updates",
   upd_checking:"Checking...",
   upd_check_stale:"Update checks have been failing for a while — check your connection.",
   upd_ok:"App is up to date — refreshing data…",

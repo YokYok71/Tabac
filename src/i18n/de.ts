@@ -310,7 +310,7 @@ export var DE = {
   ai_model_ok:"verfügbar",
   ai_model_gone_short:"antwortet nicht mehr",
   ai_model_unchecked:"Prüfung fehlgeschlagen",
-  btn_check_update:"Daten aktualisieren",
+  btn_check_update:"Nach Updates suchen",
   upd_checking:"Prüfe...",
   upd_check_stale:"Die Update-Prüfung schlägt seit einer Weile fehl — prüfe deine Verbindung.",
   upd_ok:"App ist aktuell — Daten werden aktualisiert…",

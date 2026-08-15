@@ -484,9 +484,9 @@ describe("SettingsModal — tab navigation", () => {
     });
     clickSettingsTab(container, /^App$|Application|tab_app/);
     expect(container.textContent).toMatch(/btn_install|lbl_install_app|Installer|Install/);
-    // The "Rafraîchir les données" button label is rendered via
+    // The "Vérifier les mises à jour" button label is rendered via
     // t("btn_check_update"); the default test ctx t() returns the key itself.
-    expect(container.textContent).toMatch(/btn_check_update|Vérifier|Check updates/);
+    expect(container.textContent).toMatch(/btn_check_update|Vérifier les mises|Check for updates/);
   });
 
   it("swaps to the Aide tab on click — external links visible", () => {

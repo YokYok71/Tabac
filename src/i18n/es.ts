@@ -310,7 +310,7 @@ export var ES = {
   ai_model_ok:"disponible",
   ai_model_gone_short:"ya no responde",
   ai_model_unchecked:"comprobación imposible",
-  btn_check_update:"Actualizar datos",
+  btn_check_update:"Buscar actualizaciones",
   upd_checking:"Comprobando...",
   upd_check_stale:"No se puede comprobar si hay actualizaciones desde hace un tiempo: revisa tu conexión.",
   upd_ok:"La app está al día — actualizando datos…",

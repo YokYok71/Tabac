@@ -317,7 +317,7 @@ export var PT = {
   ai_model_ok:"disponível",
   ai_model_gone_short:"já não responde",
   ai_model_unchecked:"verificação impossível",
-  btn_check_update:"Atualizar dados",
+  btn_check_update:"Procurar atualizações",
   upd_checking:"A verificar...",
   upd_check_stale:"Há algum tempo que não é possível verificar atualizações — verifique a sua ligação.",
   upd_ok:"Aplicação atualizada — a atualizar os dados…",
