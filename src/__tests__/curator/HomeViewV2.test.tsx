@@ -227,7 +227,14 @@ describe("CuratorHomeViewV2", () => {
       .find((b) => (b.textContent || "").includes("home_peak_chip"));
     expect(peakRow, "expected an À-point row").toBeTruthy();
     fireEvent.click(peakRow!);
-    expect(crossOpenDetail).toHaveBeenCalledWith({ view: "inv", kind: "tobacco", obj: optimalTob });
+    // CHANGED: the payload now carries `scope: "optimal"`. Reported from the
+    // app — the row named a tobacco, the fiche opened on ALL its lots, and the
+    // four that earned the "à point" chip had to be found among them. The row
+    // is built from `computeCellarPeaks`, which selects on that band, so the
+    // band is what the fiche must open on; the fiche names the slice and offers
+    // "Tout afficher". Asserting the full object rather than a partial match is
+    // deliberate: it is how this case noticed the change at all.
+    expect(crossOpenDetail).toHaveBeenCalledWith({ view: "inv", kind: "tobacco", obj: optimalTob, scope: "optimal" });
   });
 
   it("hides the 'À point' section when no tobacco is in its optimal window", () => {

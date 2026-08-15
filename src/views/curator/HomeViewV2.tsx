@@ -307,7 +307,12 @@ export function CuratorHomeViewV2() {
     }
   };
   const tobOf = (id: any) => (data?.tobaccos || []).find((tt: any) => String(tt.id) === String(id));
-  type ActItem = { tob: any; tag: string; tagColor: string; chip: string | null; chipColor: string };
+  // `scope` — the lot slice this row is ABOUT, when its chip names one. The row
+  // opens the fiche narrowed to it, so the lots the chip refers to are the ones
+  // on screen. Rows whose chip is not a maturity band (jamais fumé, favori, pot
+  // presque vide) leave it unset and open the whole fiche, which is right:
+  // those describe the tobacco, not a subset of its lots.
+  type ActItem = { tob: any; tag: string; tagColor: string; chip: string | null; chipColor: string; scope?: string };
   const toActItem = (sug: any): ActItem | null => {
     const tob = tobOf(sug.tobaccoId); if (!tob) return null;
     const m = sug.reasons.map((r: SuggestionReason) => reasonMeta(r, sug.daysSinceSmoked)).filter(Boolean)[0] as { label: string; color: string } | undefined;
@@ -344,7 +349,11 @@ export function CuratorHomeViewV2() {
   watchlist.forEach((w) => {
     const tob = tobOf(w.tobaccoId); if (!tob) return;
     const m = watchMeta(w);
-    watchActs.push({ tob, tag: t ? t("home_watch_title") : "À surveiller", tagColor: C.amber, chip: m.label, chipColor: m.color });
+    // Same rule as "À point": when the signal IS a maturity band, the fiche
+    // opens on that band's lots. `low_stock` is a tobacco-level judgement, so
+    // it stays unscoped.
+    const wScope = w.kind === "overaged" ? "overaged" : w.kind === "approaching" ? "approaching" : undefined;
+    watchActs.push({ tob, tag: t ? t("home_watch_title") : "À surveiller", tagColor: C.amber, chip: m.label, chipColor: m.color, ...(wScope ? { scope: wScope } : {}) });
   });
   // Hero: the first drawn tobacco, EXCLUDING the just-smoked one (fallback to
   // the full draw if excluding empties it); fall back to a watch item only if
@@ -376,6 +385,9 @@ export function CuratorHomeViewV2() {
       tagColor: C.sage,
       chip: t ? t("home_peak_chip") : "à point",
       chipColor: C.sage,
+      // computeCellarPeaks selects on the `optimal` band, so that is the slice
+      // the row is about — and the one the fiche must open on.
+      scope: "optimal",
     });
   });
   const peakSecondary = dailyWindow(peakActs, Date.now(), 3);
@@ -421,7 +433,7 @@ export function CuratorHomeViewV2() {
     const cc = catColor(a.tob.category || "");
     const photo = a.tob.imageUrl ? ((imgLocal && imgLocal[a.tob.imageUrl]) || a.tob.imageUrl) : null;
     return (
-      <PressCard key={i} onClick={() => { if (crossOpenDetail) crossOpenDetail({ view: "inv", kind: "tobacco", obj: a.tob }); }}
+      <PressCard key={i} onClick={() => { if (crossOpenDetail) crossOpenDetail({ view: "inv", kind: "tobacco", obj: a.tob, ...(a.scope ? { scope: a.scope } : {}) }); }}
         style={{
           padding: "9px 12px", display: "flex", alignItems: "center", gap: 12,
           background: CARD_BG, borderRadius: 8, border: `1px solid ${C.rule}`,
@@ -588,7 +600,7 @@ export function CuratorHomeViewV2() {
           const heroPhoto = hero.tob.imageUrl ? ((imgLocal && imgLocal[hero.tob.imageUrl]) || hero.tob.imageUrl) : null;
           return (
             <div style={{ padding: "6px 12px 0" }}>
-              <PressCard onClick={() => { if (crossOpenDetail) crossOpenDetail({ view: "inv", kind: "tobacco", obj: hero.tob }); }}
+              <PressCard onClick={() => { if (crossOpenDetail) crossOpenDetail({ view: "inv", kind: "tobacco", obj: hero.tob, ...(hero.scope ? { scope: hero.scope } : {}) }); }}
                 style={{ borderRadius: 16, overflow: "hidden", position: "relative", border: `1px solid ${C.rule2}`, background: `linear-gradient(155deg, ${C.card}, ${C.bg2})`, boxShadow: "0 14px 34px rgba(0,0,0,0.4)" }}>
                 <div style={{ height: heroPhoto ? 160 : 92, position: "relative", background: heroPhoto ? `${safeBgUrl(heroPhoto)} center/cover no-repeat, ${C.bg2}` : `radial-gradient(circle at 28% 45%, ${alpha(cc, "44")}, transparent 62%), linear-gradient(135deg, ${C.bg3}, ${C.bg})` }}>
                   {!heroPhoto && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: cc, opacity: 0.5 }}><Ico name="leaf" size={44} sw={1} /></div>}

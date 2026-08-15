@@ -59,6 +59,11 @@ const QUOTED: Array<{ key: string; marker: RegExp }> = [
   // internally consistent, which is what makes this kind of drift read as
   // correct until you put it beside the dictionary.
   { key: "sec_accounting", marker: /<h3>[^<]{0,40}\((Mengenerfassung|déduction|deduction|deducción|deduzione|dedução)[^<]{0,40}<\/h3>/ },
+  // The fiche's "show all lots" override, quoted in the "À point" paragraph of
+  // all six blocks once that row started opening the fiche on a lot slice. The
+  // sentence exists to tell the reader how to get the hidden lots back, so a
+  // label that is not the app's makes it useless rather than merely inexact.
+  { key: "btn_show_all_lots", marker: /(offre|offers|ofrece|oferece|bietet|propose)\s*[«„"][^«„"»“]{0,30}[»“"]/ },
   // The catalogue check, quoted in the file-format note of all six
   // blocks. The marker keys on the sentence's own subject — the LINE NUMBER —
   // because that is what the button is being recommended for, and it is

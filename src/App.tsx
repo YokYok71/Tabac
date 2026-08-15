@@ -1775,7 +1775,16 @@ function App() {
   // own root-target stack RESET doesn't wipe the push we just made. Uses raw
   // setDetail/setPipeDet (not the ctx* variants) so no wrong list-scroll
   // snapshot is taken — we're leaving a fiche, not a list.
-  function crossOpenDetail(target: { view: string; kind: "tobacco" | "pipe" | "accessory" | "wishlist"; obj?: any }) {
+  // `scope` narrows the OPENED FICHE to a lot slice, for a caller whose row
+  // named one. A Home row reading "à point" is about a tobacco's OPTIMAL lots,
+  // and the fiche was opening on all of them — so on a blend held in a dozen
+  // tins you arrive at a list and have to find the four the row meant. The
+  // fiche already follows the list's scope (`scopeFromStatusFilter`), names the
+  // slice in a chip on "Les lots" and offers "Tout afficher", so this is that
+  // machinery being handed the right value rather than a new mechanism.
+  //
+  // It MUST be applied after `nav()`, which resets `statusFilter` to "active".
+  function crossOpenDetail(target: { view: string; kind: "tobacco" | "pipe" | "accessory" | "wishlist"; obj?: any; scope?: string }) {
     if (!target) return;
     if (target.kind !== "wishlist" && !target.obj) return;
     // Record the ORIGIN even when it's bare-root Home (pushLoc skips
@@ -1786,7 +1795,10 @@ function App() {
     restoringBackRef.current = true;
     try { nav(target.view); }
     finally { restoringBackRef.current = false; }
-    if (target.kind === "tobacco") setDetail(target.obj);
+    if (target.kind === "tobacco") {
+      setDetail(target.obj);
+      if (target.scope) setStatusFilter(target.scope);
+    }
     else if (target.kind === "pipe") setPipeDet(target.obj);
     else if (target.kind === "accessory") setAccDet(target.obj);
     else if (target.kind === "wishlist") { setDetail(null); setStatusFilter("wish"); }
