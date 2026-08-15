@@ -48,7 +48,7 @@ var OPTIMAL_START_FRACTION = 0.4;
 // tooOld/peak bands — so one classifier covers all four bands without a second
 // age formula. Any scope not listed here (Actifs, Tous, Épuisé, Stock bas…)
 // isn't a lot-level slice, so its card keeps the full active total.
-export type WeightScope = "jar" | "cellar" | "young" | "optimal" | "peak" | "tooOld" | "recent";
+export type WeightScope = "jar" | "cellar" | "young" | "optimal" | "peak" | "tooOld" | "recent" | "smokeSoon";
 
 // "Achats récents". A purchase-date slice of the lots, so it is
 // a lot-level scope like the others — the card and the fiche narrow to the
@@ -76,6 +76,11 @@ export function scopeFromStatusFilter(statusFilter: any): WeightScope | null {
     case "approaching": return "peak";   // the filter's name for the peak band
     case "overaged": return "tooOld";    // …and for the too-old band
     case "recent": return "recent";
+    // The Home "À fumer rapidement" tile sums the peak and too-old bands, and
+    // used to drill to `overaged` alone — so a tile reading 7 opened a list
+    // holding 1. The count was right for the label ("smoke these soon" covers
+    // both the window and past it); the destination was the half that lied.
+    case "smokesoon": return "smokeSoon";
     default: return null;
   }
 }
@@ -96,6 +101,10 @@ export function scopeLabelKey(scope: WeightScope | null): string {
     case "peak": return "mat_peak";
     case "tooOld": return "mat_old";
     case "recent": return "f_recent";
+    // The SAME key the Home tile uses, deliberately: the control and the slice
+    // it opens must say the same words, or the user cannot tell they arrived
+    // where they tapped. That is the maturity-chip lesson, one surface over.
+    case "smokeSoon": return "stat_smoke_soon";
     default: return "lbl_in_stock";
   }
 }
@@ -114,6 +123,10 @@ export function lotInScope(lot: any, scope: WeightScope | null, agingMax?: any):
   if (scope === "recent") return isRecentPurchase(lot);
   // The four maturity bands are cellar-only by construction (lotMaturityBucket
   // returns null for a jar lot), so a band scope can never admit a jar.
+  if (scope === "smokeSoon") {
+    var b = lotMaturityBucket(lot, agingMax);
+    return b === "peak" || b === "tooOld";
+  }
   return lotMaturityBucket(lot, agingMax) === scope;
 }
 

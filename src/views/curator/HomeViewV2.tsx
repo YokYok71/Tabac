@@ -745,7 +745,7 @@ export function CuratorHomeViewV2() {
           <Tile value={s.cellar || 0} label={t ? t("stat_tins") : "Boîtes"} accent={C.brass} delay={120} onClick={() => { nav("inv"); setStatusFilter && setStatusFilter("cellar"); }} />
           <Tile value={s.jars || 0} label={t ? t("stat_jars") : "Pots"} accent={C.amber} delay={170} onClick={() => { nav("inv"); setStatusFilter && setStatusFilter("jar"); }} />
           <Tile value={kgWeight} suffix={" " + wtUnitLabel} label={t ? t("lbl_weight_simple") : "Poids"} accent={C.brassHi} delay={220} onClick={() => { nav("inv"); setStatusFilter && setStatusFilter("all"); }} />
-          <Tile value={soonCount} label={t ? t("stat_smoke_soon") : "À fumer rapidement"} accent={C.oxbloodHi} delay={270} onClick={soonCount > 0 ? () => { nav("inv"); setStatusFilter && setStatusFilter("overaged"); } : undefined} />
+          <Tile value={soonCount} label={t ? t("stat_smoke_soon") : "À fumer rapidement"} accent={C.oxbloodHi} delay={270} onClick={soonCount > 0 ? () => { nav("inv"); setStatusFilter && setStatusFilter("smokesoon"); } : undefined} />
           <Tile value={yearCons.thisYear} suffix={" " + weightUnit} label={(t ? t("lbl_consumption") : "Consommation") + " " + new Date().getFullYear()} accent={C.brassHi} delay={320} onClick={() => nav("journal")} />
           <Tile value={s.wish || 0} label={t ? t("lbl_wishes") : "envies"} accent={C.oxbloodHi} delay={370} onClick={() => { if (crossOpenDetail) crossOpenDetail({ view: "inv", kind: "wishlist" }); }} />
         </div>

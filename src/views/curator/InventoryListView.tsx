@@ -196,7 +196,7 @@ export function CuratorInventoryListView() {
   // and the watchlist (user's display unit, default 25 g / 0.9 oz).
   const lowThreshold = parseFloat(watchLowWeight) || (weightUnit === "oz" ? 0.9 : 25);
   const counts = useMemo(() => {
-    let cellar = 0, jars = 0, finished = 0, disposed = 0, approaching = 0, overaged = 0, active = 0, usedUp = 0, nolot = 0, norebuy = 0, young = 0, optimal = 0, lowstock = 0, recent = 0;
+    let cellar = 0, jars = 0, finished = 0, disposed = 0, approaching = 0, overaged = 0, smokesoon = 0, active = 0, usedUp = 0, nolot = 0, norebuy = 0, young = 0, optimal = 0, lowstock = 0, recent = 0;
     for (const tob of tobaccos) {
       if (tob.rebuy === false) norebuy++;
       if (isLowStock(tob, lowThreshold)) lowstock++;
@@ -240,9 +240,14 @@ export function CuratorInventoryListView() {
         }
         if (mApp) approaching++;
         if (mOver) overaged++;
+        // The Home tile's slice — either band. NOT approaching + overaged: a
+        // tabac holding one lot of each would be counted twice, and this
+        // counts TABACS while the tile counts LOTS, so the two figures answer
+        // different questions and only the list has to match its own rows.
+        if (mApp || mOver) smokesoon++;
       }
     }
-    return { all: tobaccos.length, active, usedUp, nolot, cellar, jars, finished, disposed, approaching, overaged, norebuy, young, optimal, lowstock, recent };
+    return { all: tobaccos.length, active, usedUp, nolot, cellar, jars, finished, disposed, approaching, overaged, smokesoon, norebuy, young, optimal, lowstock, recent };
   }, [tobaccos, lotAgingStatus, lowThreshold]);
 
   // Dropdown filter options derived from the user's live
@@ -341,6 +346,12 @@ export function CuratorInventoryListView() {
       n: counts.approaching, color: C.brassHi },
     { id: "overaged",    label: t ? t("mat_old") : "Trop âgé",
       n: counts.overaged, color: C.oxbloodHi },
+    // The destination of the Home tile, wearing the tile's OWN label so the
+    // user can see they landed where they tapped. It overlaps the two chips
+    // above on purpose — it is their union, and the tile needed a slice that
+    // holds everything it counts.
+    { id: "smokesoon",   label: t ? t("stat_smoke_soon") : "À fumer rapidement",
+      n: counts.smokesoon, color: C.oxbloodHi },
     { id: "used_up", label: t ? t("f_used_up") : "Épuisé",
       n: counts.usedUp, color: C.tx3 },
     { id: "nolot", label: t ? t("f_nolot") : "Sans lot",
@@ -357,7 +368,7 @@ export function CuratorInventoryListView() {
   // from a Home/Stats deep-link — e.g. the maturity bar — is visible and
   // removable at the top, not just highlighted in the scrollable chip row).
   // The × resets the status to the default "active".
-  const STATUS_PILL_IDS = ["cellar", "jar", "recent", "used_up", "nolot", "finished", "disposed", "norebuy", "lowstock", "young", "optimal", "approaching", "overaged"];
+  const STATUS_PILL_IDS = ["cellar", "jar", "recent", "used_up", "nolot", "finished", "disposed", "norebuy", "lowstock", "young", "optimal", "approaching", "overaged", "smokesoon"];
   const statusPill = STATUS_PILL_IDS.indexOf(statusFilter) >= 0
     ? chips.find((c) => c.id === statusFilter)
     : null;
@@ -684,7 +695,7 @@ export function CuratorInventoryListView() {
         {(() => {
           const shown = chips.filter(f => {
             // Auto-hide the low-signal chips at count 0 (unless selected).
-            if ((f.id === "approaching" || f.id === "overaged" || f.id === "disposed" || f.id === "norebuy"
+            if ((f.id === "approaching" || f.id === "overaged" || f.id === "smokesoon" || f.id === "disposed" || f.id === "norebuy"
                  || f.id === "lowstock" || f.id === "young" || f.id === "optimal" || f.id === "used_up" || f.id === "nolot")
                 && f.n === 0 && statusFilter !== f.id) {
               return false;

@@ -2462,6 +2462,19 @@ function App() {
             return lotAgingStatus(l, effectiveAgingMax(t)) === "approaching";
           });
         });
+      else if (eff === "smokesoon")
+        // The Home "À fumer rapidement" tile's own slice: BOTH bands its count
+        // sums. It used to drill to `overaged` alone, so a tile reading 7
+        // opened a list holding 1 — the control naming a set and selecting a
+        // subset of it. Both halves are urgent for opposite reasons: `peak` is
+        // the window you want to be in, `overaged` is past it.
+        ls = ls.filter(function (t) {
+          var eam = effectiveAgingMax(t);
+          return (t.lots || []).some(function (l) {
+            var s = lotAgingStatus(l, eam);
+            return s === "approaching" || s === "overaged";
+          });
+        });
       else if (eff === "young" || eff === "optimal")
         // Maturity-band filters, consistent with the Home
         // "Cave à maturité" bar (lotMaturityBucket is the shared classifier).

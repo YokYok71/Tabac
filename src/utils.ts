@@ -1683,11 +1683,19 @@ export function migrateData(d: any): any {
 // ─────────────────────────────────────────────────────────────────────────────
 // computeStats — pure aggregate used by Home + Stats views.
 //
-// Tabac-based counters: `cellar` / `jars` / `lotsFinished` / `lotsOveraged` /
-// `lotsApproaching` / `aging` count TOBACCOS (one per row, like the inventory
-// chips), not lots. Previously these were lot counts and didn't match what
-// the user saw on the tabac page (e.g. Home said "35 Pots" but the inventory
-// list showed 34 rows because one tabac had 2 jar lots).
+// CORRECTED, because this paragraph asserted the opposite of the code for
+// several releases: `cellar` / `jars` / `lotsFinished` / `lotsOveraged` /
+// `lotsApproaching` count LOTS, not tobaccos. They WERE tobacco counts once —
+// which is what this said, and why it read as current — and were changed back
+// on the user's preference ("just count all the boxes in cellar, all the jars
+// in use"); see the comment at the loop itself, which has been right all
+// along. It also named an `aging` counter this function does not return.
+// `activeRefs` is the tobacco count.
+//
+// The distinction is not academic: the Home "À fumer rapidement" tile sums two
+// of these, so it speaks in LOTS and agrees with the maturity bar above it,
+// while the list it opens shows TOBACCOS. Reading this comment instead of the
+// loop is how one would "fix" that gap in the wrong direction.
 //
 // Other aggregates are unchanged: `wt` (active weight), `tobVal` (active
 // price total), `avg` (rating average), per-category and per-brand counts.
