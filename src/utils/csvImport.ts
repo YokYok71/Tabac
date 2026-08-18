@@ -291,6 +291,17 @@ function normDate(v: any): string {
   // dd.mm.yyyy or dd/mm/yyyy → yyyy-mm-dd
   var m = raw.match(/^(\d{2})[./](\d{2})[./](\d{4})$/);
   if (m) return m[3] + "-" + m[2] + "-" + m[1];
+  // mm.yyyy → yyyy-mm. The FR export of a MONTH-precision production date,
+  // which `fmtDate` now formats instead of emitting raw ISO. Without this the
+  // export would round-trip to "" and the lot would silently lose its
+  // production date — and `lotMergeKey` would change, so a re-import would
+  // append it as a duplicate. Unambiguous against the rule above: that one
+  // needs three groups, this one two.
+  var mm = raw.match(/^(\d{2})[./](\d{4})$/);
+  if (mm) {
+    var mmi = parseInt(String(mm[1]), 10);
+    if (mmi >= 1 && mmi <= 12) return mm[2] + "-" + mm[1];
+  }
   // EN-locale export dates ("Mar 15, 2024" — fmtDate en-mode output)
   // → ISO, so a CSV exported with the English date format round-trips its lot
   // dates instead of silently blanking them.
@@ -299,6 +310,13 @@ function normDate(v: any): string {
     var mon = EN_MONTHS.indexOf(String(me[1]).slice(0, 3).toLowerCase());
     var day = parseInt(String(me[2]), 10);
     if (mon >= 0 && day >= 1 && day <= 31) return me[3] + "-" + _pad2(mon + 1) + "-" + _pad2(day);
+  }
+  // "Sep 2017" — the EN-locale export of the same month-precision date. The
+  // rule above requires a day, so this one cannot shadow it.
+  var mey = raw.match(/^([A-Za-z]{3,9})\.?\s+(\d{4})$/);
+  if (mey) {
+    var mony = EN_MONTHS.indexOf(String(mey[1]).slice(0, 3).toLowerCase());
+    if (mony >= 0) return mey[2] + "-" + _pad2(mony + 1);
   }
   return "";
 }

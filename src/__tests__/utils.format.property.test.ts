@@ -116,10 +116,26 @@ describe("fmtDate — fuzz", () => {
     expect(fmtDate("2024-01-03", "en")).toBe("Jan 3, 2024");
   });
 
-  it("non-ISO strings pass through unchanged", () => {
+  it("unrecognised strings pass through unchanged", () => {
     expect(fmtDate("inconnu")).toBe("inconnu");
-    expect(fmtDate("2024-05")).toBe("2024-05"); // not a full ISO date
     expect(fmtDate("abc-def-ghi")).toBe("abc-def-ghi");
+    // An impossible month is not a date, so it is left alone rather than
+    // formatted into something that looks like one.
+    expect(fmtDate("2024-13")).toBe("2024-13");
+  });
+
+  // REVERSED, recorded on the assertion. This case asserted
+  // `fmtDate("2024-05") === "2024-05"` under the heading "not a full ISO date",
+  // i.e. it pinned month precision as UNFORMATTED. That was the defect: a lot's
+  // production date is free-precision by design — the form's placeholder is
+  // literally `2017-09` — so a user who followed that advice got the raw ISO
+  // string on the fiche, under a purchase date reading "23.03.2026". Reported
+  // as « pourquoi afficher le jour également ? ». A day is now shown if and
+  // only if a day was recorded.
+  it("ISO YYYY-MM → month precision, with no invented day", () => {
+    expect(fmtDate("2024-05")).toBe("05.2024");
+    expect(fmtDate("2024-05", "fr")).toBe("05.2024");
+    expect(fmtDate("2024-05", "en")).toBe("May 2024");
   });
 });
 

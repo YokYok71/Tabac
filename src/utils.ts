@@ -240,6 +240,31 @@ export function fmtDate(d: string, lang?: string): string {
       return p2 + "." + p1 + "." + p0;
     }
   }
+  // MONTH precision, formatted rather than passed through raw.
+  //
+  // A lot's PRODUCTION date is a free-precision field on purpose — a tin is
+  // often stamped 09/2017 with no day, which is why the form offers a text
+  // input and `2017-09` as its placeholder, and why `daysSince` parses it. But
+  // only the three-part form was ever FORMATTED, so someone who took the
+  // placeholder's advice saw the raw ISO string on the fiche, directly under a
+  // purchase date reading "23.03.2026" — and in English, "2017-09" beside
+  // "Mar 23, 2026". The field invited a precision the display could not render.
+  //
+  // Reported as "why show the day at all?", which is the sharper way to put it:
+  // a day now appears if and only if a day was recorded.
+  if (p.length === 2) {
+    var q0 = p[0] || "", q1 = p[1] || "";
+    if (/^\d{4}$/.test(q0) && /^\d{1,2}$/.test(q1)) {
+      var qi = parseInt(q1) - 1;
+      if (qi >= 0 && qi < 12) {
+        if (lang === "en") return (_EN_MONTHS_SHORT[qi] || "") + " " + q0;
+        return String(q1).padStart(2, "0") + "." + q0;
+      }
+    }
+  }
+  // A bare year already reads as a year in every language, and anything else
+  // is free text the user typed ("septembre 2017" — which `daysSince` still
+  // dates correctly). Both pass through untouched.
   return d;
 }
 
