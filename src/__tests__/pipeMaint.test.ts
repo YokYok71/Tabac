@@ -155,3 +155,65 @@ describe("computePipeMaintenanceReminders", () => {
     expect(computePipeMaintenanceReminders([pipe(1)], sessions(1, 2), 10)).toEqual([]);
   });
 });
+
+// The Home shows the FIRST FIVE of this list, so the order decides which
+// pipes a user is told to clean. Nothing covered it, which is how the tiebreak
+// below came to be meaningless without anyone noticing: every case above uses
+// distinct session counts, so the tie branch was never reached.
+describe("the order among equally-overdue pipes", () => {
+  const cleaned = (id: number, date: string) =>
+    pipe(id, { maintenance: [{ id: 1, date, kind: "full", tasks: [], notes: "" }] });
+  // Equal session counts on purpose — a tie is the NORMAL case, not a corner:
+  // at the default threshold most overdue pipes sit on the same small count,
+  // and at a threshold of 1 nearly all of them do.
+  const tied = (pipes: any[]) =>
+    computePipeMaintenanceReminders(
+      pipes, pipes.flatMap(p => sessions(p.id, 3, "2026-07-01")), 1, 0, "2026-08-21",
+    ).map(x => x.pipeId);
+
+  it("puts the pipe cleaned LONGEST ago first", () => {
+    expect(tied([
+      cleaned(1, "2026-06-15"),
+      cleaned(2, "2026-01-10"),   // oldest cleaning → most due
+      cleaned(3, "2026-05-01"),
+    ])).toEqual(["2", "3", "1"]);
+  });
+
+  it("puts a NEVER-cleaned pipe ahead of every cleaned one", () => {
+    expect(tied([cleaned(1, "2026-01-10"), pipe(2), cleaned(3, "2026-02-02")]))
+      .toEqual(["2", "1", "3"]);
+  });
+
+  it("no longer orders a tie by the id read as TEXT", () => {
+    // THE defect. The tiebreak was `String(pipeId).localeCompare(...)`, so
+    // `"11" < "3"` and the Home systematically favoured pipes whose id begins
+    // with a low digit — measured in a browser as 11 · 15 · 19 · 03 · 07 on
+    // twenty equally-overdue pipes. Deterministic, and meaningless.
+    const order = tied([
+      cleaned(3, "2026-01-01"),    // cleaned first → most due
+      cleaned(11, "2026-06-01"),
+    ]);
+    expect(order, "the older cleaning wins, whatever the ids read like").toEqual(["3", "11"]);
+  });
+
+  it("still falls back to the id when nothing else separates them", () => {
+    // The order must stay TOTAL and stable: two pipes cleaned the same day
+    // with the same session count would otherwise sit in input order, which
+    // shifts whenever the collection is re-saved — the list would reshuffle
+    // between launches for no reason the user can see.
+    expect(tied([cleaned(2, "2026-03-03"), cleaned(1, "2026-03-03")])).toEqual(["1", "2"]);
+  });
+
+  it("sessions still outrank everything — the tiebreak is only a tiebreak", () => {
+    // A pipe smoked more since its cleaning is more due than one cleaned
+    // longer ago but barely smoked. Asserted so a future pass cannot promote
+    // the date into the primary key.
+    const pipes = [
+      cleaned(1, "2020-01-01"),   // ancient cleaning, few bowls
+      cleaned(2, "2026-08-01"),   // recent cleaning, many bowls
+    ];
+    const ss = [...sessions(1, 2, "2026-08-10"), ...sessions(2, 9, "2026-08-10")];
+    expect(computePipeMaintenanceReminders(pipes, ss, 1, 0, "2026-08-21").map(x => x.pipeId))
+      .toEqual(["2", "1"]);
+  });
+});

@@ -159,8 +159,34 @@ export function computePipeMaintenanceReminders(
       });
     }
   });
+  // Most overdue first — and the TIEBREAK is the part that had to change.
+  //
+  // It was the pipe id compared as TEXT, which is deterministic (so the list
+  // never flickers between launches) and completely arbitrary to the reader:
+  // `"11" < "3"`, so it systematically favours pipes whose id begins with a
+  // low digit. Measured on twenty equally-overdue pipes it produced
+  // 11 · 15 · 19 · 03 · 07 — an order with no meaning at all.
+  //
+  // And a tie is not the rare case, it is the NORMAL one: at the default
+  // threshold most overdue pipes sit on the same small session count, and at a
+  // threshold of 1 nearly all of them do. So the id was deciding which five
+  // the Home showed, i.e. the real criterion decided nothing.
+  //
+  // The last cleaning DATE does mean something: among pipes smoked the same
+  // number of times since their last cleaning, the one cleaned longest ago is
+  // genuinely the most due, and a pipe never cleaned at all comes first.
+  // The id stays as the final rung so the order is still total and stable.
+  //
+  // DATE, not `lastMaintMoment`: the reminder already carries the date (it is
+  // what the fiche shows), and two cleanings within one day is not a
+  // difference worth ordering a chore list by.
   out.sort(function (a, b) {
-    return b.sessionsSince - a.sessionsSince || String(a.pipeId).localeCompare(String(b.pipeId));
+    if (b.sessionsSince !== a.sessionsSince) return b.sessionsSince - a.sessionsSince;
+    if (!a.lastMaintDate !== !b.lastMaintDate) return a.lastMaintDate ? 1 : -1;
+    if (a.lastMaintDate && b.lastMaintDate && a.lastMaintDate !== b.lastMaintDate) {
+      return a.lastMaintDate < b.lastMaintDate ? -1 : 1;
+    }
+    return String(a.pipeId).localeCompare(String(b.pipeId));
   });
   return topN > 0 ? out.slice(0, topN) : out;
 }
