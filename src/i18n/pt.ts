@@ -963,7 +963,6 @@ export var PT = {
   home_zone_moments:"As sessões",
   home_zone_moments_sub:"atividade recente",
   home_pair_with:"A combinar com",
-  home_pair_accord:"combinado",
   home_maturity_title:"Adega no ponto",
   home_cellar_autonomy:"Autonomia estimada",
   unit_week_one:"semana",

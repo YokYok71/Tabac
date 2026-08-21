@@ -956,7 +956,6 @@ export var EN = {
   home_zone_moments:"Sessions",
   home_zone_moments_sub:"recent activity",
   home_pair_with:"Pair with",
-  home_pair_accord:"matched",
   home_maturity_title:"Cellar maturity",
   home_cellar_autonomy:"Est. autonomy",
   unit_week_one:"week",

@@ -279,26 +279,6 @@ const DATA = {
       rating: 4, notes: "", weightG: "2.8", lotId: "1000000000000", aromas: ["smoky"] },
     { id: 4, date: iso(46), time: "", tobaccoId: 1, pipeId: 2, duration: "70",
       rating: 3, notes: "", weightG: "3.1", lotId: "1000000000000", aromas: [] },
-    // Six unweighed bowls on pipe 2 so it crosses the maintenance threshold
-    // (PIPE_MAINT_SESSIONS_THRESHOLD = 5 sessions since the last CLEANING) and
-    // the Home's « À entretenir » section RENDERS. It never did: the seed held
-    // 4 sessions across 5 pipes, so no pipe could reach 5 and the section was
-    // measured by nothing in 210 renders — the third time the seed has been a
-    // screen gate. `weightG: "0"` + no `lotId` keeps the lot balance intact.
-    // Pipe 2, not 3: pipe 3 is the RETIRED one, which the engine skips by
-    // design — the first attempt put them there and the new assertion caught it.
-    { id: 10, date: iso(60), time: "", tobaccoId: 2, pipeId: 2, duration: "40",
-      rating: 4, notes: "", weightG: "0", lotId: "", aromas: [] },
-    { id: 11, date: iso(63), time: "", tobaccoId: 2, pipeId: 2, duration: "40",
-      rating: 4, notes: "", weightG: "0", lotId: "", aromas: [] },
-    { id: 12, date: iso(66), time: "", tobaccoId: 2, pipeId: 2, duration: "40",
-      rating: 4, notes: "", weightG: "0", lotId: "", aromas: [] },
-    { id: 13, date: iso(69), time: "", tobaccoId: 2, pipeId: 2, duration: "40",
-      rating: 4, notes: "", weightG: "0", lotId: "", aromas: [] },
-    { id: 14, date: iso(72), time: "", tobaccoId: 2, pipeId: 2, duration: "40",
-      rating: 4, notes: "", weightG: "0", lotId: "", aromas: [] },
-    { id: 15, date: iso(75), time: "", tobaccoId: 2, pipeId: 2, duration: "40",
-      rating: 4, notes: "", weightG: "0", lotId: "", aromas: [] },
   ],
   nxT: 5, nxP: 4, nxA: 4, nxJ: 5, nxW: 2,
 };

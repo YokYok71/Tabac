@@ -17,7 +17,7 @@ import { Ico, Orn } from "../../components/curator/icons.tsx";
 import { CuratorTrashIndicator } from "../../components/curator/TrashIndicator.tsx";
 import { computeSmokeSuggestions, suggestRestedPipe, rotateDailyHero, dailyWindow, seededShuffle, FEATURE_ROTATE_MS } from "../../utils/suggest.ts";
 import { homeRotationSeed } from "../../utils/homeRotation.ts";
-import { computePipeGhostingRisk, pipeAccordsWithFamily } from "../../utils/ghosting.ts";
+import { computePipeGhostingRisk } from "../../utils/ghosting.ts";
 import { computePipeMaintenanceReminders } from "../../utils/pipeMaint.ts";
 import type { SuggestionReason } from "../../utils/suggest.ts";
 import { computeWatchlist } from "../../utils/watchlist.ts";
@@ -192,20 +192,12 @@ export function CuratorHomeViewV2() {
   const [calSel, setCalSel] = React.useState<{ date: string; count: number } | null>(null);
   // Pipes due for maintenance (sessions since last cleaning ≥
   // threshold), most-overdue first — the "À entretenir" reminder at page end.
-  // UNCAPPED, and rendered uncapped. This section shipped capped at five, and
-  // the cap was defended here as "a dashboard summary at the foot of a long
-  // page" — the user overruled it outright: « Pas 12. Toutes !!!! ». A pipe
-  // that needs cleaning is a chore you work through, not a highlight reel, so
-  // a list that stops short is a list you cannot trust to be the whole job.
-  // The ORDER already does what the cap was reaching for: most overdue first
-  // (`sessionsSince` desc), so the urgent ones lead and the rest follow.
-  const maintAll = React.useMemo(
+  const maintReminders = React.useMemo(
     () => maintRemindersEnabled === false
       ? []
-      : computePipeMaintenanceReminders(data?.pipes || [], data?.sessions || [], maintReminderThreshold, 0, today()),
+      : computePipeMaintenanceReminders(data?.pipes || [], data?.sessions || [], maintReminderThreshold, 5, today()),
     [data?.pipes, data?.sessions, maintReminderThreshold, maintRemindersEnabled],
   );
-  const maintReminders = maintAll;
   // Per-launch rotation shift. The 12 h time bucket is stable WITHIN
   // its window, so reopening / reloading the app inside the same 12 h shows the
   // identical picks (it looked "toujours les mêmes" to anyone checking on
@@ -418,20 +410,7 @@ export function CuratorHomeViewV2() {
   // to the single most-rested pipe and repeated on every relaunch.
   // Audit: measure rest with the REAL clock (Date.now()) so the
   // displayed "repos N j" is correct; rotate the pick with the shifted featNow.
-  // THE ACCORD — the positive counterpart of ghostExclude. A pipe whose
-  // history is dominated by tonight's family suits tonight's bowl, so it is
-  // preferred among the pipes that are rested enough to be offered at all.
-  // `pipeAccordsWithFamily` owns the dedication thresholds (shared with the
-  // ghosting test) so the rule is not written a second time here.
-  const heroCat = hero ? String(hero.tob.category || "") : "";
-  const accordPrefer = new Set<string>(
-    heroCat
-      ? ((data?.pipes || []) as any[])
-          .filter((p) => pipeAccordsWithFamily(p.id, heroCat, data?.sessions || [], data?.tobaccos || []))
-          .map((p) => String(p.id))
-      : [],
-  );
-  const restedPipe = suggestRestedPipe(data?.pipes || [], data?.sessions || [], Date.now(), ghostExclude, FEATURE_ROTATE_MS, featNow, accordPrefer);
+  const restedPipe = suggestRestedPipe(data?.pipes || [], data?.sessions || [], Date.now(), ghostExclude, FEATURE_ROTATE_MS, featNow);
   const restedPipeObj = restedPipe ? (data?.pipes || []).find((p: any) => String(p.id) === restedPipe.pipeId) : null;
 
   const kgWeight = weightUnit === "oz"
@@ -662,16 +641,6 @@ export function CuratorHomeViewV2() {
                       </button>
                       {restedPipe && restedPipe.restDays !== null
                         ? <span>· {String(t ? t("rest_chip") : "repos {n} j").replace("{n}", String(restedPipe.restDays))}</span>
-                        : null}
-                      {/* The pipe was picked because it ACCORDS with tonight's
-                          family, not merely because it was rested. Saying so is
-                          not decoration: an accord applied silently is a
-                          behaviour the user cannot see, and this repo's rule is
-                          that any state changing how the app behaves must be
-                          visible somewhere. It also answers "why this pipe?",
-                          which is the question the suggestion invites. */}
-                      {restedPipe && restedPipe.matched
-                        ? <span style={{ color: C.sage }}>· {t ? t("home_pair_accord") : "accordée"}</span>
                         : null}
                     </div>
                   )}
@@ -1089,9 +1058,6 @@ export function CuratorHomeViewV2() {
                   </PressCard>
                   );
                 })}
-                {/* What the cap holds back, and the way to it. A section that
-                    shows five of twelve and says nothing reads as "these are
-                    the ones", which is how this was reported. */}
               </div>
             </div>
           </>
