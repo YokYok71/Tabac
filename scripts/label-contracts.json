@@ -536,6 +536,44 @@
           ]
         }
       ]
+    },
+    {
+      "id": "rest-saturation-days",
+      "why": "The guide tells the reader how long a pipe must rest before it joins the suggestion pool. That number IS the pool rule — move the constant without the prose and the guide describes a threshold the app no longer uses.",
+      "source": "src/utils/suggest.ts",
+      "match": "REST_SATURATION_DAYS\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} jours",
+            "{n} days",
+            "{n} días",
+            "{n} Tage",
+            "{n} giorni",
+            "{n} dias"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pipe-dedication-min-sessions",
+      "why": "The accord (and the ghosting warning) both call a pipe 'dedicated' only past this many categorised sessions. The guide quotes it; MIN_TOTAL is not exported, so this contract is what ties the sentence to the code.",
+      "source": "src/utils/ghosting.ts",
+      "match": "MIN_TOTAL\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "public/help.html",
+          "patterns": [
+            "{n} séances",
+            "{n} sessions",
+            "{n} sesiones",
+            "{n} Sitzungen",
+            "{n} sessioni",
+            "{n} sessões"
+          ]
+        }
+      ]
     }
   ],
   "prose": [
