@@ -88,17 +88,33 @@ describe("iOS-PWA floating-dock guardrails", () => {
   // compatible with a backdrop-filter on the pill inside it. Worth knowing
   // before anyone reaches for the same trick elsewhere in this app.
   //
-  // WHAT THE RETURN OF THE DRIFT ACTUALLY SETTLED, and it is less than the
-  // sentence above hoped. That prediction — "if the drift returns with no code
-  // change, it is the second" — was written for the property being IN PLACE.
-  // It was not: the wholesale revert to build 18 took the property out as
-  // collateral, and the drift came back several builds later, with the
-  // property absent throughout. So the observation is consistent with the
-  // promotion being the fix, and it is NOT proof: an intermittent WebKit
-  // behaviour that happened to stay quiet for a few builds fits it just as
-  // well. The property is restored on the user's standing instruction — « le
-  // dock (23) seulement si le bug réapparaît » — not because the question is
-  // closed. It is not.
+  // THE EVIDENCE AS IT NOW STANDS, and it finally points somewhere.
+  //
+  // The prediction above — "if the drift returns with no code change, it is
+  // the second" — was written for the property being IN PLACE. It was not: the
+  // wholesale revert to build 18 removed it as collateral. So the record is:
+  //
+  //   build 23      property PRESENT   drift reported, gone after a full quit
+  //   builds 24-30  property ABSENT    drift returned at 30
+  //   build 31      property PRESENT   no drift
+  //
+  // Twice absent → drift; twice present → none. That is the first coherent
+  // correlation this bug has produced, and it favours the promotion.
+  //
+  // IT IS STILL NOT PROOF, and the confound is nameable: both clean
+  // observations had the property AND a freshly recreated web view. Those two
+  // are separable by exactly one situation — an IN-PLACE update, where
+  // `doUpdate` calls `location.reload()` and WebKit keeps the same web view,
+  // unlike a full quit which destroys it. If the drift stays away through a
+  // session that was updated in place, the property is doing the work; if it
+  // returns there, the recycling was.
+  //
+  // A THIRD explanation was proposed and FALSIFIED in between, recorded so it
+  // is not proposed a fourth time: that closing the app never "fixes" anything
+  // and merely DELIVERS a newer build, since HTML is served network-first and
+  // a resumed PWA does not reload. It fits the 23 and 30 reports, and it
+  // cannot explain a drift that is present from the first scroll of a session
+  // — which is what the user reported. Retired.
   it("the fixed strip is promoted to its own layer (see comment)", () => {
     const src = read("src/components/curator/BottomDock.tsx");
     expect(src, "the outer position:fixed strip carries a compositing promotion")
