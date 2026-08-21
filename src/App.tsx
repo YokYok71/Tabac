@@ -21,6 +21,7 @@ import {
   stripDeleted,
   newPhotoSuffix,
   convertWeightUnit,
+  today,
 } from "./utils.ts";
 import {
   SK,
@@ -40,6 +41,7 @@ import { pickJarLot } from "./utils/lotUtils.ts";
 import { buildTobaccoAromaIndex, tobaccoMatchesAromas } from "./utils/aromas.ts";
 import { lotMaturityBucket, isRecentPurchase, scopeFromStatusFilter, scopedHeldWeight, scopedOldestAgeDays } from "./utils/cellarInsights.ts";
 import { isLowStock } from "./utils/shopping.ts";
+import { computePipeMaintenanceReminders } from "./utils/pipeMaint.ts";
 import { assertLotInvariants } from "./utils/lotInvariants.ts";
 import { imgCache, imgMap } from "./utils/imgCache.ts";
 import { processOAuthReturn } from "./utils/oauthReturn.ts";
@@ -227,6 +229,16 @@ function App() {
   var _prf = useState(0),
     pRatingFilter = _prf[0],
     setPRatingFilter = _prf[1];
+  // "À entretenir" — the destination of the Home reminder section, which
+  // shows the five most overdue pipes. It had no destination at all: the
+  // pipes list computes the SAME set uncapped and chips each card, but
+  // nothing narrowed to it, so a user with more than five due pipes was told
+  // about five and left to hunt the amber chips down a long list. Boolean,
+  // not a value filter — it is one predicate, not a field match. Reset on
+  // nav() like every other list filter.
+  var _pmf = useState(false),
+    pMaintFilter = _pmf[0],
+    setPMaintFilter = _pmf[1];
   // Brand filter for the accessories list — same shape as
   // pBrandFilter (empty string = no filter). Reset on nav() like every
   // other list filter; applied locally by AccListView (there is
@@ -1432,7 +1444,7 @@ function App() {
     setPShapeFilter("");
     setPBrandFilter("");
     setPFilterFilter("");
-    setPRatingFilter(0);
+    setPRatingFilter(0); setPMaintFilter(false);
     // Any forward nav() lands on a fresh screen — the current
     // overlay (if any) is closed below, so it's no longer a drill target.
     drillOverlayRef.current = false;
@@ -1569,10 +1581,28 @@ function App() {
   function navToPipesByTag(tag: any) {
     navHistoryRef.current = pushDrillOrigin(navHistoryRef.current, captureLoc());
     drillOverlayRef.current = false;
-    setPShapeFilter(""); setPBrandFilter(""); setPFilterFilter(""); setPRatingFilter(0);
+    setPShapeFilter(""); setPBrandFilter(""); setPFilterFilter(""); setPRatingFilter(0); setPMaintFilter(false);
     setPBowlMaterialFilter(""); setPStemMaterialFilter("");
     setPTagFilter(String(tag == null ? "" : tag));
     setShowFinishedPipes(false);
+    scrollToTopRef.current = true;
+    setView("pipes");
+    setDetail(null); setPipeDet(null); setAccDet(null);
+  }
+  // The Home "À entretenir" section's way out. That section is a dashboard
+  // summary and shows the five most overdue pipes; with more than five due,
+  // it named five and the rest were reachable only by scanning the pipes list
+  // for amber chips. Same shape as every other pipe drill — record the origin,
+  // clear the rest of the filter set, land at the top of the list.
+  function navToPipesMaintDue() {
+    navHistoryRef.current = pushDrillOrigin(navHistoryRef.current, captureLoc());
+    drillOverlayRef.current = false;
+    setPShapeFilter(""); setPBrandFilter(""); setPFilterFilter(""); setPRatingFilter(0);
+    setPBowlMaterialFilter(""); setPStemMaterialFilter(""); setPTagFilter("");
+    // A retired pipe is never due (computePipeMaintenanceReminders skips it),
+    // so the list must be showing ACTIVE pipes or the drill lands empty.
+    setShowFinishedPipes(false);
+    setPMaintFilter(true);
     scrollToTopRef.current = true;
     setView("pipes");
     setDetail(null); setPipeDet(null); setAccDet(null);
@@ -1620,7 +1650,7 @@ function App() {
     // shape/brand chart drill. Matches navToPipesByTag / …ByMaterial. Locked by
     // navHelperSymmetry.test.ts.
     setPFilterFilter("");
-    setPRatingFilter(0);
+    setPRatingFilter(0); setPMaintFilter(false);
     setPBowlMaterialFilter("");
     setPStemMaterialFilter("");
     setPTagFilter("");
@@ -1650,7 +1680,7 @@ function App() {
     setPShapeFilter("");
     setPBrandFilter("");
     setPFilterFilter("");
-    setPRatingFilter(0);
+    setPRatingFilter(0); setPMaintFilter(false);
     // Clear the tag filter too (symmetry with the other pipe
     // drills — a lingering tag would narrow this material drill).
     setPTagFilter("");
@@ -2661,6 +2691,20 @@ function App() {
           return (p as any).stemMaterial === pStemMaterialFilter;
         });
       if (pTagFilter) ps = ps.filter(function (p) { return tobaccoHasTag(p, pTagFilter); });
+      // Due for maintenance. `topN: 0` is the uncapped form — the CAP belongs
+      // to the Home reminder, which is a dashboard summary; a filter that
+      // capped would be the very defect this exists to fix. Same call the
+      // pipes list already makes for its card chips, so the filter and the
+      // chips cannot disagree.
+      if (pMaintFilter) {
+        var dueIds = new Set(
+          computePipeMaintenanceReminders(
+            liveData.pipes || [], liveData.sessions || [],
+            maintReminderThreshold, 0, today(),
+          ).map(function (r) { return String(r.pipeId); }),
+        );
+        ps = ps.filter(function (p) { return dueIds.has(String(p.id)); });
+      }
       // The shared comparator. This site compared LOWERCASED
       // strings with `<` / `>`, which is not accent-aware — "Éclipse" sorted
       // after "Zippo" in the pipes list while the tobacco list, using
@@ -2670,7 +2714,7 @@ function App() {
       ps = sortByBrandThenName(ps);
       return ps;
     },
-    [liveData, showFinishedPipes, pBrandFilter, pShapeFilter, pFilterFilter, pRatingFilter, pBowlMaterialFilter, pStemMaterialFilter, pTagFilter],
+    [liveData, showFinishedPipes, pBrandFilter, pShapeFilter, pFilterFilter, pRatingFilter, pBowlMaterialFilter, pStemMaterialFilter, pTagFilter, pMaintFilter, maintReminderThreshold],
   );
   var filteredSessions = useMemo(
     function () {
@@ -3383,6 +3427,9 @@ function App() {
     pFilterFilter,
     setPFilterFilter,
     pRatingFilter,
+    pMaintFilter,
+    setPMaintFilter,
+    navToPipesMaintDue,
     setPRatingFilter,
     pBowlMaterialFilter,
     setPBowlMaterialFilter,

@@ -89,7 +89,7 @@ export function CuratorHomeViewV2() {
     crossOpenDetail,
     dateFormat, pipeIsActive, weightUnit = "g",
     imgLocal, watchLowWeight,
-    maintReminderThreshold, maintRemindersEnabled,
+    maintReminderThreshold, maintRemindersEnabled, navToPipesMaintDue,
     autoSaveDrive, lastAutoSaveTs, pendingSync, gdriveStatus,
     cloudNewerBackup, dismissCloudNewerBackup, restoreCloudNewerBackup, cloudRestoreBusy,
   } = ctx;
@@ -192,12 +192,20 @@ export function CuratorHomeViewV2() {
   const [calSel, setCalSel] = React.useState<{ date: string; count: number } | null>(null);
   // Pipes due for maintenance (sessions since last cleaning ≥
   // threshold), most-overdue first — the "À entretenir" reminder at page end.
-  const maintReminders = React.useMemo(
+  // UNCAPPED, then sliced at the render. The section still shows five — it is
+  // a dashboard summary at the end of a long page — but it now KNOWS how many
+  // it is holding back, so it can say so and offer a way to the rest. It used
+  // to ask for `topN: 5` and never learn the total, which is what made the
+  // truncation silent: five listed, no number, no route.
+  const maintAll = React.useMemo(
     () => maintRemindersEnabled === false
       ? []
-      : computePipeMaintenanceReminders(data?.pipes || [], data?.sessions || [], maintReminderThreshold, 5, today()),
+      : computePipeMaintenanceReminders(data?.pipes || [], data?.sessions || [], maintReminderThreshold, 0, today()),
     [data?.pipes, data?.sessions, maintReminderThreshold, maintRemindersEnabled],
   );
+  const MAINT_SHOWN = 5;
+  const maintReminders = maintAll.slice(0, MAINT_SHOWN);
+  const maintHidden = maintAll.length - maintReminders.length;
   // Per-launch rotation shift. The 12 h time bucket is stable WITHIN
   // its window, so reopening / reloading the app inside the same 12 h shows the
   // identical picks (it looked "toujours les mêmes" to anyone checking on
@@ -1058,6 +1066,23 @@ export function CuratorHomeViewV2() {
                   </PressCard>
                   );
                 })}
+                {/* What the cap holds back, and the way to it. A section that
+                    shows five of twelve and says nothing reads as "these are
+                    the ones", which is how this was reported. */}
+                {maintHidden > 0 && (
+                  <PressCard
+                    onClick={() => { if (navToPipesMaintDue) navToPipesMaintDue(); }}
+                    ariaLabel={String(t ? t("maint_see_all") : "Voir les {n} autres").replace("{n}", String(maintHidden))}
+                    style={{
+                      padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      background: "transparent", borderRadius: 8, border: `1px dashed ${C.rule2}`,
+                    }}>
+                    <span style={{ fontFamily: F.mono, fontSize: fs(11.5), color: C.amber, letterSpacing: 0.6, textTransform: "uppercase" }}>
+                      {String(t ? t("maint_see_all") : "Voir les {n} autres").replace("{n}", String(maintHidden))}
+                    </span>
+                    <Ico name="chevron" size={14} sw={2} />
+                  </PressCard>
+                )}
               </div>
             </div>
           </>

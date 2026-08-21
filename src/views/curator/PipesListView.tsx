@@ -60,6 +60,7 @@ export function CuratorPipesListView() {
     pBowlMaterialFilter = "", setPBowlMaterialFilter,
     pStemMaterialFilter = "", setPStemMaterialFilter,
     pTagFilter = "", setPTagFilter,
+    pMaintFilter = false, setPMaintFilter,
     pipesGrouped, setPipesGrouped,
     collapsedPipeGroups, togglePipeGroup, setCollapsedPipeGroups,
     expandCards, setExpandCards,
@@ -241,7 +242,8 @@ export function CuratorPipesListView() {
 
         {/* Active filter pills */}
         {(pShapeFilter || pBrandFilter || pFilterFilter || pRatingFilter
-          || pBowlMaterialFilter || pStemMaterialFilter || pFamilyFilter || pTagFilter) && (
+          || pBowlMaterialFilter || pStemMaterialFilter || pFamilyFilter || pTagFilter
+          || pMaintFilter) && (
           <div style={{ padding: "0 12px 10px", display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <Lbl color={C.oxbloodHi}>{t ? t("lbl_filter_colon") : "Filtre :"}</Lbl>
             {pShapeFilter && <ActiveFilterPill label={pShapeFilter}
@@ -276,6 +278,11 @@ export function CuratorPipesListView() {
             {pTagFilter && <ActiveFilterPill label={"# " + pTagFilter}
               onClear={() => setPTagFilter && setPTagFilter("")}
               accent={C.steelHi} accentBase={C.steel} />}
+            {/* The Home reminder's drill. Amber, like the card chip it
+                selects on, so the pill and the chips read as one thing. */}
+            {pMaintFilter && <ActiveFilterPill label={t ? t("maint_due") : "À entretenir"}
+              onClear={() => setPMaintFilter && setPMaintFilter(false)}
+              accent={C.amber} accentBase={C.amber} />}
           </div>
         )}
         {/* User tag / collection filter chip row (pipes).

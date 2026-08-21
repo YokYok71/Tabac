@@ -129,6 +129,7 @@ export interface AppCtxType {
   navToInvByRating: (...args: any[]) => any;
   navToInvByTag: (...args: any[]) => any;
   navToPipesByTag: (...args: any[]) => any;
+  navToPipesMaintDue: (...args: any[]) => any;
   navToAccByTag: (...args: any[]) => any;
   navToPipesFiltered: (...args: any[]) => any;
   navToPipesFilteredByMaterial: (...args: any[]) => any;
@@ -186,6 +187,8 @@ export interface AppCtxType {
   cutFilter: string;
   tagFilter: string;
   pTagFilter: string;
+  pMaintFilter: boolean;
+  setPMaintFilter: (v: boolean) => void;
   aTagFilter: string;
   brandFilter: string;
   ratingFilter: number;

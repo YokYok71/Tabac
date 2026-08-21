@@ -40,6 +40,7 @@ export var DE = {
   maint_new_title:"Neue Pflege",
   maint_edit_title:"Pflege bearbeiten",
   maint_notes_ph:"z. B. 3 Pfeifenreiniger, leichtes Ausreiben",
+  maint_see_all:"Die {n} weiteren ansehen",
   maint_due:"Reinigung fällig",
   maint_due_sub:"Erinnerung",
   maint_since:"{n} {s} seit der Reinigung",

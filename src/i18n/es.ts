@@ -40,6 +40,7 @@ export var ES = {
   maint_new_title:"Nuevo mantenimiento",
   maint_edit_title:"Editar mantenimiento",
   maint_notes_ph:"ej: 3 limpiapipas, escariado ligero",
+  maint_see_all:"Ver las otras {n}",
   maint_due:"Limpieza pendiente",
   maint_due_sub:"recordatorio",
   maint_since:"{n} {s} desde la limpieza",

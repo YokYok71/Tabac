@@ -40,6 +40,7 @@ export var EN = {
   maint_new_title:"New maintenance",
   maint_edit_title:"Edit maintenance",
   maint_notes_ph:"e.g. 3 pipe cleaners, light ream",
+  maint_see_all:"See the other {n}",
   maint_due:"Cleaning due",
   maint_due_sub:"reminder",
   maint_since:"{n} {s} since cleaning",
