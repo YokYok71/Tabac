@@ -44,7 +44,7 @@ export var IT = {
   maint_due_sub:"promemoria",
   maint_since:"{n} {s} dalla pulizia",
   maint_never:"{n} {s}, mai pulita",
-  maint_see_others:"Vedi le altre {n}",
+  maint_see_all_n:"Vedi le {n} pipe da pulire",
   lbl_maint_threshold:"Promemoria manutenzione (sessioni)",
   maint_threshold_hint:"Sessioni prima di segnalare una pipa da pulire",
   lbl_maint_reminders:"Promemoria manutenzione",

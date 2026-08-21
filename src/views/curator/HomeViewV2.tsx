@@ -269,12 +269,16 @@ export function CuratorHomeViewV2() {
       : computePipeMaintenanceReminders(data?.pipes || [], data?.sessions || [], maintReminderThreshold, 0, today()),
     [data?.pipes, data?.sessions, maintReminderThreshold, maintRemindersEnabled],
   );
-  // The button's label names the REMAINDER, not the total — "voir les 7
-  // autres" tells the reader what a tap buys, where "voir tout (12)" makes
-  // them do the subtraction against a list they can already see.
-  const maintHidden = Math.max(0, maintReminders.length - MAINT_HOME_ROWS);
-  const seeOthersLbl = String(t ? t("maint_see_others") : "Voir les {n} autres")
-    .replace("{n}", String(maintHidden));
+  // The button names the TOTAL still to clean, not the remainder it
+  // reveals — and that REVERSES the first version of this label, on the user's
+  // instruction, for a better reason than the one it replaces.
+  //
+  // "Voir les 2 autres" answers *what is hidden*, which is a question about
+  // the screen. This block is a CHORE, so the fact worth carrying is *how much
+  // work is waiting*: seven pipes need cleaning, five of them happen to fit
+  // above. The count on a checklist should be the size of the job.
+  const seeAllLbl = String(t ? t("maint_see_all_n") : "Voir les {n} pipes à nettoyer")
+    .replace("{n}", String(maintReminders.length));
   // Per-launch rotation shift. The 12 h time bucket is stable WITHIN
   // its window, so reopening / reloading the app inside the same 12 h shows the
   // identical picks (it looked "toujours les mêmes" to anyone checking on
@@ -1119,13 +1123,13 @@ export function CuratorHomeViewV2() {
                 {maintReminders.length > MAINT_HOME_ROWS && (
                   <PressCard
                     onClick={() => setMaintAllOpen(true)}
-                    ariaLabel={seeOthersLbl}
+                    ariaLabel={seeAllLbl}
                     style={{
                       padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       background: "transparent", borderRadius: 8, border: `1px dashed ${C.rule2}`,
                     }}>
                     <span style={{ fontFamily: F.mono, fontSize: fs(11.5), color: C.amber, letterSpacing: 0.6, textTransform: "uppercase" }}>
-                      {seeOthersLbl}
+                      {seeAllLbl}
                     </span>
                     <Ico name="chevron" size={14} sw={2} />
                   </PressCard>
@@ -1149,7 +1153,15 @@ export function CuratorHomeViewV2() {
             onClose={() => setMaintAllOpen(false)} accent={C.amber} />
           <div style={{
             flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain",
-            padding: "0 18px 18px", display: "flex", flexDirection: "column", gap: 6,
+            // 12px, the PAGE gutter, not the 18 the other modals use. This
+            // modal mirrors a page section rather than presenting a form, and
+            // the rows carry a name that truncates: every pixel taken here
+            // truncates it earlier than the same row on the Home, for no gain.
+            // Exact parity is not reachable — the shared backdrop already eats
+            // 12px a side — and widening it for this one caller is not worth
+            // touching a primitive every modal shares. This is the closest
+            // honest match: 342px rows against the Home's 366.
+            padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 6,
           }}>
             {maintReminders.map((r) => (
               <MaintRow key={r.pipeId} r={r} t={t} lang={lang}

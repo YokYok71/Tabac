@@ -125,8 +125,8 @@ describe("CuratorHomeViewV2", () => {
   // pipe: that fixed the real defect (five of twelve, with nothing admitting
   // the truncation — « je ne vois toujours que 5 pipes à nettoyer ») but it
   // also let the Home's last block grow without bound. The settled answer
-  // keeps the cap AND the honesty: five rows, then a button that NAMES the
-  // remainder and opens all of them in a modal.
+  // keeps the cap AND the honesty: five rows, then a button that names the
+  // TOTAL still to clean and opens all of them in a modal.
   //
   // What must never come back is a cap that hides its own existence. So the
   // two halves are asserted together, and a probe that removes either one
@@ -159,26 +159,33 @@ describe("CuratorHomeViewV2", () => {
     MAINT_NAMES.slice(5).forEach((n) => {
       expect(container.textContent, `« ${n} » is beyond the cap and must not be on the Home`).not.toContain(n);
     });
-    expect(container.textContent, "the cap must announce what it hides").toContain("maint_see_others");
+    expect(container.textContent, "the cap must announce what it hides").toContain("maint_see_all_n");
     const btn = Array.from(container.querySelectorAll("[role=button]"))
-      .find((b) => (b.textContent || "").includes("maint_see_others"));
+      .find((b) => (b.textContent || "").includes("maint_see_all_n"));
     expect(btn, "expected a way through to the rest").toBeTruthy();
   });
 
-  it("the button names the REMAINDER, not the total", () => {
-    // Seven overdue, five shown → the label must say TWO. Asserted with a `t`
-    // that carries the real placeholder, because the shared harness's mockT
-    // returns the KEY: under it `{n}` never interpolates, so a label built
-    // from `maintReminders.length` would read identically and this arithmetic
-    // — the one thing a reader gets wrong here — would be pinned by nothing.
+  it("the button names the TOTAL still to clean, not the remainder", () => {
+    // REVERSED on the user's instruction, and the reversal is recorded here
+    // rather than by rewriting the case as if it had always said this. The
+    // first version asserted the REMAINDER ("voir les 2 autres") on the
+    // argument that it tells the reader what a tap buys. That argument answers
+    // a question about the SCREEN; this block is a CHORE, so the fact worth
+    // carrying is how much work is waiting — seven pipes need cleaning, five
+    // of them merely happen to fit above.
+    //
+    // Asserted with a `t` that carries the real placeholder, because the
+    // shared harness's mockT returns the KEY: under it `{n}` never
+    // interpolates, so a label built from the wrong number would read
+    // identically and this arithmetic would be pinned by nothing.
     const pipes = overduePipes();
     const { container } = renderWith({
       ...baseCtx,
-      t: (k: string) => (k === "maint_see_others" ? "Voir les {n} autres" : k),
+      t: (k: string) => (k === "maint_see_all_n" ? "Voir les {n} pipes à nettoyer" : k),
       data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
     });
-    expect(container.textContent).toContain("Voir les 2 autres");
-    expect(container.textContent, "7 is the total, not what the button opens").not.toContain("Voir les 7 autres");
+    expect(container.textContent).toContain("Voir les 7 pipes à nettoyer");
+    expect(container.textContent, "2 is what the button reveals, not the size of the job").not.toContain("Voir les 2 pipes");
   });
 
   it("the button opens a modal holding EVERY overdue pipe", () => {
@@ -187,7 +194,7 @@ describe("CuratorHomeViewV2", () => {
       ...baseCtx, data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
     });
     const btn = Array.from(container.querySelectorAll("[role=button]"))
-      .find((b) => (b.textContent || "").includes("maint_see_others"))!;
+      .find((b) => (b.textContent || "").includes("maint_see_all_n"))!;
     fireEvent.click(btn);
     const dialog = container.ownerDocument.querySelector("[role=dialog]");
     expect(dialog, "the button must open a dialog").toBeTruthy();
@@ -204,7 +211,7 @@ describe("CuratorHomeViewV2", () => {
       ...baseCtx, data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
     });
     expect(container.textContent).toContain("Alpha");
-    expect(container.textContent, "three of three — nothing is held back").not.toContain("maint_see_others");
+    expect(container.textContent, "three of three — nothing is held back").not.toContain("maint_see_all_n");
   });
 
   it("respects a custom maintenance threshold from ctx", () => {

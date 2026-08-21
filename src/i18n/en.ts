@@ -44,7 +44,7 @@ export var EN = {
   maint_due_sub:"reminder",
   maint_since:"{n} {s} since cleaning",
   maint_never:"{n} {s}, never cleaned",
-  maint_see_others:"See the {n} others",
+  maint_see_all_n:"See all {n} pipes to clean",
   lbl_maint_threshold:"Maintenance reminder (sessions)",
   maint_threshold_hint:"Sessions before a pipe is flagged for cleaning",
   lbl_maint_reminders:"Maintenance reminders",

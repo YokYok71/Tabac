@@ -44,7 +44,7 @@ export var ES = {
   maint_due_sub:"recordatorio",
   maint_since:"{n} {s} desde la limpieza",
   maint_never:"{n} {s}, nunca limpiada",
-  maint_see_others:"Ver las {n} restantes",
+  maint_see_all_n:"Ver las {n} pipas por limpiar",
   lbl_maint_threshold:"Recordatorio de mantenimiento (sesiones)",
   maint_threshold_hint:"Sesiones antes de señalar una pipa para limpiar",
   lbl_maint_reminders:"Recordatorios de mantenimiento",
