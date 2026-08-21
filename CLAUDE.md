@@ -1962,6 +1962,18 @@ After every significant task (bug fix, feature, security change, release), alway
 - **Always push to `main`** — all commits go directly to the `main` branch.
 - Commits: brief English messages describing what changed.
 - Main branch: `main`
+- **Every commit message NAMES THE BUILD it ships as.** A trailer line at the
+  end of the body, beside `Co-Authored-By`: `Build 20`. The history is read from
+  a phone, and « quelle version corrige ça ? » is otherwise answerable only by
+  opening the diff and looking at `constants.ts` — the one file whose change is
+  invisible in a subject line. Set by the user, standing: *« dans la description
+  tu devrais noter le numéro de build »*.
+  - It goes in the BODY, not the subject: the subject is what the commit list
+    shows, and it is the sentence that makes that list scannable.
+  - **A commit with no bump says so** — `Sans bump (tests uniquement)` — rather
+    than repeating the previous build, which would claim a delivery that did
+    not happen. Test-only work, a Dependabot merge and a documentation-only
+    change all land here; see the bump gate for what counts as user-visible.
 - **NEVER put a `Claude-Session:` URL in a commit message.** The default
   convention appends one; on this repo it must be dropped. It is a link into a
   private tooling session published in the history of a PUBLIC repository, it
