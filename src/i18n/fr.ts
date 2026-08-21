@@ -957,6 +957,7 @@ export var FR = {
   home_zone_moments:"Les séances",
   home_zone_moments_sub:"activité récente",
   home_pair_with:"À accorder avec",
+  home_pair_accord:"accordée",
   home_maturity_title:"Cave à maturité",
   home_cellar_autonomy:"Autonomie estimée",
   unit_week_one:"semaine",

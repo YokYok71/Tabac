@@ -17,7 +17,7 @@ import { Ico, Orn } from "../../components/curator/icons.tsx";
 import { CuratorTrashIndicator } from "../../components/curator/TrashIndicator.tsx";
 import { computeSmokeSuggestions, suggestRestedPipe, rotateDailyHero, dailyWindow, seededShuffle, FEATURE_ROTATE_MS } from "../../utils/suggest.ts";
 import { homeRotationSeed } from "../../utils/homeRotation.ts";
-import { computePipeGhostingRisk } from "../../utils/ghosting.ts";
+import { computePipeGhostingRisk, pipeAccordsWithFamily } from "../../utils/ghosting.ts";
 import { computePipeMaintenanceReminders } from "../../utils/pipeMaint.ts";
 import type { SuggestionReason } from "../../utils/suggest.ts";
 import { computeWatchlist } from "../../utils/watchlist.ts";
@@ -491,7 +491,20 @@ export function CuratorHomeViewV2() {
   // to the single most-rested pipe and repeated on every relaunch.
   // Audit: measure rest with the REAL clock (Date.now()) so the
   // displayed "repos N j" is correct; rotate the pick with the shifted featNow.
-  const restedPipe = suggestRestedPipe(data?.pipes || [], data?.sessions || [], Date.now(), ghostExclude, FEATURE_ROTATE_MS, featNow);
+  // THE ACCORD — the positive counterpart of ghostExclude. A pipe whose
+  // history is dominated by tonight's family suits tonight's bowl, so it is
+  // preferred among the pipes that are rested enough to be offered at all.
+  // `pipeAccordsWithFamily` owns the dedication thresholds (shared with the
+  // ghosting test) so the rule is not written a second time here.
+  const heroCat = hero ? String(hero.tob.category || "") : "";
+  const accordPrefer = new Set<string>(
+    heroCat
+      ? ((data?.pipes || []) as any[])
+          .filter((p) => pipeAccordsWithFamily(p.id, heroCat, data?.sessions || [], data?.tobaccos || []))
+          .map((p) => String(p.id))
+      : [],
+  );
+  const restedPipe = suggestRestedPipe(data?.pipes || [], data?.sessions || [], Date.now(), ghostExclude, FEATURE_ROTATE_MS, featNow, accordPrefer);
   const restedPipeObj = restedPipe ? (data?.pipes || []).find((p: any) => String(p.id) === restedPipe.pipeId) : null;
 
   const kgWeight = weightUnit === "oz"
@@ -722,6 +735,16 @@ export function CuratorHomeViewV2() {
                       </button>
                       {restedPipe && restedPipe.restDays !== null
                         ? <span>· {String(t ? t("rest_chip") : "repos {n} j").replace("{n}", String(restedPipe.restDays))}</span>
+                        : null}
+                      {/* The pipe was picked because it ACCORDS with tonight's
+                          family, not merely because it was rested. Saying so is
+                          not decoration: an accord applied silently is a
+                          behaviour the user cannot see, and this repo's rule is
+                          that any state changing how the app behaves must be
+                          visible somewhere. It also answers "why this pipe?",
+                          which is the question the suggestion invites. */}
+                      {restedPipe && restedPipe.matched
+                        ? <span style={{ color: C.sage }}>· {t ? t("home_pair_accord") : "accordée"}</span>
                         : null}
                     </div>
                   )}

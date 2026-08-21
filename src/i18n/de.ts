@@ -957,6 +957,7 @@ export var DE = {
   home_zone_moments:"Sitzungen",
   home_zone_moments_sub:"letzte Aktivität",
   home_pair_with:"Kombinieren mit",
+  home_pair_accord:"passend",
   home_maturity_title:"Keller-Reife",
   home_cellar_autonomy:"Gesch. Reichweite",
   unit_week_one:"Woche",

@@ -154,3 +154,34 @@ export function computePipeUsageProfile(
     dominant: top.category, dominantShare: share, ghosted: ghosted,
   };
 }
+
+/**
+ * Does this pipe ACCORD with a tobacco family — i.e. is it dedicated to it?
+ *
+ * The positive counterpart of computePipeGhostingRisk, and the reason it lives
+ * HERE rather than at the call site: it is the same dedication test
+ * (MIN_TOTAL sessions, DOMINANT_SHARE of them in one family), and this repo
+ * has paid four times over for a rule written a second time somewhere else.
+ * The only difference is the direction — ghosting asks whether the incoming
+ * tobacco CLASHES with what the pipe is used to, this asks whether it MATCHES.
+ *
+ * Note it does NOT require a ghosting-prone family: a pipe dedicated to
+ * Virginia accords with Virginia just as much as a Latakia pipe does with
+ * Latakia, even though Virginia leaves no ghost to worry about.
+ *
+ * Drives the Home's pipe suggestion (`preferIds` in suggestRestedPipe): among
+ * the pipes rested enough to be offered, prefer one that suits tonight's bowl.
+ */
+export function pipeAccordsWithFamily(
+  pipeId: any,
+  category: string | null | undefined,
+  sessions: any[] | null | undefined,
+  tobaccos: any[] | null | undefined,
+): boolean {
+  var cat = String(category || "");
+  if (!cat) return false;
+  var prof = computePipeUsageProfile(pipeId, sessions, tobaccos);
+  return prof.total >= MIN_TOTAL
+    && prof.dominantShare >= DOMINANT_SHARE
+    && prof.dominant === cat;
+}

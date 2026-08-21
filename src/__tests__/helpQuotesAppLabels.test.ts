@@ -41,6 +41,21 @@ import { LANGUAGES } from "../i18n/languages.ts";
 const QUOTED: Array<{ key: string; marker: RegExp }> = [
   // The Home CTA. Its wording diverged in four languages at once.
   { key: "tasting_resume_home", marker: /<strong>▶ [^<]{0,40}<\/strong>/ },
+  // The word the Home puts beside a pipe chosen because it ACCORDS with
+  // tonight's family. It carries a gender trap that makes drift likely rather
+  // than hypothetical: the pipe is feminine in fr/es/it and MASCULINE in pt
+  // (o cachimbo), so the six values are not translations of one another and
+  // cannot be checked by eye.
+  // Anchored on the DEDICATION clause rather than on the noun introducing the
+  // quotation ("mention" / "tag" / "Hinweis" …): English puts that noun AFTER
+  // the <em> and Spanish spells it "mención", so a noun-first marker went
+  // silent in two languages out of six — found by probing each language
+  // separately, which is the only way to see a marker that skips rather than
+  // fails.
+  {
+    key: "home_pair_accord",
+    marker: /(dédiée à la famille|dedicated to|dedicada a la familia|gewidmet|dedicata alla famiglia|dedicado à família)[\s\S]{0,320}<em>[^<]{0,40}<\/em>/,
+  },
   // The Settings toggle, quoted in <strong> in every language's backup section.
   { key: "enc_toggle_label", marker: /<strong>[^<]{0,60}<\/strong>[^<]{0,20}(protège|protects|protege|schützt|protegge)/ },
   // The auto-fill source option.

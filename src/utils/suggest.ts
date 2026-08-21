@@ -306,13 +306,46 @@ export interface RestedPipeSuggestion {
   pipeId: string;
   /** null = never smoked (the most rested a pipe can be). */
   restDays: number | null;
+  /**
+   * True when the pick came from `preferIds` — i.e. it was chosen because its
+   * usage profile matches tonight's tobacco family, not merely because it was
+   * rested. The Home says so next to the pipe name: an accord the app applies
+   * silently is a behaviour the user cannot see, which this repo forbids.
+   */
+  matched: boolean;
 }
 
 /**
- * The best pipe to pair with tonight's bowl: the most-rested ACTIVE
- * pipe, never-smoked counting as infinitely rested. Ties break on
- * rating (desc), then id (stable). Returns null when the collection
- * has no active pipe.
+ * Past this many days a pipe is RESTED, and more rest buys nothing. It is the
+ * threshold that decides how wide the rotation pool is — every pipe at or
+ * beyond it is equally deserving of a turn, so they all get one.
+ *
+ * 14 days is deliberately well beyond PIPE_REST_TARGET_DAYS (2): the target is
+ * when a pipe becomes usable again, this is when the distinction stops
+ * carrying information. Briar does not keep getting drier.
+ *
+ * NOTE what this constant is NOT. It was first written as a CLAMP inside the
+ * ranking (`min(rest, 14)`), to stop a never-smoked pipe's INFINITE rest from
+ * outranking everything for ever. A probe showed the clamp changed nothing:
+ * `Infinity >= 14` and `90 >= 14` alike, so the pool held the same pipes
+ * either way and the clamp only reordered a set the rotation traverses whole.
+ * The clamp is gone; the threshold is the part that does the work. Rest is
+ * still ranked and REPORTED at its true value — a pipe rested 90 days says 90.
+ */
+export var REST_SATURATION_DAYS = 14;
+
+/**
+ * The best pipe to pair with tonight's bowl: an ACTIVE pipe, rested — where
+ * rest SATURATES at REST_SATURATION_DAYS, so a never-smoked pipe and one
+ * rested a month are equally rested and neither outranks the other. Ties break
+ * on rating (desc), then id (stable). The pick then rotates over every
+ * saturated pipe (floor of five), and narrows to `preferIds` when tonight's
+ * tobacco has pipes accorded to its family. Returns null with no active pipe.
+ *
+ * This description used to read "never-smoked counting as infinitely rested",
+ * which was true until the Infinity was capped and is corrected here rather
+ * than quietly rewritten: that infinity is exactly what let a handful of
+ * untouched pipes own the rotation for ever.
  */
 export function suggestRestedPipe(
   pipes: any[] | null | undefined,
@@ -341,6 +374,23 @@ export function suggestRestedPipe(
    * DISPLAYED rest count, which drifted upward ~½ day per app launch.
    */
   rotateNow: number = now,
+  /**
+   * Pipe ids that ACCORD with tonight's tobacco — whose usage profile is
+   * dominated by the same family (see computePipeUsageProfile). The caller
+   * computes them, exactly as it does `excludeIds`, so this module keeps no
+   * dependency on the ghosting/profile engine.
+   *
+   * Applied to the POOL, never to the whole collection: rest stays a HARD
+   * constraint and the family match is only the tiebreak among pipes that are
+   * already rested enough. Preferring a pipe smoked yesterday would contradict
+   * the one thing this function promises.
+   *
+   * When the intersection is non-empty the rotation narrows to it — and yes,
+   * a single accorded pipe is then returned every time. That is wanted here
+   * and is NOT the pinning bug this file fought before: the pin is to
+   * TONIGHT'S TOBACCO, which itself rotates, so the pipe moves with it.
+   */
+  preferIds?: Set<string> | string[] | null,
 ): RestedPipeSuggestion | null {
   var excl: Set<string> | null = excludeIds
     ? (excludeIds instanceof Set ? excludeIds : new Set(excludeIds))
@@ -355,6 +405,9 @@ export function suggestRestedPipe(
     if (kept.length > 0) actives = kept; // else keep all — better a ghosted pick than none
   }
   var restMap = computePipeRest(actives, sessions, now);
+  // Never smoked = the most rested a pipe can be. Kept as Infinity: what used
+  // to make that a problem was the flat pool below, not the value itself (see
+  // REST_SATURATION_DAYS for the probe that established it).
   var eff = function (p: any): number {
     var r = restMap[String(p.id)];
     return r === null || r === undefined ? Infinity : r;
@@ -369,20 +422,52 @@ export function suggestRestedPipe(
     return (Number(a.id) || 0) - (Number(b.id) || 0);
   });
 
-  // Rotate among the TOP-N most-rested pipes (not only the exact
-  // top-rest tie group). The old pickDailyTie approach rotated ONLY among
-  // pipes sharing the identical top rest value — so whenever one pipe was
-  // uniquely the most-rested (the common case once last-session dates differ
-  // by even a day), the tie group was size 1 and the suggestion was PINNED:
-  // the user saw the same pipe on every relaunch while the "Ce soir ?" tobacco
-  // (a seeded shuffle) kept changing. rotateDailyHero over a small pool of the
-  // best-rested pipes — combined with the per-launch-shifted `now` + 12 h
-  // `bucketMs` the caller passes — makes the pipe cycle on the same rhythm as
-  // the tobacco. `sorted` is rest-desc then rating, so the pool is the genuinely
-  // most-rested pipes and rotation starts from the best-rated one.
-  var pool = Math.min(5, sorted.length);
-  var best = rotateDailyHero(sorted, rotateNow, pool, bucketMs)[0];
+  // THE POOL IS EVERY PIPE THAT IS RESTED — and only five when none is.
+  //
+  // Two earlier shapes, both of which pinned the suggestion, and the history
+  // is worth keeping because the same complaint produced both. FIRST,
+  // pickDailyTie rotated only among pipes sharing the IDENTICAL top rest
+  // value, so a uniquely most-rested pipe was a tie group of one and the pick
+  // never moved. THEN, rotating over a flat `min(5, sorted.length)` fixed that
+  // and left an arbitrary number that cannot grow with the collection: twelve
+  // pipes yielded five distinct picks and seven never offered — the user's
+  // report, « la pipe du jour c'est un peu toujours la même ».
+  //
+  // The rule now says what the feature means. Once a pipe is at
+  // REST_SATURATION_DAYS it is as rested as any other, so there is no ground
+  // to prefer one over another and they ALL deserve a turn; the pool is
+  // exactly that set. The five-pipe floor survives for the case it was right
+  // about — a heavily-rotated collection where nothing has saturated, and the
+  // five most-rested genuinely ARE the answer.
+  //
+  // The floor is deliberately NOT `max(saturated, 5)`. Written that way first,
+  // it pulled UNRESTED pipes into the pool whenever fewer than five had
+  // saturated: on a two-pipe collection it offered the one smoked yesterday
+  // beside the one rested three weeks, the opposite of this function's job. A
+  // test caught it. Once any pipe is rested, none that is not may dilute it.
+  //
+  // `sorted` is rest-desc then rating, so a saturated pipe always precedes an
+  // unsaturated one and `slice(0, pool)` IS the saturated set; rotation then
+  // starts from the best-rated of them.
+  var saturated = 0;
+  for (var i = 0; i < sorted.length; i++) {
+    if (eff(sorted[i]) >= REST_SATURATION_DAYS) saturated++;
+  }
+  var pool = saturated > 0 ? saturated : Math.min(5, sorted.length);
+
+  // The accord, applied to the pool and not before it (see `preferIds`).
+  var prefer: Set<string> | null = preferIds
+    ? (preferIds instanceof Set ? preferIds : new Set(preferIds))
+    : null;
+  var poolList = sorted.slice(0, pool);
+  var matched = false;
+  if (prefer && prefer.size) {
+    var accorded = poolList.filter(function (p: any) { return prefer!.has(String(p.id)); });
+    if (accorded.length > 0) { poolList = accorded; matched = true; }
+  }
+
+  var best = rotateDailyHero(poolList, rotateNow, poolList.length, bucketMs)[0];
   if (!best) return null;
   var rd = restMap[String(best.id)];
-  return { pipeId: String(best.id), restDays: rd === undefined ? null : rd };
+  return { pipeId: String(best.id), restDays: rd === undefined ? null : rd, matched: matched };
 }

@@ -957,6 +957,7 @@ export var IT = {
   home_zone_moments:"Le sessioni",
   home_zone_moments_sub:"attività recente",
   home_pair_with:"Abbina con",
+  home_pair_accord:"abbinata",
   home_maturity_title:"Cantina a maturità",
   home_cellar_autonomy:"Autonomia stimata",
   unit_week_one:"settimana",

@@ -957,6 +957,7 @@ export var ES = {
   home_zone_moments:"Sesiones",
   home_zone_moments_sub:"actividad reciente",
   home_pair_with:"Combinar con",
+  home_pair_accord:"a juego",
   home_maturity_title:"Bodega a punto",
   home_cellar_autonomy:"Autonomía estimada",
   unit_week_one:"semana",
