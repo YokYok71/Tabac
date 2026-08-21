@@ -63,14 +63,21 @@ export function BottomDock({ active, onNav, accent = C.brass, items = DOCK_ITEMS
       display: "flex", justifyContent: "center",
       // COMPOSITING PROMOTION — the dock "swims" mid-screen during a scroll.
       //
-      // CONFIRMED ON THE INSTALLED iOS PWA: the drift is gone. The
-      // confirmation carried its own lesson, about DELIVERY rather than
-      // layout — the build shipping this was first reported as still broken,
-      // then « ok après avoir fermé complètement l'app ». A PWA resumed from
-      // the iOS app switcher does not reload, so it was still running the
-      // previous build and this property was not in the executing code. A
-      // layout fix cannot be judged until the PWA has been fully quit and
-      // relaunched; ask for that before reading "still broken" as a failed fix.
+      // THE DRIFT IS GONE on the installed PWA — but WHY is NOT settled, and
+      // the first answer written here was WRONG. This build was reported as
+      // still drifting, then as fixed « après avoir fermé complètement l'app »,
+      // and that was written up as a delivery lesson: the PWA must have still
+      // been running the previous build, since a resume from the app switcher
+      // does not reload. The user corrected it flatly — THEY WERE ALREADY ON
+      // THIS BUILD before closing. So the property alone did not clear it;
+      // recycling the web view did. Two readings remain, and only time
+      // separates them: either this promotion is the fix and a long-lived
+      // WKWebView had to be destroyed before it took hold, or the recycling
+      // alone is the fix and this property is inert. DO NOT restate either as
+      // established. If the drift returns with no code change, it is the
+      // second, and the mechanism to look at is the `document.documentElement`
+      // mutation documented at main.jsx — a reload keeps the web view, a full
+      // quit does not.
       //
       // Reported from the installed iOS PWA with a scrolling screenshot that
       // showed the pill halfway up the page. TRIAGED WITH THE USER rather than

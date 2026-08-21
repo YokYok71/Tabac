@@ -56,21 +56,28 @@ describe("iOS-PWA floating-dock guardrails", () => {
     expect(guardIdx, "the viewport-meta swap must be guarded by !IS_IOS_STANDALONE").toBeGreaterThan(-1);
   });
 
-  // CONFIRMED ON THE INSTALLED iOS PWA by the user — the drift is gone.
+  // The drift is GONE on the installed iOS PWA. Why is NOT settled.
   //
   // The dock was reported drifting mid-screen DURING a scroll, while sitting
   // correctly over the content at rest, so not the in-flow bug the four
   // guardrails prevent but the WebKit main-thread paint lag. `translateZ(0)`
   // promotes it to its own compositing layer.
   //
-  // THE CONFIRMATION CAME WITH A LESSON ABOUT DELIVERY, not about layout: the
-  // user first reported build 23 as still broken, then « ok après avoir fermé
-  // complètement l'app ». An installed iOS PWA resumed from the app switcher
-  // does NOT reload, so it kept running the previous build and the fix was
-  // simply not in the code being executed. **A layout fix cannot be judged
-  // until the PWA has been fully quit and relaunched** — ask for that
-  // explicitly before reading a "still broken" as a failed fix, or a working
-  // change gets reverted on the strength of a stale bundle.
+  // THE FIRST EXPLANATION WRITTEN HERE WAS WRONG, and it is recorded rather
+  // than deleted because the mistake is the instructive part. The build was
+  // reported as still drifting, then as fixed « après avoir fermé complètement
+  // l'app », and that was written up as a DELIVERY lesson — the PWA must have
+  // been running the previous build, since a resume from the app switcher does
+  // not reload. The user corrected it flatly: they were ALREADY on this build
+  // before closing. So the property alone did not clear it; destroying and
+  // recreating the web view did. Two readings survive, separable only by TIME:
+  // the promotion is the fix and a long-lived WKWebView had to be recycled
+  // before it took hold, or the recycling alone is the fix and the property is
+  // inert. If the drift returns with no code change, it is the second.
+  //
+  // The lesson that DOES hold: "the reporter must have been on the old build"
+  // is the shape of guess to distrust — it explains a report by assuming the
+  // person making it was mistaken.
   //
   // WHAT IS NOT YET SETTLED, and must not be quietly forgotten: whether the
   // pill's frosted glass survived. `backdrop-filter` samples a backdrop root
