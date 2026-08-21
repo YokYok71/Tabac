@@ -192,10 +192,20 @@ export function CuratorHomeViewV2() {
   const [calSel, setCalSel] = React.useState<{ date: string; count: number } | null>(null);
   // Pipes due for maintenance (sessions since last cleaning ≥
   // threshold), most-overdue first — the "À entretenir" reminder at page end.
+  //
+  // UNCAPPED (topN 0), and the cap it replaces was not a display choice but a
+  // silent omission: the section names the pipes that need cleaning, so
+  // showing five of seven tells the reader they are done when they are not,
+  // with nothing on screen saying otherwise — the same shape as a tile that
+  // counts one set and opens another. There is no cost to showing them all
+  // here: this is the LAST block of the Home, nothing is pushed below it, and
+  // the list is bounded by how many pipes you own and shrinks to nothing as
+  // you clean them. `PipesListView` has always passed 0 for its chip set, so
+  // the two surfaces now agree on which pipes are due.
   const maintReminders = React.useMemo(
     () => maintRemindersEnabled === false
       ? []
-      : computePipeMaintenanceReminders(data?.pipes || [], data?.sessions || [], maintReminderThreshold, 5, today()),
+      : computePipeMaintenanceReminders(data?.pipes || [], data?.sessions || [], maintReminderThreshold, 0, today()),
     [data?.pipes, data?.sessions, maintReminderThreshold, maintRemindersEnabled],
   );
   // Per-launch rotation shift. The 12 h time bucket is stable WITHIN

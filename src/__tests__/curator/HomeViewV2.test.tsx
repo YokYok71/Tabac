@@ -120,6 +120,37 @@ describe("CuratorHomeViewV2", () => {
     expect(crossOpenDetail).toHaveBeenCalledWith({ view: "pipes", kind: "pipe", obj: duePipe });
   });
 
+  it("lists EVERY overdue pipe, not the first five", () => {
+    // The section used to pass topN 5. That is not a display choice, it is a
+    // silent omission: a block titled "à entretenir" showing five of seven
+    // tells the reader they are done when they are not, with nothing on
+    // screen saying otherwise — reported from the app as « je ne vois
+    // toujours que 5 pipes à nettoyer ». It is the last block of the Home, so
+    // nothing is pushed below it, and the list shrinks as the pipes are
+    // cleaned.
+    //
+    // Each pipe carries a DISTINCT name so this counts rows rather than
+    // occurrences of a shared label — with seven identical pipes a cap of
+    // five would still satisfy a "contains maint_never" assertion.
+    const names = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf"];
+    const pipes = names.map((n, i) => ({
+      id: i + 1, brand: "Halvorsen", name: n, shape: "Calabash",
+      rating: 4, status: "active", maintenance: [],
+    }));
+    const sessions = pipes.flatMap((p) =>
+      Array.from({ length: 12 }, (_, i) => ({
+        id: p.id * 100 + i, tobaccoId: 1, pipeId: p.id,
+        date: "2026-06-01", duration: "30", rating: 4, weightG: "3", aromas: [],
+      })),
+    );
+    const { container } = renderWith({
+      ...baseCtx, data: { ...baseCtx.data, pipes, sessions },
+    });
+    names.forEach((n) => {
+      expect(container.textContent, `pipe « ${n} » is overdue and must be listed`).toContain(n);
+    });
+  });
+
   it("respects a custom maintenance threshold from ctx", () => {
     const duePipe = { id: 1, brand: "Halvorsen", name: "SH", shape: "Calabash", rating: 4, status: "active", maintenance: [] };
     const sessions = Array.from({ length: 3 }, (_, i) => ({ id: i, tobaccoId: 1, pipeId: 1, date: "2026-06-01", duration: "30", rating: 4, weightG: "3", aromas: [] }));
