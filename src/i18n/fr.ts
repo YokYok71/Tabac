@@ -44,6 +44,7 @@ export var FR = {
   maint_due_sub:"rappel",
   maint_since:"{n} {s} depuis l'entretien",
   maint_never:"{n} {s}, jamais nettoyée",
+  maint_see_others:"Voir les {n} autres",
   lbl_maint_threshold:"Rappel d'entretien (séances)",
   maint_threshold_hint:"Nb de séances avant de signaler une pipe à entretenir",
   lbl_maint_reminders:"Rappels d'entretien",

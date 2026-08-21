@@ -29,7 +29,71 @@ import {
   activityHeatmapMonths, computeCellarDepletion, computeCellarPeaks,
 } from "../../utils/cellarInsights.ts";
 import { plural } from "../../utils.ts";
+import { Modal, ModalHeader } from "../../components/curator/Modal.tsx";
 import type { Pipe } from "../../types.ts";
+
+/** How many "à entretenir" rows the Home itself shows before handing the rest
+ *  to the modal. The Home is a dashboard and this is its last block, so a
+ *  bound is a legitimate editorial act — what is NOT legitimate is a bound
+ *  that hides its own existence, which is what the section did until the
+ *  button beneath it named the remainder. */
+const MAINT_HOME_ROWS = 5;
+
+/** One "à entretenir" row — the pipe, its brand, and how many bowls it has
+ *  taken since its last cleaning.
+ *
+ *  EXTRACTED because the Home now shows it in TWO places: the first five under
+ *  the section head, and every one of them inside the "voir les N autres"
+ *  modal. Writing the row twice is the drift this repo keeps paying for (the
+ *  tag predicate lived in four copies), and here the two copies would sit
+ *  eighty lines apart in one file — the easiest kind to let diverge. */
+function MaintRow({ r, photo, t, lang, onOpen }: {
+  r: { pipeId: string; pipe: any; sessionsSince: number; everMaintained: boolean };
+  photo: string | null;
+  t?: ((k: string) => string) | undefined;
+  lang?: string | undefined;
+  onOpen: () => void;
+}) {
+  return (
+    <PressCard
+      onClick={onOpen}
+      style={{
+        padding: "10px 12px", display: "flex", alignItems: "center", gap: 12,
+        background: CARD_BG, borderRadius: 8, border: `1px solid ${C.rule}`,
+        boxShadow: CARD_SHADOW,
+      }}>
+      {photo ? (
+        <div style={{
+          width: 42, height: 42, borderRadius: 8, flexShrink: 0,
+          border: `1px solid ${C.rule2}`,
+          background: `${safeBgUrl(photo)} center/cover no-repeat, ${C.bg2}`,
+        }} />
+      ) : (
+        <div style={{
+          width: 42, height: 42, borderRadius: 8, flexShrink: 0,
+          background: alpha(C.amber, "18"), border: `1px solid ${alpha(C.amber, "44")}`, color: C.amber,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Ico name="pipe" size={18} sw={1.5} />
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: fs(13), color: C.tx2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.pipe.brand || "—"}</div>
+        <div style={{ fontFamily: F.display, fontStyle: "italic", color: C.ivory, fontSize: fs(17), lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.pipe.name || "—"}</div>
+        <div style={{ marginTop: 3, fontFamily: F.mono, fontSize: fs(11), color: C.amber, letterSpacing: 0.3 }}>
+          {String(r.everMaintained
+            ? (t ? t("maint_since") : "{n} {s} depuis l'entretien")
+            : (t ? t("maint_never") : "{n} {s}, jamais nettoyée")
+          ).replace("{n}", String(r.sessionsSince))
+           .replace("{s}", plural(r.sessionsSince,
+             t ? t("lbl_session_word") : "séance",
+             t ? t("lbl_sessions_word") : "séances", lang))}
+        </div>
+      </div>
+      <Ico name="chevron" size={16} sw={2} />
+    </PressCard>
+  );
+}
 
 function ZoneHead({ title, sub, accent }: { title: string; sub?: string | undefined; accent: string }) {
   return (
@@ -190,24 +254,27 @@ export function CuratorHomeViewV2() {
     [data?.sessions],
   );
   const [calSel, setCalSel] = React.useState<{ date: string; count: number } | null>(null);
+  const [maintAllOpen, setMaintAllOpen] = React.useState(false);
   // Pipes due for maintenance (sessions since last cleaning ≥
   // threshold), most-overdue first — the "À entretenir" reminder at page end.
   //
-  // UNCAPPED (topN 0), and the cap it replaces was not a display choice but a
-  // silent omission: the section names the pipes that need cleaning, so
-  // showing five of seven tells the reader they are done when they are not,
-  // with nothing on screen saying otherwise — the same shape as a tile that
-  // counts one set and opens another. There is no cost to showing them all
-  // here: this is the LAST block of the Home, nothing is pushed below it, and
-  // the list is bounded by how many pipes you own and shrinks to nothing as
-  // you clean them. `PipesListView` has always passed 0 for its chip set, so
-  // the two surfaces now agree on which pipes are due.
+  // Asked for the FULL set (topN 0) and CUT AT RENDER, which is the
+  // whole point: the memo knows the total, so the section can say what it is
+  // holding back and open it. A `topN` of 5 here would leave the Home unable
+  // to tell five-of-five from five-of-twelve — the state this shipped in, and
+  // the shape of a summary that names one set and shows another.
   const maintReminders = React.useMemo(
     () => maintRemindersEnabled === false
       ? []
       : computePipeMaintenanceReminders(data?.pipes || [], data?.sessions || [], maintReminderThreshold, 0, today()),
     [data?.pipes, data?.sessions, maintReminderThreshold, maintRemindersEnabled],
   );
+  // The button's label names the REMAINDER, not the total — "voir les 7
+  // autres" tells the reader what a tap buys, where "voir tout (12)" makes
+  // them do the subtraction against a list they can already see.
+  const maintHidden = Math.max(0, maintReminders.length - MAINT_HOME_ROWS);
+  const seeOthersLbl = String(t ? t("maint_see_others") : "Voir les {n} autres")
+    .replace("{n}", String(maintHidden));
   // Per-launch rotation shift. The 12 h time bucket is stable WITHIN
   // its window, so reopening / reloading the app inside the same 12 h shows the
   // identical picks (it looked "toujours les mêmes" to anyone checking on
@@ -1024,54 +1091,83 @@ export function CuratorHomeViewV2() {
             <ZoneHead title={t ? t("maint_due") : "À entretenir"} sub={t ? t("maint_due_sub") : "rappel"} accent={C.amber} />
             <div style={{ padding: "0 12px 4px" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {maintReminders.map((r) => {
-                  const photo = r.pipe && r.pipe.imageUrl
-                    ? ((imgLocal && imgLocal[r.pipe.imageUrl]) || r.pipe.imageUrl)
-                    : null;
-                  return (
-                  <PressCard key={r.pipeId}
-                    onClick={() => { if (r.pipe && crossOpenDetail) crossOpenDetail({ view: "pipes", kind: "pipe", obj: r.pipe }); }}
+                {maintReminders.slice(0, MAINT_HOME_ROWS).map((r) => (
+                  <MaintRow key={r.pipeId} r={r} t={t} lang={lang}
+                    photo={r.pipe && r.pipe.imageUrl
+                      ? ((imgLocal && imgLocal[r.pipe.imageUrl]) || r.pipe.imageUrl)
+                      : null}
+                    onOpen={() => { if (r.pipe && crossOpenDetail) crossOpenDetail({ view: "pipes", kind: "pipe", obj: r.pipe }); }}
+                  />
+                ))}
+                {/* The bound is VISIBLE and has an EXIT. A summary may be
+                    capped — this one is, at the user's request, so the Home
+                    keeps its shape — but a block that shows five of twelve and
+                    says nothing reads as "these are the ones", which is exactly
+                    how it was reported. The button names the remainder, so the
+                    number itself tells you whether opening it is worth a tap.
+
+                    It opens a MODAL rather than the pipe list, and that is a
+                    change from the earlier version of this button. That one set
+                    a global `pMaintFilter` and navigated away: a boolean filter
+                    living in ctx, needing every other drill to clear it or the
+                    list would silently narrow, and it dropped you on another
+                    page. The modal needs none of that — it renders the SAME
+                    rows from the SAME memo, adds no global state, and leaves
+                    you where you were, which is what "voir les autres" asks
+                    for. It also inherits the shared Modal's focus trap, Escape
+                    and modal-stack registration, so system-back closes it. */}
+                {maintReminders.length > MAINT_HOME_ROWS && (
+                  <PressCard
+                    onClick={() => setMaintAllOpen(true)}
+                    ariaLabel={seeOthersLbl}
                     style={{
-                      padding: "10px 12px", display: "flex", alignItems: "center", gap: 12,
-                      background: CARD_BG, borderRadius: 8, border: `1px solid ${C.rule}`,
-                      boxShadow: CARD_SHADOW,
+                      padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      background: "transparent", borderRadius: 8, border: `1px dashed ${C.rule2}`,
                     }}>
-                    {photo ? (
-                      <div style={{
-                        width: 42, height: 42, borderRadius: 8, flexShrink: 0,
-                        border: `1px solid ${C.rule2}`,
-                        background: `${safeBgUrl(photo)} center/cover no-repeat, ${C.bg2}`,
-                      }} />
-                    ) : (
-                      <div style={{
-                        width: 42, height: 42, borderRadius: 8, flexShrink: 0,
-                        background: alpha(C.amber, "18"), border: `1px solid ${alpha(C.amber, "44")}`, color: C.amber,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        <Ico name="pipe" size={18} sw={1.5} />
-                      </div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: fs(13), color: C.tx2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.pipe.brand || "—"}</div>
-                      <div style={{ fontFamily: F.display, fontStyle: "italic", color: C.ivory, fontSize: fs(17), lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.pipe.name || "—"}</div>
-                      <div style={{ marginTop: 3, fontFamily: F.mono, fontSize: fs(11), color: C.amber, letterSpacing: 0.3 }}>
-                        {String(r.everMaintained
-                          ? (t ? t("maint_since") : "{n} {s} depuis l'entretien")
-                          : (t ? t("maint_never") : "{n} {s}, jamais nettoyée")
-                        ).replace("{n}", String(r.sessionsSince))
-                         .replace("{s}", plural(r.sessionsSince,
-                           t ? t("lbl_session_word") : "séance",
-                           t ? t("lbl_sessions_word") : "séances", lang))}
-                      </div>
-                    </div>
-                    <Ico name="chevron" size={16} sw={2} />
+                    <span style={{ fontFamily: F.mono, fontSize: fs(11.5), color: C.amber, letterSpacing: 0.6, textTransform: "uppercase" }}>
+                      {seeOthersLbl}
+                    </span>
+                    <Ico name="chevron" size={14} sw={2} />
                   </PressCard>
-                  );
-                })}
+                )}
               </div>
             </div>
           </>
         )}
+
+        {/* Every overdue pipe. `capHeight` + an inner `flex:1; minHeight:0;
+            overflowY:auto; overscrollBehavior:contain` is the house shape for
+            any modal whose content can exceed the screen — and this one can by
+            construction, since it exists precisely when the list is long.
+            `minHeight` is load-bearing: a flex item defaults to
+            `min-height:auto` and refuses to shrink below its content. */}
+        <Modal open={maintAllOpen} onClose={() => setMaintAllOpen(false)}
+          capHeight align="center" maxWidth={520}
+          ariaLabel={t ? t("maint_due") : "À entretenir"}>
+          <ModalHeader title={t ? t("maint_due") : "À entretenir"}
+            overline={String(maintReminders.length)}
+            onClose={() => setMaintAllOpen(false)} accent={C.amber} />
+          <div style={{
+            flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain",
+            padding: "0 18px 18px", display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            {maintReminders.map((r) => (
+              <MaintRow key={r.pipeId} r={r} t={t} lang={lang}
+                photo={r.pipe && r.pipe.imageUrl
+                  ? ((imgLocal && imgLocal[r.pipe.imageUrl]) || r.pipe.imageUrl)
+                  : null}
+                onOpen={() => {
+                  // CLOSE FIRST. `crossOpenDetail` navigates to the pipe
+                  // fiche; leaving the modal open would paint it over the very
+                  // page the tap asked for, and its backdrop would swallow the
+                  // fiche's own controls.
+                  setMaintAllOpen(false);
+                  if (r.pipe && crossOpenDetail) crossOpenDetail({ view: "pipes", kind: "pipe", obj: r.pipe });
+                }}
+              />
+            ))}
+          </div>
+        </Modal>
 
         {/* Privacy link on the Home. It was carried by the
             classic HomeView footer and dropped when HomeViewV2 became the sole

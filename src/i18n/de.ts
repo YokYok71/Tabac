@@ -44,6 +44,7 @@ export var DE = {
   maint_due_sub:"Erinnerung",
   maint_since:"{n} {s} seit der Reinigung",
   maint_never:"{n} {s}, nie gereinigt",
+  maint_see_others:"Die {n} weiteren anzeigen",
   lbl_maint_threshold:"Pflege-Erinnerung (Sitzungen)",
   maint_threshold_hint:"Sitzungen, bevor eine Pfeife zur Reinigung markiert wird",
   lbl_maint_reminders:"Pflege-Erinnerungen",

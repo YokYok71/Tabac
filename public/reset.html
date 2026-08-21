@@ -1,10 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><title>Reset…</title>
-<style>body{background:#0a0a0a;color:#d4d4d4;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column;gap:16px;}</style>
+<style>body{background:#0a0a0a;color:#d4d4d4;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;flex-direction:column;gap:16px;padding:24px;box-sizing:border-box;text-align:center;}
+#msg{max-width:32em;line-height:1.5}
+#act{display:flex;flex-direction:column;gap:12px;align-items:center}
+button,a{font:inherit;font-size:15px;color:#cb8528;background:transparent;border:1px solid #4a3a1e;border-radius:8px;padding:12px 20px;min-height:44px;box-sizing:border-box;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+</style>
 </head>
 <body>
 <div id="msg">Nettoyage en cours…</div>
+<div id="act"></div>
 <script>
 // This page was French-only, in all five UI languages — and it is the
 // far end of index.html's "repair the app" escape hatch, i.e. the one page a
@@ -12,25 +17,104 @@
 // (unlike index.html, whose CSP is `script-src 'self'` with no 'unsafe-inline'):
 // this document ships no CSP meta and already carried this script.
 // `cave-lang` is written by main.jsx on first launch, so it is present here.
+//
+// Slots 3-5 are the OFFLINE REFUSAL — see `reset()` below for why a
+// repair page must be able to decline.
 var L = {
-  fr: ['Nettoyage en cours…', '✅ Cache nettoyé ! Redirection…', '✅ Redirection…'],
-  en: ['Cleaning up…', '✅ Cache cleared! Redirecting…', '✅ Redirecting…'],
-  es: ['Limpiando…', '✅ ¡Caché borrada! Redirigiendo…', '✅ Redirigiendo…'],
-  de: ['Wird aufgeräumt…', '✅ Cache geleert! Weiterleitung…', '✅ Weiterleitung…'],
-  it: ['Pulizia in corso…', '✅ Cache svuotata! Reindirizzamento…', '✅ Reindirizzamento…'],
+  fr: ['Nettoyage en cours…', '✅ Cache nettoyé ! Redirection…', '✅ Redirection…',
+    "Le serveur est injoignable. Rien n'a été supprimé : vider le cache maintenant empêcherait l'application de se recharger.",
+    'Réessayer', "Retour à l'application"],
+  en: ['Cleaning up…', '✅ Cache cleared! Redirecting…', '✅ Redirecting…',
+    'The server cannot be reached. Nothing was deleted: clearing the cache now would leave the app unable to load.',
+    'Try again', 'Back to the app'],
+  es: ['Limpiando…', '✅ ¡Caché borrada! Redirigiendo…', '✅ Redirigiendo…',
+    'No se puede contactar con el servidor. No se ha borrado nada: vaciar la caché ahora impediría que la aplicación volviera a cargarse.',
+    'Reintentar', 'Volver a la aplicación'],
+  de: ['Wird aufgeräumt…', '✅ Cache geleert! Weiterleitung…', '✅ Weiterleitung…',
+    'Der Server ist nicht erreichbar. Es wurde nichts gelöscht: den Cache jetzt zu leeren würde verhindern, dass die App wieder lädt.',
+    'Erneut versuchen', 'Zurück zur App'],
+  it: ['Pulizia in corso…', '✅ Cache svuotata! Reindirizzamento…', '✅ Reindirizzamento…',
+    'Il server non è raggiungibile. Non è stato eliminato nulla: svuotare la cache adesso impedirebbe all\'app di ricaricarsi.',
+    'Riprova', 'Torna all\'app'],
   // `pt` was missing — added in LANGUAGES but not here, so a
   // Portuguese reader hit `L[lng] || L.en` and read English on the ONE page you
   // reach when nothing else works. This file is outside doc:check's source tree,
   // so gate 15 never looked at it. One row per LANGUAGES code, no exceptions.
-  pt: ['A limpar…', '✅ Cache limpa! A redirecionar…', '✅ A redirecionar…']
+  pt: ['A limpar…', '✅ Cache limpa! A redirecionar…', '✅ A redirecionar…',
+    'O servidor está inacessível. Nada foi eliminado: esvaziar a cache agora impediria a aplicação de voltar a carregar.',
+    'Tentar novamente', 'Voltar à aplicação']
 };
 var lng = 'en';   // English is the app-wide fallback (the line below already says so)
 try { lng = (localStorage.getItem('cave-lang') || 'en').slice(0, 2); } catch (e) { /* private mode */ }
 var S = L[lng] || L.en;
-document.documentElement.lang = lng;
+// VALIDATED against the table before it reaches the attribute. It used
+// to be written verbatim, so a corrupt `cave-lang` produced `lang="constructor"`
+// — not a BCP-47 tag — while this page rendered in English. Same defect
+// main.jsx was fixed for; this sibling page was missed. An invalid tag is worse
+// than none for a screen reader.
+if (L[lng]) document.documentElement.lang = lng;
+
+// Can the app actually be re-downloaded? Everything below hangs on
+// this question, and it must be answered BEFORE anything is deleted.
+//
+// `cache: 'no-store'` is what makes the answer trustworthy: sw.js returns early
+// for such a request (its third guard), so this genuinely reaches the network
+// instead of being satisfied by the very cache we are about to destroy.
+//
+// `navigator.onLine` is checked FIRST as a cheap short-circuit, but it is not
+// the test: it reports whether an interface exists, not whether the internet
+// works — a captive portal, a dead cell or a DNS failure all leave it `true`.
+// Hence the body check too: a portal answers 200 with its own page, which
+// `res.ok` alone would happily accept.
+function appReachable() {
+  try { if (navigator.onLine === false) return Promise.resolve(false); } catch (e) { /* ignore */ }
+  return fetch('./?_probe=' + Date.now(), { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) return false;
+      return res.text().then(function (body) { return body.indexOf('id="root"') >= 0; });
+    })
+    .catch(function () { return false; });
+}
+
+function refuse() {
+  var msg = document.getElementById('msg');
+  var act = document.getElementById('act');
+  msg.textContent = S[3];
+  act.textContent = '';
+  var retry = document.createElement('button');
+  retry.type = 'button';
+  retry.textContent = S[4];
+  retry.onclick = function () { act.textContent = ''; reset(); };
+  var back = document.createElement('a');
+  back.href = './';
+  back.textContent = S[5];
+  act.appendChild(retry);
+  act.appendChild(back);
+}
+
 async function reset() {
   var msg = document.getElementById('msg');
   msg.textContent = S[0];
+
+  // REFUSE rather than purge when the app cannot be re-fetched.
+  //
+  // This page is reached from index.html's "nothing happening? repair the app"
+  // link, i.e. precisely when a load has already failed — and the commonest
+  // reason for that is the network, not a corrupt cache. Purging first and
+  // hoping afterwards is the wrong order for a last-resort page: it destroys
+  // the offline copy that was the user's only remaining way in, and leaves
+  // them with an app that cannot start at all. Reported from the installed iOS
+  // PWA, where tapping this changed nothing for the better.
+  //
+  // `doUpdate` was given the same guard for the same reason ("offline, an
+  // unvisited lazy chunk fails as a module-load error, so tapping Stats on a
+  // plane destroyed the installed app"); this page never got it.
+  //
+  // The asymmetry is what settles the strictness: a probe that wrongly FAILS
+  // costs one tap on « Réessayer » and deletes nothing, while a probe that
+  // wrongly PASSES strands the user. So it errs toward refusing.
+  if (!(await appReachable())) { refuse(); return; }
+
   try {
     var regs = await navigator.serviceWorker.getRegistrations();
     for (var r of regs) { await r.unregister(); }

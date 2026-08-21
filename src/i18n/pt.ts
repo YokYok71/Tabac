@@ -51,6 +51,7 @@ export var PT = {
   maint_due_sub:"lembrete",
   maint_since:"{n} {s} desde a limpeza",
   maint_never:"{n} {s}, nunca limpo",
+  maint_see_others:"Ver os outros {n}",
   lbl_maint_threshold:"Lembrete de manutenção (sessões)",
   maint_threshold_hint:"N.º de sessões antes de sinalizar um cachimbo a limpar",
   lbl_maint_reminders:"Lembretes de manutenção",

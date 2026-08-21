@@ -120,35 +120,91 @@ describe("CuratorHomeViewV2", () => {
     expect(crossOpenDetail).toHaveBeenCalledWith({ view: "pipes", kind: "pipe", obj: duePipe });
   });
 
-  it("lists EVERY overdue pipe, not the first five", () => {
-    // The section used to pass topN 5. That is not a display choice, it is a
-    // silent omission: a block titled "à entretenir" showing five of seven
-    // tells the reader they are done when they are not, with nothing on
-    // screen saying otherwise — reported from the app as « je ne vois
-    // toujours que 5 pipes à nettoyer ». It is the last block of the Home, so
-    // nothing is pushed below it, and the list shrinks as the pipes are
-    // cleaned.
-    //
-    // Each pipe carries a DISTINCT name so this counts rows rather than
-    // occurrences of a shared label — with seven identical pipes a cap of
-    // five would still satisfy a "contains maint_never" assertion.
-    const names = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf"];
-    const pipes = names.map((n, i) => ({
-      id: i + 1, brand: "Halvorsen", name: n, shape: "Calabash",
-      rating: 4, status: "active", maintenance: [],
-    }));
-    const sessions = pipes.flatMap((p) =>
-      Array.from({ length: 12 }, (_, i) => ({
-        id: p.id * 100 + i, tobaccoId: 1, pipeId: p.id,
-        date: "2026-06-01", duration: "30", rating: 4, weightG: "3", aromas: [],
-      })),
-    );
+  // REVERSED, on the user's request, and the reversal is recorded here
+  // rather than by deleting the case. The section briefly listed EVERY overdue
+  // pipe: that fixed the real defect (five of twelve, with nothing admitting
+  // the truncation — « je ne vois toujours que 5 pipes à nettoyer ») but it
+  // also let the Home's last block grow without bound. The settled answer
+  // keeps the cap AND the honesty: five rows, then a button that NAMES the
+  // remainder and opens all of them in a modal.
+  //
+  // What must never come back is a cap that hides its own existence. So the
+  // two halves are asserted together, and a probe that removes either one
+  // reddens: the cap without the button is the reported defect, the button
+  // without the cap is a control with nothing to reveal.
+  //
+  // Each pipe carries a DISTINCT name, so these count ROWS rather than
+  // occurrences of a shared label — with seven identical pipes a cap of five
+  // still satisfies a "contains maint_never" assertion.
+  const MAINT_NAMES = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf"];
+  const overduePipes = () => MAINT_NAMES.map((n, i) => ({
+    id: i + 1, brand: "Halvorsen", name: n, shape: "Calabash",
+    rating: 4, status: "active", maintenance: [],
+  }));
+  const overdueSessions = (pipes: any[]) => pipes.flatMap((p) =>
+    Array.from({ length: 12 }, (_, i) => ({
+      id: p.id * 100 + i, tobaccoId: 1, pipeId: p.id,
+      date: "2026-06-01", duration: "30", rating: 4, weightG: "3", aromas: [],
+    })),
+  );
+
+  it("caps the section at five rows and says how many it holds back", () => {
+    const pipes = overduePipes();
     const { container } = renderWith({
-      ...baseCtx, data: { ...baseCtx.data, pipes, sessions },
+      ...baseCtx, data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
     });
-    names.forEach((n) => {
-      expect(container.textContent, `pipe « ${n} » is overdue and must be listed`).toContain(n);
+    MAINT_NAMES.slice(0, 5).forEach((n) => {
+      expect(container.textContent, `« ${n} » is within the cap`).toContain(n);
     });
+    MAINT_NAMES.slice(5).forEach((n) => {
+      expect(container.textContent, `« ${n} » is beyond the cap and must not be on the Home`).not.toContain(n);
+    });
+    expect(container.textContent, "the cap must announce what it hides").toContain("maint_see_others");
+    const btn = Array.from(container.querySelectorAll("[role=button]"))
+      .find((b) => (b.textContent || "").includes("maint_see_others"));
+    expect(btn, "expected a way through to the rest").toBeTruthy();
+  });
+
+  it("the button names the REMAINDER, not the total", () => {
+    // Seven overdue, five shown → the label must say TWO. Asserted with a `t`
+    // that carries the real placeholder, because the shared harness's mockT
+    // returns the KEY: under it `{n}` never interpolates, so a label built
+    // from `maintReminders.length` would read identically and this arithmetic
+    // — the one thing a reader gets wrong here — would be pinned by nothing.
+    const pipes = overduePipes();
+    const { container } = renderWith({
+      ...baseCtx,
+      t: (k: string) => (k === "maint_see_others" ? "Voir les {n} autres" : k),
+      data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
+    });
+    expect(container.textContent).toContain("Voir les 2 autres");
+    expect(container.textContent, "7 is the total, not what the button opens").not.toContain("Voir les 7 autres");
+  });
+
+  it("the button opens a modal holding EVERY overdue pipe", () => {
+    const pipes = overduePipes();
+    const { container } = renderWith({
+      ...baseCtx, data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
+    });
+    const btn = Array.from(container.querySelectorAll("[role=button]"))
+      .find((b) => (b.textContent || "").includes("maint_see_others"))!;
+    fireEvent.click(btn);
+    const dialog = container.ownerDocument.querySelector("[role=dialog]");
+    expect(dialog, "the button must open a dialog").toBeTruthy();
+    MAINT_NAMES.forEach((n) => {
+      expect(dialog!.textContent, `« ${n} » is overdue and must be in the modal`).toContain(n);
+    });
+  });
+
+  it("shows no button when the whole set fits", () => {
+    // A control that reveals nothing is worse than no control: it invites a
+    // tap that changes the screen not at all.
+    const pipes = overduePipes().slice(0, 3);
+    const { container } = renderWith({
+      ...baseCtx, data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
+    });
+    expect(container.textContent).toContain("Alpha");
+    expect(container.textContent, "three of three — nothing is held back").not.toContain("maint_see_others");
   });
 
   it("respects a custom maintenance threshold from ctx", () => {
