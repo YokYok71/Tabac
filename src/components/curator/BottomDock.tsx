@@ -61,6 +61,38 @@ export function BottomDock({ active, onNav, accent = C.brass, items = DOCK_ITEMS
       background: "transparent",
       pointerEvents: "none", zIndex: 30,
       display: "flex", justifyContent: "center",
+      // COMPOSITING PROMOTION — the dock "swims" mid-screen during a scroll.
+      //
+      // Reported from the installed iOS PWA with a scrolling screenshot that
+      // showed the pill halfway up the page. TRIAGED WITH THE USER rather than
+      // guessed, and the triage is what identifies it: AT REST at the very
+      // bottom of a page the pill sits correctly OVER the last content, so
+      // `position: fixed` IS resolving against the viewport and this is NOT
+      // the historical "dock dropped into flow" bug — the four guardrails for
+      // that (portal / overflow-x:clip / width:100% / no viewport-meta swap)
+      // are all intact and their tests are green. It happens on EVERY
+      // scrolling page, and only WHILE scrolling.
+      //
+      // That is the WebKit behaviour where a fixed element painted on the main
+      // thread lags behind compositor-driven scrolling and visually drifts,
+      // settling when the gesture ends. Promoting it to its own layer takes it
+      // off that path.
+      //
+      // SAFE with respect to this file's own warnings: the rule they state is
+      // that an ANCESTOR gaining a containing-block property drops a fixed
+      // child into flow. This sits on the fixed element ITSELF, which cannot
+      // change its own containing block; it becomes one only for descendants,
+      // and the sole positioned descendants (the pill, its indicator) are
+      // already contained by the pill.
+      //
+      // THE RESIDUAL RISK, stated because it is real and unverifiable here:
+      // the pill's `backdrop-filter` samples a backdrop root, and WebKit has
+      // been inconsistent about whether a transformed ancestor becomes one. If
+      // the frosted glass goes flat or samples the wrong backdrop on the
+      // installed PWA, REVERT THIS PROPERTY — the drift is the lesser defect,
+      // and the glass took its own verification round to tune. Neither
+      // Chromium nor Safari-browser can arbitrate either half.
+      transform: "translateZ(0)",
     }}>
       <div style={{
         margin: "0 12px",

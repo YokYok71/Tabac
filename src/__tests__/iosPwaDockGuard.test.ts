@@ -55,4 +55,30 @@ describe("iOS-PWA floating-dock guardrails", () => {
     const guardIdx = app.lastIndexOf("!IS_IOS_STANDALONE", metaIdx);
     expect(guardIdx, "the viewport-meta swap must be guarded by !IS_IOS_STANDALONE").toBeGreaterThan(-1);
   });
+
+  // PROVISIONAL — unlike the four above, this one is NOT confirmed.
+  //
+  // The dock was reported drifting mid-screen DURING a scroll on the installed
+  // PWA, while sitting correctly over the content at rest — so not the
+  // in-flow bug the four guardrails prevent, but the WebKit main-thread paint
+  // lag. `translateZ(0)` promotes it to its own compositing layer.
+  //
+  // It is asserted only so a later sweep does not strip a property whose
+  // reason is invisible from the outside. It is NOT a settled invariant: if
+  // the installed PWA shows the frosted pill going flat or sampling the wrong
+  // backdrop, the property must be REVERTED and this case deleted with it.
+  // Record the outcome here either way — the one thing that must not happen
+  // is this sitting unverified for another release.
+  it("the fixed strip is promoted to its own layer (provisional, see comment)", () => {
+    const src = read("src/components/curator/BottomDock.tsx");
+    expect(src, "the outer position:fixed strip carries a compositing promotion")
+      .toMatch(/transform:\s*["']translateZ\(0\)["']/);
+    // The promotion belongs on the OUTER strip, never on the pill: on the pill
+    // it would sit between the backdrop-filter and its backdrop, which is the
+    // exact risk the property is already suspected of carrying.
+    const pillIdx = src.indexOf("backdropFilter");
+    const promoIdx = src.indexOf("translateZ(0)");
+    expect(promoIdx, "promotion must appear BEFORE the pill's backdropFilter")
+      .toBeLessThan(pillIdx);
+  });
 });
