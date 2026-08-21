@@ -101,13 +101,11 @@ export function BottomDock({ active, onNav, accent = C.brass, items = DOCK_ITEMS
       // and the sole positioned descendants (the pill, its indicator) are
       // already contained by the pill.
       //
-      // THE RESIDUAL RISK, stated because it is real and unverifiable here:
-      // the pill's `backdrop-filter` samples a backdrop root, and WebKit has
-      // been inconsistent about whether a transformed ancestor becomes one. If
-      // the frosted glass goes flat or samples the wrong backdrop on the
-      // installed PWA, REVERT THIS PROPERTY — the drift is the lesser defect,
-      // and the glass took its own verification round to tune. Neither
-      // Chromium nor Safari-browser can arbitrate either half.
+      // The risk this shipped with — that the pill's `backdrop-filter` would
+      // lose its backdrop under a transformed ancestor — is CLEARED: checked on
+      // the installed PWA, the glass is still blurred. WebKit does not treat
+      // this transform as a backdrop root, so promoting the outer strip is
+      // compatible with a backdrop-filter on the pill inside it.
       transform: "translateZ(0)",
     }}>
       <div style={{

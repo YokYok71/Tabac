@@ -79,11 +79,14 @@ describe("iOS-PWA floating-dock guardrails", () => {
   // is the shape of guess to distrust — it explains a report by assuming the
   // person making it was mistaken.
   //
-  // WHAT IS NOT YET SETTLED, and must not be quietly forgotten: whether the
-  // pill's frosted glass survived. `backdrop-filter` samples a backdrop root
-  // and WebKit has been inconsistent about whether a transformed ancestor
-  // becomes one. If the glass is flat or samples the wrong backdrop, REVERT
-  // the property — the drift is the lesser defect — and delete this case.
+  // THE RESIDUAL RISK IS CLEARED. The pill's `backdrop-filter` samples a
+  // backdrop root, and WebKit has been inconsistent about whether a
+  // transformed ancestor becomes one — so the property was shipped with an
+  // explicit instruction to revert it if the frosted glass went flat. Checked
+  // on the installed PWA: still blurred. WebKit does NOT treat this transform
+  // as a backdrop root, so a compositing promotion on the outer strip is
+  // compatible with a backdrop-filter on the pill inside it. Worth knowing
+  // before anyone reaches for the same trick elsewhere in this app.
   it("the fixed strip is promoted to its own layer (see comment)", () => {
     const src = read("src/components/curator/BottomDock.tsx");
     expect(src, "the outer position:fixed strip carries a compositing promotion")
