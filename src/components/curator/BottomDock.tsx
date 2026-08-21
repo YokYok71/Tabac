@@ -63,6 +63,15 @@ export function BottomDock({ active, onNav, accent = C.brass, items = DOCK_ITEMS
       display: "flex", justifyContent: "center",
       // COMPOSITING PROMOTION — the dock "swims" mid-screen during a scroll.
       //
+      // CONFIRMED ON THE INSTALLED iOS PWA: the drift is gone. The
+      // confirmation carried its own lesson, about DELIVERY rather than
+      // layout — the build shipping this was first reported as still broken,
+      // then « ok après avoir fermé complètement l'app ». A PWA resumed from
+      // the iOS app switcher does not reload, so it was still running the
+      // previous build and this property was not in the executing code. A
+      // layout fix cannot be judged until the PWA has been fully quit and
+      // relaunched; ask for that before reading "still broken" as a failed fix.
+      //
       // Reported from the installed iOS PWA with a scrolling screenshot that
       // showed the pill halfway up the page. TRIAGED WITH THE USER rather than
       // guessed, and the triage is what identifies it: AT REST at the very

@@ -56,20 +56,28 @@ describe("iOS-PWA floating-dock guardrails", () => {
     expect(guardIdx, "the viewport-meta swap must be guarded by !IS_IOS_STANDALONE").toBeGreaterThan(-1);
   });
 
-  // PROVISIONAL — unlike the four above, this one is NOT confirmed.
+  // CONFIRMED ON THE INSTALLED iOS PWA by the user — the drift is gone.
   //
-  // The dock was reported drifting mid-screen DURING a scroll on the installed
-  // PWA, while sitting correctly over the content at rest — so not the
-  // in-flow bug the four guardrails prevent, but the WebKit main-thread paint
-  // lag. `translateZ(0)` promotes it to its own compositing layer.
+  // The dock was reported drifting mid-screen DURING a scroll, while sitting
+  // correctly over the content at rest, so not the in-flow bug the four
+  // guardrails prevent but the WebKit main-thread paint lag. `translateZ(0)`
+  // promotes it to its own compositing layer.
   //
-  // It is asserted only so a later sweep does not strip a property whose
-  // reason is invisible from the outside. It is NOT a settled invariant: if
-  // the installed PWA shows the frosted pill going flat or sampling the wrong
-  // backdrop, the property must be REVERTED and this case deleted with it.
-  // Record the outcome here either way — the one thing that must not happen
-  // is this sitting unverified for another release.
-  it("the fixed strip is promoted to its own layer (provisional, see comment)", () => {
+  // THE CONFIRMATION CAME WITH A LESSON ABOUT DELIVERY, not about layout: the
+  // user first reported build 23 as still broken, then « ok après avoir fermé
+  // complètement l'app ». An installed iOS PWA resumed from the app switcher
+  // does NOT reload, so it kept running the previous build and the fix was
+  // simply not in the code being executed. **A layout fix cannot be judged
+  // until the PWA has been fully quit and relaunched** — ask for that
+  // explicitly before reading a "still broken" as a failed fix, or a working
+  // change gets reverted on the strength of a stale bundle.
+  //
+  // WHAT IS NOT YET SETTLED, and must not be quietly forgotten: whether the
+  // pill's frosted glass survived. `backdrop-filter` samples a backdrop root
+  // and WebKit has been inconsistent about whether a transformed ancestor
+  // becomes one. If the glass is flat or samples the wrong backdrop, REVERT
+  // the property — the drift is the lesser defect — and delete this case.
+  it("the fixed strip is promoted to its own layer (see comment)", () => {
     const src = read("src/components/curator/BottomDock.tsx");
     expect(src, "the outer position:fixed strip carries a compositing promotion")
       .toMatch(/transform:\s*["']translateZ\(0\)["']/);
