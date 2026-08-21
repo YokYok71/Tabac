@@ -192,20 +192,20 @@ export function CuratorHomeViewV2() {
   const [calSel, setCalSel] = React.useState<{ date: string; count: number } | null>(null);
   // Pipes due for maintenance (sessions since last cleaning ≥
   // threshold), most-overdue first — the "À entretenir" reminder at page end.
-  // UNCAPPED, then sliced at the render. The section still shows five — it is
-  // a dashboard summary at the end of a long page — but it now KNOWS how many
-  // it is holding back, so it can say so and offer a way to the rest. It used
-  // to ask for `topN: 5` and never learn the total, which is what made the
-  // truncation silent: five listed, no number, no route.
+  // UNCAPPED, and rendered uncapped. This section shipped capped at five, and
+  // the cap was defended here as "a dashboard summary at the foot of a long
+  // page" — the user overruled it outright: « Pas 12. Toutes !!!! ». A pipe
+  // that needs cleaning is a chore you work through, not a highlight reel, so
+  // a list that stops short is a list you cannot trust to be the whole job.
+  // The ORDER already does what the cap was reaching for: most overdue first
+  // (`sessionsSince` desc), so the urgent ones lead and the rest follow.
   const maintAll = React.useMemo(
     () => maintRemindersEnabled === false
       ? []
       : computePipeMaintenanceReminders(data?.pipes || [], data?.sessions || [], maintReminderThreshold, 0, today()),
     [data?.pipes, data?.sessions, maintReminderThreshold, maintRemindersEnabled],
   );
-  const MAINT_SHOWN = 5;
-  const maintReminders = maintAll.slice(0, MAINT_SHOWN);
-  const maintHidden = maintAll.length - maintReminders.length;
+  const maintReminders = maintAll;
   // Per-launch rotation shift. The 12 h time bucket is stable WITHIN
   // its window, so reopening / reloading the app inside the same 12 h shows the
   // identical picks (it looked "toujours les mêmes" to anyone checking on
@@ -1069,16 +1069,21 @@ export function CuratorHomeViewV2() {
                 {/* What the cap holds back, and the way to it. A section that
                     shows five of twelve and says nothing reads as "these are
                     the ones", which is how this was reported. */}
-                {maintHidden > 0 && (
+                {/* Not a "show more" — nothing is hidden. It opens the SAME
+                    set in the pipes list, which has search, sort, grouping and
+                    bigger photos: the place to actually work through the chore.
+                    It is also the only entrance to that filter, so removing it
+                    would leave the filter unreachable. */}
+                {maintReminders.length > 1 && (
                   <PressCard
                     onClick={() => { if (navToPipesMaintDue) navToPipesMaintDue(); }}
-                    ariaLabel={String(t ? t("maint_see_all") : "Voir les {n} autres").replace("{n}", String(maintHidden))}
+                    ariaLabel={t ? t("maint_see_all") : "Voir dans la liste"}
                     style={{
                       padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       background: "transparent", borderRadius: 8, border: `1px dashed ${C.rule2}`,
                     }}>
                     <span style={{ fontFamily: F.mono, fontSize: fs(11.5), color: C.amber, letterSpacing: 0.6, textTransform: "uppercase" }}>
-                      {String(t ? t("maint_see_all") : "Voir les {n} autres").replace("{n}", String(maintHidden))}
+                      {t ? t("maint_see_all") : "Voir dans la liste"}
                     </span>
                     <Ico name="chevron" size={14} sw={2} />
                   </PressCard>

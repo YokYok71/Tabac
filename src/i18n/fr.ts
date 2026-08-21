@@ -40,7 +40,7 @@ export var FR = {
   maint_new_title:"Nouvel entretien",
   maint_edit_title:"Modifier l'entretien",
   maint_notes_ph:"ex: 3 cure-pipes, ramonage léger",
-  maint_see_all:"Voir les {n} autres",
+  maint_see_all:"Voir dans la liste",
   maint_due:"À entretenir",
   maint_due_sub:"rappel",
   maint_since:"{n} {s} depuis l'entretien",

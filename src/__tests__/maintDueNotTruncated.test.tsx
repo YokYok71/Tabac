@@ -9,15 +9,21 @@
 // card, but nothing narrowed to it, so the rest were reachable only by scanning
 // a long list for amber chips.
 //
-// The cap itself is kept: this is a dashboard summary at the end of a long
-// page. What changes is that the section now KNOWS the total — it asks for the
-// uncapped set and slices at the render — so it can name what it holds back and
-// hand over a filter that holds all of it.
+// THE FIRST FIX KEPT THE CAP AND MADE IT VISIBLE — five listed, "voir les 7
+// autres", a filter behind it. The user overruled that outright: « Pas 12.
+// Toutes !!!! 5 et toutes les autres ensuite ». So the section lists EVERY
+// overdue pipe now, and the reasoning that defended the cap ("a dashboard
+// summary at the foot of a long page") is recorded as rejected rather than
+// quietly dropped: a pipe needing cleaning is a chore you work through, not a
+// highlight reel, and a list that stops short is one you cannot trust to be the
+// whole job. The ORDER already delivers what the cap was reaching for — most
+// overdue first — so the urgent ones lead and the rest follow.
 //
 // This is the same shape as the "À fumer rapidement" tile (a control naming a
 // set and opening a subset) and the "À point" row (a row naming lots and
-// opening all of them). Third instance, so the rule is worth stating plainly:
-// a summary may be bounded, but the bound must be visible and have a way out.
+// opening all of them). Third instance, and the rule the user's correction
+// sharpens: a summary that is bounded had better be a summary. When the list IS
+// the task, show the task.
 
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -60,22 +66,39 @@ describe("the reminder engine", () => {
   });
 });
 
-describe("the Home section knows what it is holding back", () => {
-  it("asks for the UNCAPPED set, then slices at the render", () => {
-    // The defect was asking for 5 and never learning the total.
+describe("the Home section holds back nothing", () => {
+  it("asks for the UNCAPPED set and renders it whole", () => {
     expect(HOME).toMatch(/computePipeMaintenanceReminders\([^)]*maintReminderThreshold,\s*0,/);
-    expect(HOME).toMatch(/maintReminders\s*=\s*maintAll\.slice\(0,\s*MAINT_SHOWN\)/);
-    expect(HOME).toMatch(/maintHidden\s*=\s*maintAll\.length\s*-\s*maintReminders\.length/);
+    expect(HOME).toMatch(/maintReminders\s*=\s*maintAll\s*;/);
   });
 
-  it("no longer asks the engine to truncate", () => {
+  it("no cap survives anywhere on the path", () => {
+    // REVERSED, recorded on the assertion. The first fix asked for the
+    // uncapped set and then sliced it at the render, keeping five on screen
+    // behind a "voir les N autres". The user rejected the cap itself, so BOTH
+    // forms are now forbidden: asking the engine to truncate, and slicing
+    // afterwards.
     expect(HOME).not.toMatch(/computePipeMaintenanceReminders\([^)]*maintReminderThreshold,\s*5,/);
+    expect(HOME).not.toMatch(/maintAll\.slice\(/);
+    expect(HOME).not.toMatch(/MAINT_SHOWN/);
+    expect(HOME).not.toMatch(/maintHidden/);
   });
 
-  it("renders the count and a route, gated on there being a remainder", () => {
-    expect(HOME).toMatch(/maintHidden > 0 &&/);
+  it("still offers the pipe list, which is where the chore is worked through", () => {
+    // Not a "show more" — nothing is hidden. It is also the only entrance to
+    // the filter, so dropping it would leave that filter unreachable.
     expect(HOME).toMatch(/maint_see_all/);
     expect(HOME).toMatch(/navToPipesMaintDue\(\)/);
+  });
+
+  it("that label promises no hidden items", () => {
+    // It read "Voir les {n} autres" while five of twelve were held back. With
+    // nothing held back, a count would be a second lie in the other direction.
+    const dict = readFileSync("src/i18n/fr.ts", "utf8");
+    const v = /^\s*maint_see_all:"((?:[^"\\]|\\.)*)"/m.exec(dict);
+    expect(v, "maint_see_all missing").toBeTruthy();
+    expect(v![1]).not.toMatch(/\{n\}/);
+    expect(v![1]).not.toMatch(/autres/i);
   });
 });
 

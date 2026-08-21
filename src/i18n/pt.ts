@@ -47,7 +47,7 @@ export var PT = {
   maint_new_title:"Nova manutenção",
   maint_edit_title:"Editar manutenção",
   maint_notes_ph:"ex: 3 limpa-cachimbos, alesagem ligeira",
-  maint_see_all:"Ver as outras {n}",
+  maint_see_all:"Abrir na lista",
   maint_due:"Limpeza pendente",
   maint_due_sub:"lembrete",
   maint_since:"{n} {s} desde a limpeza",

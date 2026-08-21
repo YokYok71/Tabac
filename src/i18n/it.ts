@@ -40,7 +40,7 @@ export var IT = {
   maint_new_title:"Nuova manutenzione",
   maint_edit_title:"Modifica manutenzione",
   maint_notes_ph:"es: 3 scovolini, leggera alesatura",
-  maint_see_all:"Vedi le altre {n}",
+  maint_see_all:"Apri nell'elenco",
   maint_due:"Pulizia necessaria",
   maint_due_sub:"promemoria",
   maint_since:"{n} {s} dalla pulizia",
