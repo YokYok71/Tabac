@@ -1960,6 +1960,19 @@ After every significant task (bug fix, feature, security change, release), alway
 
 ### Git conventions
 - **Always push to `main`** — all commits go directly to the `main` branch.
+- **WAIT for the previous push's workflows to FINISH before pushing again.** Set
+  by the user, standing: *« avant de pousser sur main tu dois toujours vérifier
+  que le push précédent a terminé »*. The workflows run with
+  `cancel-in-progress: true`, so a second push KILLS the first one's runs: the
+  earlier commit is left NEVER DEPLOYED and GitHub marks it with a red X that
+  is indistinguishable from a real failure — `cancelled` is not `failure`, and
+  they share an icon. That misreading has already cost a round trip here, and
+  it happened again the moment the rule was not followed. **What is lost is not
+  the code** (the deploy publishes the whole tree, so the next push carries
+  everything) **but the ability to tell later which commit actually passed** —
+  and a red X in the history that means nothing is worse than no signal at all.
+  Check with `actions_list` on the branch and confirm every workflow for the
+  current HEAD reads `completed`; only then push.
 - Commits: brief English messages describing what changed.
 - Main branch: `main`
 - **Every commit message OPENS with the build it ships as.** The FIRST line of
