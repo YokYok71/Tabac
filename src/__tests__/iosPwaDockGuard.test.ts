@@ -55,4 +55,60 @@ describe("iOS-PWA floating-dock guardrails", () => {
     const guardIdx = app.lastIndexOf("!IS_IOS_STANDALONE", metaIdx);
     expect(guardIdx, "the viewport-meta swap must be guarded by !IS_IOS_STANDALONE").toBeGreaterThan(-1);
   });
+
+  // PROVISIONAL — unlike the four above, this one is NOT confirmed.
+  //
+  // The dock was reported drifting mid-screen DURING a scroll on the installed
+  // PWA, while sitting correctly over the content at rest — so not the
+  // in-flow bug the four guardrails prevent, but the WebKit main-thread paint
+  // lag. `translateZ(0)` promotes it to its own compositing layer.
+  //
+  // THE FIRST EXPLANATION WRITTEN HERE WAS WRONG, and it is recorded rather
+  // than deleted because the mistake is the instructive part. The build was
+  // reported as still drifting, then as fixed « après avoir fermé complètement
+  // l'app », and that was written up as a DELIVERY lesson — the PWA must have
+  // been running the previous build, since a resume from the app switcher does
+  // not reload. The user corrected it flatly: they were ALREADY on this build
+  // before closing. So the property alone did not clear it; destroying and
+  // recreating the web view did. Two readings survive, separable only by TIME:
+  // the promotion is the fix and a long-lived WKWebView had to be recycled
+  // before it took hold, or the recycling alone is the fix and the property is
+  // inert. If the drift returns with no code change, it is the second.
+  //
+  // The lesson that DOES hold: "the reporter must have been on the old build"
+  // is the shape of guess to distrust — it explains a report by assuming the
+  // person making it was mistaken.
+  //
+  // THE RESIDUAL RISK IS CLEARED. The pill's `backdrop-filter` samples a
+  // backdrop root, and WebKit has been inconsistent about whether a
+  // transformed ancestor becomes one — so the property was shipped with an
+  // explicit instruction to revert it if the frosted glass went flat. Checked
+  // on the installed PWA: still blurred. WebKit does NOT treat this transform
+  // as a backdrop root, so a compositing promotion on the outer strip is
+  // compatible with a backdrop-filter on the pill inside it. Worth knowing
+  // before anyone reaches for the same trick elsewhere in this app.
+  //
+  // WHAT THE RETURN OF THE DRIFT ACTUALLY SETTLED, and it is less than the
+  // sentence above hoped. That prediction — "if the drift returns with no code
+  // change, it is the second" — was written for the property being IN PLACE.
+  // It was not: the wholesale revert to build 18 took the property out as
+  // collateral, and the drift came back several builds later, with the
+  // property absent throughout. So the observation is consistent with the
+  // promotion being the fix, and it is NOT proof: an intermittent WebKit
+  // behaviour that happened to stay quiet for a few builds fits it just as
+  // well. The property is restored on the user's standing instruction — « le
+  // dock (23) seulement si le bug réapparaît » — not because the question is
+  // closed. It is not.
+  it("the fixed strip is promoted to its own layer (see comment)", () => {
+    const src = read("src/components/curator/BottomDock.tsx");
+    expect(src, "the outer position:fixed strip carries a compositing promotion")
+      .toMatch(/transform:\s*["']translateZ\(0\)["']/);
+    // The promotion belongs on the OUTER strip, never on the pill: on the pill
+    // it would sit between the backdrop-filter and its backdrop, which is the
+    // exact risk the property is already suspected of carrying.
+    const pillIdx = src.indexOf("backdropFilter");
+    const promoIdx = src.indexOf("translateZ(0)");
+    expect(promoIdx, "promotion must appear BEFORE the pill's backdropFilter")
+      .toBeLessThan(pillIdx);
+  });
 });

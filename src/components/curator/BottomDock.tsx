@@ -61,6 +61,36 @@ export function BottomDock({ active, onNav, accent = C.brass, items = DOCK_ITEMS
       background: "transparent",
       pointerEvents: "none", zIndex: 30,
       display: "flex", justifyContent: "center",
+      // COMPOSITING PROMOTION — the dock "swims" mid-screen during a scroll.
+      //
+      // Reported from the installed iOS PWA with a scrolling screenshot that
+      // showed the pill halfway up the page. TRIAGED WITH THE USER rather than
+      // guessed, and the triage is what identifies it: AT REST at the very
+      // bottom of a page the pill sits correctly OVER the last content, so
+      // `position: fixed` IS resolving against the viewport and this is NOT
+      // the historical "dock dropped into flow" bug — the four guardrails for
+      // that (portal / overflow-x:clip / width:100% / no viewport-meta swap)
+      // are all intact and their tests are green. It happens on EVERY
+      // scrolling page, and only WHILE scrolling.
+      //
+      // That is the WebKit behaviour where a fixed element painted on the main
+      // thread lags behind compositor-driven scrolling and visually drifts,
+      // settling when the gesture ends. Promoting it to its own layer takes it
+      // off that path.
+      //
+      // SAFE with respect to this file's own warnings: the rule they state is
+      // that an ANCESTOR gaining a containing-block property drops a fixed
+      // child into flow. This sits on the fixed element ITSELF, which cannot
+      // change its own containing block; it becomes one only for descendants,
+      // and the sole positioned descendants (the pill, its indicator) are
+      // already contained by the pill.
+      //
+      // The risk this shipped with — that the pill's `backdrop-filter` would
+      // lose its backdrop under a transformed ancestor — is CLEARED: checked on
+      // the installed PWA, the glass is still blurred. WebKit does not treat
+      // this transform as a backdrop root, so promoting the outer strip is
+      // compatible with a backdrop-filter on the pill inside it.
+      transform: "translateZ(0)",
     }}>
       <div style={{
         margin: "0 12px",
