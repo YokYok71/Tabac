@@ -89,7 +89,7 @@ export function CuratorHomeViewV2() {
     crossOpenDetail,
     dateFormat, pipeIsActive, weightUnit = "g",
     imgLocal, watchLowWeight,
-    maintReminderThreshold, maintRemindersEnabled, navToPipesMaintDue,
+    maintReminderThreshold, maintRemindersEnabled,
     autoSaveDrive, lastAutoSaveTs, pendingSync, gdriveStatus,
     cloudNewerBackup, dismissCloudNewerBackup, restoreCloudNewerBackup, cloudRestoreBusy,
   } = ctx;
@@ -1069,25 +1069,6 @@ export function CuratorHomeViewV2() {
                 {/* What the cap holds back, and the way to it. A section that
                     shows five of twelve and says nothing reads as "these are
                     the ones", which is how this was reported. */}
-                {/* Not a "show more" — nothing is hidden. It opens the SAME
-                    set in the pipes list, which has search, sort, grouping and
-                    bigger photos: the place to actually work through the chore.
-                    It is also the only entrance to that filter, so removing it
-                    would leave the filter unreachable. */}
-                {maintReminders.length > 1 && (
-                  <PressCard
-                    onClick={() => { if (navToPipesMaintDue) navToPipesMaintDue(); }}
-                    ariaLabel={t ? t("maint_see_all") : "Voir dans la liste"}
-                    style={{
-                      padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                      background: "transparent", borderRadius: 8, border: `1px dashed ${C.rule2}`,
-                    }}>
-                    <span style={{ fontFamily: F.mono, fontSize: fs(11.5), color: C.amber, letterSpacing: 0.6, textTransform: "uppercase" }}>
-                      {t ? t("maint_see_all") : "Voir dans la liste"}
-                    </span>
-                    <Ico name="chevron" size={14} sw={2} />
-                  </PressCard>
-                )}
               </div>
             </div>
           </>
