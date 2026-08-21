@@ -1962,14 +1962,22 @@ After every significant task (bug fix, feature, security change, release), alway
 - **Always push to `main`** — all commits go directly to the `main` branch.
 - Commits: brief English messages describing what changed.
 - Main branch: `main`
-- **Every commit message NAMES THE BUILD it ships as.** A trailer line at the
-  end of the body, beside `Co-Authored-By`: `Build 20`. The history is read from
-  a phone, and « quelle version corrige ça ? » is otherwise answerable only by
-  opening the diff and looking at `constants.ts` — the one file whose change is
+- **Every commit message OPENS with the build it ships as.** The FIRST line of
+  the body, then an em dash, then the explanation: `Build 21 — Toutes les pipes
+  à entretenir étant désormais affichées, …`. The history is read from a phone,
+  and « quelle version corrige ça ? » is otherwise answerable only by opening
+  the diff and looking at `constants.ts` — the one file whose change is
   invisible in a subject line. Set by the user, standing: *« dans la description
   tu devrais noter le numéro de build »*.
-  - It goes in the BODY, not the subject: the subject is what the commit list
-    shows, and it is the sentence that makes that list scannable.
+  - **CORRECTED, because the first attempt put it at the END of the body**, as a
+    trailer beside `Co-Authored-By`, reasoning that the subject line is what
+    makes the commit list scannable and must not be spent on a number. That
+    reasoning was about the wrong surface: GitHub's mobile commit list previews
+    the subject AND the first body line, so a trailer is invisible exactly where
+    the question gets asked — reported as « tu n'as pas indiqué le numéro de
+    build » on a commit that carried it. Opening the first body line costs
+    nothing, because that line is a preview of the explanation, not the whole of
+    it.
   - **A commit with no bump says so** — `Sans bump (tests uniquement)` — rather
     than repeating the previous build, which would claim a delivery that did
     not happen. Test-only work, a Dependabot merge and a documentation-only
