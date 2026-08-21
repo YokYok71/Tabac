@@ -26,6 +26,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { LANGUAGES } from "../i18n/languages";
 import { checkAllInvariants } from "../utils/lotInvariants";
 import { migrateData } from "../utils";
+import { computePipeMaintenanceReminders, PIPE_MAINT_SESSIONS_THRESHOLD } from "../utils/pipeMaint.ts";
 
 const requireCjs = createRequire(import.meta.url);
 const H = requireCjs("../../scripts/i18n-layout.cjs");
@@ -150,6 +151,23 @@ describe("the harness's navigation keys resolve in every language", () => {
       "no tags → TagChipRow never renders, and its label was the worst finding").toBe(true);
     expect(H.DATA.pipes.some((p: any) => (p.maintenance || []).length),
       "no maintenance entries → the pipe fiche's log section is empty").toBe(true);
+
+    // At least one pipe must be OVERDUE, or the Home's « À entretenir »
+    // section does not render and the whole matrix measures a page without it.
+    // It never did: the seed held 4 sessions across 5 pipes while the threshold
+    // is 5 sessions ON ONE PIPE since its last cleaning, so the section was
+    // absent from all 210 renders — found only when the section was uncapped
+    // from five rows to every overdue pipe and a user reported a layout defect
+    // on the taller page. THIRD time the seed has turned out to be a screen
+    // gate; asserted here so it cannot be the fourth.
+    //
+    // Derived from the real engine rather than from a remembered number, so a
+    // change to PIPE_MAINT_SESSIONS_THRESHOLD moves this with it.
+    const due = computePipeMaintenanceReminders(
+      H.DATA.pipes, H.DATA.sessions, PIPE_MAINT_SESSIONS_THRESHOLD, 0,
+    );
+    expect(due.length, "no overdue pipe → the Home « À entretenir » section never renders")
+      .toBeGreaterThan(0);
   });
 
   // ── the FORMS and the remaining overlays ──────────────────
