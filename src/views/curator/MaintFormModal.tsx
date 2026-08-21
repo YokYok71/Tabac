@@ -16,7 +16,7 @@ import { Modal } from "../../components/curator/Modal.tsx";
 import { ModalAction } from "../../components/curator/ModalAction.tsx";
 import { TextField, TextAreaField, SegmentedField } from "../../components/curator/FormFields.tsx";
 import { MAINT_KINDS, MAINT_TASKS } from "../../constants.ts";
-import { today } from "../../utils.ts";
+import { today, nowTime } from "../../utils.ts";
 import type { Pipe, MaintEntry } from "../../types.ts";
 
 export interface MaintFormData {
@@ -32,7 +32,7 @@ export interface MaintFormModalProps {
   onDelete?: (() => void) | undefined;
 }
 
-const EMPTY: MaintEntry = { id: 0, date: "", kind: "light", tasks: [], notes: "" };
+const EMPTY: MaintEntry = { id: 0, date: "", time: "", kind: "light", tasks: [], notes: "" };
 
 export function CuratorMaintFormModal({
   open, onClose, data, onSave, onDelete,
@@ -46,9 +46,14 @@ export function CuratorMaintFormModal({
       if (data.entry) setForm(Object.assign({}, EMPTY, data.entry, {
         tasks: Array.isArray(data.entry.tasks) ? data.entry.tasks.slice() : [],
       }));
-      // New entry defaults to today so the log reads chronologically without
-      // the user having to fill the date every time.
-      else setForm(Object.assign({}, EMPTY, { date: today(), tasks: [] }));
+      // New entry defaults to NOW — date and time both. The date has always
+      // been prefilled so the log reads chronologically; the TIME is what lets
+      // the reminder counter order a session smoked the same day against this
+      // cleaning, which is the whole reason the field exists. Seeded HERE, in
+      // the open effect, and never from an effect keyed on the field itself:
+      // that is the prefill-race trap this repo documents, where clearing the
+      // input to retype re-fires the effect and snaps the value back.
+      else setForm(Object.assign({}, EMPTY, { date: today(), time: nowTime(), tasks: [] }));
     }
   }, [open, data]);
 
@@ -121,6 +126,14 @@ export function CuratorMaintFormModal({
       <div style={{ background: CARD_BG, border: `1px solid ${C.rule}`, borderRadius: 8, padding: "14px 16px", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14 }}>
         <TextField label={t ? t("lbl_date") : "Date"} type="date"
           value={form.date || ""} onChange={(v) => set({ date: v })} />
+
+        {/* The time of the cleaning. Optional, and it may be cleared: an entry
+            without one reads as NOON, exactly as an untimed session does, so
+            both sides of the reminder comparison treat a missing time the same
+            way. Reuses `lbl_time` — the session form's own label — rather than
+            minting a synonym for the same field. */}
+        <TextField label={t ? t("lbl_time") : "Heure de début"} type="time"
+          value={form.time || ""} onChange={(v) => set({ time: v })} />
 
         <SegmentedField<string>
           label={t ? t("maint_kind_label") : "Type de nettoyage"}

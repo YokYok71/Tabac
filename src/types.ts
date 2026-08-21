@@ -171,6 +171,20 @@ export interface MaintEntry {
    *  on legacy entries (backfilled by migrateData). */
   uid?: string;
   date: string;                        // YYYY-MM-DD
+  /** Optional "HH:MM", like Session.time — and it exists for exactly one
+   *  reason. The reminder counts sessions smoked AFTER the last cleaning, and
+   *  with day precision a session on the SAME DAY as the cleaning cannot be
+   *  ordered against it: the counter dropped it, so cleaning a pipe and
+   *  smoking it again the same day left the reminder silent. Reported from the
+   *  app at a threshold of 1, where that is the difference between the feature
+   *  working and doing nothing. A time makes the same-day order exact in BOTH
+   *  directions — the alternative was to count same-day sessions
+   *  unconditionally, which merely moves the error to "cleaned, and instantly
+   *  told to clean again". Absent on legacy entries and on anyone who clears
+   *  the field: those fall back to NOON, the same convention Session.time
+   *  already uses (see rotation.sessionStartMs), so both sides of the
+   *  comparison read a missing time identically. */
+  time?: string;
   kind: "light" | "full" | "none";     // cleaning intensity; light/full feed the reminder
   tasks: string[];                     // checked MAINT_TASKS keys; descriptive only
   notes: string;

@@ -22,6 +22,20 @@ export var today = function (): string {
   return y + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
 };
 
+/** The LOCAL wall clock as "HH:MM" — the companion of `today()`, and the
+ *  prefill for every form field that records when something happened.
+ *
+ *  Extracted rather than written twice: the session "+" computed this inline,
+ *  and the maintenance form needed the same value the day an entry gained a
+ *  time. Two copies of a clock is how the session log and the maintenance log
+ *  would come to disagree about what "now" means — and those two are compared
+ *  against each other by the reminder counter, which is precisely where a
+ *  disagreement would be invisible and wrong. */
+export var nowTime = function (): string {
+  var d = new Date();
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+};
+
 // Convert a DISPLAY-unit weight string between g and
 // oz for the Settings unit toggle (sessDefaultWeight + watchLowWeight, both
 // stored in the user's display unit). Returns `null` — meaning LEAVE THE STORED
@@ -1481,6 +1495,17 @@ export function migrateData(d: any): any {
           if (!Array.isArray(_me.tasks)) _me.tasks = _mapped.tasks.slice();
         }
         if (_me.kind !== "light" && _me.kind !== "full" && _me.kind !== "none") _me.kind = "light";
+        // The optional cleaning TIME. Anything that is not a literal "HH:MM" is
+        // DROPPED rather than coerced: the field feeds `sessionStartMs`, which
+        // builds `date + "T" + time` and yields NaN on a malformed value — and
+        // a NaN cleaning moment silently counts ZERO sessions since, i.e. the
+        // pipe leaves the reminders. That is the exact defect this field was
+        // added to fix, so a hand-edited backup must not be able to reproduce
+        // it. Deleting the key falls back to noon, which is the documented
+        // meaning of "no time" on both sides of the comparison.
+        if (typeof _me.time !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(_me.time)) {
+          if (typeof _me.time !== "undefined") delete _me.time;
+        }
         _me.tasks = Array.isArray(_me.tasks)
           ? _me.tasks.filter(function (x: any) { return _MAINT_TASK_KEYS.indexOf(x) >= 0; })
           : [];

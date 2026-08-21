@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { alpha, fs, C, F, catColor, CARD_BG, CARD_ACCENTS, CARD_SHADOW } from "../../theme-curator.ts";
-import { fmtDate, fmtNum, sessionEntityLabel, today, compareSessionsRecent } from "../../utils.ts";
+import { fmtDate, fmtNum, sessionEntityLabel, today, compareSessionsRecent, nowTime } from "../../utils.ts";
 import { CATS_EN, SHAPES_EN, monthsShort } from "../../constants.ts";
 import { isValidCoords, osmEmbedUrl, osmLinkUrl, formatCoords, joinPlaceParts, countryNameToIso2 } from "../../utils/geo.ts";
 import { sanitizeAromas, aromaLabelKey } from "../../utils/aromas.ts";
@@ -351,10 +351,8 @@ export function CuratorJournalView() {
     if (setSessForm && BJ) {
       // LOCAL date, so an evening entry in the Americas does not
       // default to tomorrow (UTC). v1.3: the local start time too.
-      const _n = new Date();
-      const nowTime = String(_n.getHours()).padStart(2, "0") + ":" + String(_n.getMinutes()).padStart(2, "0");
       setSessForm(Object.assign({}, BJ, {
-        date: today(), time: nowTime,
+        date: today(), time: nowTime(),
         weightG: sessDefaultWeight || (weightUnit === "oz" ? "0.1" : "3"),
       }));
     }
