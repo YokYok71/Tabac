@@ -217,3 +217,47 @@ describe("the order among equally-overdue pipes", () => {
       .toEqual(["2", "1"]);
   });
 });
+
+// The session index is built ONCE for the whole collection, not once per pipe.
+//
+// Delegating the count to `pipeSessionsSinceMaint` was right — one rule, one
+// implementation — but it dropped the map the loop used to hoist, so the
+// reminder went quadratic: 30 pipes × 5000 sessions measured 62.7 ms against
+// 3.8 ms hoisted, on every data write, and on views the user is not looking at
+// (CuratorApp mounts them all and both memos evaluate above their `return
+// null`). Nothing covered it: every fixture above is small enough that the
+// difference is invisible in wall-clock terms.
+//
+// So this counts WORK rather than time — a timing assertion would be flaky on
+// shared CI, and what matters is the shape, not the milliseconds.
+describe("the reminder does not walk the sessions once per pipe", () => {
+  it("touches each session a constant number of times", () => {
+    let reads = 0;
+    const pipes = Array.from({ length: 20 }, (_, i) =>
+      pipe(i + 1, { maintenance: [{ id: 1, date: "2026-01-01", kind: "full", tasks: [], notes: "" }] }));
+    // A getter on `pipeId` counts how often the index pass reads each row.
+    const sessions = Array.from({ length: 200 }, (_, i) => {
+      const raw = { id: i, date: "2026-06-01", _p: (i % 20) + 1 };
+      return Object.defineProperty(raw, "pipeId", {
+        get() { reads++; return (this as any)._p; }, enumerable: true,
+      });
+    });
+    computePipeMaintenanceReminders(pipes, sessions, 1, 0, "2026-08-21");
+    // One pass over 200 sessions reads each row a small, PIPE-INDEPENDENT
+    // number of times. Rebuilding per pipe multiplies it by 20 — the probe
+    // that fails here is exactly the regression.
+    expect(reads, `expected one index pass, got ${reads} reads for 200 sessions`)
+      .toBeLessThan(200 * 3);
+  });
+
+  it("gives the same answer with and without the precomputed index", () => {
+    // The optimisation must not become a second implementation: the optional
+    // parameter has to be a pure accelerator.
+    const p = pipe(1, { maintenance: [{ id: 1, date: "2026-06-15", kind: "full", tasks: [], notes: "" }] });
+    const ss = [...sessions(1, 4, "2026-07-01"), ...sessions(1, 2, "2026-05-01")];
+    const viaLoop = computePipeMaintenanceReminders([p], ss, 1, 0, "2026-08-21")[0]!;
+    const direct = pipeSessionsSinceMaint(p, ss, "2026-08-21");
+    expect(viaLoop.sessionsSince).toBe(direct.sessionsSince);
+    expect(direct.sessionsSince).toBe(4);
+  });
+});

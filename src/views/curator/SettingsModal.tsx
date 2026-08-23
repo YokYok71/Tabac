@@ -492,9 +492,14 @@ export function CuratorSettingsModal() {
               disconnect row, the device name and the sync diagnostic — so on
               a phone tapping "Restaurer" appeared to do nothing at all: the
               backup list was eight rows further down, off-screen. Same fix as
-              the save status above. (The cloud panel below stays gated on
-              !gdriveConfirm, so the two panels still never show together,
-              whatever the render order.) */}
+              the save status above. (The cloud panel below is gated on
+              !gdriveConfirm, so the two panels never show together, whatever
+              the render order. That sentence was FALSE for a while and is
+              corrected in place: the panel merge dropped the guard the old
+              BackupsListPanel carried, and this comment went on promising it —
+              which is worse than no comment, since it tells the next reader
+              the invariant holds. The guard is back on both renders and
+              asserted by cloudPanelWiring.test.ts.) */}
           {gdriveConfirm && (
             <GDriveConfirmPanel
               gdriveConfirm={gdriveConfirm}
@@ -546,7 +551,15 @@ export function CuratorSettingsModal() {
           {syncDiagSource === "check" && syncDiagErr && (
             <Notice tone="error">{(t ? t("err_prefix") : "Erreur") + " : " + syncDiagErr}</Notice>
           )}
-          {syncDiagSource === "check" && syncDiag && (
+          {/* GATED on !gdriveConfirm — the guard the panel merge lost while
+              the comment above went on promising it. Both panels list the SAME
+              files with their own delete button, and the two delete actions
+              update different state (`gdriveDeleteOption` touches only
+              `gdriveConfirm`, `gdriveDeleteBackupById` only `syncDiag`), so a
+              row removed from one SURVIVES in the other — and tapping its bin
+              404s into a swallowing `.catch`. The old BackupsListPanel carried
+              this guard; restoring it is restoring the invariant, not adding one. */}
+          {syncDiagSource === "check" && syncDiag && !gdriveConfirm && (
             <SyncDiagView diag={syncDiag} t={t} lang={lang} onClose={dismissSyncDiag}
               onDeleteEntry={(id: string) => ctx.gdriveDeleteBackupById && ctx.gdriveDeleteBackupById(id)} />
           )}
@@ -635,7 +648,15 @@ export function CuratorSettingsModal() {
           {syncDiagSource === "diag" && syncDiagErr && (
             <Notice tone="error">{(t ? t("err_prefix") : "Erreur") + " : " + syncDiagErr}</Notice>
           )}
-          {syncDiagSource === "diag" && syncDiag && (
+          {/* GATED on !gdriveConfirm — the guard the panel merge lost while
+              the comment above went on promising it. Both panels list the SAME
+              files with their own delete button, and the two delete actions
+              update different state (`gdriveDeleteOption` touches only
+              `gdriveConfirm`, `gdriveDeleteBackupById` only `syncDiag`), so a
+              row removed from one SURVIVES in the other — and tapping its bin
+              404s into a swallowing `.catch`. The old BackupsListPanel carried
+              this guard; restoring it is restoring the invariant, not adding one. */}
+          {syncDiagSource === "diag" && syncDiag && !gdriveConfirm && (
             <SyncDiagView diag={syncDiag} t={t} lang={lang} onClose={dismissSyncDiag}
               onDeleteEntry={(id: string) => ctx.gdriveDeleteBackupById && ctx.gdriveDeleteBackupById(id)} />
           )}

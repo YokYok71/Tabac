@@ -104,15 +104,27 @@ export function lastMaintMoment(pipe: any, todayStr?: string): number {
   return best;
 }
 
-/** How many sessions have been smoked since the pipe's last maintenance. */
+/** How many sessions have been smoked since the pipe's last maintenance.
+ *
+ *  `momentsByPipe` is an OPTIONAL precomputed index — the one
+ *  `computePipeMaintenanceReminders` builds once for the whole collection.
+ *  Without it this function walks every session, which is correct for a single
+ *  pipe and quadratic inside a loop: delegating the count to it (right, one
+ *  implementation) dropped the map that the loop used to hoist, taking 30
+ *  pipes × 5000 sessions from 0.4 ms to 63 ms — recomputed on every data write,
+ *  and on views the user is not even looking at, since `CuratorApp` mounts them
+ *  all and both memos evaluate above their `return null`. The parameter keeps
+ *  the single implementation AND the hoist. */
 export function pipeSessionsSinceMaint(
   pipe: any,
   sessions: any[] | null | undefined,
   todayStr?: string,
+  momentsByPipe?: Record<string, number[]>,
 ): { sessionsSince: number; lastMaintDate: string | null; everMaintained: boolean } {
   var lm = lastMaintDate(pipe, todayStr);
   var lmMs = lastMaintMoment(pipe, todayStr);
-  var moments = (sessionMomentsByPipe(sessions)[String(pipe?.id)]) || [];
+  var idx = momentsByPipe || sessionMomentsByPipe(sessions);
+  var moments = idx[String(pipe?.id)] || [];
   // STRICTLY after the cleaning, on the same MOMENT scale. A cleaning whose
   // own date is unparseable yields NaN here; every comparison against NaN is
   // false, which would silently count nothing — so that case falls back to
@@ -144,6 +156,9 @@ export function computePipeMaintenanceReminders(
   todayStr?: string,
 ): PipeMaintReminder[] {
   var out: PipeMaintReminder[] = [];
+  // HOISTED — one pass over the sessions for the whole collection, not one per
+  // pipe. See `pipeSessionsSinceMaint` for what dropping this cost.
+  var momentsByPipe = sessionMomentsByPipe(sessions);
   (pipes || []).forEach(function (p: any) {
     if (!p || p.deletedAt || p.status === "finished") return;
     // DELEGATED, where this function used to carry its own copy of the count.
@@ -151,7 +166,7 @@ export function computePipeMaintenanceReminders(
     // it was live here: the Home section and the pipe-card chips read the same
     // number through two different code paths, free to drift the day either
     // was touched. They cannot now.
-    var r = pipeSessionsSinceMaint(p, sessions, todayStr);
+    var r = pipeSessionsSinceMaint(p, sessions, todayStr, momentsByPipe);
     if (r.sessionsSince >= threshold) {
       out.push({
         pipeId: String(p.id), pipe: p, sessionsSince: r.sessionsSince,

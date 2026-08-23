@@ -491,10 +491,18 @@ export function explainCloudBackups(
         ts: isNaN(parsed) ? 0 : parsed, deviceId: did,
         deviceName: backupDeviceName(name), kind: kind,
         // Carried so ONE panel can both explain a verdict and manage the
-        // files. The listing has always had it; this row simply dropped it,
-        // which is why the guide needed two panels over the same files —
-        // one showing sizes and a delete, the other showing verdicts — and
-        // why a user reasonably read them as the same screen twice.
+        // files.
+        //
+        // The sentence that stood here — "the listing has always had it; this
+        // row simply dropped it" — was FALSE, and corrected in place because
+        // it sent the next reader looking in the wrong file. Drive applies the
+        // `fields` mask VERBATIM, and the three listings that feed this
+        // function asked for `files(id,name,modifiedTime)`: the size was never
+        // requested, so `f.size` was `undefined` and every Drive row rendered
+        // sizeless with a "—" total. Dropbox worked throughout, its adapter
+        // ignoring the mask — which is exactly how a wiring gap survives a
+        // reading. The masks now ask for `size`; the fixtures that build rows
+        // by hand could never have caught this.
         // "" when the provider omits it (Drive does on some folder entries).
         size: f.size === undefined || f.size === null ? "" : String(f.size),
         counts: parseBackupCounts(name), status: status, reason: reason,

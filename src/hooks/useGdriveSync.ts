@@ -361,6 +361,17 @@ export function sweepOwnAutoStragglers(
     return { deleted: deleted, failed: failed };
   });
 }
+// The field mask for every listing that feeds `buildSyncDiag`.
+//
+// NAMED, because it was written out three times and all three forgot `size` —
+// Drive applies the mask VERBATIM, so `f.size` came back `undefined` and the
+// merged panel showed every row sizeless with a "—" total. Dropbox's adapter
+// ignores the mask and worked throughout, which is how the gap survived a
+// reading. One constant means a fourth diagnostic listing cannot forget it;
+// listings that only need identity (the auto-file sweep, the newer-backup
+// check) deliberately keep their own narrower mask.
+var SYNC_DIAG_FIELDS = "files(id,name,size,modifiedTime)";
+
 
 export function useGdriveSync({
   data,
@@ -681,7 +692,7 @@ export function useGdriveSync({
       tokenPromise.then(function (tk) {
         if (!tk) { recordCloudCheckDiag("no-token"); return; }
         return cloud.list(tk, {
-          fields: "files(id,name,modifiedTime)",
+          fields: SYNC_DIAG_FIELDS,
           orderBy: "modifiedTime+desc",
         })
           .then(function (r) { return r.json(); })
@@ -798,7 +809,7 @@ export function useGdriveSync({
           clearCloudDismissed(isDbx);   // Per-provider
         } catch (_e) {}
         return cloud.list(tk, {
-          fields: "files(id,name,modifiedTime)",
+          fields: SYNC_DIAG_FIELDS,
           orderBy: "modifiedTime+desc",
         });
       })
@@ -932,7 +943,7 @@ export function useGdriveSync({
         // "View my backups" return isn't mis-routed to the diagnostic.
         lsRemove("cave-sync-diag-pending");
         if (!tk) throw new Error(t("err_drive_expired"));
-        return cloud.list(tk, { fields: "files(id,name,modifiedTime)", orderBy: "modifiedTime+desc" });
+        return cloud.list(tk, { fields: SYNC_DIAG_FIELDS, orderBy: "modifiedTime+desc" });
       })
       .then(function (r: any) { return r.json(); })
       .then(function (list: any) {
