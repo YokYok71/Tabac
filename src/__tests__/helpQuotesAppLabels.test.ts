@@ -240,6 +240,18 @@ describe("the shipped docs quote the app's own labels", () => {
   // Without that, this rule reports 12 hits, all of them that difference.
   const NEAR = 0.85;
   const bare = (x: string) => x.replace(/^[^\w«(]+/, "").trim();
+  // Prose that WRAPS the label rather than mis-naming it: "ships no
+  // catalogue", "the reference catalogue", "Destination cloud". The label is
+  // present, whole and word-bounded, with a qualifier around it — the reader
+  // still finds the control.
+  //
+  // VERIFIED against all thirteen real drifts before it was added: not one has
+  // this shape, because a drift changes the label's OWN words (an inserted
+  // "de", a different verb, a reordering) rather than adding to it. A
+  // truncation is unaffected too — there the CANDIDATE is the shorter string,
+  // so the label is not contained in it.
+  const wrapsLabel = (cand: string, label: string) =>
+    new RegExp(`(^|\\W)${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|\\W)`, "i").test(cand);
   const sim = (a: string, b: string) => {
     // A CHARACTER-OVERLAP ratio (Sørensen-Dice over the multiset of letters),
     // NOT the longest-common-subsequence shape difflib uses — and the
@@ -269,7 +281,7 @@ describe("the shipped docs quote the app's own labels", () => {
         const blk = block("help", code)!;
         for (const m of blk.matchAll(/<li><strong>([^<]{4,70})<\/strong>\s*(?:—|–)/g)) {
           const row = bare(m[1]!);
-          if (row === label) continue;
+          if (row === label || wrapsLabel(row, label)) continue;
           if (sim(row, label) >= NEAR) {
             wrong.push(`${code}.${key}: the reference row says ${JSON.stringify(row)}, the app says ${JSON.stringify(label)}`);
           }
@@ -277,6 +289,52 @@ describe("the shipped docs quote the app's own labels", () => {
       }
     }
     expect(wrong, "the guide lists a control under a name the app does not use").toEqual([]);
+  });
+
+  // The same gap, on the POLICY. It has no settings-reference list, so the
+  // rule above has nothing to scan there — but the masking is identical: a
+  // block naming a control correctly once masks a second, wrong mention.
+  //
+  // SCOPE, measured rather than allowlisted. Scanning every emphasised string
+  // in the policy means 197 candidates and TWO false positives, both the same
+  // prose turn in two languages ("lors d'un export ZIP" / "a ZIP export" —
+  // naming the ACTION, not the button). Requiring a Settings BREADCRUMB (an
+  // arrow or the gear) within 200 characters cuts that to 76 candidates and
+  // ZERO, and it is a principled cut rather than a list of exceptions: the
+  // policy quotes a control precisely when it is telling the reader where to
+  // find it, and that is where the breadcrumb is.
+  //
+  // The English false positive is instructive about the ratio: "ZIP export"
+  // scores a PERFECT 1.00 against "Export ZIP", because a character overlap is
+  // order-blind. That is the property that caught the reordered Italian drift;
+  // here it is the same property misfiring, which is why the SCOPE has to do
+  // the work rather than the threshold.
+  it("no breadcrumbed quotation in the POLICY is a near-miss either", () => {
+    const wrong: string[] = [];
+    let scanned = 0;
+    for (const { key } of QUOTED) {
+      for (const { code } of LANGUAGES) {
+        const label = bare(dictValue(code, key) || "");
+        if (!label) continue;
+        const blk = block("privacy", code)!;
+        for (const m of blk.matchAll(/<(strong|em)>([^<]{4,70})<\/\1>/g)) {
+          const ctx = blk.slice(Math.max(0, m.index! - 200), m.index! + m[0].length + 200);
+          if (ctx.indexOf("\u2192") < 0 && ctx.indexOf("\u2699") < 0) continue;
+          scanned++;
+          const q = bare(m[2]!);
+          if (q === label || wrapsLabel(q, label)) continue;
+          if (sim(q, label) >= NEAR) {
+            wrong.push(`${code}.${key}: the policy says ${JSON.stringify(q)}, the app says ${JSON.stringify(label)}`);
+          }
+        }
+      }
+    }
+    // NON-VACUITY, and it exists because a probe taught me the case could not
+    // fail vacuously-safe: neutering `wrapsLabel` to always-true silenced
+    // everything and left this GREEN, since an empty report satisfies the
+    // assertion. A check that examines nothing must say so.
+    expect(scanned, "the breadcrumb window matched nothing — the scope has rotted").toBeGreaterThan(20);
+    expect(wrong, "the policy names a control under a name the app does not use").toEqual([]);
   });
 
   // The Italian lot status, which was wrong ten times. Asserted as an ABSENCE
