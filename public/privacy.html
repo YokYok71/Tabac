@@ -138,7 +138,7 @@
 
 <h2>Assistant IA (optionnel)</h2>
 <p>Si vous configurez une clé API (Anthropic, OpenAI ou Google Gemini), l'application envoie directement depuis votre navigateur des requêtes aux API correspondantes pour l'auto-complétion des fiches tabac et pipe. Seules les informations saisies dans le champ de recherche sont transmises. <strong>Une exception : la fonction « Scanner la boîte »</strong> — si vous l'utilisez, la photo de la boîte est envoyée au fournisseur d'IA que vous avez choisi pour en lire la marque et le nom. Cette photo est réduite avant l'envoi et n'est jamais conservée par l'application. La clé API est stockée localement sur votre appareil.</p>
-<p>Par défaut, la clé API est <strong>exclue</strong> des exports JSON et des sauvegardes cloud (Google Drive ou Dropbox). Elle n'est jamais transmise à un service tiers autre que le fournisseur d'IA que vous avez choisi. Si vous souhaitez l'inclure dans vos sauvegardes afin de faciliter la restauration sur un autre appareil, désactivez l'option <strong>Exclure les clés API des exports</strong> dans ⚙️ Paramètres → section <em>Assistant IA</em>.</p>
+<p>Par défaut, la clé API est <strong>exclue</strong> des exports JSON et des sauvegardes cloud (Google Drive ou Dropbox). Elle n'est jamais transmise à un service tiers autre que le fournisseur d'IA que vous avez choisi. Si vous souhaitez l'inclure dans vos sauvegardes afin de faciliter la restauration sur un autre appareil, désactivez l'option <strong>Exclure les clés API des exports et sauvegardes</strong> dans ⚙️ Paramètres → section <em>Assistant IA</em>.</p>
 <p>À l'inverse, une clé d'API présente dans une sauvegarde que vous importez n'est installée sur cet appareil que si vous choisissez <strong>Remplacer</strong>. Une <strong>fusion</strong> ne l'installe jamais : c'est ainsi que l'on accepte la sauvegarde de quelqu'un d'autre, et sa clé n'a pas à devenir la vôtre.</p>
 
 <h2>Aucun serveur propre, aucun tracking</h2>
@@ -158,7 +158,7 @@
 </ul>
 <p>L'utilisation se fait sous votre seule responsabilité. Il est recommandé de :</p>
 <ul>
-  <li><strong>Exporter régulièrement vos données</strong> via ⚙️ Paramètres → <em>Exporter JSON</em> ou <em>Backup ZIP</em> ;</li>
+  <li><strong>Exporter régulièrement vos données</strong> via ⚙️ Paramètres → <em>Exporter JSON</em> ou <em>Exporter ZIP</em> ;</li>
   <li>activer la <strong>sauvegarde automatique cloud</strong> (Google Drive ou Dropbox) si vous souhaitez une copie distante (voir section ci-dessus) ;</li>
   <li>conserver au moins une copie de sauvegarde sur un emplacement distinct de votre appareil principal.</li>
 </ul>
@@ -219,7 +219,7 @@
 
 <h2>AI Assistant (optional)</h2>
 <p>If you configure an API key (Anthropic, OpenAI or Google Gemini), the app sends requests directly from your browser to the corresponding API for auto-completion of tobacco and pipe entries. Only the text you type in the search field is transmitted. <strong>One exception: the “Scan the tin” feature</strong> — if you use it, the photo of the tin is sent to the AI provider you chose so it can read the brand and name. That photo is downscaled before upload and is never stored by the app. The API key is stored locally on your device.</p>
-<p>By default, the API key is <strong>excluded</strong> from JSON exports and cloud backups (Google Drive or Dropbox). It is never transmitted to any third party other than the AI provider you have chosen. To include it in backups for easier restoration on another device, turn off <strong>Exclude API keys from exports</strong> in ⚙️ Settings → <em>AI Assistant</em> section.</p>
+<p>By default, the API key is <strong>excluded</strong> from JSON exports and cloud backups (Google Drive or Dropbox). It is never transmitted to any third party other than the AI provider you have chosen. To include it in backups for easier restoration on another device, turn off <strong>Exclude API keys from exports and backups</strong> in ⚙️ Settings → <em>AI Assistant</em> section.</p>
 <p>Conversely, an API key present in a backup you import is installed on this device only if you choose <strong>Replace</strong>. A <strong>merge</strong> never installs it: merging is how you accept someone else's backup, and their key has no business becoming yours.</p>
 
 <h2>No own server, no tracking</h2>
@@ -239,7 +239,7 @@
 </ul>
 <p>Use is at your own risk. It is recommended that you:</p>
 <ul>
-  <li><strong>Export your data regularly</strong> via ⚙️ Settings → <em>Export JSON</em> or <em>Backup ZIP</em>;</li>
+  <li><strong>Export your data regularly</strong> via ⚙️ Settings → <em>Export JSON</em> or <em>Export ZIP</em>;</li>
   <li>enable the <strong>automatic cloud backup</strong> (Google Drive or Dropbox) if you want a remote copy (see section above);</li>
   <li>keep at least one backup copy in a location separate from your main device.</li>
 </ul>
@@ -272,7 +272,7 @@
   <li>Un token temporal de acceso a la nube (Google Drive o Dropbox, cuando la copia de seguridad automática está activada), conservado únicamente durante su validez (~1 hora para Google Drive, ~4 horas para Dropbox, más un token de actualización de larga duración de Dropbox para la renovación silenciosa)</li>
 </ul>
 <p>Estos datos nunca salen de tu dispositivo, a menos que utilices la función de copia de seguridad en la nube (Google Drive o Dropbox, véase más abajo).</p>
-<p><strong>Borrar todos los datos</strong> (Ajustes → Datos) borra también las credenciales guardadas: los tokens de conexión de Google Drive y Dropbox (incluido el token de actualización de larga duración de Dropbox), las claves de API del asistente de IA y la dirección de correo de la cuenta de Google memorizada para volver a autenticarte más rápido. Después de ese botón no queda nada tuyo en el dispositivo — útil antes de prestarlo, venderlo o publicar una captura de pantalla. Tus copias de seguridad ya guardadas en la nube no se eliminan.</p>
+<p><strong>Eliminar todos los datos</strong> (Ajustes → Datos) borra también las credenciales guardadas: los tokens de conexión de Google Drive y Dropbox (incluido el token de actualización de larga duración de Dropbox), las claves de API del asistente de IA y la dirección de correo de la cuenta de Google memorizada para volver a autenticarte más rápido. Después de ese botón no queda nada tuyo en el dispositivo — útil antes de prestarlo, venderlo o publicar una captura de pantalla. Tus copias de seguridad ya guardadas en la nube no se eliminan.</p>
 
 <h2>Google Drive (copia de seguridad opcional)</h2>
 <p>Si decides usar la función de copia de seguridad, la aplicación solicita acceso al ámbito <strong>drive.appdata</strong> de tu cuenta de Google. Este ámbito solo permite:</p>
@@ -298,7 +298,7 @@
 
 <h2>Asistente de IA (opcional)</h2>
 <p>Si configuras una clave de API (Anthropic, OpenAI o Google Gemini), la aplicación envía solicitudes directamente desde tu navegador a la API correspondiente para autocompletar entradas de tabacos y pipas. Solo se transmite el texto que escribes en el campo de búsqueda. <strong>Una excepción: la función «Escanear la lata»</strong>: si la usas, la foto de la lata se envía al proveedor de IA que hayas elegido para leer la marca y el nombre. Esa foto se reduce antes del envío y la aplicación nunca la conserva. La clave de API se almacena localmente en tu dispositivo.</p>
-<p>De forma predeterminada, la clave de API está <strong>excluida</strong> de las exportaciones JSON y de las copias de seguridad en la nube (Google Drive o Dropbox). Nunca se transmite a ningún tercero que no sea el proveedor de IA que hayas elegido. Para incluirla en las copias de seguridad y facilitar la restauración en otro dispositivo, desactiva <strong>Excluir las claves de API de las exportaciones</strong> en ⚙️ Ajustes → sección <em>Asistente de IA</em>.</p>
+<p>De forma predeterminada, la clave de API está <strong>excluida</strong> de las exportaciones JSON y de las copias de seguridad en la nube (Google Drive o Dropbox). Nunca se transmite a ningún tercero que no sea el proveedor de IA que hayas elegido. Para incluirla en las copias de seguridad y facilitar la restauración en otro dispositivo, desactiva <strong>Excluir claves API de exportaciones y copias de seguridad</strong> en ⚙️ Ajustes → sección <em>Asistente IA</em>.</p>
 <p>A la inversa, una clave de API presente en una copia de seguridad que importas solo se instala en este dispositivo si eliges <strong>Reemplazar</strong>. Una <strong>fusión</strong> nunca la instala: fusionar es la forma de aceptar la copia de otra persona, y su clave no tiene por qué convertirse en la tuya.</p>
 
 <h2>Sin servidor propio, sin seguimiento</h2>
@@ -318,7 +318,7 @@
 </ul>
 <p>El uso es bajo tu propia responsabilidad. Se recomienda que:</p>
 <ul>
-  <li><strong>Exportes tus datos con regularidad</strong> mediante ⚙️ Ajustes → <em>Exportar JSON</em> o <em>Copia de seguridad ZIP</em>;</li>
+  <li><strong>Exportes tus datos con regularidad</strong> mediante ⚙️ Ajustes → <em>Exportar JSON</em> o <em>Exportar ZIP</em>;</li>
   <li>actives la <strong>copia de seguridad automática en la nube</strong> (Google Drive o Dropbox) si quieres una copia remota (véase la sección anterior);</li>
   <li>conserves al menos una copia de seguridad en un lugar separado de tu dispositivo principal.</li>
 </ul>
@@ -376,7 +376,7 @@
 
 <h2>KI-Assistent (optional)</h2>
 <p>Wenn du einen API-Schlüssel konfigurierst (Anthropic, OpenAI oder Google Gemini), sendet die App Anfragen direkt aus deinem Browser an die entsprechende API, um Tabak- und Pfeifeneinträge automatisch zu vervollständigen. Es wird nur der Text übermittelt, den du in das Suchfeld eingibst. <strong>Eine Ausnahme: die Funktion „Dose scannen“</strong> – wenn du sie nutzt, wird das Foto der Dose an den von dir gewählten KI-Anbieter gesendet, damit Marke und Name gelesen werden können. Dieses Foto wird vor dem Senden verkleinert und von der App niemals gespeichert. Der API-Schlüssel wird lokal auf deinem Gerät gespeichert.</p>
-<p>Standardmäßig ist der API-Schlüssel von JSON-Exporten und Cloud-Sicherungen (Google Drive oder Dropbox) <strong>ausgeschlossen</strong>. Er wird nie an einen anderen Dritten als den von dir gewählten KI-Anbieter übermittelt. Um ihn zur einfacheren Wiederherstellung auf einem anderen Gerät in die Sicherungen aufzunehmen, deaktiviere <strong>API-Schlüssel aus Exporten ausschließen</strong> in ⚙️ Einstellungen → Abschnitt <em>KI-Assistent</em>.</p>
+<p>Standardmäßig ist der API-Schlüssel von JSON-Exporten und Cloud-Sicherungen (Google Drive oder Dropbox) <strong>ausgeschlossen</strong>. Er wird nie an einen anderen Dritten als den von dir gewählten KI-Anbieter übermittelt. Um ihn zur einfacheren Wiederherstellung auf einem anderen Gerät in die Sicherungen aufzunehmen, deaktiviere <strong>API-Schlüssel von Exporten und Sicherungen ausschließen</strong> in ⚙️ Einstellungen → Abschnitt <em>KI-Assistent</em>.</p>
 <p>Umgekehrt wird ein API-Schlüssel, der in einer von dir importierten Sicherung enthalten ist, nur dann auf diesem Gerät eingerichtet, wenn du <strong>Ersetzen</strong> wählst. Ein <strong>Zusammenführen</strong> richtet ihn nie ein: So nimmt man die Sicherung einer anderen Person an, und deren Schlüssel soll nicht zu deinem werden.</p>
 
 <h2>Kein eigener Server, kein Tracking</h2>
@@ -396,7 +396,7 @@
 </ul>
 <p>Die Nutzung erfolgt auf eigenes Risiko. Es wird empfohlen, dass du:</p>
 <ul>
-  <li><strong>Deine Daten regelmäßig exportierst</strong> über ⚙️ Einstellungen → <em>JSON exportieren</em> oder <em>ZIP-Sicherung</em>;</li>
+  <li><strong>Deine Daten regelmäßig exportierst</strong> über ⚙️ Einstellungen → <em>JSON exportieren</em> oder <em>ZIP exportieren</em>;</li>
   <li>die <strong>automatische Cloud-Sicherung</strong> (Google Drive oder Dropbox) aktivierst, wenn du eine entfernte Kopie möchtest (siehe Abschnitt oben);</li>
   <li>mindestens eine Sicherungskopie an einem von deinem Hauptgerät getrennten Ort aufbewahrst.</li>
 </ul>
@@ -428,7 +428,7 @@
   <li>Un token temporaneo di accesso al cloud (Google Drive o Dropbox, quando il backup automatico è attivo), conservato solo per la durata della sua validità (~1 ora per Google Drive, ~4 ore per Dropbox, più un token di aggiornamento Dropbox a lunga durata per il rinnovo silenzioso)</li>
 </ul>
 <p>Questi dati non lasciano mai il tuo dispositivo, a meno che tu non utilizzi la funzione di backup nel cloud (Google Drive o Dropbox, vedi sotto).</p>
-<p><strong>Cancellare tutti i dati</strong> (Impostazioni → Dati) cancella anche le credenziali conservate: i token di accesso di Google Drive e Dropbox (compreso il token di rinnovo Dropbox a lunga durata), le chiavi API dell'assistente IA e l'indirizzo e-mail dell'account Google memorizzato per riautenticarti più rapidamente. Dopo quel pulsante non resta nulla di tuo sul dispositivo — utile prima di prestarlo, rivenderlo o pubblicarne uno screenshot. I backup già depositati nel cloud non vengono eliminati.</p>
+<p><strong>Elimina tutti i dati</strong> (Impostazioni → Dati) cancella anche le credenziali conservate: i token di accesso di Google Drive e Dropbox (compreso il token di rinnovo Dropbox a lunga durata), le chiavi API dell'assistente IA e l'indirizzo e-mail dell'account Google memorizzato per riautenticarti più rapidamente. Dopo quel pulsante non resta nulla di tuo sul dispositivo — utile prima di prestarlo, rivenderlo o pubblicarne uno screenshot. I backup già depositati nel cloud non vengono eliminati.</p>
 
 <h2>Google Drive (backup opzionale)</h2>
 <p>Se scegli di usare la funzione di backup, l'applicazione richiede l'accesso all'ambito <strong>drive.appdata</strong> del tuo account Google. Questo ambito consente solo di:</p>
@@ -454,7 +454,7 @@
 
 <h2>Assistente IA (opzionale)</h2>
 <p>Se configuri una chiave API (Anthropic, OpenAI o Google Gemini), l'applicazione invia richieste direttamente dal tuo browser all'API corrispondente per il completamento automatico delle voci di tabacchi e pipe. Viene trasmesso solo il testo che digiti nel campo di ricerca. <strong>Un'eccezione: la funzione «Scansiona la latta»</strong>: se la usi, la foto della scatola viene inviata al fornitore di IA che hai scelto per leggerne marca e nome. Questa foto viene ridotta prima dell'invio e non viene mai conservata dall'applicazione. La chiave API viene memorizzata localmente sul tuo dispositivo.</p>
-<p>Per impostazione predefinita, la chiave API è <strong>esclusa</strong> dalle esportazioni JSON e dai backup nel cloud (Google Drive o Dropbox). Non viene mai trasmessa ad alcun terzo diverso dal fornitore di IA che hai scelto. Per includerla nei backup e facilitare il ripristino su un altro dispositivo, disattiva <strong>Escludi le chiavi API dalle esportazioni</strong> in ⚙️ Impostazioni → sezione <em>Assistente IA</em>.</p>
+<p>Per impostazione predefinita, la chiave API è <strong>esclusa</strong> dalle esportazioni JSON e dai backup nel cloud (Google Drive o Dropbox). Non viene mai trasmessa ad alcun terzo diverso dal fornitore di IA che hai scelto. Per includerla nei backup e facilitare il ripristino su un altro dispositivo, disattiva <strong>Escludi le chiavi API da esportazioni e backup</strong> in ⚙️ Impostazioni → sezione <em>Assistente IA</em>.</p>
 <p>Viceversa, una chiave API presente in un backup che importi viene installata su questo dispositivo solo se scegli <strong>Sostituisci</strong>. Una <strong>fusione</strong> non la installa mai: è così che si accetta il backup di qualcun altro, e la sua chiave non deve diventare la tua.</p>
 
 <h2>Nessun server proprio, nessun tracciamento</h2>
@@ -474,7 +474,7 @@
 </ul>
 <p>L'uso è a tuo rischio. Si raccomanda di:</p>
 <ul>
-  <li><strong>Esportare i tuoi dati regolarmente</strong> tramite ⚙️ Impostazioni → <em>Esporta JSON</em> o <em>Backup ZIP</em>;</li>
+  <li><strong>Esportare i tuoi dati regolarmente</strong> tramite ⚙️ Impostazioni → <em>Esporta JSON</em> o <em>Esporta ZIP</em>;</li>
   <li>attivare il <strong>backup automatico nel cloud</strong> (Google Drive o Dropbox) se desideri una copia remota (vedi la sezione sopra);</li>
   <li>conservare almeno una copia di backup in un luogo separato dal tuo dispositivo principale.</li>
 </ul>
@@ -507,7 +507,7 @@
   <li>Um token temporário de acesso à nuvem (Google Drive ou Dropbox, quando a cópia de segurança automática está ativa), conservado apenas durante a sua validade (~1 hora no Google Drive, ~4 horas no Dropbox, mais um token de renovação de longa duração do Dropbox para renovação silenciosa)</li>
 </ul>
 <p>Estes dados nunca saem do seu dispositivo, exceto se utilizar a funcionalidade de cópia de segurança na nuvem (Google Drive ou Dropbox — ver abaixo).</p>
-<p><strong>Apagar todos os dados</strong> (Definições → Dados) apaga também as credenciais guardadas: os tokens de ligação ao Google Drive e ao Dropbox (incluindo o token de renovação de longa duração do Dropbox), as chaves de API do assistente de IA e o endereço de e-mail da conta Google memorizado para o voltar a autenticar mais depressa. Depois deste botão não fica nada de si no dispositivo — útil antes de o emprestar, de o vender ou de publicar uma captura de ecrã. As cópias de segurança já guardadas na nuvem não são eliminadas.</p>
+<p><strong>Eliminar todos os dados</strong> (Definições → Dados) apaga também as credenciais guardadas: os tokens de ligação ao Google Drive e ao Dropbox (incluindo o token de renovação de longa duração do Dropbox), as chaves de API do assistente de IA e o endereço de e-mail da conta Google memorizado para o voltar a autenticar mais depressa. Depois deste botão não fica nada de si no dispositivo — útil antes de o emprestar, de o vender ou de publicar uma captura de ecrã. As cópias de segurança já guardadas na nuvem não são eliminadas.</p>
 
 <h2>Google Drive (cópia de segurança opcional)</h2>
 <p>Se optar por utilizar a funcionalidade de cópia de segurança, a aplicação solicita acesso ao âmbito <strong>drive.appdata</strong> da sua conta Google. Este âmbito permite apenas:</p>
@@ -518,7 +518,7 @@
 
 <h2>Catálogo de referência (o seu ficheiro)</h2>
 <p>A aplicação <strong>não inclui qualquer catálogo</strong>. Se carregar um (Definições → Dados → Catálogo de referência), o ficheiro CSV que fornece fica guardado <strong>localmente</strong>, numa base de dados do navegador reservada para ele (IndexedDB «cave-catalogue»), juntamente com uma versão já analisada que torna as pesquisas rápidas. Não é enviado a qualquer serviço de terceiros e nunca é transmitido a um fornecedor de IA.</p>
-<p><strong>Só sai do seu aparelho por acção sua</strong>: o botão «Guardar o catálogo na nuvem» envia o CSV tal como está para a mesma pasta privada das suas cópias (um ficheiro <code>cave-tabac-catalogue-….csv</code>), e aí é conservada uma única cópia. O catálogo viaja no seu próprio ficheiro, separado das cópias da sua cave. «Remover o catálogo» apaga-o do seu aparelho; a cópia que exista na nuvem permanece até a eliminar em «Ver as minhas cópias».</p>
+<p><strong>Só sai do seu aparelho por ação sua</strong>: o botão «Guardar o catálogo na nuvem» envia o CSV tal como está para a mesma pasta privada das suas cópias (um ficheiro <code>cave-tabac-catalogue-….csv</code>), e aí é conservada uma única cópia. O catálogo viaja no seu próprio ficheiro, separado das cópias da sua cave. «Remover o catálogo» apaga-o do seu aparelho; a cópia que exista na nuvem permanece até a eliminar em «Ver as minhas cópias».</p>
 
 <h2>Fotografias (apenas locais)</h2>
 <p>As fotografias são adicionadas apenas através da <strong>importação de uma imagem do seu dispositivo</strong> (botão «Importar uma foto»). São guardadas localmente (IndexedDB) e não passam por qualquer serviço de terceiros. <strong>Só saem do seu dispositivo se ativar a cópia de segurança na nuvem</strong> (Google Drive ou Dropbox): as fotografias são então incluídas no ficheiro de cópia de segurança, tal como os restantes dados — e cifradas com ele se tiver ativado a cifragem. São também incluídas nas suas exportações JSON e ZIP, que permanecem no seu dispositivo até as partilhar.</p>
@@ -533,7 +533,7 @@
 
 <h2>Assistente de IA (opcional)</h2>
 <p>Se configurar uma chave de API (Anthropic, OpenAI ou Google Gemini), a aplicação envia pedidos diretamente do seu navegador para a API correspondente, para preenchimento automático dos registos de tabacos e cachimbos. Apenas o texto que escreve no campo de pesquisa é transmitido. <strong>Uma exceção: a funcionalidade «Digitalizar a lata»</strong> — se a utilizar, a fotografia da lata é enviada ao fornecedor de IA que escolheu para que possa ler a marca e o nome. Essa fotografia é reduzida antes do envio e nunca é guardada pela aplicação. A chave de API é guardada localmente no seu dispositivo.</p>
-<p>Por predefinição, a chave de API é <strong>excluída</strong> das exportações JSON e das cópias de segurança na nuvem (Google Drive ou Dropbox). Nunca é transmitida a terceiros além do fornecedor de IA que escolheu. Para a incluir nas cópias de segurança e facilitar o restauro noutro dispositivo, desative <strong>Excluir as chaves de API das exportações</strong> em ⚙️ Configurações → secção <em>Assistente de IA</em>.</p>
+<p>Por predefinição, a chave de API é <strong>excluída</strong> das exportações JSON e das cópias de segurança na nuvem (Google Drive ou Dropbox). Nunca é transmitida a terceiros além do fornecedor de IA que escolheu. Para a incluir nas cópias de segurança e facilitar o restauro noutro dispositivo, desative <strong>Excluir as chaves API das exportações e cópias de segurança</strong> em ⚙️ Configurações → secção <em>Assistente IA</em>.</p>
 <p>Inversamente, uma chave de API presente numa cópia de segurança que importe só é instalada neste dispositivo se escolher <strong>Substituir</strong>. Uma <strong>fusão</strong> nunca a instala: é assim que se aceita a cópia de segurança de outra pessoa, e a chave dela não tem de passar a ser a sua.</p>
 
 <h2>Sem servidor próprio, sem rastreio</h2>
@@ -553,7 +553,7 @@
 </ul>
 <p>A utilização é feita por sua conta e risco. Recomenda-se que:</p>
 <ul>
-  <li><strong>Exporte os seus dados regularmente</strong> em ⚙️ Configurações → <em>Exportar JSON</em> ou <em>Cópia de segurança ZIP</em>;</li>
+  <li><strong>Exporte os seus dados regularmente</strong> em ⚙️ Configurações → <em>Exportar JSON</em> ou <em>Exportar ZIP</em>;</li>
   <li>ative a <strong>cópia de segurança automática na nuvem</strong> (Google Drive ou Dropbox) se quiser uma cópia remota (ver secção acima);</li>
   <li>guarde pelo menos uma cópia de segurança num local separado do seu dispositivo principal.</li>
 </ul>

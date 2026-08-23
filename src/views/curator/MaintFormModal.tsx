@@ -130,9 +130,15 @@ export function CuratorMaintFormModal({
         {/* The time of the cleaning. Optional, and it may be cleared: an entry
             without one reads as NOON, exactly as an untimed session does, so
             both sides of the reminder comparison treat a missing time the same
-            way. Reuses `lbl_time` — the session form's own label — rather than
-            minting a synonym for the same field. */}
-        <TextField label={t ? t("lbl_time") : "Heure de début"} type="time"
+            way.
+            It reused the session form's `lbl_time` — on the stated
+            grounds of "not minting a synonym for the same field". They are not
+            the same field: `lbl_time` is "Heure de DÉBUT" in all six languages
+            ("Start time", "Startzeit", "Ora di inizio"…), which is right for a
+            tasting and wrong for a cleaning — a cleaning is an event, it has a
+            time, it does not START. The instinct against synonyms was sound;
+            it was applied to a label that is not generic. */}
+        <TextField label={t ? t("maint_time_label") : "Heure"} type="time"
           value={form.time || ""} onChange={(v) => set({ time: v })} />
 
         <SegmentedField<string>

@@ -597,7 +597,7 @@ export function CuratorSettingsModal() {
               the multi-device sync diagnostic so the opaque device id is
               readable. */}
           <Row label={t ? t("device_name_label") : "Nom de cet appareil"}
-               sub={t ? t("device_name_hint") : "Affiché dans le diagnostic multi-appareils et ajouté au nom des fichiers de sauvegarde pour les reconnaître. Ne fait pas partie de vos données."}>
+               sub={t ? t("device_name_hint") : "Affiché dans la liste de vos sauvegardes cloud et ajouté au nom des fichiers de sauvegarde pour les reconnaître. Ne fait pas partie de vos données."}>
             <input
               type="text"
               value={deviceName || ""}
