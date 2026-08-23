@@ -23,7 +23,19 @@ import { recordOAuthEvent } from "./oauthDiag.ts";
 // restore on iOS standalone. The pre-existing "restore" action opens
 // the full picker; this one resumes the direct restore-by-id flow
 // using the file id persisted in localStorage["cave-cloud-newer-pending-id"].
-var OAUTH_ACTIONS = ["save", "restore", "reconnect", "list", "autosave", "restore-cnb"];
+// "cat-save" / "cat-restore" added — the CATALOGUE's own cloud stream. They
+// borrowed "save" and "list", and on iOS standalone (where a missing token
+// means a redirect) that made the two buttons resume as a DIFFERENT
+// OPERATION: "save" runs a full cellar backup under a "✓ OK" the user reads
+// as their catalogue being safe, and "list" lands on the backups panel with
+// the catalogue never fetched.
+//
+// A DISTINCT ACTION rather than a fifth one-shot marker. The markers exist
+// because three buttons share the "list my cloud files" operation and differ
+// only in what they do with the result; a catalogue save is not a cellar save
+// with a flag on it. Overloading an action and disambiguating it out-of-band
+// is what produced this defect three times over.
+var OAUTH_ACTIONS = ["save", "restore", "reconnect", "list", "autosave", "restore-cnb", "cat-save", "cat-restore"];
 
 function isValidAction(s: string | null): boolean {
   return !!s && OAUTH_ACTIONS.indexOf(s) >= 0;

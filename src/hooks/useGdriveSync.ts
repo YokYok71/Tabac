@@ -1297,6 +1297,20 @@ export function useGdriveSync({
         recordOAuthEvent("token-stored", "reconnect");
         return;
       }
+      // The CATALOGUE stream, resumed after an iOS redirect. Its own actions
+      // rather than a marker on a cellar one: see OAUTH_ACTIONS in
+      // oauthReturn.ts. Placed before every cellar branch so no fall-through
+      // can reach `gdriveSave` / `runSyncDiagnostic` with a catalogue intent.
+      if (ac === "cat-save" || ac === "cat-restore") {
+        driveTokenRef.current = tk;
+        try {
+          tkSet(JSON.stringify({ t: tk, x: Date.now() + 3500000 }));
+        } catch (_e) {}
+        recordOAuthEvent("token-stored", ac);
+        if (ac === "cat-save") catalogueCloudSave(tk);
+        else catalogueCloudRestore(tk);
+        return;
+      }
       if (ac === "autosave") {
         // The iOS auto-save workaround. Token came back from
         // the silent (no-prompt) redirect triggered by a form-save tap
@@ -1460,6 +1474,15 @@ export function useGdriveSync({
       if (ac === "reconnect" || ac === "autosave") {
         // Token is stored; autosave additionally kicks the quiet save.
         if (ac === "autosave") gdriveSaveQuiet();
+        return;
+      }
+      // Kept in lock-step with the Google dispatcher. A Dropbox refresh-token
+      // grant rarely redirects, so this branch is the edge case where the
+      // refresh token had expired — but a catalogue button must not resume as
+      // a cellar operation on EITHER provider.
+      if (ac === "cat-save" || ac === "cat-restore") {
+        if (ac === "cat-save") catalogueCloudSave();
+        else catalogueCloudRestore();
         return;
       }
       if (ac === "list") {
@@ -1718,12 +1741,26 @@ export function useGdriveSync({
             });
             // The MANUAL cloud save is attended but it is still the
             // safety net, not an archive file — so it degrades like the auto
-            // save rather than aborting, and says so in the status line the
-            // user is already watching (it sits right under this button).
-            // Losing the whole backup because the photo store is
-            // broken would be the worse outcome.
+            // save rather than aborting: losing the whole backup because the
+            // photo store is broken would be the worse outcome.
+            //
+            // BUT IT MUST SAY SO WHERE THE USER CAN READ IT, and for a long
+            // time it did not. The warning was set here and OVERWRITTEN one
+            // microtask later by `st_saving`, then by `st_done` — so the user
+            // saw « Sauvegarde… » then « ✓ OK », a backup with no
+            // `_imageData` went up, and `markExported()` disarmed the
+            // "you have not backed up" reminder for 30 days. The comment that
+            // used to sit here promised the opposite ("says so in the status
+            // line the user is already watching"), which is worse than no
+            // comment at all.
+            //
+            // So the failure is REMEMBERED and reported at the END, where
+            // nothing paints over it. The auto path was already correct
+            // (`recordAutosaveDiag("photos-unreadable")` persists); it was the
+            // ATTENDED path that was silent.
+            var _photosUnreadable = false;
             return gatherLocalImages(bkBase).catch(function () {
-              setGdriveStatus(t ? t("err_photos_unreadable") : "Sauvegarde faite, mais les photos n'ont pas pu être lues.");
+              _photosUnreadable = true;
               return {};
             }).then(function (imgMap: any) {
               var bk = Object.keys(imgMap as object).length
@@ -1779,8 +1816,17 @@ export function useGdriveSync({
                     lsRemove("cave-pending-sync");
                   }
                   if (markExported) markExported();
-                  setGdriveStatus(t("st_done"));
-                  scheduleStatusClear(3000);
+                  // The cellar DID reach the cloud, so the reminder is
+                  // legitimately disarmed — but a bare ✓ would let the user
+                  // believe their photos went with it. Longer on screen than
+                  // a plain success, like every other degraded message here.
+                  if (_photosUnreadable) {
+                    setGdriveStatus(t ? t("err_photos_unreadable") : "Sauvegarde faite, mais les photos n'ont pas pu être lues.");
+                    scheduleStatusClear(6000);
+                  } else {
+                    setGdriveStatus(t("st_done"));
+                    scheduleStatusClear(3000);
+                  }
                   // Prune to GDRIVE_MAX_MANUAL manual files total (including
                   // the one we just wrote). pruneByType also
                   // deletes sequentially (Dropbox 429 on concurrent
@@ -2653,7 +2699,12 @@ export function useGdriveSync({
         scheduleCatCloudClear(4000);
         return false;
       }
-      return (typeof preToken === "string" ? Promise.resolve(preToken) : getCloudToken("save"))
+      // "cat-save", NOT "save". On iOS standalone a missing token means a
+      // REDIRECT, and the return dispatcher routes on the action string
+      // alone — under "save" this button resumed as `gdriveSave`, i.e. a full
+      // CELLAR backup, with "✓ OK" shown under the other button and the
+      // catalogue never uploaded.
+      return (typeof preToken === "string" ? Promise.resolve(preToken) : getCloudToken("cat-save"))
         .then(function (token: any) {
           cloudTokenPersist(token as string);
           setCatCloudStatus(t("st_saving"));
@@ -2700,7 +2751,11 @@ export function useGdriveSync({
 
   function catalogueCloudRestore(preToken?: any, _retried?: any): Promise<boolean> {
     setCatCloudStatus(t("st_connecting"));
-    return (typeof preToken === "string" ? Promise.resolve(preToken) : getCloudToken("list"))
+    // "cat-restore", NOT "list". Under "list" this button was the FIFTH
+    // producer of that action and the only one leaving no one-shot marker, so
+    // a redirect fell through to `runSyncDiagnostic` — the backups panel —
+    // with the catalogue never fetched.
+    return (typeof preToken === "string" ? Promise.resolve(preToken) : getCloudToken("cat-restore"))
       .then(function (token: any) {
         cloudTokenPersist(token as string);
         return cloud.list(token, {

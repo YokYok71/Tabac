@@ -2517,6 +2517,41 @@ describe("gatherLocalImages reports an unreadable photo store", () => {
     await expect(result.current.gatherLocalImages(INIT)).resolves.toEqual({});
   });
 
+  it("the MANUAL save still SAYS so at the end, instead of showing a bare ✓ OK", async () => {
+    // The warning was set inside `gatherLocalImages`' `.catch` and then
+    // OVERWRITTEN one microtask later by `st_saving`, and again by `st_done`
+    // on success — so the user saw « Sauvegarde… » then « ✓ OK », a backup
+    // with NO `_imageData` went up, and `markExported()` disarmed the
+    // "you have not backed up" reminder for 30 days. The loss surfaced only
+    // on a restore somewhere else.
+    //
+    // Worth naming: the comment three lines above the `.catch` promised
+    // exactly what did not happen — "says so in the status line the user is
+    // already watching (it sits right under this button)". A comment
+    // asserting a mechanism that does not work is worse than no comment.
+    //
+    // The AUTO save was already correct (`recordAutosaveDiag("photos-unreadable")`
+    // persists); it was the ATTENDED path that was silent.
+    vi.mocked(imgCache.get).mockImplementation(() => Promise.reject(new Error("InvalidStateError")));
+    const markExported = vi.fn();
+    mockFetch.mockImplementation((url: any) => {
+      const u = String(url);
+      if (u.indexOf("/upload/drive") >= 0) return Promise.resolve({ ok: true, json: async () => ({ id: "f1" }) });
+      return Promise.resolve({ ok: true, json: async () => ({ files: [] }), text: async () => "" });
+    });
+    localStorage.setItem("gdrive-tk", JSON.stringify({ t: "tok", x: Date.now() + 3600000 }));
+    const { result } = renderHook(() => useGdriveSync(
+      makeProps({ data: dataWithPhotos(), markExported }) as any));
+    await act(async () => { await result.current.gdriveSave("tok"); });
+
+    // `setGdriveStatus` is INTERNAL to the hook, so what the user is left
+    // looking at is the settled `gdriveStatus`. That is also the honest thing
+    // to assert: the defect was never "the warning is not set", it was "the
+    // warning does not SURVIVE to be read".
+    expect(result.current.gdriveStatus, "the save ended on a bare ✓ OK")
+      .toBe("err_photos_unreadable");
+  });
+
   it("propagates the rejection through withPhotos, where doExport's guard sits", async () => {
     // The interactive one-shot artifact fails LOUDLY: the user asked for a
     // complete-backup file and keeps it as their archive.

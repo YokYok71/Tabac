@@ -30,6 +30,12 @@ export var DROPBOX_OAUTH_ACTIONS = [
   // See useGdriveSync.restoreCloudNewerBackup + the Drive twin in
   // src/utils/oauthReturn.ts.
   "restore-cnb",
+  // The CATALOGUE's own cloud stream. They borrowed "save" and "list", which
+  // on a redirect made each button resume as a different operation entirely.
+  // See the note on OAUTH_ACTIONS in src/utils/oauthReturn.ts for why this is
+  // a distinct action rather than a fifth one-shot marker.
+  "cat-save",
+  "cat-restore",
 ] as const;
 
 export function isValidDropboxAction(ac: any): boolean {

@@ -309,3 +309,163 @@ describe("the two buttons are wired into Settings", () => {
       .toBeLessThan(saveAt);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE OAUTH ACTION. On iOS standalone with no cached token, `getCloudToken`
+// does `window.location.replace(...)` and the promise NEVER settles; on the
+// way back the dispatcher routes on the pending ACTION STRING alone.
+//
+// Both catalogue buttons borrowed a cellar action, and the consequence is not
+// a degraded feature — it is a DIFFERENT OPERATION:
+//
+//   "save" → `gdriveSave(tk)`: a full CELLAR backup, manual-file rotation,
+//            `cave-autosave-ts` stamped, `markExported()`, status "✓ OK".
+//            The user asked to save their catalogue and got a cellar backup,
+//            under a success message, with the catalogue never uploaded.
+//   "list" → falls through the three one-shot markers (delete / cloud-check /
+//            sync-diag — the catalogue leaves none) to `runSyncDiagnostic`:
+//            the backups panel, catalogue never fetched.
+//
+// This is the THIRD instance of the class. The dispatcher's own comment
+// enumerates "FOUR buttons can now issue a 'list' redirect"; the catalogue
+// restore was the fifth and left no marker. The two before it were the 🗑
+// resuming under "restore" (which opened the DESTRUCTIVE picker) and
+// « Vérifier les sauvegardes » resuming under "list" (which opened the
+// backups list).
+//
+// THE FIX IS A DISTINCT ACTION PER OPERATION, not a fifth one-shot marker.
+// The markers exist because three buttons genuinely share the "list my cloud
+// files" operation and differ only in what to do with the result. A catalogue
+// save is not a cellar save with a flag on it. `"restore-cnb"` is the
+// precedent, added for exactly this reason: "the pre-existing `restore` action
+// opens the full picker; this one resumes the direct restore-by-id flow".
+// Overloading an action and disambiguating it out-of-band is the shape that
+// produced all three bugs.
+//
+// WHY NOTHING CAUGHT IT: every one of the nine hook cases above passes "tok"
+// as `preToken`, so `getCloudToken` is never reached at all.
+describe("the catalogue buttons ask for their OWN OAuth action", () => {
+  it("neither borrows a cellar action", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("src/hooks/useGdriveSync.ts", "utf8")
+      // Comments name these actions while explaining the defect; a source
+      // assertion that reads its own explanation is the trap this repo has
+      // hit three times.
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+      .replace(/\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
+
+    function body(fn: string): string {
+      const at = src.indexOf("function " + fn + "(");
+      expect(at, `${fn} not found`).toBeGreaterThan(-1);
+      // To the next top-level `function ` declaration.
+      const next = src.indexOf("\n  function ", at + 10);
+      return src.slice(at, next > at ? next : at + 4000);
+    }
+
+    expect(body("catalogueCloudSave")).toContain('getCloudToken("cat-save")');
+    expect(body("catalogueCloudSave"), "a catalogue save must not resume as a CELLAR save")
+      .not.toContain('getCloudToken("save")');
+    expect(body("catalogueCloudRestore")).toContain('getCloudToken("cat-restore")');
+    expect(body("catalogueCloudRestore"), "a catalogue fetch must not resume as the backups panel")
+      .not.toContain('getCloudToken("list")');
+  });
+
+  it("both actions survive the fail-closed whitelists, on BOTH providers", async () => {
+    // The whitelist is the single source of truth for "what were we doing".
+    // An action it rejects is dropped silently, which would turn the fix into
+    // a button that does nothing at all on iOS.
+    const { processOAuthReturn } = await import("../utils/oauthReturn.ts");
+    const { isValidDropboxAction } = await import("../utils/dropboxAuthCore.ts");
+
+    expect(isValidDropboxAction("cat-save")).toBe(true);
+    expect(isValidDropboxAction("cat-restore")).toBe(true);
+    // Non-vacuity: the validator still refuses anything not on the list.
+    expect(isValidDropboxAction("cat-wipe")).toBe(false);
+
+    for (const ac of ["cat-save", "cat-restore"]) {
+      localStorage.setItem("gdrive-pending", ac);
+      localStorage.setItem("gdrive-state", "st");
+      const w: any = {
+        location: { hash: "#access_token=tk&state=st", href: "https://x/", pathname: "/", search: "" },
+        history: { replaceState: vi.fn() },
+        localStorage,
+      };
+      processOAuthReturn(w as Window);
+      expect(w.__PENDING_GDRIVE_ACTION__, `${ac} was dropped by the whitelist`).toBe(ac);
+      expect(w.__PENDING_GDRIVE_TOKEN__).toBe("tk");
+    }
+  });
+
+  // The fetch mock is discriminated BY URL rather than by `mockResolvedValueOnce`
+  // ordering: mounting the hook can fire the launch cloud-check or the silent
+  // refresh, and a `once` queue silently hands those responses to the wrong
+  // caller. That cost a debugging round here.
+  function routeFetch(over: Record<string, any> = {}) {
+    mockFetch.mockImplementation((url: any, init?: any) => {
+      const u = String(url);
+      if (u.indexOf("/upload/drive") >= 0) {
+        uploads.push((init && init.body) || null);
+        return Promise.resolve({ ok: true, json: async () => ({ id: "cat-1" }) });
+      }
+      if (u.indexOf("?alt=media") >= 0) {
+        return Promise.resolve({ ok: true, text: async () => over.csv || "brand_key,blend_name\nX,Y\n" });
+      }
+      if (u.indexOf("/drive/v3/files?") >= 0) {
+        return Promise.resolve({ ok: true, json: async () => ({ files: over.files || [] }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}), text: async () => "" });
+    });
+  }
+  let uploads: any[] = [];
+
+  /** The uploaded file name, out of the Drive multipart body.
+   *  It is a FormData whose `metadata` part is a Blob of JSON — the only
+   *  place the name appears, and the whole question this case asks. */
+  async function uploadedNames(): Promise<string> {
+    const out: string[] = [];
+    for (const b of uploads) {
+      if (b && typeof b.get === "function") {
+        const meta = b.get("metadata");
+        if (meta && typeof meta.text === "function") out.push(await meta.text());
+      } else if (b) out.push(String(b));
+    }
+    return out.join(" ");
+  }
+
+  it("resuming 'cat-save' uploads the CATALOGUE, not a cellar backup", async () => {
+    uploads = [];
+    (window as any).__PENDING_GDRIVE_ACTION__ = "cat-save";
+    (window as any).__PENDING_GDRIVE_TOKEN__ = "tk";
+    routeFetch();
+    renderHook(() => useGdriveSync(props()));
+
+    // NOT asserted: that Settings stays shut. `useGdriveAuth`'s capture opens
+    // it for every action but `reconnect`/`autosave`, and for the catalogue
+    // that is RIGHT — the panel and its `catalogueCloudStatus` line live in
+    // Réglages → Données, so the user must land where the answer appears.
+    // The first version of this case asserted the opposite and was wrong.
+    //
+    // What identifies the defect is WHICH FILE goes up.
+    await vi.waitFor(() => { expect(uploads.length).toBeGreaterThan(0); });
+    // The multipart body carries the file name — which is the whole question:
+    // did the CATALOGUE go up, or a cellar backup?
+    const body = await uploadedNames();
+    expect(body).toContain(GDRIVE_CATALOGUE_PREFIX);
+    expect(body, "a CELLAR backup was uploaded instead").not.toContain(GDRIVE_FILE_PREFIX + "2");
+    expect(catalogueGetCsv, "the catalogue was never read").toHaveBeenCalled();
+  });
+
+  it("resuming 'cat-restore' fetches the CATALOGUE, not the backups panel", async () => {
+    (window as any).__PENDING_GDRIVE_ACTION__ = "cat-restore";
+    (window as any).__PENDING_GDRIVE_TOKEN__ = "tk";
+    routeFetch({ files: [
+      { id: "c1", name: makeCatalogueName("ma-cave.csv"), modifiedTime: "2026-08-20T00:00:00Z" },
+    ] });
+    renderHook(() => useGdriveSync(props()));
+
+    await vi.waitFor(() => { expect(catalogueSave).toHaveBeenCalled(); });
+    // And the cache is dropped, or the app answers from the previous
+    // catalogue for the rest of the session.
+    expect(tobaccoDbInvalidate).toHaveBeenCalled();
+  });
+});

@@ -12,6 +12,7 @@
  * whitelisted actions only, read-before-clear.
  */
 
+import { readFileSync } from "node:fs";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import fc from "fast-check";
@@ -167,14 +168,33 @@ describe("processDropboxReturn", () => {
 
 describe("isValidDropboxAction", () => {
   it("matches the gdrive whitelist values exactly", () => {
-    // added "restore-cnb" in lock-step with
-    // OAUTH_ACTIONS in src/utils/oauthReturn.ts (banner-driven
-    // cloud-newer restore).
-    expect([...DROPBOX_OAUTH_ACTIONS]).toEqual([
-      "save", "restore", "reconnect", "list", "autosave", "restore-cnb",
-    ]);
+    // THIS CASE DID NOT DO WHAT ITS NAME SAYS. It compared against a
+    // hand-written literal and never read the gdrive list at all, so adding
+    // an action on the Drive side alone left it GREEN — the lock-step it is
+    // named for was asserted by nothing, and the literal had to be edited by
+    // hand every time either side moved (which is how it was found: it went
+    // red on a change that made the two lists AGREE).
+    //
+    // It now DERIVES the Drive side. `OAUTH_ACTIONS` is module-private, so it
+    // is parsed out of the source — comments blanked first, because the note
+    // above that array names several actions and a check satisfied by its own
+    // explanation is the trap this repo keeps hitting.
+    const src = readFileSync("src/utils/oauthReturn.ts", "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+      .replace(/\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
+    const m = /var OAUTH_ACTIONS\s*=\s*\[([^\]]*)\]/.exec(src);
+    expect(m, "OAUTH_ACTIONS not found — the parse has rotted").toBeTruthy();
+    const gdrive = [...m![1]!.matchAll(/"([^"]+)"/g)].map((x) => x[1]!);
+    // Non-vacuity: an empty parse would make the comparison trivially true
+    // against an empty Dropbox list.
+    expect(gdrive.length).toBeGreaterThan(5);
+
+    expect([...DROPBOX_OAUTH_ACTIONS], "the two providers' whitelists have drifted")
+      .toEqual(gdrive);
     expect(isValidDropboxAction(null)).toBe(false);
     expect(isValidDropboxAction(42)).toBe(false);
+    // And the list is still fail-CLOSED for anything else.
+    expect(isValidDropboxAction("cat-wipe")).toBe(false);
   });
 });
 
