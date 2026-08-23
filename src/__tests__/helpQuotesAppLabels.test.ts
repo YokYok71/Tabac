@@ -55,6 +55,11 @@ import { LANGUAGES } from "../i18n/languages.ts";
 // "the doc quotes this and got it wrong" from "the doc never mentions it".
 // `doc` names which shipped file the row is about; it defaults to the guide.
 type Doc = "help" | "privacy";
+// The settings-reference row shape. Used as the marker for the rows below and,
+// more importantly, as the scan target for the NEAR-MISS rule at the bottom of
+// this file — the shape is a NAME slot by convention, which is what makes a
+// fuzzy comparison against it low-noise instead of a guessing game.
+const REF_ROW = /<li><strong>[^<]{4,70}<\/strong>\s*(?:—|–)/;
 const QUOTED: Array<{ key: string; marker: RegExp; doc?: Doc }> = [
   // The Home CTA. Its wording diverged in four languages at once.
   { key: "tasting_resume_home", marker: /<strong>▶ [^<]{0,40}<\/strong>/ },
@@ -134,6 +139,19 @@ const QUOTED: Array<{ key: string; marker: RegExp; doc?: Doc }> = [
     // trimmed value — see `dictValue`.
     marker: /(section|sección|secção|sezione|Abschnitt)\s*<em>[^<]{0,40}<\/em>/,
   },
+  // ── The SETTINGS REFERENCE list ────────────────────────────────────────
+  // Five controls the guide lists BY NAME in its settings reference, each of
+  // which had drifted in at least one language and in one language only —
+  // the signature of translation drift rather than a stale guide.
+  //
+  // The marker is the reference row's own shape (`<li><strong>NAME</strong> —
+  // description`), which is a NAME slot by convention: that list exists so a
+  // reader can look a control up.
+  { doc: "help", key: "lbl_watch_low_weight", marker: REF_ROW },
+  { doc: "help", key: "trash_empty_btn", marker: REF_ROW },
+  { doc: "help", key: "lbl_default_grouping", marker: REF_ROW },
+  { doc: "help", key: "lbl_sess_default_weight", marker: REF_ROW },
+  { doc: "help", key: "lbl_date_format", marker: REF_ROW },
 ];
 
 const DOCS: Record<Doc, string> = {
@@ -199,6 +217,67 @@ describe("the shipped docs quote the app's own labels", () => {
       expect(quotedSomewhere, `no language quotes ${key} — the marker has rotted`).toBeGreaterThan(0);
     });
   }
+
+  // ── THE MASKING GAP, closed ────────────────────────────────────────────
+  //
+  // The rule above asks "does the block contain the app's label ANYWHERE", so
+  // a doc that quotes a control correctly in one place and WRONGLY in another
+  // passes. That is not hypothetical: a full sweep of the guide found TWELVE
+  // drifts and this check was green on every one of them, because each block
+  // also carried a correct mention elsewhere.
+  //
+  // SCOPE, and it is what makes the rule usable: only the settings-reference
+  // rows are scanned, and only against the registry's own keys. MEASURED — the
+  // `<li><strong>X</strong> —` shape holds 561 rows across the six languages
+  // and 258 of them (45%) match no dictionary value at all, because the shape
+  // is also used for glossary terms, concept names and step headings. A gate
+  // over ALL of them would need 258 acknowledgements and would rot; over the
+  // ~19 curated keys it reports ZERO false positives.
+  //
+  // A leading emoji is stripped from BOTH sides, for the same reason
+  // `dictValue` strips it: the guide reproduces "📦 Exporter ZIP" for a button
+  // whose label carries the icon, and drops the "🤖" from a section heading.
+  // Without that, this rule reports 12 hits, all of them that difference.
+  const NEAR = 0.85;
+  const bare = (x: string) => x.replace(/^[^\w«(]+/, "").trim();
+  const sim = (a: string, b: string) => {
+    // A CHARACTER-OVERLAP ratio (Sørensen-Dice over the multiset of letters),
+    // NOT the longest-common-subsequence shape difflib uses — and the
+    // difference earned its keep immediately. The Python sweep this rule was
+    // derived from scored the Italian « Peso di sessione predefinito » below
+    // its threshold against « Peso predefinito sessione » because the words
+    // are REORDERED; a character ratio is order-blind and caught it. That was
+    // a real thirteenth drift, found by the gate rather than by the sweep.
+    const [x, y] = [a.toLowerCase(), b.toLowerCase()];
+    if (x === y) return 1;
+    let common = 0;
+    const used = new Array(y.length).fill(false);
+    for (const ch of x) {
+      const i = y.split("").findIndex((c, j) => !used[j] && c === ch);
+      if (i >= 0) { used[i] = true; common++; }
+    }
+    return (2 * common) / (x.length + y.length);
+  };
+
+  it("no settings-reference row is a near-miss of a control the registry names", () => {
+    const wrong: string[] = [];
+    for (const { key, doc } of QUOTED) {
+      if ((doc || "help") !== "help") continue;
+      for (const { code } of LANGUAGES) {
+        const label = bare(dictValue(code, key) || "");
+        if (!label) continue;
+        const blk = block("help", code)!;
+        for (const m of blk.matchAll(/<li><strong>([^<]{4,70})<\/strong>\s*(?:—|–)/g)) {
+          const row = bare(m[1]!);
+          if (row === label) continue;
+          if (sim(row, label) >= NEAR) {
+            wrong.push(`${code}.${key}: the reference row says ${JSON.stringify(row)}, the app says ${JSON.stringify(label)}`);
+          }
+        }
+      }
+    }
+    expect(wrong, "the guide lists a control under a name the app does not use").toEqual([]);
+  });
 
   // The Italian lot status, which was wrong ten times. Asserted as an ABSENCE
   // because the defect was a word, not a missing quotation: the dictionary has

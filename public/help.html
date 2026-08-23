@@ -639,7 +639,7 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
   <li><strong>Grammage par défaut (séances)</strong> — poids proposé à l'ajout d'une séance (défaut : 3).</li>
   <li><strong>Listes groupées par défaut</strong> — affichage initial des listes : <em>Groupé</em> (défaut) ou <em>À plat</em>. Vous pouvez toujours basculer ponctuellement.</li>
   <li><strong>Comptabilité</strong> — sous-section dédiée. <strong>Activée</strong> (défaut) : l'app déduit le grammage du lot, le passe en <em>Terminé</em> à 0, et propose d'ouvrir un lot en cave avant déduction. <strong>Désactivée</strong> : le champ <em>Grammage</em> disparaît du formulaire de séance et de la dégustation, aucune déduction ni passage auto en Terminé, et ces séances n'entrent pas dans les graphes de poids fumé. L'ouverture d'un lot en cave (cave→pot) reste active — c'est un événement physique.</li>
-  <li><strong>Seuil de stock bas</strong> — sous <em>À surveiller</em> : en dessous de ce poids restant (25 g par défaut), un tabac est signalé dans la section « À surveiller » de l'accueil (voir <a href="#fr-inventaire">section 7</a>), sauf s'il est marqué « à ne pas reprendre ». Exprimé dans votre unité de poids.</li>
+  <li><strong>Seuil stock bas</strong> — sous <em>À surveiller</em> : en dessous de ce poids restant (25 g par défaut), un tabac est signalé dans la section « À surveiller » de l'accueil (voir <a href="#fr-inventaire">section 7</a>), sauf s'il est marqué « à ne pas reprendre ». Exprimé dans votre unité de poids.</li>
 </ul>
 <div class="warn"><strong>Les unités et la devise sont des libellés uniquement</strong> — une valeur déjà saisie n'est jamais reconvertie. Voir <a href="#fr-cycle">Par où commencer</a>, où l'avertissement est à sa place : avant la première saisie.</div>
 
@@ -744,7 +744,7 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
   <li><strong>Comptabilité</strong> — Si l'app suit les quantités. Désactivée, le champ <em>Grammage</em> disparaît des séances, plus aucune déduction ni passage auto en Terminé — mais l'ouverture d'un lot en cave reste, c'est un événement physique. <em>Défaut : Activée.</em></li>
   <li><strong>Rappels d'entretien</strong> — La pastille « à entretenir » sur les pipes et la section de l'accueil. Le carnet reste utilisable même désactivés. <em>Défaut : Activés.</em></li>
   <li><strong>Seuil d'entretien</strong> — Le nombre de séances sans nettoyage avant le rappel. Seuls les nettoyages léger et complet remettent le compteur à zéro. <em>Défaut : 5 séances.</em></li>
-  <li><strong>Seuil de stock bas</strong> — Sous ce poids restant, un tabac passe dans « À surveiller » et dans la liste de courses — sauf s'il est marqué « à ne pas reprendre ». Dans votre unité de poids. <em>Défaut : 25 g.</em></li>
+  <li><strong>Seuil stock bas</strong> — Sous ce poids restant, un tabac passe dans « À surveiller » et dans la liste de courses — sauf s'il est marqué « à ne pas reprendre ». Dans votre unité de poids. <em>Défaut : 25 g.</em></li>
   <li><strong>Sections</strong> — Masque Accessoires, Journal ou Statistiques : la section quitte la barre du bas et le tableau de bord. Les données restent. <em>Défaut : toutes visibles.</em></li>
 </ul>
 
@@ -753,7 +753,7 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
 <ul>
   <li><strong>Destination cloud</strong> — Dropbox ou Google Drive. <strong>La garde multi-appareils ne compare qu'à l'intérieur d'une même destination</strong> : choisissez la même sur tous vos appareils. <em>Défaut : Dropbox.</em></li>
   <li><strong>Sauvegarde auto cloud</strong> — Une sauvegarde silencieuse part quelques secondes après chaque modification, et en quittant l'app. Chaque appareil garde son propre fichier. <em>Défaut : Désactivée.</em></li>
-  <li><strong>Chiffrer les sauvegardes</strong> — Chiffre chaque sauvegarde cloud avec une phrase secrète, avant l'envoi. <strong>La phrase n'est jamais stockée et ne se récupère pas.</strong> <em>Défaut : Désactivé.</em></li>
+  <li><strong>Chiffrer les sauvegardes cloud</strong> — Chiffre chaque sauvegarde cloud avec une phrase secrète, avant l'envoi. <strong>La phrase n'est jamais stockée et ne se récupère pas.</strong> <em>Défaut : Désactivé.</em></li>
   <li><strong>Nom de cet appareil</strong> — Rend cet appareil identifiable dans le panneau des sauvegardes et dans le <em>nom</em> des fichiers cloud. Pas dans leur contenu. <em>Défaut : vide.</em></li>
   <li><strong>Catalogue de référence</strong> — Charge, exporte ou retire votre fichier de référence, et le sauvegarde dans le cloud à part. N'ajoute jamais rien à votre cave — voir <a href="#fr-catalogue">section 4</a>. <em>Défaut : aucun.</em></li>
   <li><strong>Assistant IA</strong> — Fournisseur, modèle, clé API, et la <em>source prioritaire</em> : votre catalogue d'abord, ou l'IA d'abord. « Auto » laisse l'app prendre le modèle le moins cher et en changer s'il est retiré. <em>Défaut : Catalogue d'abord ; aucune clé.</em></li>
@@ -1426,7 +1426,7 @@ The two formats have neither the same columns nor the same effect: loading one i
   <li><strong>AI Assistant</strong> — Provider, model, API key, and the <em>Preferred source</em>: your catalogue first, or the AI first. "Auto" lets the app take the cheapest model and change it if that one is retired. <em>Default: Catalogue first; no key.</em></li>
   <li><strong>Exclude API keys from exports and backups</strong> — Keeps your key on this device. Leave it on if you share a file. <em>Default: On.</em></li>
   <li><strong>Duplicates (N)</strong> — Only appears when there are entries to merge — the count is the reason to go and look. <em>Default: hidden.</em></li>
-  <li><strong>Delete all data</strong> — Empties the cellar, the photos, the API keys and the cloud connection of <em>this device</em>. Your backups already in the cloud are untouched. Cannot be undone. <em>Default: —.</em></li>
+  <li><strong>Erase all data</strong> — Empties the cellar, the photos, the API keys and the cloud connection of <em>this device</em>. Your backups already in the cloud are untouched. Cannot be undone. <em>Default: —.</em></li>
 </ul>
 
 <h3>App tab</h3>
@@ -1843,7 +1843,7 @@ El mismo aviso reaparece <em>en el momento en que sirve</em>: si eliges esa pipa
 <h3>Fuente preferida</h3>
 <p>Se define en <em>Ajustes → Datos → Asistente de IA → Fuente preferida</em>:</p>
 <ul>
-  <li><strong>Agente de IA</strong> — consulta primero tu proveedor, con una vuelta silenciosa al catálogo local si hay error.</li>
+  <li><strong>Agente IA</strong> — consulta primero tu proveedor, con una vuelta silenciosa al catálogo local si hay error.</li>
   <li><strong>Catálogo</strong> (por defecto) — instantáneo, sin conexión, sin clave. Elige esta sin clave de API, o para ahorrar tu cuota. Sin catálogo cargado no hay nada que consultar, y la app te lo dice.</li>
 </ul>
 <p>Tras un rellenado desde el catálogo, un botón <strong>"Contrastar con la IA"</strong> pide una segunda opinión y muestra un comparativo de los campos que difieren — luego eliges <em>Aplicar IA</em> o <em>Mantener catálogo</em>.</p>
@@ -2631,7 +2631,7 @@ Die beiden Formate haben weder dieselben Spalten noch dieselbe Wirkung: das eine
   <li><strong>Standard-Sitzungsgewicht</strong> — beim Hinzufügen einer Sitzung vorgeschlagenes Gewicht (Standard: 3).</li>
   <li><strong>Listen standardmäßig gruppiert</strong> — Anfangsanzeige der Listen: <em>Gruppiert</em> (Standard) oder <em>Flach</em>. Du kannst pro Liste immer umschalten.</li>
   <li><strong>Abrechnung</strong> — eigener Unterabschnitt. <strong>An</strong> (Standard): die App zieht das Gewicht von dem Los ab, markiert es bei 0 als <em>Aufgebraucht</em> und bietet an, ein Keller-Los vor dem Abziehen zu öffnen. <strong>Aus</strong>: das Feld <em>Gewicht</em> verschwindet aus dem Sitzungsformular und der Verkostung, kein Abzug oder Auto-Aufbrauchen, und diese Sitzungen fließen nicht in die Diagramme zum gerauchten Gewicht ein. Das Öffnen eines Keller-Loses (Keller→Glas) bleibt aktiv — es ist ein physisches Ereignis.</li>
-  <li><strong>Schwellenwert für niedrigen Bestand</strong> — unter <em>Beobachtungsliste</em>: unter diesem Restgewicht (Standard 25 g) wird ein Tabak im Abschnitt „Beobachtungsliste" der Startseite markiert (siehe <a href="#de-inventory">Abschnitt 7</a>), außer er ist als „nicht nachkaufen" markiert. In deiner Gewichtseinheit angegeben.</li>
+  <li><strong>Schwelle für niedrigen Bestand</strong> — unter <em>Beobachtungsliste</em>: unter diesem Restgewicht (Standard 25 g) wird ein Tabak im Abschnitt „Beobachtungsliste" der Startseite markiert (siehe <a href="#de-inventory">Abschnitt 7</a>), außer er ist als „nicht nachkaufen" markiert. In deiner Gewichtseinheit angegeben.</li>
 </ul>
 <div class="warn"><strong>Einheiten und Währung sind nur Etiketten</strong> — ein bereits eingegebener Wert wird nie umgerechnet. Siehe <a href="#de-cycle">Wo anfangen</a>, wo die Warnung hingehört: vor der ersten Eingabe.</div>
 
@@ -2744,7 +2744,7 @@ Die beiden Formate haben weder dieselben Spalten noch dieselbe Wirkung: das eine
 <ul>
   <li><strong>Cloud-Ziel</strong> — Dropbox oder Google Drive. <strong>Der Multi-Geräte-Schutz vergleicht nur innerhalb ein und desselben Ziels</strong>: Wähle auf all deinen Geräten dasselbe. <em>Standard: Dropbox.</em></li>
   <li><strong>Cloud-Auto-Speichern</strong> — Wenige Sekunden nach jeder Änderung und beim Verlassen der App geht still eine Sicherung hinaus. Jedes Gerät behält seine eigene Datei. <em>Standard: Deaktiviert.</em></li>
-  <li><strong>Sicherungen verschlüsseln</strong> — Verschlüsselt jede Cloud-Sicherung vor dem Hochladen mit einer Passphrase. <strong>Die Passphrase wird nie gespeichert und lässt sich nicht wiederherstellen.</strong> <em>Standard: Deaktiviert.</em></li>
+  <li><strong>Cloud-Sicherungen verschlüsseln</strong> — Verschlüsselt jede Cloud-Sicherung vor dem Hochladen mit einer Passphrase. <strong>Die Passphrase wird nie gespeichert und lässt sich nicht wiederherstellen.</strong> <em>Standard: Deaktiviert.</em></li>
   <li><strong>Name dieses Geräts</strong> — Macht dieses Gerät im Panel der Sicherungen und im <em>Namen</em> der Cloud-Dateien erkennbar. Nicht in deren Inhalt. <em>Standard: leer.</em></li>
   <li><strong>Referenzkatalog</strong> — Lädt, exportiert oder entfernt deine Referenzdatei und sichert sie separat in der Cloud. Fügt deinem Keller nie etwas hinzu — siehe <a href="#de-catalogue">Abschnitt 4</a>. <em>Standard: keiner.</em></li>
   <li><strong>KI-Assistent</strong> — Anbieter, Modell, API-Schlüssel und die <em>bevorzugte Quelle</em>: erst dein Katalog oder erst die KI. „Auto“ lässt die App das günstigste Modell nehmen und wechseln, sobald es eingestellt wird. <em>Standard: Katalog zuerst; kein Schlüssel.</em></li>
@@ -3286,10 +3286,10 @@ I due formati non hanno né le stesse colonne né lo stesso effetto: caricare l'
   <li><strong>Unità di peso (g / oz)</strong> — applicata ovunque (lotti, peso della pipa, diario). Il peso di sessione predefinito viene convertito automaticamente al cambio.</li>
   <li><strong>Unità di lunghezza (mm / in)</strong> — per la lunghezza della pipa.</li>
   <li><strong>Valuta</strong> — € (default), $, £, CHF, JPY. Sostituisce il simbolo in ogni visualizzazione di prezzo.</li>
-  <li><strong>Peso di sessione predefinito</strong> — peso suggerito quando aggiungi una sessione (default: 3).</li>
-  <li><strong>Liste raggruppate di default</strong> — visualizzazione iniziale delle liste: <em>Raggruppate</em> (default) o <em>Piatte</em>. Puoi sempre cambiare per singola lista.</li>
+  <li><strong>Peso predefinito sessione</strong> — peso suggerito quando aggiungi una sessione (default: 3).</li>
+  <li><strong>Liste raggruppate per impostazione predefinita</strong> — visualizzazione iniziale delle liste: <em>Raggruppate</em> (default) o <em>Piatte</em>. Puoi sempre cambiare per singola lista.</li>
   <li><strong>Contabilità</strong> — sottosezione dedicata. <strong>Attiva</strong> (default): l'app scala il peso dal lotto, lo segna come <em>Finito</em> a 0, e propone di aprire un lotto in cantina prima di scalare. <strong>Disattiva</strong>: il campo <em>Peso</em> scompare dal modulo della sessione e dalla degustazione, nessuno scalo o completamento automatico, e queste sessioni non entrano nei grafici del peso fumato. L'apertura di un lotto in cantina (cantina→barattolo) resta attiva — è un evento fisico.</li>
-  <li><strong>Soglia di scorta bassa</strong> — sotto <em>Da tenere d'occhio</em>: sotto questo peso residuo (25 g predefiniti), un tabacco viene segnalato nella sezione «Da tenere d'occhio» della schermata Home (vedi <a href="#it-inventory">sezione 7</a>), tranne se è contrassegnato «da non ricomprare». Espresso nella tua unità di peso.</li>
+  <li><strong>Soglia scorta bassa</strong> — sotto <em>Da tenere d'occhio</em>: sotto questo peso residuo (25 g predefiniti), un tabacco viene segnalato nella sezione «Da tenere d'occhio» della schermata Home (vedi <a href="#it-inventory">sezione 7</a>), tranne se è contrassegnato «da non ricomprare». Espresso nella tua unità di peso.</li>
 </ul>
 <div class="warn"><strong>Unità e valuta sono solo etichette</strong> — un valore già inserito non viene mai riconvertito. Vedi <a href="#it-cycle">Da dove cominciare</a>, dove l'avviso è al posto giusto: prima del primo inserimento.</div>
 
@@ -3365,7 +3365,7 @@ I due formati non hanno né le stesse colonne né lo stesso effetto: caricare l'
 <h3>Eliminazione definitiva</h3>
 <ul>
   <li><strong>×</strong> su una riga — rimuove quell'elemento senza aspettare i 30 giorni. Nessuna conferma: se non sei sicuro, usa invece <em>Ripristina</em>.</li>
-  <li><strong>Svuota il cestino</strong> — pulsante in fondo. Chiede conferma prima di cancellare tutto (l'unica conferma mantenuta, perché l'azione aggira la rete di sicurezza dei 30 giorni).</li>
+  <li><strong>Svuota cestino</strong> — pulsante in fondo. Chiede conferma prima di cancellare tutto (l'unica conferma mantenuta, perché l'azione aggira la rete di sicurezza dei 30 giorni).</li>
 </ul>
 <h3>Casi speciali</h3>
 <ul>
@@ -3943,11 +3943,11 @@ Os dois formatos não têm as mesmas colunas nem o mesmo efeito: carregar um em 
   <li><strong>Tamanho do texto</strong> — Pequeno / Médio (predefinido) / Grande; redimensiona toda a interface de uma só vez.</li>
   <li><strong>Tema</strong> — Latão (predefinido), Azul-aço ou Inglês (verde); muda a cor de destaque e o ambiente geral de toda a aplicação.</li>
   <li><strong>Modo</strong> — Escuro (predefinido) ou Claro (fundo pergaminho); independente do tema de cor escolhido.</li>
-  <li><strong>Formato da data</strong> — FR (15.03.2024) ou EN (Mar 15, 2024). Afeta a apresentação e a exportação CSV.</li>
+  <li><strong>Formato de data</strong> — FR (15.03.2024) ou EN (Mar 15, 2024). Afeta a apresentação e a exportação CSV.</li>
   <li><strong>Unidade de peso (g / oz)</strong> — aplicada em todo o lado (lotes, peso do cachimbo, diário). O peso predefinido da sessão é convertido automaticamente ao mudar.</li>
   <li><strong>Unidade de comprimento (mm / in)</strong> — para o comprimento do cachimbo.</li>
   <li><strong>Moeda</strong> — € (predefinida), $, £, CHF, JPY. Substitui o símbolo em todas as apresentações de preços.</li>
-  <li><strong>Peso predefinido da sessão</strong> — peso sugerido ao adicionar uma sessão (predefinição: 3).</li>
+  <li><strong>Peso predefinido (sessões)</strong> — peso sugerido ao adicionar uma sessão (predefinição: 3).</li>
   <li><strong>Listas agrupadas por predefinição</strong> — apresentação inicial das listas: <em>Agrupadas</em> (predefinição) ou <em>Simples</em>. Pode sempre alternar em cada lista.</li>
   <li><strong>Contabilidade</strong> — subsecção dedicada. <strong>Ativa</strong> (predefinição): a aplicação deduz o peso do lote, marca-o como <em>Terminado</em> a 0 e sugere abrir um lote da adega antes de deduzir. <strong>Inativa</strong>: o campo <em>Peso</em> desaparece do formulário de sessão e da prova, não há dedução nem conclusão automática, e essas sessões não entram nos gráficos de peso fumado. A abertura de um lote da adega (adega→frasco) continua ativa — é um acontecimento físico.</li>
   <li><strong>Limiar de stock baixo</strong> — em <em>Lista de vigilância</em>: abaixo deste peso restante (25 g por predefinição), um tabaco é sinalizado na secção "Lista de vigilância" do ecrã inicial (ver <a href="#pt-inventory">secção 7</a>), a menos que esteja marcado como "não recomprar". Expresso na sua unidade de peso.</li>
@@ -4026,7 +4026,7 @@ Os dois formatos não têm as mesmas colunas nem o mesmo efeito: carregar um em 
 <h3>Eliminação definitiva</h3>
 <ul>
   <li><strong>×</strong> numa linha — remove esse item sem esperar os 30 dias. Sem confirmação: se tiver dúvidas, use <em>Restaurar</em>.</li>
-  <li><strong>Esvaziar reciclagem</strong> — botão no fundo. Pede confirmação antes de apagar tudo (a única confirmação mantida, porque a ação contorna a rede de segurança dos 30 dias).</li>
+  <li><strong>Esvaziar a reciclagem</strong> — botão no fundo. Pede confirmação antes de apagar tudo (a única confirmação mantida, porque a ação contorna a rede de segurança dos 30 dias).</li>
 </ul>
 <h3>Casos especiais</h3>
 <ul>
