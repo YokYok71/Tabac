@@ -1640,10 +1640,46 @@ export function migrateData(d: any): any {
   // id present) re-stamps any missing / zero / duplicate lot id PER TOBACCO,
   // keeping the first occurrence's id + its session links. Replaces the old
   // Date.now()-seeded (non-deterministic) missing-only back-fill.
+  //
+  // THE COUNTER IS SEEDED FROM THE GLOBAL MAX AND THREADED, while the
+  // DUPLICATE TEST STAYS PER TOBACCO — and that split is the whole decision.
+  //
+  // What was actually broken: `dedupeIds` seeds its counter from the array it
+  // is handed, so calling it per tobacco with no shared counter made two
+  // id-less lots under two different tobaccos BOTH become `1`. A freshly
+  // minted id could collide with an id another tobacco already carries, and
+  // `useTrashOps.permanentlyDelete("lot", id)` + `sweepExpiredTrash` both
+  // filter BY LOT ID ACROSS EVERY TOBACCO — so purging one tobacco's trashed
+  // lot hard-deletes another's LIVE lot and clears `lotId` on its sessions.
+  // Threading a globally-seeded counter closes that: a MINTED id clears every
+  // lot id anywhere in the cellar.
+  //
+  // What must NOT be "repaired": an id that two tobaccos ALREADY share.
+  // Flattening every lot into one array and deduping it was tried and is a
+  // data-loss bug of its own — re-stamping an existing, valid lot id ORPHANS
+  // every session referencing it (`session.lotId` is matched by value), and
+  // those sessions are the user's own history. A pre-existing test pinned
+  // exactly this and was right. The balance invariant keys on
+  // `tobaccoId|lotId`, so a cross-tobacco pair is unambiguous where it
+  // matters; the residual is disclosed rather than fixed destructively — the
+  // trash ops can still reach a same-id lot under another tobacco, and the
+  // remedy for that belongs at those call sites, not in a migration that
+  // rewrites ids nobody asked it to touch.
   if (Array.isArray(d.tobaccos)) {
+    var _lotMax = 0;
     for (var _tdi = 0; _tdi < d.tobaccos.length; _tdi++) {
       var _tob = d.tobaccos[_tdi];
-      if (_tob && Array.isArray(_tob.lots)) dedupeIds(_tob.lots);
+      if (!_tob || !Array.isArray(_tob.lots)) continue;
+      for (var _lj = 0; _lj < _tob.lots.length; _lj++) {
+        var _ln = _idNum(_tob.lots[_lj] && _tob.lots[_lj].id);
+        if (_ln !== null && _ln > _lotMax) _lotMax = _ln;
+      }
+    }
+    var _lotNext = _lotMax + 1;
+    for (var _tdk = 0; _tdk < d.tobaccos.length; _tdk++) {
+      var _tob2 = d.tobaccos[_tdk];
+      if (!_tob2 || !Array.isArray(_tob2.lots)) continue;
+      _lotNext = dedupeIds(_tob2.lots, _lotNext);
     }
   }
   // Index Σ(sessions.weight) per lotId so the weightInitial back-fill

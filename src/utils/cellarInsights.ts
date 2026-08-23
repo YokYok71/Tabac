@@ -3,7 +3,7 @@
 // stored data; every value is derived from the live tobaccos/sessions the
 // app already holds. Kept pure + testable, like computeWatchlist.
 
-import { lotAgingStatus, daysSince, parseAgingMax, effectiveAgingMax, lotAge } from "../utils.ts";
+import { lotAgingStatus, daysSince, parseAgingMax, effectiveAgingMax, lotAge, isUntrackedWeight } from "../utils.ts";
 // Route weights through safeNonNeg (Infinity/NaN/negative →
 // 0) like every sibling engine (stats/watchlist/shopping/cost-per-session). The
 // raw `parseFloat(String(x)) || 0` used here let a forged "Infinity" weightG
@@ -167,7 +167,22 @@ export function lotMaturityBucket(
   // jar isn't cellaring, so it gets no maturity band — it carries the separate
   // "ouvert depuis N" signal instead. (Was: any non-finished lot.)
   if (lot.status !== "cellar") return null;
-  if (safeNonNeg(lot.weightG) <= 0) return null;
+  // An UNWEIGHED lot is an ABSENCE of data, not an empty tin — the
+  // distinction `isUntrackedWeight` was created for, after `safeWeight("")
+  // === 0` once made unweighed jars vanish from the session picker.
+  //
+  // This bail read `safeNonNeg(lot.weightG) <= 0`, which treats `""` as zero,
+  // so a lot the user never weighed got NO maturity band while
+  // `lotAgingStatus` — which has no weight test at all — went on calling it
+  // overaged. The fiche then printed "1 lot trop vieux" over lot rows wearing
+  // no badge, and the Home "À fumer rapidement" tile counted lots the list it
+  // opens excluded. The state is ordinary: `addTobacco`'s starter lot is
+  // created with `weightG: ""`, and `parseTobaccoCsv` blanks an unparsable
+  // number.
+  //
+  // An EXPLICIT zero still bails, and must: an empty tin has nothing to
+  // mature. That is the whole width of this exception.
+  if (!isUntrackedWeight(lot.weightG) && safeNonNeg(lot.weightG) <= 0) return null;
   // Upper bands reuse the SAME rule as everywhere else: lotAgingStatus,
   // driven by the tobacco's agingMax + its lot age. No second age formula.
   var st = lotAgingStatus(lot, agingMax);

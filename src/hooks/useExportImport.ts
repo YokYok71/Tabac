@@ -808,6 +808,15 @@ export function useExportImport({
           try { window.alert(t ? t("err_import_failed") : "Échec de l'import du fichier."); } catch (_e3) {}
         }
       };
+      // A FileReader failure is NOT the same as a file that parses badly:
+      // the file moved, the media is unreadable, permission was refused. With
+      // only `onload` wired the button looked dead — nothing on screen, no
+      // state change, no message. `useUserCatalogue.loadCatalogueFile` has
+      // handled this all along, which is what identifies the omission as an
+      // oversight rather than a decision.
+      reader.onerror = function () {
+        try { window.alert(t ? t("err_import_failed") : "Échec de l'import du fichier."); } catch (_e) {}
+      };
       reader.readAsText(file);
     };
     input.click();
@@ -1004,6 +1013,15 @@ export function useExportImport({
         } catch (err) {
           alert(t("alert_invalid_file") + ": " + (err as Error).message);
         }
+      };
+      // A FileReader failure is NOT the same as a file that parses badly:
+      // the file moved, the media is unreadable, permission was refused. With
+      // only `onload` wired the button looked dead — nothing on screen, no
+      // state change, no message. `useUserCatalogue.loadCatalogueFile` has
+      // handled this all along, which is what identifies the omission as an
+      // oversight rather than a decision.
+      reader.onerror = function () {
+        try { window.alert(t ? t("err_import_failed") : "Échec de l'import du fichier."); } catch (_e) {}
       };
       reader.readAsText(file);
     };

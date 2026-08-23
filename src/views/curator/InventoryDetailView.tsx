@@ -543,39 +543,60 @@ export function CuratorInventoryDetailView() {
                 maturity={lotMaturityBucket(lot, eam)}
                 onOpen={() => setLotDetail({ tobacco: tob, lot, idx: realIdx })}
                 onReactivate={() => {
+                  // WHERE DOES IT COME BACK TO? The lot's HISTORY decides,
+                  // not its origin flag — and that is `stepAutoReactivate`'s
+                  // own rule, applied to the manual button.
+                  //
+                  // That comment settles the automatic path: "the target is
+                  // ALWAYS 'jar', INTENTIONALLY … a lot that ever hosted a
+                  // session was necessarily OPENED (you can't smoke from a
+                  // sealed cellar tin)", and it carves the manual button out
+                  // "because it can reactivate a NEVER-smoked lot (a
+                  // mis-marked finish)". The button was missing that
+                  // DISCRIMINATOR: it read `originalStatus` for both cases.
+                  //
+                  // `originalStatus` is "cellar" for essentially every lot the
+                  // app creates, so a tin opened in 2023 and smoked down over
+                  // a hundred grams of sessions came back SEALED — and the
+                  // cellar branch of `applyLifecycleDates` ERASES
+                  // `dateOpened`, the only record of when it was opened.
+                  const wasSmoked = sessionsForLot(data?.sessions || [], lot.id).length > 0;
+                  const target: "jar" | "cellar" =
+                    wasSmoked || lot.originalStatus === "jar" ? "jar" : "cellar";
                   // weightG > 0 → status flip directly;
-                  // weightG === 0 → open the form pre-filled with 50g.
+                  // weightG === 0 → open the form to state what is in the tin.
                   if ((parseFloat(lot.weightG) || 0) > 0) {
-                    // Respect the lot's true origin: a lot stamped
-                    // originalStatus="jar" never moved through cellar,
-                    // so reactivating it to "cellar" would violate
-                    // invariant #5 (status === "cellar" ⇒ originalStatus
-                    // !== "jar") and let auto-repair silently rewrite
-                    // the history. Fall back to "cellar" for legacy
-                    // lots whose origin isn't recorded.
-                    const target: "jar" | "cellar" =
-                      lot.originalStatus === "jar" ? "jar" : "cellar";
                     changeLotStatus && changeLotStatus(tob.id, lot.id, target);
                     return;
                   }
-                  // Audit: derive the target
-                  // from originalStatus — the SAME rule as the weightG>0 branch
-                  // above — NOT from dateOpened. A legacy finished lot that
-                  // migrateData stamped originalStatus="jar" (finished with no
-                  // dateOpened) would otherwise land in status:"cellar" +
-                  // originalStatus:"jar", the impossible state that trips the
-                  // `cellar-not-jar-origin` invariant. When targeting jar,
-                  // default dateOpened so invariant #4 (jar ⇒ dateOpened) holds
-                  // in the prefill too (updateLotInTobacco also fills it on save).
-                  const rTarget: "jar" | "cellar" =
-                    lot.originalStatus === "jar" ? "jar" : "cellar";
+                  // The SAME target as the branch above — one rule, computed
+                  // once. When it is jar, default `dateOpened` so invariant #4
+                  // (jar ⇒ dateOpened) holds in the prefill too
+                  // (`updateLotInTobacco` fills it on save as well).
+                  //
+                  // THE WEIGHT IS LEFT EMPTY, not pre-filled with 50. That
+                  // literal was `BL.weightG` — the same invented stock removed
+                  // from `addTobacco`'s starter lot, which survived in this
+                  // sibling — and it had no relation to this lot. Worse: for a
+                  // lot smoked to zero, Σ(sessions) already equals
+                  // `weightInitial`, so `lot-balance-overflow` fires for ANY
+                  // positive weight; there is no value the user could type
+                  // that would be consistent, and the diagnostic would go
+                  // oxblood permanently with no repair tool.
+                  //
+                  // An empty weight is the app's own UNTRACKED state: the
+                  // balance check skips a non-finite weight, `isUsableLot`
+                  // still offers the lot in a session, and nothing is
+                  // debited. It is also the honest answer — the app does not
+                  // know what is in that tin, and the user is looking at the
+                  // field.
                   const reactivated: any = Object.assign({}, lot, {
-                    status: rTarget,
-                    weightG: "50",
+                    status: target,
+                    weightG: "",
                     dateFinished: "",
                     disposed: false,
                   });
-                  if (rTarget === "jar" && !reactivated.dateOpened) reactivated.dateOpened = today();
+                  if (target === "jar" && !reactivated.dateOpened) reactivated.dateOpened = today();
                   setLotForm({ tobacco: tob, lot: reactivated, idx: realIdx });
                 }}
                 t={t} lang={lang} dateFormat={dateFormat} weightUnit={weightUnit} />

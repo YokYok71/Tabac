@@ -238,7 +238,7 @@ describe("catalogueCloudRestore (the hook)", () => {
         { id: "m1", name: GDRIVE_FILE_PREFIX + "20260811-120000-t1-p0-w0-a0-j0.json", modifiedTime: "2026-08-12T00:00:00Z" },
         { id: "c1", name: NAME, modifiedTime: "2026-08-11T00:00:00Z" },
       ] }) })
-      .mockResolvedValueOnce({ text: async () => "brand_key,blend_name\nA,B\n" });
+      .mockResolvedValueOnce({ ok: true, text: async () => "brand_key,blend_name\nA,B\n" });
     const { result } = renderHook(() => useGdriveSync(props()));
     let ok: any;
     await act(async () => { ok = await result.current.catalogueCloudRestore("tok"); });
@@ -250,7 +250,7 @@ describe("catalogueCloudRestore (the hook)", () => {
   it("goes through catalogueSave — one parse path, one set of warnings", async () => {
     mockFetch
       .mockResolvedValueOnce({ json: async () => ({ files: [{ id: "c1", name: NAME, modifiedTime: "2026-08-11T00:00:00Z" }] }) })
-      .mockResolvedValueOnce({ text: async () => "brand_key,blend_name\nA,B\n" });
+      .mockResolvedValueOnce({ ok: true, text: async () => "brand_key,blend_name\nA,B\n" });
     const { result } = renderHook(() => useGdriveSync(props()));
     await act(async () => { await result.current.catalogueCloudRestore("tok"); });
     expect(catalogueSave).toHaveBeenCalled();
@@ -260,7 +260,7 @@ describe("catalogueCloudRestore (the hook)", () => {
   it("INVALIDATES the lookup cache, or the app answers from the old catalogue", async () => {
     mockFetch
       .mockResolvedValueOnce({ json: async () => ({ files: [{ id: "c1", name: NAME, modifiedTime: "2026-08-11T00:00:00Z" }] }) })
-      .mockResolvedValueOnce({ text: async () => "brand_key,blend_name\nA,B\n" });
+      .mockResolvedValueOnce({ ok: true, text: async () => "brand_key,blend_name\nA,B\n" });
     const { result } = renderHook(() => useGdriveSync(props()));
     await act(async () => { await result.current.catalogueCloudRestore("tok"); });
     expect(tobaccoDbInvalidate).toHaveBeenCalled();
@@ -272,13 +272,34 @@ describe("catalogueCloudRestore (the hook)", () => {
     catalogueSave.mockResolvedValue({ ok: false, reason: "parse" });
     mockFetch
       .mockResolvedValueOnce({ json: async () => ({ files: [{ id: "c1", name: NAME, modifiedTime: "2026-08-11T00:00:00Z" }] }) })
-      .mockResolvedValueOnce({ text: async () => "not a catalogue" });
+      .mockResolvedValueOnce({ ok: true, text: async () => "not a catalogue" });
     const { result } = renderHook(() => useGdriveSync(props()));
     let ok: any;
     await act(async () => { ok = await result.current.catalogueCloudRestore("tok"); });
     expect(ok).toBe(false);
     expect(tobaccoDbInvalidate).not.toHaveBeenCalled();
     expect(result.current.catalogueCloudStatus).toBe("cat_err_parse");
+  });
+
+  it("refuses an HTTP error BODY instead of parsing it as a catalogue", async () => {
+    // A `fetch` that receives a 401/404 RESOLVES — it does not reject — so
+    // without the `resp.ok` check the provider's error page reached
+    // `parseCatalogueCsv`, which found no `brand_key` header and reported
+    // « votre fichier n'est pas un catalogue valide ». The user then went off
+    // to inspect a perfectly good CSV while the real fault was the token.
+    // The three sibling downloads have always guarded; this one did not.
+    mockFetch
+      .mockResolvedValueOnce({ json: async () => ({ files: [{ id: "c1", name: NAME, modifiedTime: "2026-08-11T00:00:00Z" }] }) })
+      .mockResolvedValueOnce({ ok: false, status: 401, text: async () => '{"error":{"code":401}}' });
+    const { result } = renderHook(() => useGdriveSync(props()));
+    let ok: any;
+    await act(async () => { ok = await result.current.catalogueCloudRestore("tok"); });
+    expect(ok).toBe(false);
+    // NOT the parse message — the failure must name the transport.
+    expect(result.current.catalogueCloudStatus).not.toBe("cat_err_parse");
+    expect(catalogueSave, "an error page was written over the catalogue")
+      .not.toHaveBeenCalled();
+    expect(tobaccoDbInvalidate).not.toHaveBeenCalled();
   });
 
   it("reports an empty cloud rather than failing silently", async () => {

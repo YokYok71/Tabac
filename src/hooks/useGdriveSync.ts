@@ -2788,7 +2788,16 @@ export function useGdriveSync({
             }
             setCatCloudStatus(t("st_downloading"));
             return cloud.download(token, newest.id, 180000)
-              .then(function (resp: any) { return resp.text(); })
+              .then(function (resp: any) {
+                // The three sibling downloads all check this; the newest one
+                // did not. A `fetch` that receives a 401/404 RESOLVES, so the
+                // error BODY was handed to `parseCatalogueCsv`, which found no
+                // `brand_key` header and reported `cat_err_parse` — « votre
+                // fichier n'est pas un catalogue valide » — sending the user
+                // off to inspect a perfectly good CSV.
+                if (!resp.ok) throw new Error("HTTP " + resp.status);
+                return resp.text();
+              })
               .then(function (csv: string) {
                 // Through `catalogueSave` deliberately: it re-parses with the
                 // CURRENT parser, refuses a file that yields zero blends
