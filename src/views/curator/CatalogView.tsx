@@ -55,7 +55,15 @@ export function CuratorCatalogView() {
   const [catFilter, setCatFilter] = useState<string>(""); // "" = all
   const [brandFilter, setBrandFilter] = useState<string>(""); // "" = all
   const [grouped, setGrouped] = useState<boolean>(true);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // NULL-PROTOTYPE, keyed by the catalogue's own `brand_key` — see the
+  // `groups` map below for why that key is untrusted. The consequence here is
+  // quieter than a throw and just as unfixable by the user: `collapsed["__proto__"]`
+  // reads as `Object.prototype`, so `!== false` keeps the group collapsed, and
+  // `toggleGroup`'s write goes through the `__proto__` SETTER, which ignores a
+  // non-object — so the group can NEVER be expanded, however many times it is
+  // tapped. `toggleGroup` rebuilds onto `Object.create(null)` for the same
+  // reason (a bare `Object.assign({}, prev)` would hand the prototype back).
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(Object.create(null));
   const [selected, setSelected] = useState<{ key: string; entry: BlendEntry } | null>(null);
   // Brief feedback after an add. Auto-clears after ~2.5 s; the
   // catalog stays open so the user can keep browsing and the freshly-
@@ -185,7 +193,17 @@ export function CuratorCatalogView() {
 
   // Brand groups (when grouped === true)
   const groupedView = useMemo(() => {
-    const groups: Record<string, string[]> = {};
+    // NULL-PROTOTYPE: the key is the catalogue's own `brand_key`, and
+    // `parseCatalogueCsv` keeps an unrecognised value VERBATIM by design — so
+    // a CSV saying `brand_key: __proto__` reaches here. On a plain object
+    // `groups[bk]` then resolves to `Object.prototype`, which is truthy, so
+    // the initialisation is skipped and `.push` is `undefined` → TypeError
+    // during render → the error boundary takes the whole app.
+    //
+    // The catalogue is an EXCHANGEABLE artefact (template, export, cloud
+    // save/restore), so "someone sent me their catalogue" is the intended
+    // workflow, not an exotic one. Locked by `catalogueForgedBrand.test.tsx`.
+    const groups: Record<string, string[]> = Object.create(null);
     for (const k of filteredKeys) {
       const bk = String(k).split("|")[0]!;
       if (!groups[bk]) groups[bk] = [];
@@ -234,7 +252,7 @@ export function CuratorCatalogView() {
 
   function toggleGroup(bk: string) {
     setCollapsed((prev) => {
-      const n = Object.assign({}, prev);
+      const n = Object.assign(Object.create(null), prev);
       if (n[bk] === false) delete n[bk]; else n[bk] = false;
       return n;
     });

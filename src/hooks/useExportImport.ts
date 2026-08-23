@@ -479,11 +479,23 @@ export function useExportImport({
         .map(csvEsc)
         .join(sep),
     );
-    var tobMap: Record<string | number, string> = {};
+    // NULL-PROTOTYPE: the WRITE key is an entity id and the READ key is
+    // `session.tobaccoId` / `session.pipeId`, both of which come straight out
+    // of an imported backup. On a plain object a forged `tobaccoId:
+    // "toString"` makes `map[id]` resolve to `Object.prototype.toString` — a
+    // FUNCTION, and truthy — so `labelOrSnapshot` returns it, TypeScript
+    // cannot see it (the index is `any`), and the CSV cell reads
+    // `function toString() { [native code] }`.
+    //
+    // Worse than the cosmetic damage: that truthy value SHORT-CIRCUITS the
+    // snapshot fallback three lines down, which exists precisely so a session
+    // whose entity is gone still exports an identifiable label. So the export
+    // loses the very information the fallback was added to preserve.
+    var tobMap: Record<string | number, string> = Object.create(null);
     (data.tobaccos || []).forEach(function (tb: any) {
       tobMap[tb.id] = [tb.brand || "", tb.name || ""].filter(Boolean).join(" ");
     });
-    var pipeMap: Record<string | number, string> = {};
+    var pipeMap: Record<string | number, string> = Object.create(null);
     (data.pipes || []).forEach(function (p: any) {
       pipeMap[p.id] = [p.brand || "", p.name || ""].filter(Boolean).join(" ");
     });

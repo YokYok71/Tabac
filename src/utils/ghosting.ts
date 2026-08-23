@@ -49,7 +49,9 @@ export function computePipeGhostingRisk(
   if (!Array.isArray(sessions) || !Array.isArray(tobaccos)) return null;
 
   // Index tobaccoId → canonical category.
-  var catByTob: Record<string, string> = {};
+  // NULL-PROTOTYPE: see the note on `computePipeUsageProfile` below. Both keys
+  // here come from imported data — this one from `tobacco.id`.
+  var catByTob: Record<string, string> = Object.create(null);
   tobaccos.forEach(function (t: any) {
     if (!t || t.id === undefined) return;
     catByTob[String(t.id)] = String(t.category || "");
@@ -59,7 +61,7 @@ export function computePipeGhostingRisk(
   if (!incoming) return null; // selected tobacco has no category to compare
 
   // Count categories smoked in this pipe across the passed session set.
-  var counts: Record<string, number> = {};
+  var counts: Record<string, number> = Object.create(null);
   var total = 0;
   sessions.forEach(function (s: any) {
     if (!s) return;
@@ -117,13 +119,36 @@ export function computePipeUsageProfile(
   if (pipeId === undefined || pipeId === null || pipeId === "") return empty;
   if (!Array.isArray(sessions) || !Array.isArray(tobaccos)) return empty;
 
-  var catByTob: Record<string, string> = {};
+  // NULL-PROTOTYPE, and here it is correctness rather than house style: both
+  // keys are USER DATA. `catByTob` is keyed by `tobacco.id`, `counts` by
+  // `tobacco.category`, and `migrateData` coerces the category to a string
+  // without validating it against CATS — so a JSON backup or a cloud restore
+  // can carry `category: "__proto__"`.
+  //
+  // On a plain object that read returns `Object.prototype`, which is TRUTHY,
+  // so the `|| 0` never fires; the write then goes through the `__proto__`
+  // SETTER, which ignores a non-object, so the key is never stored. `total`
+  // counts the session, `Object.keys(counts)` comes back empty, and
+  // `families[0].count` throws.
+  //
+  // That throw is a BRICK, not a glitch: `CuratorApp` mounts
+  // `CuratorPipesListView` unconditionally and its `pipeFamily` memo sits
+  // above the view's own early return (the hook-order rule), so it fires on
+  // every screen; the row is already saved; and neither `EB` nor
+  // `public/reset.html` clears localStorage, so the app cannot be recovered
+  // from inside itself. `"constructor"` and `"toString"` resolve to functions
+  // and poison the arithmetic instead of throwing.
+  //
+  // `utils.ts` already does this for the same kind of tally, with the same
+  // reasoning written out — this module was the site that sweep missed.
+  // Locked by `ghostingPrototype.test.ts`.
+  var catByTob: Record<string, string> = Object.create(null);
   tobaccos.forEach(function (t: any) {
     if (!t || t.id === undefined) return;
     catByTob[String(t.id)] = String(t.category || "");
   });
 
-  var counts: Record<string, number> = {};
+  var counts: Record<string, number> = Object.create(null);
   var total = 0;
   sessions.forEach(function (s: any) {
     if (!s) return;
