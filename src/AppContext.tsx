@@ -442,6 +442,11 @@ export interface AppCtxType {
    *  Its state is LOCAL to InventoryDetailView (and shadows the store's
    *  `lotForm`, which is never falsy). Cleared on unmount. */
   setLotFormOpen: (open: boolean) => void;
+  /** App's React mirror of `modalStack.hasOpenModal()`, fed by
+   *  `subscribeModalStack`. Read by `pickTopBanner` so none of the five
+   *  `top: 0` banners paints over an open modal — the gate used to list four
+   *  App-level states by name and could not see a view-local one. */
+  stackModalOpen: boolean;
   updateStatus?: any;
   setUpdateStatus: (...args: any[]) => void;
   doUpdate: (...args: any[]) => any;

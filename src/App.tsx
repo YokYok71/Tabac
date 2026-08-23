@@ -47,7 +47,7 @@ import { computeTopTobaccos, computeTopPipes, computeChartStats } from "./utils/
 import { useAppUpdate } from "./hooks/useAppUpdate.ts";
 import { useBackNavigation } from "./hooks/useBackNavigation.ts";
 import { nextStackOnNav, decideBack, pushDrillOrigin, type NavLoc } from "./utils/navHistory.ts";
-import { hasOpenModal, closeTopModal } from "./utils/modalStack.ts";
+import { hasOpenModal, closeTopModal, subscribeModalStack } from "./utils/modalStack.ts";
 import { IS_IOS, IS_IOS_STANDALONE } from "./utils/platform.ts";
 import { appStorage, lsGet, lsSet, lsRemove } from "./utils/appStorage.ts";
 import { makeEncryptionVerifier } from "./utils/cryptoBackup.ts";
@@ -1941,6 +1941,16 @@ function App() {
   // the deferral clause read a value that was permanently truthy and
   // collapsed to "a tobacco fiche is open", which is not a form.
   var _lfo = useState(false), lotFormOpen = _lfo[0], setLotFormOpen = _lfo[1];
+  // App's React mirror of `modalStack.hasOpenModal()`. The five `top: 0`
+  // banners must stand down while ANY modal is open (they sit at z489-492
+  // against the modal's z200, so one covers its header and its 44 px close X,
+  // outside the focus trap) — and `pickTopBanner` could only see four
+  // App-level states listed by name, so every view-local modal was invisible
+  // to it. The registry knows them all; module state does not re-render, hence
+  // the subscription. Mount-once: `subscribeModalStack` reports the current
+  // state on subscribe, so nothing is missed if a modal is already up.
+  var _smo = useState(false), stackModalOpen = _smo[0], setStackModalOpen = _smo[1];
+  useEffect(function () { return subscribeModalStack(setStackModalOpen); }, [setStackModalOpen]);
   function setFormGuard(g: any) { formGuardRef.current = g; }
   var _uc = useState<any>(null),
     unsavedConfirm = _uc[0],
@@ -3612,6 +3622,9 @@ function App() {
     lastCheckOkMs,
     setMaintFormOpen,
     setLotFormOpen,
+    // Read by `pickTopBanner` (utils/bannerStack.ts) so no top banner paints
+    // over an open modal, whichever modal it is.
+    stackModalOpen,
     updateStatus,
     setUpdateStatus,
     doUpdate,

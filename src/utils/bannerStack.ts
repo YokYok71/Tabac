@@ -56,6 +56,27 @@ export interface TopBannerState {
   //
   // Standing down loses nothing: the state persists, so the banner appears the
   // moment the modal closes.
+  //
+  // THE FOUR NAMED STATES BELOW WERE NOT THE WHOLE ANSWER, and listing modals
+  // by name is the same mistake as the pairwise yields above. Every OTHER
+  // modal in the app was invisible to this gate — the lot form, the
+  // maintenance form, the catalogue fiche and its QuickAdd, the comparison,
+  // the shopping list, the encryption prompt, the unsaved-changes confirm,
+  // the countdown dialog, the welcome and notice pop-ups — so a banner
+  // painted straight over it.
+  //
+  // Reachable by the most ordinary route there is: the export reminder
+  // appears on any device 30 days without a backup and MEASURES 110 px at
+  // 390 px, while the modal backdrop pads 8 % (≈ 68 px) from the top — the
+  // panel's first ~42 px, its title and its close X, are under the banner.
+  //
+  // `stackModalOpen` is App's mirror of `modalStack.hasOpenModal()`, kept in
+  // React state by `subscribeModalStack` (module state does not re-render).
+  // It is the SAME registry `goBack` consults, so the two can never disagree
+  // about whether a modal is open. The four named ones STAY: `importModal`
+  // gates a LAZY chunk, so it is set before the modal has mounted and
+  // registered.
+  stackModalOpen?: unknown;
   importModal?: unknown;
   searchOpen?: unknown;
   trashOpen?: unknown;
@@ -64,7 +85,7 @@ export interface TopBannerState {
 
 export function anyModalOpen(s: TopBannerState | null | undefined): boolean {
   if (!s) return false;
-  return !!(s.importModal || s.searchOpen || s.trashOpen || s.lightbox);
+  return !!(s.stackModalOpen || s.importModal || s.searchOpen || s.trashOpen || s.lightbox);
 }
 
 // Most urgent first. The first three are failures the user must see; the
