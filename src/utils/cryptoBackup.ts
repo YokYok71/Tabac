@@ -160,11 +160,12 @@ export function isEncryptedEnvelopeJSON(s: string): boolean {
   }
 }
 
-/** Same predicate on an already-parsed object — saves a re-parse when
- *  the caller already has the parsed payload. */
-export function isEncryptedEnvelopeObject(o: any): boolean {
-  return !!(o && typeof o === "object" && o._encrypted === ENCRYPTION_VERSION);
-}
+// `isEncryptedEnvelopeObject(o)` was REMOVED. It was the same predicate on an
+// already-parsed object, justified as "saves a re-parse when the caller
+// already has the parsed payload" — a caller that never existed: the restore
+// path reaches this module with the downloaded TEXT, which is why the JSON
+// variant above is the one that ships. Deleting it also removes the second
+// copy of the `_encrypted === ENCRYPTION_VERSION` comparison.
 
 // Passphrase VERIFIER. The design stores no passphrase, so a
 // typo at unlock/save time (after a reload cleared the in-memory passphrase)

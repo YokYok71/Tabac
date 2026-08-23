@@ -210,11 +210,10 @@ describe("SettingsModal — restore picker shrink-warning", () => {
       data: localData,
       tkGet: () => null,
       t: trFr,
-      gdriveConfirm: { options, sel: 0, mode: "restore" },
+      gdriveConfirm: { options, sel: 0 },
       setGdriveConfirm: vi.fn(),
       doGdriveConfirm: vi.fn(),
       gdriveLoadOptionPayload: vi.fn(),
-      gdriveDeleteOption: vi.fn(),
     });
   }
 
@@ -318,31 +317,11 @@ describe("SettingsModal — restore picker shrink-warning", () => {
     expect(container.textContent).toMatch(/2 tabacs/);
   });
 
-  it("is hidden in delete mode", () => {
-    const { container } = renderWithCtx(<CuratorSettingsModal />, {
-      importModal: true,
-      modalOpenTs: { current: 0 },
-      data: {
-        tobaccos: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }],
-        pipes: [], wishlist: [], accessories: [], sessions: [],
-      },
-      tkGet: () => null,
-      gdriveConfirm: {
-        options: [{
-          id: "f1", ds: "2026-05-17",
-          name: "cave-tabac-20260517-120000-t3-p0-w0-a0-j0.json",
-          saveType: "manual",
-          counts: { tobaccos: 3, pipes: 0, wishlist: 0, accessories: 0, sessions: 0 },
-        }],
-        sel: 0,
-        mode: "delete",
-      },
-      setGdriveConfirm: vi.fn(),
-      doGdriveConfirm: vi.fn(),
-      gdriveDeleteOption: vi.fn(),
-    });
-    expect(container.textContent).not.toMatch(/moins de données|fewer entries/);
-  });
+  // REMOVED with the picker's delete mode. It asserted the shrink warning
+  // stands down under `mode: "delete"` — a mode nothing could enter, since its
+  // only producer (`gdriveManageBackups`) had lost its entry point when
+  // « Voir mes sauvegardes » merged into the cloud panel. The picker only
+  // restores now, so the warning has no state to stand down for.
 });
 
 // ── Install app CTA — Android beforeinstallprompt parity ─────────

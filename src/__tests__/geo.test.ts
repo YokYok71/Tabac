@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { LANGUAGES } from "../i18n/languages.ts";
 import {
   isValidCoords, formatCoords, osmEmbedUrl, osmLinkUrl,
-  formatPlaceName, parsePlace, joinPlaceParts, hasPlaceParts,
+  parsePlace, joinPlaceParts, hasPlaceParts,
   nominatimReverseUrl, reverseGeocode,
   iso2ToFlag, countryNameToFlag, countryNameToIso2, iso2ToCountryName,
 } from "../utils/geo";
@@ -80,45 +80,57 @@ describe("osmLinkUrl", () => {
 
 // ── Reverse geocoding ─────────────────────────────────────────────
 
-describe("formatPlaceName", () => {
+// The wrapper these cases used to call, `formatPlaceName`, was DELETED — no
+// production caller. The assertions were KEPT rather than deleted with it,
+// because the composition they describe is exactly what the app does: the two
+// session views render `joinPlaceParts(locationName, locationCity,
+// locationCountry)` over parts that `parsePlace` produced at capture time. The
+// composition simply crosses a save/load boundary, so a local helper is the
+// honest way to exercise it end to end without resurrecting a dead export.
+const placeLabel = (j: any) => {
+  const p = parsePlace(j);
+  return joinPlaceParts(p.name, p.city, p.country);
+};
+
+describe("parsePlace → joinPlaceParts (the label the journal renders)", () => {
   it("prefers a named POI and appends commune + country", () => {
-    expect(formatPlaceName({ name: "Café de Flore", address: { road: "Bd Saint-Germain", city: "Paris", country: "France" } }))
+    expect(placeLabel({ name: "Café de Flore", address: { road: "Bd Saint-Germain", city: "Paris", country: "France" } }))
       .toBe("Café de Flore, Paris, France");
   });
 
   it("includes commune and country even without a POI/road (city centre)", () => {
-    expect(formatPlaceName({ address: { city: "Lyon", country: "France" } }))
+    expect(placeLabel({ address: { city: "Lyon", country: "France" } }))
       .toBe("Lyon, France");
   });
 
   it("falls back to road + commune + country when no POI name", () => {
-    expect(formatPlaceName({ address: { road: "Baker Street", city: "London", country: "United Kingdom" } }))
+    expect(placeLabel({ address: { road: "Baker Street", city: "London", country: "United Kingdom" } }))
       .toBe("Baker Street, London, United Kingdom");
   });
 
   it("omits missing parts (no country present)", () => {
-    expect(formatPlaceName({ address: { road: "Baker Street", city: "London" } }))
+    expect(placeLabel({ address: { road: "Baker Street", city: "London" } }))
       .toBe("Baker Street, London");
   });
 
   it("uses an address POI type (amenity/shop) when name is absent", () => {
-    expect(formatPlaceName({ address: { amenity: "Le Procope", city: "Paris" } }))
+    expect(placeLabel({ address: { amenity: "Le Procope", city: "Paris" } }))
       .toBe("Le Procope, Paris");
   });
 
   it("does not duplicate when POI equals city", () => {
-    expect(formatPlaceName({ name: "Paris", address: { city: "Paris" } })).toBe("Paris");
+    expect(placeLabel({ name: "Paris", address: { city: "Paris" } })).toBe("Paris");
   });
 
   it("salvages spot/city/country from display_name when address is empty", () => {
-    expect(formatPlaceName({ display_name: "12, Rue X, Quartier Y, Ville Z, 75000, France" }))
+    expect(placeLabel({ display_name: "12, Rue X, Quartier Y, Ville Z, 75000, France" }))
       .toBe("12, Rue X, France");
   });
 
   it("returns '' for empty / non-object input", () => {
-    expect(formatPlaceName(null)).toBe("");
-    expect(formatPlaceName({})).toBe("");
-    expect(formatPlaceName("nope")).toBe("");
+    expect(placeLabel(null)).toBe("");
+    expect(placeLabel({})).toBe("");
+    expect(placeLabel("nope")).toBe("");
   });
 });
 

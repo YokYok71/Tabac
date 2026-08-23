@@ -23,12 +23,16 @@ const blank = (s: string) =>
 describe("the cloud panel and the restore picker never show together", () => {
   it("both SyncDiagView renders are gated on !gdriveConfirm", () => {
     // The merge dropped the guard the old BackupsListPanel carried, while the
-    // comment fifty lines above went on promising it. Both panels list the
-    // SAME files with their own delete button, and the two delete actions
-    // update DIFFERENT state — `gdriveDeleteOption` touches only
-    // `gdriveConfirm`, `gdriveDeleteBackupById` only `syncDiag` — so a row
-    // removed from one survives in the other, and its bin then 404s into a
-    // swallowing `.catch`.
+    // comment fifty lines above went on promising it.
+    //
+    // The REASON first written here was wrong, and is corrected rather than
+    // deleted: it said both panels carried a delete button over the same
+    // files, so a row binned in one survived in the other. The picker's bin
+    // only ever rendered in a "delete mode" nothing could enter, and that
+    // branch has since been removed. What the guard is really for still
+    // holds — `gdriveConfirm` IS the restore picker, whose primary action
+    // replaces the whole cellar, so a second list of the same files stacked
+    // under it invites a tap on the wrong one.
     const src = blank(read("src/views/curator/SettingsModal.tsx"));
     const renders = src.match(/<SyncDiagView\b/g) || [];
     expect(renders.length, "expected the two source-scoped renders").toBe(2);

@@ -324,7 +324,6 @@ export interface AppCtxType {
   doGdriveConfirm: (...args: any[]) => any;
   gdriveSave: (...args: any[]) => any;
   gdriveRestore: (...args: any[]) => any;
-  gdriveDeleteOption: (...args: any[]) => any;
   autoSaveDrive?: boolean;
   setAutoSaveDrive: (...args: any[]) => void;
   lastAutoSaveTs?: number | null;

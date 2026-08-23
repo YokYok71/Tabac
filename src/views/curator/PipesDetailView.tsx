@@ -18,7 +18,7 @@ import { Ico } from "../../components/curator/icons.tsx";
 import { CuratorTrashIndicator } from "../../components/curator/TrashIndicator.tsx";
 import { PipeRestChip } from "./PipesListView.tsx";
 import { pipeRestDays } from "../../utils/rotation.ts";
-import { pipeSessionsSinceMaint, PIPE_MAINT_SESSIONS_THRESHOLD } from "../../utils/pipeMaint.ts";
+import { pipeSessionsSinceMaint, isPipeMaintenanceDue, PIPE_MAINT_SESSIONS_THRESHOLD } from "../../utils/pipeMaint.ts";
 import {
   CATS_EN, SHAPES_EN, BENDS_EN, BOWL_MATS_EN, STEM_MATS_EN, FINISHES_EN, FILTERS_EN,
 } from "../../constants.ts";
@@ -91,9 +91,32 @@ export function CuratorPipesDetailView() {
   const lastMaintDays = maintLog[0]?.date ? daysSince(maintLog[0].date) : null;
   // Usage-based maintenance reminder — sessions smoked since the
   // last cleaning. Due (warn) once it crosses the threshold.
+  //
+  // The DUE decision goes through `isPipeMaintenanceDue`, which is the rule the
+  // Home section and the pipe-card chips already read; this view carried its
+  // own copy (`sessionsSince >= threshold`), so the helper had no production
+  // consumer at all and read as dead code. Two implementations of one rule is
+  // what this repo keeps paying for — and the count itself was unified one
+  // release earlier for exactly that reason, leaving this last comparison
+  // behind.
+  //
+  // `maintInfo` stays: the Notice below states HOW MANY sessions, which a
+  // boolean cannot answer. That does mean one extra pass over the sessions on
+  // this screen, and the cost is stated rather than waved past — MEASURED on
+  // one machine, the pass is 1.96 ms at 5000 sessions and 0.4 ms at 1000, so
+  // this fiche goes from one pass to two. Accepted because it is ONE screen
+  // showing ONE pipe: the same shape inside the collection loop cost 62.7 ms
+  // (30 pipes × 5000) and recomputed on every data write, which is why that
+  // one takes a precomputed index and this one does not.
+  //
+  // `active` is kept AHEAD of the call rather than delegated to the helper's
+  // own status guard: the helper excludes `finished`, this view requires
+  // `active`, and those differ for any third status value. Short-circuiting
+  // also skips the extra pass entirely on a retired pipe.
   const maintInfo = pipeSessionsSinceMaint(p, data?.sessions, today());
   const maintThreshold = (typeof maintReminderThreshold === "number" && maintReminderThreshold >= 1) ? maintReminderThreshold : PIPE_MAINT_SESSIONS_THRESHOLD;
-  const maintDue = maintRemindersEnabled !== false && active && maintInfo.sessionsSince >= maintThreshold;
+  const maintDue = maintRemindersEnabled !== false && active
+    && isPipeMaintenanceDue(p, data?.sessions, maintThreshold, today());
   // Top tabacs smoked with this pipe.
   const topTobaccos = topPairings(
     data?.sessions, "pipeId", p.id, "tobaccoId",

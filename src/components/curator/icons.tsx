@@ -168,16 +168,8 @@ export function Orn({ color = C.brass, size = 8 }: { color?: string; size?: numb
   );
 }
 
-function Rule({ color = C.rule, length = 24 }: { color?: string; length?: number }) {
-  return <span style={{ display: "inline-block", width: length, height: 1, background: color }} />;
-}
-
-export function OrnRule({ color = C.rule, ornColor = C.brass }: { color?: string; ornColor?: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "6px 0" }}>
-      <Rule color={color} length={40} />
-      <Orn color={ornColor} />
-      <Rule color={color} length={40} />
-    </div>
-  );
-}
+// `OrnRule` (a rule–diamond–rule divider) and its private `Rule` were REMOVED:
+// no view ever rendered either. They read as live because their own unit test
+// imported them — knip counts a test file as a consumer, which is the same
+// blind spot that kept `tobaccoHasTag` and `findParityGaps` alive. `Orn` above
+// IS used and stays.

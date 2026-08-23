@@ -4,11 +4,11 @@
 //   - Every IcoName resolves to a valid SVG (no missing key in PATHS map)
 //   - <svg> wrapper has the correct viewBox, stroke, stroke-width attrs
 //   - sw / size / color / fill props propagate
-//   - Orn and OrnRule decoratives render a minimal SVG
+//   - Orn decorative renders a minimal SVG
 
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
-import { Ico, Orn, OrnRule } from "../../components/curator/icons";
+import { Ico, Orn } from "../../components/curator/icons";
 
 // Mirror the union type — must stay in sync with the IcoName definition.
 const ALL_NAMES = [
@@ -112,7 +112,7 @@ describe("Ico — specific icons", () => {
   });
 });
 
-describe("Orn / OrnRule decoratives", () => {
+describe("Orn decorative", () => {
   it("Orn renders a 10x10 diamond SVG with the given color", () => {
     const { container } = render(<Orn color="#abcdef" />);
     const svg = container.querySelector("svg");
@@ -128,9 +128,7 @@ describe("Orn / OrnRule decoratives", () => {
     expect(svg?.getAttribute("width")).toBe("12");
   });
 
-  it("OrnRule renders two rules + one Orn between them", () => {
-    const { container } = render(<OrnRule />);
-    expect(container.querySelectorAll("span").length).toBe(2);
-    expect(container.querySelectorAll("svg").length).toBe(1);
-  });
+  // REMOVED with the component: `OrnRule` had no view rendering it, and this
+  // case was its only consumer — which is precisely what made it look alive to
+  // knip. A test is not a use.
 });

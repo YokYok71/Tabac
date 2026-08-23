@@ -1143,202 +1143,20 @@ describe("gdriveLoadOptionPayload — wedge guard", () => {
   });
 });
 
-// ── F. gdriveManageBackups ────────────────────────────────────────
-
-describe("gdriveManageBackups — listing in delete mode", () => {
-  it("calls the same Drive list API as gdriveRestore", async () => {
-    mockFetch.mockResolvedValueOnce({
-      json: () => Promise.resolve({ files: [
-        { id: "f1", name: "cave-tabac-20260517-120000.json", modifiedTime: "2026-05-17T12:00:00Z" },
-      ] }),
-    });
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    act(() => { result.current.gdriveManageBackups("fake-token"); });
-    await waitFor(() => expect(result.current.gdriveConfirm).not.toBeNull());
-    expect(mockFetch.mock.calls[0]![0]).toContain("googleapis.com/drive/v3/files");
-  });
-
-  it("sets gdriveConfirm.mode to 'delete'", async () => {
-    mockFetch.mockResolvedValueOnce({
-      json: () => Promise.resolve({ files: [
-        { id: "f1", name: "cave-tabac-20260517-120000.json", modifiedTime: "2026-05-17T12:00:00Z" },
-      ] }),
-    });
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    act(() => { result.current.gdriveManageBackups("fake-token"); });
-    await waitFor(() => expect(result.current.gdriveConfirm).not.toBeNull());
-    expect((result.current.gdriveConfirm as any).mode).toBe("delete");
-  });
-
-  it("gdriveRestore leaves mode as 'restore'", async () => {
-    mockFetch.mockResolvedValueOnce({
-      json: () => Promise.resolve({ files: [
-        { id: "f1", name: "cave-tabac-20260517-120000.json", modifiedTime: "2026-05-17T12:00:00Z" },
-      ] }),
-    });
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    act(() => { result.current.gdriveRestore("fake-token"); });
-    await waitFor(() => expect(result.current.gdriveConfirm).not.toBeNull());
-    expect((result.current.gdriveConfirm as any).mode).toBe("restore");
-  });
-});
-
-// ── G. gdriveDeleteOption ──────────────────────────────────────────
-
-describe("gdriveDeleteOption — per-row backup deletion from the picker", () => {
-  function seedPicker(result: any, options: any[], extra: any = {}) {
-    act(() => {
-      result.current.setGdriveConfirm({ options, sel: 0, mode: "delete", ...extra });
-    });
-  }
-
-  function authenticate(result: any) {
-    // gdriveDeleteOption reads driveTokenRef.current first, then falls back
-    // to a fresh gdrive-tk in storage. Trigger a listing call so the ref
-    // gets populated, and seed the storage value for completeness.
-    localStorage.setItem(
-      "gdrive-tk",
-      JSON.stringify({ t: "tk-xyz", x: Date.now() + 3600000 }),
-    );
-    mockFetch.mockResolvedValueOnce({
-      json: () => Promise.resolve({ files: [] }),
-    });
-    act(() => { result.current.gdriveRestore("tk-xyz"); });
-    return waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
-  }
-
-  it("calls Drive API DELETE on the option's file id", async () => {
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    await authenticate(result);
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
-    seedPicker(result, [
-      { id: "file-a", ds: "2026-05-17", name: "cave-tabac-20260517-120000.json", saveType: "manual" },
-      { id: "file-b", ds: "2026-05-16", name: "cave-tabac-20260516-120000.json", saveType: "manual" },
-    ]);
-    act(() => { result.current.gdriveDeleteOption(0); });
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
-    const [url, opts] = mockFetch.mock.calls[0]!;
-    expect(url).toContain("/files/file-a");
-    expect(opts.method).toBe("DELETE");
-    expect(opts.headers.Authorization).toContain("Bearer ");
-  });
-
-  it("removes the deleted option from gdriveConfirm.options", async () => {
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    await authenticate(result);
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
-    seedPicker(result, [
-      { id: "file-a", ds: "a", name: "cave-tabac-1.json", saveType: "manual" },
-      { id: "file-b", ds: "b", name: "cave-tabac-2.json", saveType: "manual" },
-    ]);
-    act(() => { result.current.gdriveDeleteOption(0); });
-    await waitFor(() => {
-      const opts = (result.current.gdriveConfirm as any)?.options;
-      expect(opts).toHaveLength(1);
-      expect(opts[0].id).toBe("file-b");
-    });
-  });
-
-  it("closes the picker (sets gdriveConfirm = null) when last option is deleted", async () => {
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    await authenticate(result);
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
-    seedPicker(result, [
-      { id: "only", ds: "x", name: "cave-tabac-x.json", saveType: "manual" },
-    ]);
-    act(() => { result.current.gdriveDeleteOption(0); });
-    await waitFor(() => expect(result.current.gdriveConfirm).toBeNull());
-  });
-
-  it("clears gdrive-fid in localStorage when the deleted file id matches", async () => {
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    await authenticate(result);
-    localStorage.setItem("gdrive-fid", "file-a");
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
-    seedPicker(result, [
-      { id: "file-a", ds: "a", name: "cave-tabac-1.json", saveType: "manual" },
-      { id: "file-b", ds: "b", name: "cave-tabac-2.json", saveType: "manual" },
-    ]);
-    act(() => { result.current.gdriveDeleteOption(0); });
-    await waitFor(() => expect(localStorage.getItem("gdrive-fid")).toBeNull());
-  });
-
-  it("clears gdrive-auto-fid when the deleted file id matches", async () => {
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    await authenticate(result);
-    localStorage.setItem("gdrive-auto-fid", "file-auto");
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
-    seedPicker(result, [
-      { id: "file-auto", ds: "a", name: "cave-tabac-auto-20260517-120000.json", saveType: "auto" },
-      { id: "file-other", ds: "b", name: "cave-tabac-20260517-120000.json", saveType: "manual" },
-    ]);
-    act(() => { result.current.gdriveDeleteOption(0); });
-    await waitFor(() => expect(localStorage.getItem("gdrive-auto-fid")).toBeNull());
-  });
-
-  it("leaves unrelated fid keys alone when deleting a different file", async () => {
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    await authenticate(result);
-    localStorage.setItem("gdrive-fid", "file-keep");
-    localStorage.setItem("gdrive-auto-fid", "file-auto-keep");
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
-    seedPicker(result, [
-      { id: "file-target", ds: "a", name: "cave-tabac-1.json", saveType: "manual" },
-    ]);
-    act(() => { result.current.gdriveDeleteOption(0); });
-    await waitFor(() => expect(result.current.gdriveConfirm).toBeNull());
-    expect(localStorage.getItem("gdrive-fid")).toBe("file-keep");
-    expect(localStorage.getItem("gdrive-auto-fid")).toBe("file-auto-keep");
-  });
-
-  it("noops if the option index is out of bounds", async () => {
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    await authenticate(result);
-    mockFetch.mockReset();
-    seedPicker(result, [
-      { id: "only", ds: "x", name: "cave-tabac-x.json", saveType: "manual" },
-    ]);
-    act(() => { result.current.gdriveDeleteOption(99); });
-    expect(mockFetch).not.toHaveBeenCalled();
-    expect((result.current.gdriveConfirm as any).options).toHaveLength(1);
-  });
-
-  it("restores the row from _deleting state on DELETE failure", async () => {
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    await authenticate(result);
-    mockFetch.mockReset();
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
-    seedPicker(result, [
-      { id: "file-a", ds: "a", name: "cave-tabac-1.json", saveType: "manual" },
-      { id: "file-b", ds: "b", name: "cave-tabac-2.json", saveType: "manual" },
-    ]);
-    act(() => { result.current.gdriveDeleteOption(0); });
-    await waitFor(() => {
-      const opts = (result.current.gdriveConfirm as any)?.options;
-      expect(opts).toHaveLength(2);
-      expect(opts[0]._deleting).toBe(false);
-    });
-  });
-
-  it("sets an error status when no auth token is available", async () => {
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    // Do NOT authenticate — no token in storage or in the ref.
-    mockFetch.mockReset();
-    seedPicker(result, [
-      { id: "file-a", ds: "a", name: "cave-tabac-1.json", saveType: "manual" },
-    ]);
-    act(() => { result.current.gdriveDeleteOption(0); });
-    expect(mockFetch).not.toHaveBeenCalled();
-    // cloud-status strings are localized — the mock `t` echoes keys.
-    expect(result.current.gdriveStatus).toMatch(/err_prefix/);
-  });
-});
+// ── F + G. REMOVED with the picker's DELETE MODE ──────────────────
+//
+// `gdriveManageBackups` opened this same picker with `mode: "delete"`, and
+// `gdriveDeleteOption` was the per-row bin that only rendered inside that
+// mode. Neither had a production caller: the mode lost its entry point when
+// « Voir mes sauvegardes » merged into the cloud panel, and the OAuth "list"
+// return branch resolves to `runSyncDiagnostic` on both providers. These ~13
+// cases WERE the only consumers — which is exactly what made both functions
+// look alive to knip, a test file counting as a use.
+//
+// What they guarded is not lost: the per-file delete users actually have is
+// `gdriveDeleteBackupById`, covered by its own block, including the two rules
+// this pair carried (clear a cached fid pointing at the deleted file, and
+// check `r.ok` before the optimistic row removal).
 
 // ── OAuth callback dispatcher — keep user in place on "reconnect" ────────────
 // An earlier release fix: when the iOS standalone redirect lands back in the app with
@@ -1726,7 +1544,7 @@ describe("post-picker token routing under Dropbox", () => {
     act(() => {
       result.current.setGdriveConfirm({
         options: [{ id: "id:f1", name: "cave-tabac-x.json", d: null, ds: "", saveType: "manual" }],
-        sel: 0, mode: "restore",
+        sel: 0,
       });
     });
     await act(async () => { result.current.doGdriveConfirm(); });
@@ -1744,7 +1562,13 @@ describe("post-picker token routing under Dropbox", () => {
     await waitFor(() => expect(stageImport).toHaveBeenCalled());
   });
 
-  it("gdriveDeleteOption deletes on Dropbox with the Dropbox token", async () => {
+  // REPOINTED, not deleted. This asserted that a backup DELETE reaches the
+  // Dropbox host with the DROPBOX token — a real guarantee about provider
+  // routing — but it drove `gdriveDeleteOption`, the picker's per-row bin,
+  // which was removed with the delete mode nothing could enter. The delete
+  // users actually have is `gdriveDeleteBackupById`, in the merged cloud
+  // panel, so the same property is asserted on the live path.
+  it("deleting a backup uses the Dropbox token on Dropbox", async () => {
     seedBothTokens();
     const calls: Array<{ url: string; init: any }> = [];
     globalThis.fetch = vi.fn().mockImplementation((url: any, init: any) => {
@@ -1757,18 +1581,18 @@ describe("post-picker token routing under Dropbox", () => {
     }) as any;
     const props = makeProps({ cloudProviderId: "dropbox" });
     const { result } = renderHook(() => useGdriveSync(props as any));
-    act(() => {
-      result.current.setGdriveConfirm({
-        options: [{ id: "id:f1", name: "cave-tabac-x.json", d: null, ds: "", saveType: "manual" }],
-        sel: 0, mode: "delete",
-      });
-    });
-    await act(async () => { result.current.gdriveDeleteOption(0); });
+    await act(async () => { await result.current.gdriveDeleteBackupById("id:f1"); });
     await waitFor(() => {
       const del = calls.find(c => c.url === "https://api.dropboxapi.com/2/files/delete_v2");
       expect(del).toBeTruthy();
       expect(del!.init.headers.Authorization).toBe("Bearer dbx-tok");
     });
+    // The Google token must never reach a Dropbox host.
+    for (const c of calls) {
+      if (c.url.includes("dropboxapi.com")) {
+        expect(c.init.headers.Authorization).not.toContain("GOOGLE-TOKEN");
+      }
+    }
   });
 });
 

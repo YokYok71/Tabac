@@ -479,7 +479,9 @@ export function useGdriveSync({
   useEffect(function () {
     return function () { if (catClearRef.current) clearTimeout(catClearRef.current); };
   }, []);
-  var _gdc = useState<{ options: any[]; sel: number; mode?: "restore" | "delete" } | null>(null),
+  // `mode?: "restore" | "delete"` was dropped with `gdriveManageBackups` —
+  // this picker only ever restores now.
+  var _gdc = useState<{ options: any[]; sel: number } | null>(null),
     gdriveConfirm = _gdc[0],
     setGdriveConfirm = _gdc[1];
   var _asd = useState(localStorage.getItem("cave-autosave") === "1"),
@@ -660,9 +662,10 @@ export function useGdriveSync({
     var timer = setTimeout(function () {
       // BEING AUTHENTICATED IS ENGAGEMENT.
       //
-      // This gate used to read only `cave-autosave` and the two fid keys — and
-      // those fids are written ONLY by the save paths (gdriveSave /
-      // gdriveSaveQuiet / gdriveManageBackups). A restore writes none of them.
+      // This gate used to read only `cave-autosave` and the two fid keys, and
+      // the paths that write those fids are the SAVES (gdriveSave /
+      // gdriveSaveQuiet) plus the backup LISTING — never a restore that
+      // reaches this device by any other route.
       //
       // So a device you set up by RESTORING from the cloud, and on which you
       // never turned auto-save on, was judged "not engaged" and the
@@ -1834,16 +1837,26 @@ export function useGdriveSync({
       });
   }
 
+  // `gdriveManageBackups` — the sibling that opened this same picker in a
+  // "delete" mode — was REMOVED, and with it the whole `mode` parameter.
+  //
+  // It lost its entry point when « Voir mes sauvegardes » and the multi-device
+  // diagnostic were merged into ONE panel: the merged panel has its own
+  // per-row bin (`gdriveDeleteBackupById`), so nothing called this any more.
+  // Nothing in the hook called it either, and the OAuth `"list"` return branch
+  // resolves to `runSyncDiagnostic` on BOTH providers — so `mode: "delete"`
+  // had exactly one producer, that producer had zero callers, and every
+  // `isDeleteMode` branch in the picker was unreachable. `gdriveDeleteOption`,
+  // reachable only from inside those branches, went with it.
+  //
+  // It read as live because its own unit test called it, the same blind spot
+  // that kept `tobaccoHasTag` and `OrnRule` alive: knip counts a test file as
+  // a consumer.
   function gdriveRestore(preToken?: any, _retried?: any) {
-    _gdriveListBackups("restore", preToken, _retried);
-  }
-
-  function gdriveManageBackups(preToken?: any, _retried?: any) {
-    _gdriveListBackups("delete", preToken, _retried);
+    _gdriveListBackups(preToken, _retried);
   }
 
   function _gdriveListBackups(
-    mode: "restore" | "delete",
     preToken?: any,
     _retried?: any,
   ) {
@@ -1922,12 +1935,12 @@ export function useGdriveSync({
             if (_autoOpt) lsSet(AUTO_FID_KEY, _autoOpt.id);
             if (_manOpt) lsSet(FID_KEY, _manOpt.id);
             setGdriveStatus(null);
-            setGdriveConfirm({ options: options, sel: 0, mode: mode });
+            setGdriveConfirm({ options: options, sel: 0 });
           });
       })
       .catch(function (e) {
         if (e && e.__retry__) {
-          _gdriveListBackups(mode, null, true);
+          _gdriveListBackups(null, true);
           return;
         }
         setGdriveStatus(
@@ -2508,60 +2521,14 @@ export function useGdriveSync({
       });
   }
 
-  // Delete one backup from the picker. Removes the entry from gdriveConfirm
-  // immediately on success and clears any cached fid that referenced it. If
-  // the picker becomes empty afterwards, closes it.
-  function gdriveDeleteOption(idx: number) {
-    var cur = gdriveConfirm && gdriveConfirm.options && gdriveConfirm.options[idx];
-    if (!cur || !cur.id) return;
-    var tk: string | null = getCachedCloudToken();
-    if (!tk) {
-      setGdriveStatus(t("err_prefix") + ": " + t("err_not_authenticated"));
-      scheduleStatusClear(4000);
-      return;
-    }
-    var fileId = cur.id;
-    // Mark the row as deleting so the UI can disable buttons & show feedback.
-    setGdriveConfirm(function (prev: any) {
-      if (!prev) return prev;
-      var next = Object.assign({}, prev);
-      next.options = prev.options.slice();
-      next.options[idx] = Object.assign({}, prev.options[idx], { _deleting: true });
-      return next;
-    });
-    cloud.remove(tk, fileId)
-      .then(function (r) {
-        if (!r.ok && r.status !== 204) throw new Error("HTTP " + r.status);
-        if (localStorage.getItem(FID_KEY) === fileId) {
-          lsRemove(FID_KEY);
-        }
-        if (localStorage.getItem(AUTO_FID_KEY) === fileId) {
-          lsRemove(AUTO_FID_KEY);
-        }
-        setGdriveConfirm(function (prev: any) {
-          if (!prev) return null;
-          var remaining = prev.options.filter(function (_o: any, i: number) {
-            return i !== idx;
-          });
-          if (remaining.length === 0) return null;
-          var newSel = prev.sel;
-          if (newSel === idx) newSel = 0;
-          else if (newSel > idx) newSel = newSel - 1;
-          return Object.assign({}, prev, { options: remaining, sel: newSel });
-        });
-      })
-      .catch(function (e) {
-        setGdriveConfirm(function (prev: any) {
-          if (!prev) return prev;
-          var next = Object.assign({}, prev);
-          next.options = prev.options.slice();
-          next.options[idx] = Object.assign({}, prev.options[idx], { _deleting: false });
-          return next;
-        });
-        setGdriveStatus(t("err_prefix") + ": " + String((e && e.message) || e).substring(0, 150));
-        scheduleStatusClear(5000);
-      });
-  }
+  // `gdriveDeleteOption(idx)` — the picker's per-row delete — was REMOVED with
+  // the delete mode it was the only content of. It was rendered exclusively
+  // inside `isDeleteMode`, which nothing could set (see `gdriveRestore`
+  // above), so no tap could ever reach it. The per-file delete users DO have
+  // is `gdriveDeleteBackupById`, in the merged cloud panel, and that one keeps
+  // the same two guards this had: it clears a cached fid pointing at the
+  // deleted file, and it checks `r.ok`.
+
   // GdriveReconnect moved to useGdriveAuth.
 
   // TriggerIosAutosaveReauth moved to useGdriveAuth.
@@ -2613,7 +2580,8 @@ export function useGdriveSync({
         // update anyway, so a refused delete (403, 404, a Dropbox
         // path_lookup/not_found) removed the row while the file stayed in the
         // cloud — and re-opening the panel resurrected it with no explanation.
-        // `gdriveDeleteOption` has always checked this; this sibling never did.
+        // The picker's own delete had always checked it; this sibling never
+        // did (that picker path has since been removed — see gdriveRestore).
         if (r && !r.ok && r.status !== 204) {
           throw new Error("HTTP " + String(r.status));
         }
@@ -2809,8 +2777,6 @@ export function useGdriveSync({
     lastAutoSaveTs,
     gdriveSave,
     gdriveRestore,
-    gdriveManageBackups,
-    gdriveDeleteOption,
     gdriveSaveQuiet,
     doGdriveConfirm,
     gdriveLoadOptionPayload,

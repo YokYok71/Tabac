@@ -106,11 +106,11 @@ export function joinPlaceParts(name?: string, city?: string, country?: string): 
   return pick.join(", ");
 }
 
-/** Convenience: parse a Nominatim payload straight to the joined label. */
-export function formatPlaceName(j: any): string {
-  var p = parsePlace(j);
-  return joinPlaceParts(p.name, p.city, p.country);
-}
+// `formatPlaceName(j)` — a convenience wrapper composing `parsePlace` and
+// `joinPlaceParts` — was REMOVED: nothing called it. `reverseGeocode` returns
+// the PARTS (the session stores name / city / country separately, and the
+// Stats "Pays" chart groups on the country alone), so the joined label is
+// built where it is displayed, not here. Both halves stay and are tested.
 
 /** Nominatim reverse-geocode endpoint URL for the given point + UI language. */
 export function nominatimReverseUrl(lat: number, lng: number, lang?: string): string {

@@ -60,7 +60,7 @@ export function CuratorSettingsModal() {
     driveEncryptionEnabled, saveDriveEncryptionEnabled,
     drivePassphrase, setDrivePassphrase, requestDrivePassphrase,
     gdriveStatus, setGdriveStatus, gdriveConfirm, setGdriveConfirm,
-    doGdriveConfirm, gdriveSave, gdriveRestore, gdriveDeleteOption,
+    doGdriveConfirm, gdriveSave, gdriveRestore,
     checkCloudNewerNow,
     runSyncDiagnostic, dismissSyncDiag, syncDiag, syncDiagBusy, syncDiagErr, syncDiagSource,
     save, dataRaw,
@@ -506,7 +506,6 @@ export function CuratorSettingsModal() {
               setGdriveConfirm={setGdriveConfirm}
               doGdriveConfirm={doGdriveConfirm}
               gdriveLoadOptionPayload={ctx.gdriveLoadOptionPayload}
-              gdriveDeleteOption={gdriveDeleteOption}
               data={data} dateFormat={dateFormat} t={t}
             />
           )}
@@ -552,13 +551,18 @@ export function CuratorSettingsModal() {
             <Notice tone="error">{(t ? t("err_prefix") : "Erreur") + " : " + syncDiagErr}</Notice>
           )}
           {/* GATED on !gdriveConfirm — the guard the panel merge lost while
-              the comment above went on promising it. Both panels list the SAME
-              files with their own delete button, and the two delete actions
-              update different state (`gdriveDeleteOption` touches only
-              `gdriveConfirm`, `gdriveDeleteBackupById` only `syncDiag`), so a
-              row removed from one SURVIVES in the other — and tapping its bin
-              404s into a swallowing `.catch`. The old BackupsListPanel carried
-              this guard; restoring it is restoring the invariant, not adding one. */}
+              the comment above went on promising it. The REASON stated here at
+              first was wrong and is corrected rather than deleted: it claimed
+              the two panels each carried a delete button over the same files,
+              so a row binned in one survived in the other. The picker's bin
+              only ever rendered in a "delete mode" nothing could enter, and
+              that whole branch has since been removed — so the conflict named
+              was unreachable. What the guard is really for is simpler and
+              still holds: `gdriveConfirm` IS the restore picker, a modal-like
+              panel whose primary action replaces the entire cellar, and
+              stacking a second list of the same files under it invites a tap
+              on the wrong one. The old BackupsListPanel carried this guard;
+              restoring it is restoring the invariant, not adding one. */}
           {syncDiagSource === "check" && syncDiag && !gdriveConfirm && (
             <SyncDiagView diag={syncDiag} t={t} lang={lang} onClose={dismissSyncDiag}
               onDeleteEntry={(id: string) => ctx.gdriveDeleteBackupById && ctx.gdriveDeleteBackupById(id)} />
@@ -649,13 +653,18 @@ export function CuratorSettingsModal() {
             <Notice tone="error">{(t ? t("err_prefix") : "Erreur") + " : " + syncDiagErr}</Notice>
           )}
           {/* GATED on !gdriveConfirm — the guard the panel merge lost while
-              the comment above went on promising it. Both panels list the SAME
-              files with their own delete button, and the two delete actions
-              update different state (`gdriveDeleteOption` touches only
-              `gdriveConfirm`, `gdriveDeleteBackupById` only `syncDiag`), so a
-              row removed from one SURVIVES in the other — and tapping its bin
-              404s into a swallowing `.catch`. The old BackupsListPanel carried
-              this guard; restoring it is restoring the invariant, not adding one. */}
+              the comment above went on promising it. The REASON stated here at
+              first was wrong and is corrected rather than deleted: it claimed
+              the two panels each carried a delete button over the same files,
+              so a row binned in one survived in the other. The picker's bin
+              only ever rendered in a "delete mode" nothing could enter, and
+              that whole branch has since been removed — so the conflict named
+              was unreachable. What the guard is really for is simpler and
+              still holds: `gdriveConfirm` IS the restore picker, a modal-like
+              panel whose primary action replaces the entire cellar, and
+              stacking a second list of the same files under it invites a tap
+              on the wrong one. The old BackupsListPanel carried this guard;
+              restoring it is restoring the invariant, not adding one. */}
           {syncDiagSource === "diag" && syncDiag && !gdriveConfirm && (
             <SyncDiagView diag={syncDiag} t={t} lang={lang} onClose={dismissSyncDiag}
               onDeleteEntry={(id: string) => ctx.gdriveDeleteBackupById && ctx.gdriveDeleteBackupById(id)} />
@@ -2752,11 +2761,15 @@ function ApiKeyInput({
   );
 }
 
+// The picker's DELETE MODE was removed with `gdriveManageBackups`, the only
+// thing that could set `gdriveConfirm.mode = "delete"` — it lost its entry
+// point when « Voir mes sauvegardes » merged into the cloud panel, so every
+// `isDeleteMode` branch below had been unreachable. The per-file delete users
+// do have lives in `SyncDiagView`, with its own two-tap inline confirm.
 function GDriveConfirmPanel({
   gdriveConfirm, setGdriveConfirm, doGdriveConfirm, gdriveLoadOptionPayload,
-  gdriveDeleteOption, data, dateFormat, t,
+  data, dateFormat, t,
 }: any) {
-  const isDeleteMode = gdriveConfirm?.mode === "delete";
   // Pre-fetch all option payloads in parallel as soon as the picker opens.
   // On newer backups the counts are encoded in the filename and parsed up-front, so
   // we no longer pre-fetch every payload just to display counts. The
@@ -2783,18 +2796,15 @@ function GDriveConfirmPanel({
         fontFamily: F.display, fontStyle: "italic", fontSize: fs(16),
         color: C.ivory, marginBottom: 8,
       }}>
-        {isDeleteMode
-          ? (t ? t("backup_delete_title") : "Supprimer une sauvegarde")
-          : (gdriveConfirm.options.length > 1
-              ? (t ? t("gdrive_pick_title") : "Choisir une sauvegarde")
-              : (t ? t("gdrive_restore_confirm") : "Restaurer cette sauvegarde ?"))}
+        {gdriveConfirm.options.length > 1
+          ? (t ? t("gdrive_pick_title") : "Choisir une sauvegarde")
+          : (t ? t("gdrive_restore_confirm") : "Restaurer cette sauvegarde ?")}
       </div>
 
-      {(isDeleteMode || gdriveConfirm.options.length > 1) && (
+      {gdriveConfirm.options.length > 1 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
           {gdriveConfirm.options.map((opt: any, i: number) => {
-            const sel = !isDeleteMode && gdriveConfirm.sel === i;
-            const deleting = !!opt._deleting;
+            const sel = gdriveConfirm.sel === i;
             // Counts come from 3 sources, in priority order:
             //   1. opt.counts   — parsed from the filename (newer backups)
             //   2. opt.d        — populated by lazy-load (older, count-less names)
@@ -2811,27 +2821,20 @@ function GDriveConfirmPanel({
               : opt.d ? (opt.d.sessions || []).length : null;
             return (
               <div key={i}
-                onClick={isDeleteMode
-                  ? undefined
-                  : () => setGdriveConfirm(Object.assign({}, gdriveConfirm, { sel: i }))}
-                // When selectable (not delete mode), the row is a
-                // keyboard-operable radio option. In delete mode the nested
-                // 🗑 button owns interactivity, so no role here.
-                {...(!isDeleteMode ? {
-                  role: "radio" as const,
-                  tabIndex: 0,
-                  "aria-checked": !!sel,
-                  onKeyDown: (ev: any) => {
-                    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setGdriveConfirm(Object.assign({}, gdriveConfirm, { sel: i })); }
-                  },
-                } : {})}
+                onClick={() => setGdriveConfirm(Object.assign({}, gdriveConfirm, { sel: i }))}
+                // A keyboard-operable radio option.
+                role="radio"
+                tabIndex={0}
+                aria-checked={!!sel}
+                onKeyDown={(ev: any) => {
+                  if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setGdriveConfirm(Object.assign({}, gdriveConfirm, { sel: i })); }
+                }}
                 style={{
                   display: "flex", alignItems: "stretch", gap: 6,
-                  cursor: isDeleteMode ? "default" : "pointer",
+                  cursor: "pointer",
                   padding: "8px 10px", borderRadius: 8,
                   background: C.bg2,
                   border: `1px solid ${sel ? C.brass : C.rule}`,
-                  opacity: deleting ? 0.5 : 1,
                 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
@@ -2841,7 +2844,7 @@ function GDriveConfirmPanel({
                     {(((opt.d && opt.d._saveType) || opt.saveType) === "auto"
                       ? "🔄 " + (t ? t("lbl_autosave_prefix") : "Auto-sauvegarde")
                       : "💾 " + (t ? t("lbl_backup_prefix") : "Sauvegarde"))
-                      + (!isDeleteMode && i === 0 ? " ★" : "")
+                      + (i === 0 ? " ★" : "")
                       + " — " + (opt.modifiedTime ? fmtDateTime(opt.modifiedTime, dateFormat) : (opt.ds || ""))}
                   </div>
                   {nT !== null && (
@@ -2853,28 +2856,6 @@ function GDriveConfirmPanel({
                     </div>
                   )}
                 </div>
-                {isDeleteMode && (
-                  <button
-                    type="button"
-                    aria-label={t ? t("aria_delete_backup") : "Supprimer cette sauvegarde"}
-                    disabled={deleting}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (deleting) return;
-                      const msg = t ? t("backup_delete_confirm") : "Supprimer définitivement cette sauvegarde ? L'action est irréversible.";
-                      if (!window.confirm(msg)) return;
-                      gdriveDeleteOption && gdriveDeleteOption(i);
-                    }}
-                    style={{
-                      flexShrink: 0, minWidth: 44, minHeight: 44,
-                      padding: "0 10px", border: `1px solid ${alpha(C.oxblood, "88")}`,
-                      background: alpha(C.oxblood, "22"), color: C.oxbloodHi,
-                      borderRadius: 8, cursor: deleting ? "not-allowed" : "pointer",
-                      fontSize: fs(17), fontFamily: F.body,
-                    }}>
-                    {deleting ? "…" : "🗑"}
-                  </button>
-                )}
               </div>
             );
           })}
@@ -2882,7 +2863,7 @@ function GDriveConfirmPanel({
       )}
 
       {/* Empty-backup guard: counts come straight from the filename. */}
-      {!isDeleteMode && (() => {
+      {(() => {
         const pickedOpt = gdriveConfirm.options[gdriveConfirm.sel];
         if (!pickedOpt || !pickedOpt.counts) return null;
         const c = pickedOpt.counts;
@@ -2902,7 +2883,7 @@ function GDriveConfirmPanel({
 
       {/* Backup-vs-local count mismatch warning — fires when any data type
           has fewer entries in the backup than in the current local store. */}
-      {!isDeleteMode && (() => {
+      {(() => {
         const pickedOpt = gdriveConfirm.options[gdriveConfirm.sel];
         // Read counts from the filename if available (newer backups); fall back
         // to the lazy-loaded payload for older files.
@@ -2972,18 +2953,11 @@ function GDriveConfirmPanel({
         );
       })()}
 
-      {!isDeleteMode && (
-        <div style={{ fontSize: fs(15), color: C.oxbloodHi, marginBottom: 8 }}>
-          {t ? t("confirm_replace") : "Remplace tout."}
-        </div>
-      )}
+      <div style={{ fontSize: fs(15), color: C.oxbloodHi, marginBottom: 8 }}>
+        {t ? t("confirm_replace") : "Remplace tout."}
+      </div>
 
-      {isDeleteMode ? (
-        <ModalAction variant="secondary" onClick={() => setGdriveConfirm(null)}
-          style={{ flex: "0 1 auto", padding: "10px 14px", fontSize: fs(15) }}>
-          {t ? t("btn_close") : "Fermer"}
-        </ModalAction>
-      ) : (() => {
+      {(() => {
         const pickedOpt = gdriveConfirm.options[gdriveConfirm.sel];
         const nT = pickedOpt?.d ? (pickedOpt.d.tobaccos || []).length : 0;
         const nP = pickedOpt?.d ? (pickedOpt.d.pipes || []).length : 0;

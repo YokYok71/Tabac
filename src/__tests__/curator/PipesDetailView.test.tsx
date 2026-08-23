@@ -1,6 +1,8 @@
 // Smoke tests for src/views/curator/PipesDetailView.tsx.
 
 import { describe, it, expect, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fireEvent } from "@testing-library/react";
 import { renderWithCtx } from "../viewTestUtils";
 import { CuratorPipesDetailView } from "../../views/curator/PipesDetailView";
@@ -271,6 +273,54 @@ describe("PipesDetailView — maintenance reminder", () => {
     });
     expect(container.textContent).not.toContain("maint_never");
     expect(container.textContent).not.toContain("maint_since");
+  });
+
+  it("only an ACTIVE pipe reads as due — an unexpected status is not active", () => {
+    // The `active` test is kept at the CALL SITE, ahead of the helper, and
+    // this is the case that shows why: `isPipeMaintenanceDue` excludes
+    // `finished`, whereas this view requires `active`, so the two verdicts
+    // differ for any THIRD value — which a hand-edited backup can carry.
+    //
+    // The fixture deliberately does NOT use `status: "finished"`. That probe
+    // was tried and stayed GREEN: the helper's own guard absorbs it, so such
+    // a case would have asserted the helper rather than the call site.
+    const pd = { ...pipe, status: "retired", maintenance: [] };
+    const sessions = Array.from({ length: 40 }, (_, i) => ({ id: i, pipeId: pipe.id, date: "2026-06-01" }));
+    const { container } = renderWithCtx(<CuratorPipesDetailView />, {
+      view: "pipes", pipeDet: pd,
+      data: { pipes: [pd], sessions, tobaccos: [], accessories: [], wishlist: [] },
+    });
+    expect(container.textContent).not.toContain("maint_never");
+  });
+
+  it("honours the user's threshold rather than a hardcoded 5", () => {
+    const pd = { ...pipe, maintenance: [] };
+    const sessions = Array.from({ length: 3 }, (_, i) => ({ id: i, pipeId: pipe.id, date: "2026-06-01" }));
+    const { container } = renderWithCtx(<CuratorPipesDetailView />, {
+      view: "pipes", pipeDet: pd,
+      data: { pipes: [pd], sessions, tobaccos: [], accessories: [], wishlist: [] },
+      maintReminderThreshold: 2,
+    });
+    expect(container.textContent).toContain("maint_never");
+  });
+
+  it("reads the DUE verdict from the shared helper, not from its own copy of the rule", () => {
+    // Source-level on purpose. This view carried `maintInfo.sessionsSince >=
+    // maintThreshold` inline — behaviourally identical to the helper, which is
+    // exactly why no rendering test can tell the two apart, and exactly how
+    // `isPipeMaintenanceDue` came to have no production consumer at all while
+    // a second copy of its rule shipped. What is guaranteed here is that there
+    // is ONE implementation, so a future change to the rule reaches every
+    // surface. Comments are blanked first — this repo has been bitten three
+    // times by a check satisfied by the comment explaining the fix.
+    const src = readFileSync(
+      resolve(__dirname, "../../views/curator/PipesDetailView.tsx"), "utf8",
+    ).replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+     .replace(/\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
+    expect(src, "the due verdict must come from isPipeMaintenanceDue")
+      .toContain("isPipeMaintenanceDue(");
+    expect(src, "no local re-derivation of the threshold comparison")
+      .not.toMatch(/sessionsSince\s*>=/);
   });
 });
 

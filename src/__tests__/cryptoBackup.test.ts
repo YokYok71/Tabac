@@ -10,7 +10,6 @@ import {
   encryptBackup,
   decryptBackup,
   isEncryptedEnvelopeJSON,
-  isEncryptedEnvelopeObject,
   ENCRYPTION_VERSION,
   makeEncryptionVerifier,
   verifyPassphrase,
@@ -132,13 +131,10 @@ describe("cryptoBackup — envelope detection", () => {
     expect(isEncryptedEnvelopeJSON(null as any)).toBe(false);
   });
 
-  it("isEncryptedEnvelopeObject works on a parsed envelope", async () => {
-    const env = JSON.parse(await encryptBackup('{"a":1}', "pw"));
-    expect(isEncryptedEnvelopeObject(env)).toBe(true);
-    expect(isEncryptedEnvelopeObject({ tobaccos: [] })).toBe(false);
-    expect(isEncryptedEnvelopeObject(null)).toBe(false);
-    expect(isEncryptedEnvelopeObject("string")).toBe(false);
-  }, 30_000);
+  // REMOVED with `isEncryptedEnvelopeObject`, whose only consumer this was.
+  // What it asserted — a real cellar payload is NOT mistaken for an envelope —
+  // is still covered on the shipping predicate by the "returns false on
+  // garbage" case above and by the round-trip cases.
 
   it("isEncryptedEnvelopeJSON accepts large envelopes (no size cap)", () => {
     // 2.5 MB envelope — must NOT be rejected on size alone. The
