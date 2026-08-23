@@ -2735,6 +2735,27 @@ describe("a dup pipe's maintenance log and photos are merged", () => {
     expect(summary.maintenanceAppended).toBe(2);
   });
 
+  it("an appended entry carries its TIME across", () => {
+    // MOVED HERE from maintTimeSurvivesBackup.test.ts, where the case was
+    // vacuous: it built `Object.assign({}, imported, { id })` by hand and
+    // asserted the result still had a `time`, i.e. it asserted a property of
+    // the JavaScript language. It would have passed with this whole merge
+    // branch deleted.
+    //
+    // The time is what makes the maintenance reminder able to order a bowl
+    // against a cleaning logged the same day, so losing it across a
+    // cross-device merge silently un-does that feature on the merged device.
+    const { pipe } = merge(
+      localPipe({ maintenance: [] }),
+      remotePipe({ maintenance: [
+        { id: 12, uid: "m-B2", date: "2026-03-02", time: "09:15", kind: "full", tasks: ["ream"], notes: "B" },
+      ] }),
+    );
+    const brought = pipe.maintenance.find((m: any) => m.uid === "m-B2");
+    expect(brought, "the entry did not come across at all").toBeTruthy();
+    expect(brought.time, "the merge dropped the cleaning's time").toBe("09:15");
+  });
+
   it("re-stamps each appended entry's id — maintenance-id-unique is per pipe", () => {
     const { pipe } = merge(localPipe(), remotePipe());
     const ids = pipe.maintenance.map((m: any) => String(m.id));

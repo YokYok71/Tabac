@@ -163,6 +163,61 @@ describe("SyncDiagView — every file in the total is in a count", () => {
     expect(container.textContent || "").toContain("1.5 KB");
   });
 
+  it("without onDeleteEntry the panel is READ-ONLY — no bin at all", () => {
+    // The prop is optional and the launch-check caller could stop passing it;
+    // a panel that keeps a bin it cannot honour is worse than one with none.
+    const { container } = renderRows([f("a", "auto", "1000")]);
+    expect(container.textContent || "").not.toContain("🗑");
+  });
+
+  it("the bin does NOT delete on the first tap", () => {
+    // THE guarantee. This removes a file from the cloud with no undo — the
+    // trash and the 8 s toast protect the CELLAR, not a backup — so the two
+    // taps are the whole safety. `onDeleteEntry` had ZERO references in any
+    // test, so nothing held it: a one-tap regression would have shipped
+    // looking exactly like this one does.
+    const onDeleteEntry = vi.fn();
+    const { container } = render(
+      <SyncDiagView diag={{ deviceId: "abc123", provider: "gdrive", rows: [f("a", "auto", "1000")], devices: [] }}
+        t={t as any} lang="fr" onDeleteEntry={onDeleteEntry} />,
+    );
+    const bin = Array.from(container.querySelectorAll("button"))
+      .find((b) => (b.textContent || "").includes("🗑"));
+    expect(bin, "no bin rendered").toBeTruthy();
+    fireEvent.click(bin!);
+    expect(onDeleteEntry, "the first tap deleted the file").not.toHaveBeenCalled();
+    // The confirmation REPLACES the bin rather than opening a dialog: this is
+    // a list, and a modal per row would bury which file is about to go.
+    expect(container.textContent || "").toContain("lbl_yes");
+  });
+
+  it("confirming deletes THAT row, and cancelling deletes nothing", () => {
+    const onDeleteEntry = vi.fn();
+    const rows = [f("a", "auto", "1000"), f("b", "manual", "2000")];
+    const { container } = render(
+      <SyncDiagView diag={{ deviceId: "abc123", provider: "gdrive", rows, devices: [] }}
+        t={t as any} lang="fr" onDeleteEntry={onDeleteEntry} />,
+    );
+    const bins = () => Array.from(container.querySelectorAll("button"))
+      .filter((b) => (b.textContent || "").includes("🗑"));
+    // Cancel first, so a passing "confirm" case cannot be the cancel path.
+    fireEvent.click(bins()[0]!);
+    const cancel = Array.from(container.querySelectorAll("button"))
+      .find((b) => b.getAttribute("aria-label") === "btn_cancel");
+    expect(cancel, "no cancel in the inline confirm").toBeTruthy();
+    fireEvent.click(cancel!);
+    expect(onDeleteEntry).not.toHaveBeenCalled();
+
+    // Now the SECOND row, so the id asserted below is not the first one by
+    // accident.
+    fireEvent.click(bins()[1]!);
+    const yes = Array.from(container.querySelectorAll("button"))
+      .find((b) => (b.textContent || "").includes("lbl_yes"));
+    fireEvent.click(yes!);
+    expect(onDeleteEntry).toHaveBeenCalledTimes(1);
+    expect(onDeleteEntry.mock.calls[0]![0], "deleted a different row than the one confirmed").toBe("b");
+  });
+
   it("the total counts EVERY file, not the twenty displayed", () => {
     const rows = Array.from({ length: 25 }, (_, i) => f("f" + i, "auto", "1000"));
     const { container } = renderRows(rows);

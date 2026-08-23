@@ -25,7 +25,7 @@
 // far fewer rows), and the cards carry their own per-band lot counts.
 
 import { describe, it, expect } from "vitest";
-import { computeStats, effectiveAgingMax, lotAgingStatus } from "../utils";
+import { computeStats, effectiveAgingMax } from "../utils";
 import { scopeFromStatusFilter, scopeLabelKey, lotInScope } from "../utils/cellarInsights";
 
 // Two tobaccos, four cellar lots: one peak, one too-old, one young, plus a jar
@@ -68,17 +68,22 @@ const DATA: any = {
   pipes: [], accessories: [], wishlist: [], sessions: [],
 };
 
-// The list filter, transcribed from App.tsx's `filtered` memo. A copy is the
-// wrong shape in production — that is the four-copies failure this repo keeps
-// paying for — but here it IS the subject: what must hold is that the filter
-// selects exactly the tobaccos owning a lot the scope admits.
-function tobaccoMatchesSmokeSoon(t: any): boolean {
-  const eam = effectiveAgingMax(t);
-  return (t.lots || []).some((l: any) => {
-    const s = lotAgingStatus(l, eam);
-    return s === "approaching" || s === "overaged";
-  });
-}
+// THE FILTER IS NO LONGER TRANSCRIBED HERE, and the reason is the finding.
+//
+// This file used to carry its own copy of App.tsx's predicate, under a comment
+// arguing that "a copy is the wrong shape in production, but here it IS the
+// subject". That argument is wrong: what must hold is that APP.TSX's filter
+// agrees with the scope — a hand-written copy agreeing with the scope proves
+// only that the author can write the scope twice.
+//
+// PROBED, which is how it was settled: reverting App.tsx's branch to the
+// reported defect (`overaged` alone, the exact thing this file is named after)
+// left all nine cases GREEN. The tile could go back to opening one card out of
+// seven with the guard reporting success.
+//
+// So App.tsx now DELEGATES to `lotInScope`, and what is locked below is that
+// delegation. The behaviour cases keep testing the shared helper, which is now
+// the one implementation the app actually runs.
 
 describe("the smoke-soon tile opens what it counted", () => {
   it("the fixture really carries both bands, so nothing below passes vacuously", () => {
@@ -118,13 +123,13 @@ describe("the smoke-soon tile opens what it counted", () => {
     expect(overagedOnly).toBeLessThan(3);
   });
 
-  it("the filter selects exactly the tobaccos that own an in-scope lot", () => {
+  it("the slice reaches exactly two of the fixture's tobaccos", () => {
+    // The count the LIST shows, as opposed to the count the TILE shows — the
+    // documented asymmetry: 3 lots across 2 cards.
     const scope = scopeFromStatusFilter("smokesoon");
-    for (const t of DATA.tobaccos) {
-      const owns = (t.lots || []).some((l: any) => lotInScope(l, scope, effectiveAgingMax(t)));
-      expect(tobaccoMatchesSmokeSoon(t), `${t.name}`).toBe(owns);
-    }
-    expect(DATA.tobaccos.filter(tobaccoMatchesSmokeSoon).length).toBe(2);
+    const owning = DATA.tobaccos.filter((t: any) =>
+      (t.lots || []).some((l: any) => lotInScope(l, scope, effectiveAgingMax(t))));
+    expect(owning.map((t: any) => t.name)).toEqual(["Nordlys", "Kaap"]);
   });
 
   it("never admits a jar lot — aging is cellar-only", () => {
@@ -144,9 +149,17 @@ describe("the smoke-soon tile opens what it counted", () => {
 });
 
 describe("the wiring, because the helpers agreeing proves nothing on their own", () => {
-  const home = require("node:fs").readFileSync("src/views/curator/HomeViewV2.tsx", "utf8");
-  const list = require("node:fs").readFileSync("src/views/curator/InventoryListView.tsx", "utf8");
-  const app = require("node:fs").readFileSync("src/App.tsx", "utf8");
+  // Comments are BLANKED before every source assertion. This repo has been
+  // bitten repeatedly by a check satisfied by the comment explaining the fix,
+  // and the paragraph above this describe names `lotInScope` and "smokeSoon"
+  // in prose — so without this, the branch could be deleted outright and the
+  // assertions would still find their strings.
+  const blank = (t: string) =>
+    t.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+     .replace(/\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
+  const home = blank(require("node:fs").readFileSync("src/views/curator/HomeViewV2.tsx", "utf8"));
+  const list = blank(require("node:fs").readFileSync("src/views/curator/InventoryListView.tsx", "utf8"));
+  const app = blank(require("node:fs").readFileSync("src/App.tsx", "utf8"));
 
   it("the tile drills to the combined slice", () => {
     const tile = /stat_smoke_soon[\s\S]{0,400}?setStatusFilter\("([a-z]+)"\)/.exec(home);
@@ -154,8 +167,27 @@ describe("the wiring, because the helpers agreeing proves nothing on their own",
     expect(tile![1]).toBe("smokesoon");
   });
 
-  it("App.tsx implements that filter", () => {
-    expect(app).toMatch(/eff === "smokesoon"/);
+  it("App.tsx implements that filter THROUGH the shared scope", () => {
+    // The assertion the old version of this file was missing. It checked only
+    // that the branch exists, so the branch could select the wrong lots and
+    // still pass — which a probe confirmed: putting the reported defect back
+    // (`overaged` alone) turned nothing red.
+    //
+    // Keyed on the DELEGATION rather than on a spelling of the rule: a branch
+    // that calls `lotInScope(l, "smokeSoon", …)` cannot disagree with the tile
+    // or with the card figures, because there is only one implementation left.
+    // Sliced from this branch to the NEXT one rather than by a character
+    // budget: blanking a comment preserves its length, and the explanation
+    // above the branch is long enough that any fixed window is either too
+    // short to reach the code or long enough to spill into the next filter.
+    const start = app.indexOf('eff === "smokesoon"');
+    expect(start, "no `smokesoon` branch in the filtered memo").toBeGreaterThan(-1);
+    const after = app.indexOf('eff === "', start + 20);
+    const branch = app.slice(start, after > start ? after : start + 2000);
+    expect(branch, "the branch must delegate to lotInScope, not re-spell the rule")
+      .toMatch(/lotInScope\([^)]*"smokeSoon"/);
+    expect(branch, "no second spelling of the band test alongside the delegation")
+      .not.toMatch(/lotAgingStatus/);
   });
 
   it("the list offers it as a chip, so a narrowed list never looks unfiltered", () => {

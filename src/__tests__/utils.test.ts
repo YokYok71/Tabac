@@ -32,10 +32,13 @@ import {
   nextBoxNumber,
   dedupeIds,
   getStorageBlockedHint,
+  nowTime,
 } from "../utils";
 import * as U from "../utils";
+import { sessionStartMs } from "../utils/rotation";
 import type { Tobacco, Lot, Pipe, Accessory } from "../types";
 import { LANGUAGES } from "../i18n/languages";
+import { readFileSync } from "node:fs";
 
 // ── plural ────────────────────────────────────────────────────
 describe("plural", () => {
@@ -278,6 +281,74 @@ describe("today", () => {
       String(d.getMonth() + 1).padStart(2, "0") + "-" +
       String(d.getDate()).padStart(2, "0");
     expect(today()).toBe(expected);
+  });
+});
+
+// ── nowTime() ─────────────────────────────────────────────────────────────────
+//
+// It had NO test at all. It exists so a maintenance entry and a session are
+// stamped by the SAME clock — two copies of "now" is how the two logs would
+// come to disagree, and the reminder counter compares them against each other,
+// which is precisely where a disagreement would be invisible AND wrong.
+
+describe("nowTime", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("returns a zero-padded HH:MM", () => {
+    // Padding is not cosmetic here: the value is compared as a STRING inside
+    // `sessionStartMs` (it is concatenated into an ISO datetime), so "9:05"
+    // would not parse and the entry would silently fall back to noon.
+    vi.setSystemTime(new Date(2026, 4, 19, 9, 5, 0));
+    expect(nowTime()).toBe("09:05");
+    vi.setSystemTime(new Date(2026, 4, 19, 23, 59, 0));
+    expect(nowTime()).toBe("23:59");
+    vi.setSystemTime(new Date(2026, 4, 19, 0, 0, 0));
+    expect(nowTime()).toBe("00:00");
+  });
+
+  it("uses the LOCAL clock, not UTC", () => {
+    // Same rule as `today()` below, and for the same reason: the user logs a
+    // cleaning at the time their phone shows. A UTC stamp would put a
+    // late-evening entry on the wrong side of a bowl smoked minutes earlier.
+    //
+    // THE RUNTIME HALF CANNOT DISCRIMINATE HERE, and saying so is the point.
+    // PROBED: swapping `getHours` for `getUTCHours` left this case GREEN,
+    // because CI runs at offset 0 — `new Date().getTimezoneOffset() === 0` —
+    // so the two are the same function. The absorbing layer is the
+    // ENVIRONMENT, not a missing assertion, which is why the structural half
+    // below exists rather than a cleverer fixture. It is kept anyway: it does
+    // discriminate for anyone running the suite outside UTC.
+    const d = new Date();
+    const expected = String(d.getHours()).padStart(2, "0") + ":" +
+      String(d.getMinutes()).padStart(2, "0");
+    expect(nowTime()).toBe(expected);
+  });
+
+  it("reads the local getters, asserted at source since UTC hides the difference", () => {
+    // The half that survives an offset-0 environment. Both stamps must use the
+    // same clock as each other AND as the user's phone; `today()` has carried
+    // exactly this blind spot for as long, so both are pinned together.
+    const src = readFileSync("src/utils.ts", "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+      .replace(/\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
+    const body = (name: string) => {
+      const i = src.indexOf("export var " + name + " =");
+      expect(i, `${name} not found`).toBeGreaterThan(-1);
+      return src.slice(i, i + 400);
+    };
+    expect(body("nowTime")).toMatch(/getHours\(\)/);
+    expect(body("nowTime"), "a UTC stamp is not the time on the user's phone").not.toMatch(/getUTC/);
+    expect(body("today"), "the two stamps must read the same clock").not.toMatch(/getUTC/);
+  });
+
+  it("is accepted by sessionStartMs, which is the only thing it is for", () => {
+    // The pair, asserted together: a stamp neither log can order is useless,
+    // and the two functions live in different modules.
+    vi.setSystemTime(new Date(2026, 4, 19, 14, 35, 0));
+    const ms = sessionStartMs({ date: "2026-05-19", time: nowTime() });
+    expect(Number.isNaN(ms), "the stamp did not parse").toBe(false);
+    const noon = sessionStartMs({ date: "2026-05-19" });
+    expect(ms, "an afternoon stamp must sort after the noon fallback").toBeGreaterThan(noon);
   });
 });
 

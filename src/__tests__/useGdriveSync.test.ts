@@ -2304,6 +2304,36 @@ describe("OAuth return routing — the button you tapped is the one that resumes
     });
   });
 
+  it("deleting the auto file this device tracks drops the cached fid", async () => {
+    // The branch carries a comment calling itself "functional, not cosmetic" —
+    // and nothing held it. PROBED: replacing the condition with `if (false)`
+    // left all 118 cases in this file green.
+    //
+    // What it prevents: the next quiet save PATCHes a file that is gone. There
+    // IS a 404 fallback to POST, so the cost is a wasted round-trip rather
+    // than a lost backup — but a guarantee asserted in a comment and by
+    // nothing else is exactly the shape this repo keeps paying for.
+    sessionStorage.setItem("gdrive-tk", JSON.stringify({ t: "tok", x: Date.now() + 3500000 }));
+    localStorage.setItem("gdrive-auto-fid", "file-9");
+    mockFetch.mockResolvedValue({ ok: true, status: 204, json: () => Promise.resolve({}) });
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    await act(async () => { await result.current.gdriveDeleteBackupById("file-9"); });
+    expect(localStorage.getItem("gdrive-auto-fid"), "the fid still points at a deleted file").toBeNull();
+  });
+
+  it("deleting ANOTHER file leaves the cached fid alone", async () => {
+    // The other direction, so the fix cannot degrade into "always clear it":
+    // wiping the fid on every delete would make the next quiet save POST a
+    // second auto file for this device, which is the pile three releases were
+    // spent draining.
+    sessionStorage.setItem("gdrive-tk", JSON.stringify({ t: "tok", x: Date.now() + 3500000 }));
+    localStorage.setItem("gdrive-auto-fid", "file-mine");
+    mockFetch.mockResolvedValue({ ok: true, status: 204, json: () => Promise.resolve({}) });
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    await act(async () => { await result.current.gdriveDeleteBackupById("file-other"); });
+    expect(localStorage.getItem("gdrive-auto-fid")).toBe("file-mine");
+  });
+
   it("a refused delete is an ERROR, not an optimistic row removal", async () => {
     sessionStorage.setItem("gdrive-tk", JSON.stringify({ t: "tok", x: Date.now() + 3500000 }));
     mockFetch.mockResolvedValue({ ok: false, status: 403, json: () => Promise.resolve({}) });

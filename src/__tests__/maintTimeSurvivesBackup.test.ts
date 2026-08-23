@@ -105,13 +105,13 @@ describe("a MERGE keeps it too", () => {
     expect(maintMergeKey(b)).toBe(maintMergeKey(a));
   });
 
-  it("an appended entry carries its time across", () => {
-    // The merge does `Object.assign({}, m, { id })`, so every field rides
-    // along. Asserted because "it spreads the object" is exactly the kind of
-    // claim that stops being true when someone starts listing fields.
-    const imported = { id: 7, uid: "m-x", date: DAY, time: "09:15", kind: "light", tasks: [], notes: "" };
-    const appended = Object.assign({}, imported, { id: 12345 });
-    expect(appended.time).toBe("09:15");
-    expect(appended.uid).toBe("m-x");
-  });
+  // "an appended entry carries its time across" LIVED HERE and was VACUOUS.
+  // It built `Object.assign({}, imported, { id })` itself and asserted the
+  // result still had a `time` — a property of the JavaScript language, not of
+  // this app. It would have passed with the merge branch deleted outright.
+  //
+  // It now lives in `useImportConfirm.test.ts`, beside the merge harness that
+  // can actually drive the real code path, under the same name. The lesson is
+  // the one this repo keeps re-learning: a test that re-implements the thing
+  // it is checking is checking its own arithmetic.
 });

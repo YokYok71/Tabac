@@ -117,6 +117,22 @@ describe("reset.html refuses to purge when the app cannot be re-fetched", () => 
     expect(r.deleted).toEqual([]);
   });
 
+  it("deletes NOTHING on a 5xx that still returns the app's HTML", async () => {
+    // The case that makes the `!res.ok` check MEAN something. PROBED: with the
+    // fixture above alone — a non-OK response carrying an EMPTY body — deleting
+    // the status check outright left all nine cases green, because the body
+    // check refused it anyway. Two guards, one of them asserted by nothing.
+    //
+    // Reachable: an origin 5xx behind a CDN that still serves the cached
+    // index.html, or a proxy that rewrites the status but not the body. The
+    // rule the page holds is that a non-OK response is not reachability,
+    // whatever it happens to carry — and it errs toward refusing, since a
+    // wrong refusal costs one tap on « Réessayer » and deletes nothing.
+    const r = await run({ probe: { ok: false, body: '<div id="root"></div>' } });
+    expect(r.deleted, "a 5xx is not reachability, whatever body it carries").toEqual([]);
+    expect(r.unregistered).toEqual([]);
+  });
+
   it("deletes NOTHING behind a captive portal", async () => {
     // `navigator.onLine` is true, the fetch succeeds, the status is 200 — and
     // the body is the hotel's login page. This is exactly the case `res.ok`
@@ -186,8 +202,17 @@ describe("reset.html speaks every shipped language", () => {
     // announced `lang="constructor"` — not a BCP-47 tag — while rendering in
     // English. Same defect main.jsx was fixed for; this sibling page was
     // missed. Leaving the attribute alone keeps a valid one.
+    // Asserted as MEMBERSHIP rather than as "not co". The negative form does
+    // catch the defect — probed, removing the guard reddens this case — but it
+    // reads as a rule about one string, when the rule is that the attribute is
+    // either a code the page ships or nothing at all. Note "co" is itself a
+    // real BCP-47 tag (Corsican), so the old assertion was right by accident
+    // as much as by design.
+    const shipped = LANGUAGES.map((l) => l.code);
     await run({ lang: "constructor", online: false });
-    expect(document.documentElement.lang).not.toBe("co");
+    expect(shipped.concat([""]),
+      `wrote lang="${document.documentElement.lang}" for a corrupt cave-lang`)
+      .toContain(document.documentElement.lang);
     await run({ lang: "de", online: false });
     expect(document.documentElement.lang).toBe("de");
   });

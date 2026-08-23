@@ -38,7 +38,7 @@ import {
 import { applyTheme, THEMES, THEME_COLOR_META } from "./theme-curator.ts";
 import { pickJarLot } from "./utils/lotUtils.ts";
 import { buildTobaccoAromaIndex, tobaccoMatchesAromas } from "./utils/aromas.ts";
-import { lotMaturityBucket, isRecentPurchase, scopeFromStatusFilter, scopedHeldWeight, scopedOldestAgeDays } from "./utils/cellarInsights.ts";
+import { lotMaturityBucket, isRecentPurchase, scopeFromStatusFilter, lotInScope, scopedHeldWeight, scopedOldestAgeDays } from "./utils/cellarInsights.ts";
 import { isLowStock } from "./utils/shopping.ts";
 import { assertLotInvariants } from "./utils/lotInvariants.ts";
 import { imgCache, imgMap } from "./utils/imgCache.ts";
@@ -2478,11 +2478,19 @@ function App() {
         // opened a list holding 1 — the control naming a set and selecting a
         // subset of it. Both halves are urgent for opposite reasons: `peak` is
         // the window you want to be in, `overaged` is past it.
+        //
+        // DELEGATED to `lotInScope`, where it used to spell the rule out
+        // inline. The two agreed, and that was the problem: the tile, the
+        // filter and the card/fiche figures must select the SAME lots, so a
+        // second spelling of the rule is free to drift from the scope on the
+        // next edit — and the test guarding this could only compare its own
+        // transcription against the scope, never against what App.tsx does.
+        // Probed: reverting this branch to `overaged` alone left the whole
+        // suite green.
         ls = ls.filter(function (t) {
           var eam = effectiveAgingMax(t);
           return (t.lots || []).some(function (l) {
-            var s = lotAgingStatus(l, eam);
-            return s === "approaching" || s === "overaged";
+            return lotInScope(l, "smokeSoon", eam);
           });
         });
       else if (eff === "young" || eff === "optimal")
