@@ -2578,7 +2578,13 @@ function CatalogueStatus({
             .replace("{n}", String(meta.blends || 0))
             .replace("{b}", String(meta.brands || 0))}
         </span>
-        <span style={{ opacity: 0.85 }}>
+        {/* No `opacity` here: this text is light-mode sage, which measures
+            4.61:1 on the light page ground at full strength and 3.53:1 once a
+            0.85 composites — under AA, reported by `theme:contrast` in all
+            three light palettes. The de-emphasis is carried by the WEIGHT of
+            the line above (700 against this one's regular), which costs no
+            contrast. See CLAUDE.md: never dim TEXT with opacity. */}
+        <span>
           {String(tr("cat_loaded_on", "Chargé le {d}"))
             .replace("{d}", meta.loadedAt ? fmtDate(new Date(meta.loadedAt).toISOString().slice(0, 10), dateFormat) : "—")}
           {meta.name ? " · " + meta.name : ""}

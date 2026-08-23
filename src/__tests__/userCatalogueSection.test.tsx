@@ -220,3 +220,41 @@ describe("catalogue cloud status", () => {
     expect(notice, "and must stay inside the catalogue section").toBeLessThan(reset);
   });
 });
+
+// ── OPACITY ON TEXT PUSHED THE STATUS LINE UNDER AA ───────────────────────
+//
+// « Chargé le … · fichier.csv » carried `opacity: 0.85`. Inside a
+// `Notice tone="success"` the text is light-mode sage, which measures 4.61:1
+// on the light page ground at full strength — comfortably AA — and 3.53:1
+// once the 0.85 composites. Reported by `theme:contrast` in all THREE light
+// palettes (brass / steel / english); it was the only live warning of the 69,
+// the other 66 being disabled controls, which WCAG 1.4.3 exempts.
+//
+// CLAUDE.md already settled this rule for the inventory card badges:
+// **never use `opacity` to de-emphasise TEXT — reach for a dimmer token, so
+// the ratio stays measurable.** It also records why the checker could see it
+// at all: the "deliberately dimmed" exemption was narrowed so reduced opacity
+// ALONE no longer claims it. The mechanism worked; this is newer code that
+// walked into the rule.
+//
+// Nothing is lost by removing it: the line above is `fontWeight: 700`, so the
+// hierarchy is carried by WEIGHT, which costs no contrast.
+describe("the catalogue status line is readable in light mode", () => {
+  it("de-emphasises by WEIGHT, never by opacity", () => {
+    // Scoped to the CatalogueStatus block so an unrelated opacity elsewhere in
+    // this large file cannot fail it — and so the assertion names the element
+    // the checker flagged.
+    // Anchored on the block, not on the first key: `fontWeight: 700` opens the
+    // span ABOVE `cat_loaded_n`, so a forward-only window misses it — which is
+    // what the first version of this case did.
+    const at = SET_CODE.indexOf('cat_loaded_n');
+    expect(at, "the catalogue status block moved — re-point this check")
+      .toBeGreaterThan(0);
+    const block = SET_CODE.slice(Math.max(0, at - 300), at + 900);
+    expect(block, "opacity on text: it composites below AA in light mode")
+      .not.toMatch(/opacity:\s*0?\.\d/);
+    // Non-vacuity + the half that must survive: the bold first line IS the
+    // hierarchy, so removing the opacity must not have removed that too.
+    expect(block).toMatch(/fontWeight:\s*700/);
+  });
+});
