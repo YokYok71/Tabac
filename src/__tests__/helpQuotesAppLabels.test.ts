@@ -152,6 +152,12 @@ const QUOTED: Array<{ key: string; marker: RegExp; doc?: Doc }> = [
   { doc: "help", key: "lbl_default_grouping", marker: REF_ROW },
   { doc: "help", key: "lbl_sess_default_weight", marker: REF_ROW },
   { doc: "help", key: "lbl_date_format", marker: REF_ROW },
+  // The Journal's flame button, quoted by name in every block's tasting
+  // section. Added because the body rule below matched it against the RESUME
+  // label and reported a false positive: the guide was right and the registry
+  // simply did not know this control. Turning a false positive into coverage
+  // beats acknowledging it.
+  { doc: "help", key: "tasting_title", marker: /<strong>[^<]{4,60}<\/strong>\s*\((?:Flamme|flamme|flame|llama|fiamma|chama)/ },
 ];
 
 const DOCS: Record<Doc, string> = {
@@ -169,8 +175,16 @@ function block(doc: Doc, code: string): string | null {
   return src.slice(start, end);
 }
 
+// Memoised: the near-miss rules ask for a label once per CANDIDATE, and the
+// guide holds ~4000 emphasised strings, so a `readFileSync` per call meant
+// ~81 000 reads and 14 s for one case. Nothing about the file changes mid-run.
+const DICT_SRC: Record<string, string> = {};
+function dictSrc(code: string): string {
+  return (DICT_SRC[code] ||= readFileSync(`src/i18n/${code}.ts`, "utf8"));
+}
+
 function dictValue(code: string, key: string): string | null {
-  const src = readFileSync(`src/i18n/${code}.ts`, "utf8");
+  const src = dictSrc(code);
   const m = new RegExp(`^\\s*${key}:"((?:[^"\\\\]|\\\\.)*)"`, "m").exec(src);
   if (!m) return null;
   // A Settings SECTION heading carries a leading emoji ("🤖 Assistant IA") that
@@ -250,8 +264,51 @@ describe("the shipped docs quote the app's own labels", () => {
   // "de", a different verb, a reordering) rather than adding to it. A
   // truncation is unaffected too — there the CANDIDATE is the shorter string,
   // so the label is not contained in it.
+  // A near-miss must SHARE A WHOLE WORD with the label. Without it the ratio
+  // reports coincidences: English « your preferences » scores 0.88 against
+  // « Preferred source » on letters alone, sharing no word at all.
+  //
+  // VERIFIED against all FIFTEEN real drifts found so far: every one shares at
+  // least one word, which is what a drift IS — the same control, renamed by an
+  // inserted article, a different verb, a truncation or a reordering. A rename
+  // with no word in common is not drift, it is a different label.
+  const shareAWord = (a: string, b: string) => {
+    const w = (x: string) => new Set(x.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []);
+    const [x, y] = [w(a), w(b)];
+    for (const t of x) if (y.has(t)) return true;
+    return false;
+  };
   const wrapsLabel = (cand: string, label: string) =>
     new RegExp(`(^|\\W)${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|\\W)`, "i").test(cand);
+  // A quotation that IS a label the app renders is CORRECT, whichever row's
+  // loop happens to be looking at it. The registry is a curated subset of the
+  // dictionary, so a fuzzy rule keyed on it necessarily meets real labels it
+  // does not know — and reports them against whichever registry key they most
+  // resemble, which is a report about the registry rather than about the guide.
+  //
+  // TWO shapes made this compulsory rather than cosmetic. The German tasting
+  // paragraph names BOTH sibling controls in ONE sentence, correctly
+  // (« Verkostung starten » and « ▶ Verkostung fortsetzen »), so each was
+  // reported as a near-miss of the OTHER — the registry accusing the guide of
+  // a drift the guide does not have. And the French inventory section quotes
+  // « À ne pas reprendre », the rebuy filter chip, which is a real label the
+  // registry has no reason to carry.
+  //
+  // VERIFIED against every real drift found so far — the thirteen in the guide,
+  // the seventeen in the policy and the four tasting titles below: not ONE of
+  // them equals a dictionary value, because a drift is by definition a string
+  // the app does not render. The residual it leaves is disclosed rather than
+  // hidden: the guide could point at control A while naming control B, with B
+  // real. That is a wrong CROSS-REFERENCE, not a wrong label, and no
+  // string-level rule can see it.
+  const LABELS: Record<string, Set<string>> = {};
+  const isRealLabel = (code: string, cand: string) => {
+    const set = (LABELS[code] ||= new Set(
+      [...dictSrc(code).matchAll(/^\s*[A-Za-z0-9_]+:"((?:[^"\\]|\\.)*)"/gm)]
+        .map((m) => bare(m[1]!.replace(/^[^\p{L}]+/u, ""))),
+    ));
+    return set.has(cand);
+  };
   const sim = (a: string, b: string) => {
     // A CHARACTER-OVERLAP ratio (Sørensen-Dice over the multiset of letters),
     // NOT the longest-common-subsequence shape difflib uses — and the
@@ -263,9 +320,12 @@ describe("the shipped docs quote the app's own labels", () => {
     const [x, y] = [a.toLowerCase(), b.toLowerCase()];
     if (x === y) return 1;
     let common = 0;
-    const used = new Array(y.length).fill(false);
+    // `ys` is hoisted: splitting inside the scan made this O(n²) with an
+    // allocation per character, and the body rule runs it ~80 000 times.
+    const ys = y.split("");
+    const used = new Array(ys.length).fill(false);
     for (const ch of x) {
-      const i = y.split("").findIndex((c, j) => !used[j] && c === ch);
+      const i = ys.findIndex((c, j) => !used[j] && c === ch);
       if (i >= 0) { used[i] = true; common++; }
     }
     return (2 * common) / (x.length + y.length);
@@ -281,8 +341,8 @@ describe("the shipped docs quote the app's own labels", () => {
         const blk = block("help", code)!;
         for (const m of blk.matchAll(/<li><strong>([^<]{4,70})<\/strong>\s*(?:—|–)/g)) {
           const row = bare(m[1]!);
-          if (row === label || wrapsLabel(row, label)) continue;
-          if (sim(row, label) >= NEAR) {
+          if (row === label || wrapsLabel(row, label) || isRealLabel(code, row)) continue;
+          if (sim(row, label) >= NEAR && shareAWord(row, label)) {
             wrong.push(`${code}.${key}: the reference row says ${JSON.stringify(row)}, the app says ${JSON.stringify(label)}`);
           }
         }
@@ -322,8 +382,8 @@ describe("the shipped docs quote the app's own labels", () => {
           if (ctx.indexOf("\u2192") < 0 && ctx.indexOf("\u2699") < 0) continue;
           scanned++;
           const q = bare(m[2]!);
-          if (q === label || wrapsLabel(q, label)) continue;
-          if (sim(q, label) >= NEAR) {
+          if (q === label || wrapsLabel(q, label) || isRealLabel(code, q)) continue;
+          if (sim(q, label) >= NEAR && shareAWord(q, label)) {
             wrong.push(`${code}.${key}: the policy says ${JSON.stringify(q)}, the app says ${JSON.stringify(label)}`);
           }
         }
@@ -335,6 +395,76 @@ describe("the shipped docs quote the app's own labels", () => {
     // assertion. A check that examines nothing must say so.
     expect(scanned, "the breadcrumb window matched nothing — the scope has rotted").toBeGreaterThan(20);
     expect(wrong, "the policy names a control under a name the app does not use").toEqual([]);
+  });
+
+  // The residual the curated approach left open, and the last one: a control
+  // quoted in the BODY of a section rather than in the settings-reference
+  // list. Those are the sentences that tell you which button to tap, so a
+  // wrong name there is as costly as in the reference list.
+  //
+  // SCOPE, measured. Scanning every emphasised string in the guide is 4044
+  // candidates, and it is viable only because three exemptions between them
+  // absorb the classes that would otherwise swamp it: `wrapsLabel` (prose
+  // wrapping the label), `shareAWord` (pure letter coincidence) and
+  // `isRealLabel` (a control the registry does not carry).
+  //
+  // WHAT IT FOUND, and the tally is worth keeping because the two rounds say
+  // different things. The first pass reported FOUR, of which TWO were real
+  // drifts in the guide, outside the reference list, invisible to every rule
+  // that came before: it « Escludi le chiavi API dalle esportazioni » against
+  // « …da esportazioni e backup », and pt « Verificar as cópias na nuvem »
+  // against « Verificar cópias na nuvem ».
+  //
+  // The pt one is worth knowing about: the sweep matched it against the WRONG
+  // key (the encryption toggle, which shares most of its words) and the drift
+  // surfaced anyway. A fuzzy rule does not have to identify the control
+  // correctly to notice that a quotation is not any of them.
+  //
+  // The two false positives were German « Verkostung starten » — the app's own
+  // label, simply absent from the registry — and English « your preferences »,
+  // which shares no word with anything. Adding `tasting_title` to the registry
+  // to close the first then surfaced FOUR MORE REAL DRIFTS in one stroke: the
+  // guide dropped the button's indefinite article in en, es, it and pt
+  // (« Start tasting » for « Start a tasting », « Iniciar cata » for
+  // « Iniciar una cata », « Avvia degustazione » for « Avvia una
+  // degustazione », « Iniciar prova » for « Iniciar uma prova »), in the one
+  // sentence that tells a reader which button starts a timed session. French
+  // and German were right, which is what identifies it as translation drift.
+  //
+  // Turning a false positive into COVERAGE beats acknowledging it — and it is
+  // also what produced the German cross-match `isRealLabel` exists for, since
+  // the registry then held two sibling labels the same sentence names.
+  it("no quotation in a section BODY is a near-miss either", () => {
+    const wrong: string[] = [];
+    let scanned = 0;
+    let compared = 0;
+    for (const { code } of LANGUAGES) {
+      const blk = block("help", code)!;
+      for (const m of blk.matchAll(/<(strong|em)>([^<]{4,70})<\/\1>/g)) {
+        const q = bare(m[2]!);
+        scanned++;
+        // Hoisted out of the key loop: whether the guide named a real control
+        // is a property of the QUOTATION, not of the registry row that happens
+        // to resemble it.
+        if (isRealLabel(code, q)) continue;
+        compared++;
+        for (const { key, doc } of QUOTED) {
+          if ((doc || "help") !== "help") continue;
+          const label = bare(dictValue(code, key) || "");
+          if (!label || q === label || wrapsLabel(q, label)) continue;
+          if (sim(q, label) >= NEAR && shareAWord(q, label)) {
+            wrong.push(`${code}.${key}: the guide says ${JSON.stringify(q)}, the app says ${JSON.stringify(label)}`);
+          }
+        }
+      }
+    }
+    expect(scanned, "no emphasised strings found — the guide's markup changed").toBeGreaterThan(500);
+    // Both exemptions above can silence the whole corpus, and an empty report
+    // satisfies the assertion below — the vacuity trap the policy rule already
+    // records. `compared` counts what actually reached a comparison, so a rule
+    // that stopped examining anything says so instead of reading as clean.
+    expect(compared, "the exemptions swallowed the corpus").toBeGreaterThan(500);
+    expect(wrong, "the guide quotes a control under a name the app does not use").toEqual([]);
   });
 
   // The Italian lot status, which was wrong ten times. Asserted as an ABSENCE
