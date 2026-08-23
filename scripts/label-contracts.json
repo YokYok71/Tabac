@@ -574,6 +574,119 @@
           ]
         }
       ]
+    },
+    {
+      "id": "csv-import-max-rows",
+      "source": "src/utils/csvImport.ts",
+      "match": "MAX_ROWS\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "CLAUDE.md",
+          "patterns": [
+            "MAX_ROWS` ({n})"
+          ]
+        }
+      ],
+      "why": "Defence-in-depth soft cap on a pathological CSV, surfaced to the user via `csv_import_capped`. PROBED: with the value at 7 the only red cases were fixtures it truncated, so its VALUE was pinned by nothing — a realistic drift (50000 -> 40000) reddened nothing at all."
+    },
+    {
+      "id": "tag-max-length",
+      "source": "src/utils/tags.ts",
+      "match": "MAX_TAG_LEN\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "CLAUDE.md",
+          "patterns": [
+            "cap each {n} chars"
+          ]
+        }
+      ],
+      "why": "`sanitizeTags` truncates every tag to this length on write, so it decides what the user's own collection names look like for ever after."
+    },
+    {
+      "id": "tags-per-item",
+      "source": "src/utils/tags.ts",
+      "match": "MAX_TAGS_PER_ITEM\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "CLAUDE.md",
+          "patterns": [
+            "cap {n}/item"
+          ]
+        }
+      ],
+      "why": "PROBED at 3 across the whole suite: nothing red. `sanitizeTags` runs on LOAD via migrateData, so lowering this silently DROPS tags the user already had."
+    },
+    {
+      "id": "diagnostic-max-recent",
+      "source": "src/utils/diagnostic.ts",
+      "match": "DIAGNOSTIC_MAX_RECENT\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "CLAUDE.md",
+          "patterns": [
+            "last-{n} trail"
+          ]
+        }
+      ],
+      "why": "How many violations the Settings diagnostic keeps. One case reddened at 2, so it was PARTLY pinned — by a length assertion, never by the value."
+    },
+    {
+      "id": "gdrive-pending-stale-seconds",
+      "source": "src/constants.ts",
+      "match": "GDRIVE_PENDING_STALE_MS\\s*=\\s*(\\d+)",
+      "divide": 1000,
+      "docs": [
+        {
+          "file": "CLAUDE.md",
+          "patterns": [
+            "older than {n} s"
+          ]
+        }
+      ],
+      "why": "A dropped OAuth chain leaves `gdrive-pending` set; past this age the marker is treated as dead and swept. Too short and a slow round-trip is discarded mid-flight; too long and auto-save stays wedged. Had NO test of any kind."
+    },
+    {
+      "id": "csv-import-max-issues",
+      "source": "src/utils/csvImport.ts",
+      "match": "MAX_CSV_ISSUES\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "CLAUDE.md",
+          "patterns": [
+            "MAX_CSV_ISSUES` ({n}"
+          ]
+        }
+      ],
+      "why": "The detail list is capped while the COUNTS stay exact, and the panel says when it truncated. The number is the promise the panel makes about how much it will show."
+    },
+    {
+      "id": "catalogue-max-issues",
+      "source": "src/utils/userCatalogue.ts",
+      "match": "MAX_CATALOGUE_ISSUES\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "CLAUDE.md",
+          "patterns": [
+            "MAX_CATALOGUE_ISSUES` ({n})"
+          ]
+        }
+      ],
+      "why": "Same contract as its CSV sibling, on the catalogue audit panel. The two are deliberately equal; a drift between them would make one report quietly shorter than the other."
+    },
+    {
+      "id": "catalogue-max-rows",
+      "source": "src/utils/userCatalogue.ts",
+      "match": "MAX_CATALOGUE_ROWS\\s*=\\s*(\\d+)",
+      "docs": [
+        {
+          "file": "CLAUDE.md",
+          "patterns": [
+            "MAX_CATALOGUE_ROWS` ({n})"
+          ]
+        }
+      ],
+      "why": "The ceiling on a user-supplied catalogue. There is deliberately no bundle-size budget for a catalogue because THIS guards it instead — so the number is the whole guarantee."
     }
   ],
   "prose": [
