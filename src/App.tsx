@@ -1934,6 +1934,13 @@ function App() {
   // PipesDetailView, so App cannot see it. It reports itself here purely so
   // `deferAutoUpdate` can protect its unsaved input from an auto-reload.
   var _mfo = useState(false), maintFormOpen = _mfo[0], setMaintFormOpen = _mfo[1];
+  // The LOT modal reports itself the same way, and for a sharper reason than
+  // the maintenance one. `useTobaccoStore` also exposes a `lotForm`, seeded
+  // `Object.assign({}, BL)` — a POPULATED object that is never set to null —
+  // and `InventoryDetailView` SHADOWS that name with its own local state. So
+  // the deferral clause read a value that was permanently truthy and
+  // collapsed to "a tobacco fiche is open", which is not a form.
+  var _lfo = useState(false), lotFormOpen = _lfo[0], setLotFormOpen = _lfo[1];
   function setFormGuard(g: any) { formGuardRef.current = g; }
   var _uc = useState<any>(null),
     unsavedConfirm = _uc[0],
@@ -1951,13 +1958,10 @@ function App() {
     setEditId,
     detail,
     setDetail,
-    lotForm,
-    setLotForm,
-    addLotMode,
+    // Kept only for `nav()`'s transient-state reset below. NONE of these is
+    // exposed on ctx any more — see the note at the appCtx literal.
     setAddLotMode,
-    editLotIdx,
     setEditLotIdx,
-    lotDet,
     setLotDet,
     showFinished,
     setShowFinished,
@@ -2118,9 +2122,18 @@ function App() {
     // an auto-reload (especially the silent data-only path, which has NO
     // countdown the user can cancel) would discard unsaved form input. The
     // update simply waits until the user leaves the form.
-    // ALSO defer while the LOT add/edit modal is
-    // open (`lotForm`) — it holds unsaved weight/price/date input, the exact
-    // discard-on-auto-reload class already fixed for the full-screen forms.
+    // ALSO defer while the LOT add/edit modal is open — it holds unsaved
+    // weight/price/date input, the exact discard-on-auto-reload class already
+    // fixed for the full-screen forms.
+    //
+    // THROUGH `lotFormOpen`, WHICH THE MODAL REPORTS, and not through the
+    // store's `lotForm`. That one is seeded `Object.assign({}, BL)`, a
+    // POPULATED object, and is never set to null — so the clause was
+    // permanently true and collapsed to `view === "inv" && !!detail`: any
+    // open tobacco FICHE deferred every update, and Settings told the user to
+    // close a lot modal that was not open. The real modal is local state in
+    // `InventoryDetailView` that shadows the ctx name, which is exactly why
+    // the ctx one looked wired. Same shape as the maintenance modal below.
     // The two residuals the comment above used to accept are
     // now covered, and the reason they were accepted turned out to be wrong.
     //
@@ -2158,7 +2171,7 @@ function App() {
       // app behaves must be visible. There it was fixable by making the state
       // visible; here the state is genuinely gone from the screen, so it must
       // stop blocking. THE RULE: this predicate describes what is ON SCREEN.
-      || (lotForm && view === "inv" && !!detail)
+      || (lotFormOpen && view === "inv" && !!detail)
       || showWishForm || editWishId
       || (maintFormOpen && view === "pipes" && !!pipeDet)
     ),
@@ -2177,7 +2190,7 @@ function App() {
       (tasting && (tasting.stage === "running" || tasting.stage === "setup")) ? "tasting"
       : (maintFormOpen && view === "pipes" && !!pipeDet) ? "maint"
       : (showWishForm || editWishId) ? "wish"
-      : (lotForm && view === "inv" && !!detail) ? "lot"
+      : (lotFormOpen && view === "inv" && !!detail) ? "lot"
       : ["addT", "editT", "addP", "editP", "addA", "editA", "addJ", "editJ"].indexOf(view) !== -1 ? "form"
       : "none",
   });
@@ -3372,12 +3385,16 @@ function App() {
     ageLabel,
     showFinished,
     setShowFinished,
-    addLotMode,
-    editLotIdx,
-    setAddLotMode,
-    setEditLotIdx,
-    setLotForm,
-    lotForm,
+    // `lotForm` / `setLotForm` / `addLotMode` / `editLotIdx` / `lotDet` are NO
+    // LONGER EXPOSED. They had zero readers in any view — the lot modal is
+    // LOCAL state in `InventoryDetailView` that shadows the name — and the one
+    // thing that did read `ctx.lotForm` was `deferAutoUpdate`, where it was
+    // permanently truthy and blocked every update from an open fiche.
+    //
+    // Removed rather than left standing: a ctx key that LOOKS wired is what
+    // made that defect survive. The store still owns the state internally
+    // (`addLotToTobacco` reads `lotOverride || lotForm`); only the exposure is
+    // gone. Same call as `filteredAccessories`, for the same reason.
     updateLotInTobacco,
     addLotToTobacco,
     deleteTobacco: deleteTobaccoU,
@@ -3594,6 +3611,7 @@ function App() {
     newerBuild,
     lastCheckOkMs,
     setMaintFormOpen,
+    setLotFormOpen,
     updateStatus,
     setUpdateStatus,
     doUpdate,
@@ -3608,8 +3626,6 @@ function App() {
     saveWarn,
     setSaveWarn,
     dismissQuotaWarn,
-    lotDet,
-    setLotDet,
     changeLotStatus,
     removeLot,
     updatePillDismissed,

@@ -39,10 +39,14 @@ export function CuratorPipesDetailView() {
   // unsaved input. App cannot see this state, and the SILENT data-only path
   // has no countdown to cancel — without this the reload just discards it.
   const setMaintFormOpen = ctx.setMaintFormOpen;
+  // Extracted so the dep is statically checkable (it was `[!!maintForm, …]`,
+  // which the hooks rule cannot verify and reported twice). Open/close only —
+  // never on a keystroke inside the modal.
+  const maintFormIsOpen = !!maintForm;
   useEffect(function () {
-    if (setMaintFormOpen) setMaintFormOpen(!!maintForm);
+    if (setMaintFormOpen) setMaintFormOpen(maintFormIsOpen);
     return function () { if (setMaintFormOpen) setMaintFormOpen(false); };
-  }, [!!maintForm, setMaintFormOpen]);
+  }, [maintFormIsOpen, setMaintFormOpen]);
   // The Carnet d'entretien is grouped by year → month, like the
   // journal. maintData.flat is the newest-first list (date desc, then id desc,
   // `Number(id)||0`-guarded so a corrupted id can't NaN the same-day order);

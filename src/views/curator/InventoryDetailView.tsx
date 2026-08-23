@@ -3,7 +3,7 @@
 // it lives on the Home + Journal only now.)
 // Lot taps + "Ajouter un lot" both open the CuratorLotFormModal.
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { lotAge, fmtDate, fmtNum, fmtLotWeight, fmtLotAge, plural, findById, effectiveAgingMax, safeSellerHref, nextBoxNumber, today, daysSince, sessionsForLot } from "../../utils.ts";
@@ -44,6 +44,24 @@ export function CuratorInventoryDetailView() {
   // Read-only detail modal — tapping a lot row opens this
   // first. The Edit button inside switches to `lotForm` (write mode).
   const [lotDetail, setLotDetail] = useState<LotFormData | null>(null);
+  // Report the lot form upward so the auto-update defers to its unsaved
+  // weight / price / date input. App cannot see this state — and note it
+  // SHADOWS `ctx.lotForm`, which comes from `useTobaccoStore`, is seeded from
+  // the populated `BL` template and is never falsy. The deferral clause read
+  // that one, so it was permanently true and meant "a tobacco fiche is open":
+  // every update was blocked from a fiche, and Settings named a modal that
+  // was not there. Same shape as PipesDetailView's `setMaintFormOpen`.
+  const setLotFormOpen = ctx.setLotFormOpen;
+  // Extracted rather than written `[!!lotForm, …]` inline: the dep must be
+  // statically checkable, and the effect must fire on OPEN/CLOSE only — never
+  // on a keystroke inside the modal.
+  const lotFormIsOpen = !!lotForm;
+  useEffect(function () {
+    if (setLotFormOpen) setLotFormOpen(lotFormIsOpen);
+    // MUST clear on unmount, or leaving the fiche with the modal open leaves
+    // the flag armed for the rest of the session, invisibly.
+    return function () { if (setLotFormOpen) setLotFormOpen(false); };
+  }, [lotFormIsOpen, setLotFormOpen]);
   const [showFinishedLots, setShowFinishedLots] = useState(false);
   // The fiche ALREADY hid non-matching lots when the list was
   // filtered (jar / cellar / finished) while its total weight counted every

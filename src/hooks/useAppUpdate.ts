@@ -128,6 +128,22 @@ export function explainPendingUpdate(st: {
   return "idle";
 }
 
+/** The anti-loop marker's key for a given target build.
+ *
+ * EXTRACTED because the writer and the reader had each built it by hand and
+ * had DRIFTED: `checkVersion` prefixed the generation, `explainPendingUpdate`'s
+ * call site did not, so `shouldSuppressUpdate`'s `marker.k === targetKey` could
+ * never hold and the "suppressed" verdict was unreachable. One implementation,
+ * two callers, so the two cannot disagree again.
+ *
+ * The generation belongs in the key: after a renumbering, the same
+ * version+build on a new epoch is a DIFFERENT artifact and must not inherit
+ * the previous epoch's attempt count.
+ */
+export function attemptKey(version: any, build: any): string {
+  return String(APP_GENERATION) + ":" + String(version) + "/" + String(build);
+}
+
 export function shouldSuppressUpdate(marker: any, targetKey: string, nowMs: number): boolean {
   return !!(marker && marker.k === targetKey
     && (marker.n || 0) >= UPDATE_MAX_ATTEMPTS
@@ -253,7 +269,7 @@ export function useAppUpdate(opts?: { deferAutoUpdate?: boolean; deferReason?: s
               // attempted would inherit that epoch's attempt count. Changing
               // the format simply orphans the stored marker once, which is
               // harmless — an unmatched marker suppresses nothing.
-              var targetKey = String(APP_GENERATION) + ":" + d.version + "/" + String(d.build);
+              var targetKey = attemptKey(d.version, d.build);
               var marker = safeJsonParse(localStorage.getItem(UPDATE_ATTEMPT_KEY), null) as any;
               var now = Date.now();
               if (shouldSuppressUpdate(marker, targetKey, now)) return;
@@ -663,9 +679,17 @@ export function useAppUpdate(opts?: { deferAutoUpdate?: boolean; deferReason?: s
     deferred: deferAutoUpdate,
     declinedBuild: declinedBuildRef.current,
     silentPending: !!silentUpdatePending,
+    // The key MUST carry the generation prefix, exactly as `checkVersion`
+    // writes it (`attemptKey`) — `shouldSuppressUpdate` compares `marker.k`
+    // for equality, so a reader that builds it any other way can NEVER match
+    // and `suppressed` is permanently false. It was, which made
+    // `upd_why_suppressed` dead code: a device that had burned its three
+    // auto-reload attempts on a partial deploy showed "silent" or "idle" —
+    // the wrong brake, or none — in the one hook whose design is "it may
+    // refuse to act, but it must say WHICH brake is engaged".
     suppressed: !!newerBuild && shouldSuppressUpdate(
       safeJsonParse(localStorage.getItem(UPDATE_ATTEMPT_KEY), null),
-      newerBuild.version + "/" + newerBuild.build, Date.now()),
+      attemptKey(newerBuild.version, newerBuild.build), Date.now()),
   });
 
   return {

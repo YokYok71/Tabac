@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
+import { renderHook } from "@testing-library/react";
+import { useTobaccoStore } from "../hooks/useTobaccoStore.ts";
+import { INIT } from "../constants.ts";
 
 /**
  * The auto-update must never reload on top of unsaved input.
@@ -36,8 +39,41 @@ describe("deferAutoUpdate covers every surface holding unsaved input", () => {
       .forEach((v) => expect(DEFER).toContain('"' + v + '"'));
   });
 
-  it("defers for the lot modal", () => {
-    expect(DEFER).toContain("lotForm");
+  it("defers for the lot modal — through the flag the MODAL reports, not the store's", () => {
+    // THIS CASE USED TO ASSERT `DEFER.toContain("lotForm")` AND THAT WAS
+    // SATISFIED BY A CLAUSE THAT WAS ALWAYS TRUE.
+    //
+    // `ctx.lotForm` comes from `useTobaccoStore`, seeded
+    // `useState(Object.assign({}, BL))` — a POPULATED object — and never once
+    // set to null (its two writers assign another `{...BL}`). So
+    // `(lotForm && view === "inv" && !!detail)` collapsed to
+    // `view === "inv" && !!detail`: ANY open tobacco fiche deferred every
+    // update, and Settings → Application said « la fiche d'un lot est
+    // ouverte. Fermez-la » with nothing to close. Backgrounding from a fiche
+    // also made the SILENT data-only path skip, so translation releases sat
+    // undelivered.
+    //
+    // The real modal is LOCAL state in `InventoryDetailView` that SHADOWS the
+    // ctx name — which is why the ctx one looked wired. It reports itself now,
+    // exactly as the maintenance modal does.
+    //
+    // A source assertion cannot see that a value is always truthy; the case
+    // below drives the store and shows it.
+    expect(DEFER).toContain("lotFormOpen");
+    const INV = readFileSync("src/views/curator/InventoryDetailView.tsx", "utf8");
+    expect(INV).toContain("setLotFormOpen");
+    // Cleared on unmount, or leaving the fiche with the modal open would
+    // block every update for the rest of the session — invisibly.
+    expect(INV).toMatch(/return function \(\) \{[^}]*setLotFormOpen\(false\)/);
+  });
+
+  it("the store's `lotForm` really is always truthy — the old clause was a constant", () => {
+    // Non-vacuity for the case above, and the only way to SHOW the defect:
+    // it is a property of the VALUE, invisible to any source check.
+    const { result } = renderHook(() => useTobaccoStore({
+      data: { ...INIT }, save: () => {}, nav: () => {}, weightUnit: "g",
+    } as any));
+    expect(result.current.lotForm, "seeded from BL, so never falsy").toBeTruthy();
   });
 
   it("defers for the WISHLIST overlay", () => {
@@ -135,7 +171,17 @@ describe("a deferring state cannot be invisible", () => {
  */
 describe("only ON-SCREEN state may block the update", () => {
   it("the lot modal blocks only while its fiche is open", () => {
-    expect(DEFER).toContain('lotForm && view === "inv" && !!detail');
+    // REVERSAL, recorded on the assertion: this used to pin
+    // `lotForm && view === "inv" && !!detail`, and the guard it was written to
+    // lock was doing nothing. `ctx.lotForm` (the STORE's, shadowed by the
+    // modal's own local state) is seeded from the populated `BL` template and
+    // never set to null, so the first term was a constant and the clause meant
+    // "a tobacco FICHE is open" — which is not a form, and blocked every
+    // update from an ordinary browse screen. The fiche gate is the part that
+    // was always right and is kept.
+    expect(DEFER).toContain('lotFormOpen && view === "inv" && !!detail');
+    expect(DEFER, "the store's always-truthy lotForm must not come back")
+      .not.toContain('lotForm && view === "inv"');
   });
 
   it("the maintenance modal blocks only while its fiche is open", () => {

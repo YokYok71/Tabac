@@ -903,6 +903,84 @@ describe("explainPendingUpdate — the brake that is holding, in one word", () =
     expect(explainPendingUpdate({ ...base, suppressed: true })).toBe("suppressed");
   });
 
+  // ── THE CALL SITE, which is where it was broken ───────────────────────────
+  //
+  // Every case above hands `suppressed` IN. Nothing tested the line in
+  // `useAppUpdate` that COMPUTES it — and that line built the marker key
+  // WITHOUT the generation prefix the writer puts on:
+  //
+  //   writer: String(APP_GENERATION) + ":" + version + "/" + build   → "2:1.0/37"
+  //   reader:                          version + "/" + build         →   "1.0/37"
+  //
+  // `shouldSuppressUpdate` requires `marker.k === targetKey`, so the two
+  // strings could never be equal and `suppressed` was permanently FALSE.
+  // Consequence: a partial deploy burns the three auto-reload attempts,
+  // `checkVersion` then returns early and arms nothing, and Settings →
+  // Application resolves the reason to "silent" or "idle" — the wrong brake,
+  // or none — while `upd_why_suppressed` was dead code.
+  //
+  // In the ONE hook whose whole design is "the mechanism may refuse to act,
+  // but it must say WHICH brake is engaged".
+  it("the hook actually REACHES 'suppressed' when the anti-loop latch is engaged", async () => {
+    // A resolved `serviceWorker.ready` so the periodic checkVersion runs.
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          addEventListener: vi.fn(), removeEventListener: vi.fn(),
+          installing: null, waiting: null,
+        }),
+        controller: null,
+        getRegistrations: vi.fn().mockResolvedValue([]),
+      },
+    });
+    const newer = String(Number(APP_BUILD) + 1);
+    // The marker exactly as `checkVersion` writes it — generation included.
+    localStorage.setItem("cave-update-attempt", JSON.stringify({
+      k: String(APP_GENERATION) + ":" + APP_VERSION + "/" + newer,
+      n: 3, ts: Date.now(),
+    }));
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
+      json: () => Promise.resolve({ version: APP_VERSION, build: newer }),
+    })));
+
+    const { result } = renderHook(() => useAppUpdate());
+    for (let i = 0; i < 6; i++) await act(async () => { await Promise.resolve(); });
+
+    // The build is recorded whatever the brakes do — that is the ungated
+    // half, and the reason this case can ask the question at all.
+    expect(result.current.newerBuild).toMatchObject({ build: newer });
+    expect(result.current.pendingReason, "the wrong brake was named").toBe("suppressed");
+  });
+
+  it("both sides build the marker key through the SAME function", () => {
+    // The defect was never the key FORMAT — it was that two call sites each
+    // built it by hand and drifted. `attemptKey` is now the only producer, so
+    // this asserts the shape that makes the drift impossible rather than the
+    // string it happens to produce. Comments blanked: the note on the reader
+    // spells out the wrong construction, and a source check satisfied by its
+    // own explanation is the trap this repo keeps hitting.
+    const src = readFileSync("src/hooks/useAppUpdate.ts", "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+      .replace(/\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
+    // Exactly one place concatenates the generation onto a version/build: the
+    // helper itself.
+    const handBuilt = [...src.matchAll(/APP_GENERATION\s*\)?\s*\+\s*":"/g)];
+    expect(handBuilt.length, "a second hand-built marker key has appeared").toBe(1);
+    // And both consumers go through it.
+    expect([...src.matchAll(/attemptKey\(/g)].length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("a marker for a DIFFERENT target does not suppress", () => {
+    // Non-vacuity in the other direction: the key must still MATCH. A reader
+    // that ignored the key entirely would pass the case above and break the
+    // per-target semantics the latch exists for.
+    expect(shouldSuppressUpdate(
+      { k: String(APP_GENERATION) + ":" + APP_VERSION + "/998", n: 3, ts: Date.now() },
+      String(APP_GENERATION) + ":" + APP_VERSION + "/999", Date.now(),
+    )).toBe(false);
+  });
+
   it("reports the silent path as waiting, not as broken", () => {
     // data_only applies on backgrounding — nothing is wrong, and the copy says
     // so rather than inviting the user to fix a non-problem.

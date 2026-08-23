@@ -208,12 +208,6 @@ export interface AppCtxType {
   ageLabel: (...args: any[]) => any;
   showFinished?: boolean;
   setShowFinished: (...args: any[]) => void;
-  addLotMode?: boolean;
-  editLotIdx?: any;
-  setAddLotMode: (...args: any[]) => void;
-  setEditLotIdx: (...args: any[]) => void;
-  setLotForm: (...args: any[]) => void;
-  lotForm?: any;
   updateLotInTobacco: (tobId: any, lotId: any, lotOverride?: any) => void;
   addLotToTobacco: (tobId: any, lotOverride?: any, count?: any) => void;
   deleteTobacco: (id: any) => void;
@@ -444,6 +438,10 @@ export interface AppCtxType {
   // PipesDetailView reports its maintenance modal so the
   // auto-update can defer to unsaved input it cannot otherwise see.
   setMaintFormOpen: (open: boolean) => void;
+  /** The LOT add/edit modal reporting itself, so `deferAutoUpdate` can see it.
+   *  Its state is LOCAL to InventoryDetailView (and shadows the store's
+   *  `lotForm`, which is never falsy). Cleared on unmount. */
+  setLotFormOpen: (open: boolean) => void;
   updateStatus?: any;
   setUpdateStatus: (...args: any[]) => void;
   doUpdate: (...args: any[]) => any;
@@ -465,8 +463,6 @@ export interface AppCtxType {
   // quota hook owns it and only records the 7-day suppression when the banner
   // on screen was ITS own — see useStorageQuotaWarning.
   dismissQuotaWarn: () => void;
-  lotDet?: any;
-  setLotDet: (...args: any[]) => void;
   changeLotStatus: (tobId: any, lotId: any, ns: any) => void;
   removeLot: (tobId: any, lotId: any) => void;
   updatePillDismissed?: boolean;
