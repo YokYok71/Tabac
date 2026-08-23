@@ -42,6 +42,10 @@ const KIND_COLOR: Record<string, string> = Object.assign(Object.create(null), {
 type Entry = {
   kind: string;
   id: any;
+  /** The parent tobacco of a `kind: "lot"` row. A lot id is unique per
+   *  tobacco, not globally, so both trash actions need the pair — see
+   *  `useTrashOps.permanentlyDelete`. Absent on every other kind. */
+  tobId?: any;
   label: string;
   sublabel?: string | undefined;
   deletedAt: string;
@@ -91,6 +95,11 @@ function collect(dataRaw: any, tFn: ((k: string) => string) | undefined, weightU
       out.push({
         kind: "lot",
         id: l.id,
+        // The lot's OWN tobacco. A lot id is unique per tobacco, not
+        // globally, so both trash actions need the pair — without it,
+        // purging this row deleted another tobacco's live lot of the same
+        // number and stripped its sessions. See useTrashOps.permanentlyDelete.
+        tobId: t.id,
         label: tobLbl,
         // The unit follows the global preference (this component
         // destructured `t, dateFormat` only, so an oz user read "50g"), and
@@ -380,7 +389,7 @@ export function CuratorTrashModal() {
                       <>
                         <button
                           type="button"
-                          onClick={() => restoreFromTrash && restoreFromTrash(e.kind, e.id)}
+                          onClick={() => restoreFromTrash && restoreFromTrash(e.kind, e.id, e.tobId)}
                           aria-label={tr("trash_restore", "Restaurer")}
                           title={tr("trash_restore", "Restaurer")}
                           // Was a TEXT button (`padding: 0 11px`
@@ -413,7 +422,7 @@ export function CuratorTrashModal() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => permanentlyDelete && permanentlyDelete(e.kind, e.id)}
+                          onClick={() => permanentlyDelete && permanentlyDelete(e.kind, e.id, e.tobId)}
                           aria-label={tr("trash_delete_forever_aria", "Supprimer définitivement")}
                           style={{
                             flexShrink: 0, width: 36, height: 36,

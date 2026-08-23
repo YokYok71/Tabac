@@ -1,5 +1,5 @@
 import { reDeductRestoredSessions } from "../utils/lotUtils.ts";
-import { refreshSnapshotsForRemoval, isTrashed, stripDeleted } from "../utils.ts";
+import { refreshSnapshotsForRemoval, isTrashed, stripDeleted, lotRefKey, sessionRefersToPurgedLot } from "../utils.ts";
 
 // Trash operations extracted verbatim from App.tsx.
 // Restore a soft-deleted row (clears `deletedAt`), permanently delete
@@ -26,17 +26,24 @@ export function useTrashOps({
     if (kind === "accessory") return "accessories";
     return "sessions";
   }
-  function restoreFromTrash(kind: string, id: any) {
-    // Lot trash entries live inside `tobacco.lots`. The
-    // kind "lot" carries the lot.id only; we sweep every tobacco's
-    // lots and clear `deletedAt` on the matching id.
+  // `scopeTobId` names the lot's OWN tobacco. It is optional so callers with
+  // no tobacco to hand keep working, but the TrashModal always passes it —
+  // see permanentlyDelete below for what a bare lot id costs.
+  function restoreFromTrash(kind: string, id: any, scopeTobId?: any) {
+    // Lot trash entries live inside `tobacco.lots`. The kind "lot" carries the
+    // lot.id, and `scopeTobId` says which tobacco it belongs to: lot ids are
+    // unique PER TOBACCO, not globally (migrateData deliberately leaves a
+    // pre-existing cross-tobacco duplicate alone), so restoring by id alone
+    // resurrected another tobacco's identically-numbered lot too.
     // Restore is now a pure deletedAt-clear — no session
     // mutation. The user wants session integrity preserved across
     // every trash op (see permanentlyDelete for the rationale).
     if (kind === "lot") {
       var lotIdStr = String(id);
+      var scopedL = scopeTobId !== undefined && scopeTobId !== null;
       var nextTobsL = ((data && data.tobaccos) || []).map(function (t: any) {
         if (!t || !Array.isArray(t.lots)) return t;
+        if (scopedL && String(t.id) !== String(scopeTobId)) return t;
         var hit = false;
         var newLots = t.lots.map(function (l: any) {
           if (!l || String(l.id) !== lotIdStr) return l;
@@ -155,7 +162,7 @@ export function useTrashOps({
   // `refreshSnapshotsForRemoval` moved to `src/utils.ts`
   // so the stores' soft-delete paths can call it too. See utils.ts
   // for the rationale.
-  function permanentlyDelete(kind: string, id: any) {
+  function permanentlyDelete(kind: string, id: any, scopeTobId?: any) {
     // Permanent lot deletion. Hard-removes the lot from
     // its tobacco AND orphanises every session that referenced it
     // (lotId → "") — mirrors the old hard-delete `removeLot` so
@@ -173,9 +180,28 @@ export function useTrashOps({
     // lots have no snapshot (they're abstract) and the weight book-
     // keeping needs the empty lotId so deleteSession's guard fires.
     if (kind === "lot") {
+      // A LOT ID IS NOT AN IDENTITY — the pair `tobaccoId|lotId` is.
+      //
+      // This walked EVERY tobacco and removed every lot carrying the id, then
+      // cleared `lotId` on every session carrying it. That is safe only while
+      // lot ids are globally unique, and they are not: `migrateData`
+      // deliberately leaves a pre-existing cross-tobacco duplicate alone,
+      // because re-stamping a valid lot id orphans every session referencing
+      // it (see lotIdGlobalRepair.test.ts — the migration protects the MINT,
+      // not the existing pair, and named this call site as the remedy).
+      //
+      // So one tap of the × on tobacco A's trashed lot 42 hard-deleted
+      // tobacco B's LIVE lot 42 and stripped its sessions of their weight
+      // bookkeeping. No user action, no message.
+      //
+      // `scopeTobId` is optional so callers with no tobacco to hand still
+      // purge exactly as before; the TrashModal, which builds its rows inside
+      // a loop over tobaccos, always has one.
       var lotIdStr2 = String(id);
+      var scoped2 = scopeTobId !== undefined && scopeTobId !== null;
       var nextTobs2 = ((data && data.tobaccos) || []).map(function (t: any) {
         if (!t || !Array.isArray(t.lots)) return t;
+        if (scoped2 && String(t.id) !== String(scopeTobId)) return t;
         var newLots = t.lots.filter(function (l: any) {
           return !l || String(l.id) !== lotIdStr2;
         });
@@ -184,6 +210,8 @@ export function useTrashOps({
       });
       var nextSess = ((data && data.sessions) || []).map(function (s: any) {
         if (!s || String(s.lotId) !== lotIdStr2) return s;
+        // The session's own tobacco decides which lot it referred to.
+        if (scoped2 && String(s.tobaccoId) !== String(scopeTobId)) return s;
         return Object.assign({}, s, { lotId: "" });
       });
       save(Object.assign({}, data, { tobaccos: nextTobs2, sessions: nextSess }));
@@ -312,13 +340,17 @@ export function useTrashOps({
     // doesn't leak through this step — it'll be dropped anyway by
     // the top-level filter below.
     // Object.create(null) — see lotPurgeIds above.
+    // Keyed by `tobaccoId|lotId` (lotRefKey), NOT by the bare lot id: ids are
+    // unique per tobacco only, so a flat set cleared `lotId` on sessions
+    // belonging to another tobacco's LIVE lot of the same number. Same defect
+    // as permanentlyDelete above, through the bulk door.
     var orphanedLotIds: Record<string, true> = Object.create(null);
     var tobsAfterLotPurge = (d.tobaccos || []).map(function (t: any) {
       if (!t || !Array.isArray(t.lots)) return t;
       var newLots = t.lots.filter(function (l: any) {
         if (l && l.deletedAt) {
           if (l.id !== undefined && l.id !== null && l.id !== "") {
-            orphanedLotIds[String(l.id)] = true;
+            orphanedLotIds[lotRefKey(t.id, l.id)] = true;
           }
           return false;
         }
@@ -336,14 +368,16 @@ export function useTrashOps({
       if (t && t.deletedAt && Array.isArray(t.lots)) {
         t.lots.forEach(function (l: any) {
           if (l && l.id !== undefined && l.id !== null && l.id !== "") {
-            orphanedLotIds[String(l.id)] = true;
+            orphanedLotIds[lotRefKey(t.id, l.id)] = true;
           }
         });
       }
     });
     var sessAfterOrphan = (d.sessions || []).map(function (s: any) {
       if (!s || !s.lotId) return s;
-      if (!orphanedLotIds[String(s.lotId)]) return s;
+      // Pair when the session names its tobacco, bare id when it does not —
+      // see sessionRefersToPurgedLot for why that is not a loophole.
+      if (!sessionRefersToPurgedLot(s, orphanedLotIds)) return s;
       return Object.assign({}, s, { lotId: "" });
     });
     // Refresh `tobaccoSnapshot` / `pipeSnapshot` (brand,

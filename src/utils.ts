@@ -808,6 +808,49 @@ export function refreshSnapshotsForRemoval(
 // permanentlyDelete("lot")), and sessions referencing a purged tobacco/pipe
 // keep a refreshed snapshot so the journal still shows the entity. `changed`
 // is false (and `next === snap`) when nothing aged past the window.
+// THE IDENTITY OF A LOT REFERENCE IS THE PAIR, NOT THE LOT ID.
+//
+// Lot ids are unique per tobacco but NOT globally: `migrateData` deliberately
+// leaves a pre-existing cross-tobacco duplicate alone, because re-stamping a
+// valid lot id orphans every session referencing it (`session.lotId` is
+// matched by value and nothing warns) — see `lotIdGlobalRepair.test.ts`.
+//
+// The trash operations used to locate a lot by ID ALONE across every tobacco,
+// so purging one tobacco's trashed lot hard-deleted another's LIVE lot with
+// the same id and cleared `lotId` on its sessions. Unattended, in the 30-day
+// sweep, with no message.
+//
+// This is the key `checkLotInvariants` already uses for the balance, so the
+// arithmetic and the deletion now agree on what identifies a lot. One helper
+// so the two sides cannot drift.
+export function lotRefKey(tobaccoId: any, lotId: any): string {
+  return String(tobaccoId) + "|" + String(lotId);
+}
+
+// Does this session point at a lot that was just purged?
+//
+// Keyed on `tobaccoId|lotId` when the session names its tobacco, and on the
+// BARE lot id when it does not. See the two comments at the call sites for
+// why the fallback is not a loophole: it applies precisely when there is no
+// tobacco to disambiguate against, i.e. when the reference is dangling
+// whatever the answer.
+export function sessionRefersToPurgedLot(
+  se: any,
+  purged: Record<string, true>,
+): boolean {
+  if (!se || !se.lotId) return false;
+  var tid = se.tobaccoId;
+  if (tid === undefined || tid === null || tid === "") {
+    var lotStr = String(se.lotId);
+    for (var k in purged) {
+      // `purged` is keyed by pair; match on the lot half.
+      if (k === lotStr || k.slice(k.indexOf("|") + 1) === lotStr) return true;
+    }
+    return false;
+  }
+  return !!purged[lotRefKey(tid, se.lotId)];
+}
+
 export function sweepExpiredTrash(
   snap: any,
   cutoffMs: number,
@@ -819,6 +862,7 @@ export function sweepExpiredTrash(
     if (!isFinite(t)) return true;
     return t > cutoffMs;
   }
+  // Keyed by `tobaccoId|lotId` (lotRefKey) — a bare lot id is NOT an identity.
   var lotPurgeIds: Record<string, true> = Object.create(null);
   var tobsAfterLotPurge = (s.tobaccos || []).map(function (t: any) {
     if (!t || !Array.isArray(t.lots)) return t;
@@ -826,7 +870,7 @@ export function sweepExpiredTrash(
       if (l && l.deletedAt) {
         var lt = Date.parse(l.deletedAt);
         if (isFinite(lt) && lt <= cutoffMs) {
-          if (l.id !== undefined && l.id !== null && l.id !== "") lotPurgeIds[String(l.id)] = true;
+          if (l.id !== undefined && l.id !== null && l.id !== "") lotPurgeIds[lotRefKey(t.id, l.id)] = true;
           return false;
         }
       }
@@ -845,7 +889,7 @@ export function sweepExpiredTrash(
     var tt = Date.parse(t.deletedAt);
     if (!(isFinite(tt) && tt <= cutoffMs)) return;
     ((t.lots || []) as any[]).forEach(function (l: any) {
-      if (l && l.id !== undefined && l.id !== null && l.id !== "") lotPurgeIds[String(l.id)] = true;
+      if (l && l.id !== undefined && l.id !== null && l.id !== "") lotPurgeIds[lotRefKey(t.id, l.id)] = true;
     });
   });
   var nextTobs = tobsAfterLotPurge.filter(fresh);
@@ -854,7 +898,15 @@ export function sweepExpiredTrash(
   var nextAcc = (s.accessories || []).filter(fresh);
   var nextSess = (s.sessions || []).filter(fresh).map(function (se: any) {
     if (!se || !se.lotId) return se;
-    if (!lotPurgeIds[String(se.lotId)]) return se;
+    // The session's OWN tobacco decides which lot it refers to — but ONLY
+    // when it names one. A session carrying a `lotId` and NO `tobaccoId`
+    // belongs to no tobacco, so its reference is unambiguously dangling and
+    // the bare id is the right (and only) test; requiring the pair there
+    // would leave exactly the stale `lotId` this sweep exists to clear, and
+    // `deleteSession`'s `&& sess.lotId` guard would then credit weight back
+    // to a lot that no longer exists. Two pre-existing fixtures are built
+    // that way and were right to fail the first, over-reaching version.
+    if (!sessionRefersToPurgedLot(se, lotPurgeIds)) return se;
     return Object.assign({}, se, { lotId: "" });
   });
   var lotPurgeCount = Object.keys(lotPurgeIds).length;

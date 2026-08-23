@@ -164,7 +164,45 @@ describe("CuratorTrashModal — actions", () => {
       (b) => /^(Restaurer|Restore|trash_restore)$/i.test(b.getAttribute("aria-label") || ""));
     expect(restoreBtn, "per-row restore button not found by aria-label").toBeTruthy();
     fireEvent.click(restoreBtn!);
-    expect(restoreFromTrash).toHaveBeenCalledWith("tobacco", 7);
+    // The third argument is the lot's parent tobacco — a lot id is unique per
+    // tobacco, not globally, so both trash actions need the pair (see
+    // `useTrashOps.permanentlyDelete`). A NON-lot row carries none, and
+    // asserting that explicitly is the point: it documents which rows are
+    // scoped and which are not.
+    expect(restoreFromTrash).toHaveBeenCalledWith("tobacco", 7, undefined);
+  });
+
+  it("a LOT row forwards its parent tobacco as the scope", () => {
+    // The wiring, not the arity. A lot id is unique per tobacco only, so
+    // without this third argument the × on this row hard-deleted every OTHER
+    // tobacco's lot carrying the same number and stripped their sessions of
+    // their weight bookkeeping — unattended in the 30-day sweep too. The row
+    // is built inside a loop over tobaccos, so it always has the id to hand.
+    const permanentlyDelete = vi.fn();
+    const restoreFromTrash = vi.fn();
+    const { getAllByRole } = renderWithCtx(<CuratorTrashModal />, ctx({
+      permanentlyDelete,
+      restoreFromTrash,
+      dataRaw: {
+        tobaccos: [{ id: 7, brand: "X", name: "Y", lots: [
+          { id: 42, weightG: "50", weightInitial: "50",
+            deletedAt: "2026-05-15T10:00:00Z" },
+        ] }],
+        pipes: [], wishlist: [], accessories: [], sessions: [],
+      },
+    }));
+    const xBtn = getAllByRole("button").find(
+      (b) => (b.getAttribute("aria-label") || "")
+        .match(/Supprimer définitivement|Delete forever|trash_delete_forever_aria/));
+    expect(xBtn, "the lot row is not rendered — check the fixture").toBeTruthy();
+    fireEvent.click(xBtn!);
+    expect(permanentlyDelete).toHaveBeenCalledWith("lot", 42, 7);
+
+    const restoreBtn = getAllByRole("button").find(
+      (b) => /^(Restaurer|Restore|trash_restore)$/i.test(b.getAttribute("aria-label") || ""));
+    expect(restoreBtn).toBeTruthy();
+    fireEvent.click(restoreBtn!);
+    expect(restoreFromTrash).toHaveBeenCalledWith("lot", 42, 7);
   });
 
   it("× button forwards (kind, id) to permanentlyDelete", () => {
@@ -182,7 +220,7 @@ describe("CuratorTrashModal — actions", () => {
         .match(/Supprimer définitivement|Delete forever|trash_delete_forever_aria/));
     expect(xBtn).toBeTruthy();
     fireEvent.click(xBtn!);
-    expect(permanentlyDelete).toHaveBeenCalledWith("session", 99);
+        expect(permanentlyDelete).toHaveBeenCalledWith("session", 99, undefined);
   });
 
   it("Empty trash CTA respects the window.confirm gate", () => {
