@@ -115,27 +115,63 @@ describe("JournalView — flame button switches Start ↔ Resume", () => {
   });
 });
 
+// ── THE DELETE CASE WAS VACUOUS, AND THE FILE SAID SO TWO CASES LATER ──────
+//
+// It looked for `button[aria-label='trash']` on the ROW and wrapped every
+// assertion in `if (trash) { … }`. The row has carried no trash icon since the
+// delete moved into the session-detail modal — and « no inline edit / delete
+// icons on the row » BELOW asserts exactly that — so `trash` was always null,
+// the block never ran, and the case passed with ZERO assertions while
+// reporting a guarantee about the app's delete path.
+//
+// A `if (el) { … }` around the assertions turns "the control disappeared" into
+// a pass. That is the shape to distrust: the test cannot tell "the button is
+// gone" from "the button behaved". It drives the REAL path now — open the
+// modal, tap its delete — and finding no button is a failure, not a skip.
 describe("JournalView — delete (no confirm)", () => {
   // The trash button calls deleteSession directly. The
   // 30-day Trash + 8 s undo toast replace the confirm prompt.
+  const tob = { id: "T1", brand: "Brackwater", name: "Duskfall", lots: [] };
+  const pipe = { id: "P1", brand: "Halvorsen", name: "Sherlock Holmes", status: "active" };
+  const sess = {
+    id: "S1", date: "2025-01-15", tobaccoId: "T1", pipeId: "P1",
+    duration: "30", rating: 4, notes: "", weightG: "2", lotId: "L1",
+  };
+
+  function openModal(ctxExtra: any) {
+    function Harness() {
+      const [sd, setSd] = React.useState<any>(null);
+      return (
+        <AppCtx.Provider value={{
+          view: "journal",
+          t: (k: string) => k, xl: (v: string) => v, lang: "fr",
+          nav: () => {}, weightUnit: "g", lengthUnit: "mm", dateFormat: "fr", currencySymbol: "€",
+          data: { sessions: [sess], tobaccos: [tob], pipes: [pipe], accessories: [], wishlist: [] },
+          sessionDetail: sd, setSessionDetail: setSd,
+          ...ctxExtra,
+        } as unknown as AppCtxType}>
+          <CuratorJournalView />
+        </AppCtx.Provider>
+      );
+    }
+    const r = render(<Harness />);
+    const row = r.getAllByRole("button").find(b =>
+      /aria_session_card/i.test(b.getAttribute("aria-label") || ""));
+    expect(row, "the session row is no longer reachable").toBeTruthy();
+    fireEvent.click(row!);
+    return r;
+  }
+
   it("calls deleteSession immediately without a confirm prompt", () => {
-    const sess = {
-      id: "s1", date: "2025-01-15", tobaccoId: "1", pipeId: "1",
-      duration: "30", rating: 4, notes: "", weightG: "2", lotId: "l1",
-    };
     const deleteSession = vi.fn();
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    const { container } = renderWithCtx(<CuratorJournalView />, {
-      view: "journal",
-      data: { sessions: [sess], tobaccos: [], pipes: [], accessories: [], wishlist: [] },
-      deleteSession,
-    });
-    const trash = container.querySelector("button[aria-label='trash']") as HTMLButtonElement | null;
-    if (trash) {
-      fireEvent.click(trash);
-      expect(confirmSpy).not.toHaveBeenCalled();
-      expect(deleteSession).toHaveBeenCalledWith("s1");
-    }
+    const { getAllByRole } = openModal({ deleteSession });
+    const del = getAllByRole("button").find(b => /btn_delete|supprimer/i.test(b.textContent || ""));
+    expect(del, "no delete control in the session-detail modal").toBeTruthy();
+    fireEvent.click(del!);
+    expect(confirmSpy, "a confirm prompt returned — the trash is the safety net")
+      .not.toHaveBeenCalled();
+    expect(deleteSession).toHaveBeenCalledWith("S1");
     confirmSpy.mockRestore();
   });
 });

@@ -105,6 +105,18 @@ describe("TobaccoFormView — Cancel", () => {
 // field is empty, skipped for the entity being edited (form.id match),
 // skipped for trashed rows (they're already in the corbeille).
 describe("TobaccoFormView — duplicate detection", () => {
+  // THE THREE NEGATIVES BELOW WERE UNFALSIFIABLE, and the POSITIVE case in
+  // this same block is what shows why: it accepts `dup_tob_pre` alongside the
+  // French and English wordings, because the harness `t` returns the KEY — so
+  // « existe déjà » appears NOWHERE under this harness, and a negative that
+  // only forbids those words holds whether the banner is hidden, shown, or
+  // wired to fire on every keystroke. PROBED: forcing the duplicate memo to
+  // return a row unconditionally left all 26 cases in this file green.
+  //
+  // The regex forbids the KEYS as well. A negative assertion must reject
+  // exactly what the positive one accepts, or it is a decoration.
+  const DUP_BANNER = /existe déjà|already exists|dup_tob_pre|dup_tob_wish_pre/i;
+
   const dupData = {
     tobaccos: [
       { id: 1, name: "Duskfall", brand: "Brackwater", lots: [] },
@@ -120,7 +132,7 @@ describe("TobaccoFormView — duplicate detection", () => {
       setForm: vi.fn(),
       data: dupData,
     });
-    expect(container.textContent).not.toMatch(/existe déjà|already exists/i);
+    expect(container.textContent).not.toMatch(DUP_BANNER);
   });
 
   it("shows the banner when brand+name (case-insensitive) match a live tabac", () => {
@@ -143,7 +155,7 @@ describe("TobaccoFormView — duplicate detection", () => {
       setForm: vi.fn(),
       data: dupData,
     });
-    expect(container.textContent).not.toMatch(/existe déjà|already exists/i);
+    expect(container.textContent).not.toMatch(DUP_BANNER);
   });
 
   it("does NOT show the banner in editT when editing the matching tabac itself", () => {
@@ -155,7 +167,7 @@ describe("TobaccoFormView — duplicate detection", () => {
       setForm: vi.fn(),
       data: dupData,
     });
-    expect(container.textContent).not.toMatch(/existe déjà|already exists/i);
+    expect(container.textContent).not.toMatch(DUP_BANNER);
   });
 
   it("does NOT block save when a duplicate is detected (warning only)", () => {

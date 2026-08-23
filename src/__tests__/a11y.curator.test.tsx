@@ -41,13 +41,92 @@ const axeOpts = {
   },
 };
 
+// ── EVERY VIEW WAS AUDITED WITH AN EMPTY CELLAR ────────────────────────────
+//
+// All six cases passed `[]` for every collection, so each list rendered its
+// EMPTY STATE and axe examined a sentence and a button. Not one card, chip,
+// status badge, star row, photo column, rating control or filter dropdown —
+// i.e. none of the controls a11y defects actually live in — had ever been
+// looked at. The suite's own header says it exists to catch "missing labels,
+// div onClick patterns, missing ARIA", and an empty list contains none of
+// those to get wrong.
+//
+// It is the same finding the browser checks hit twice: a green run over an
+// empty state is the most reassuring way to miss a screen. The seed is a
+// GATE, not decoration.
+//
+// The fixture below deliberately exercises the branches that carry ARIA: a
+// lot in each status (so every maturity/status badge renders), a no-rebuy
+// tobacco (the third badge), a retired accessory and a finished pipe (the
+// whole-card variants), a rated session with aromas, and a wishlist row.
+const A11Y_TOB = {
+  id: 1, uid: "u-t1", brand: "Brackwater", name: "Duskfall",
+  category: "Virginia", cut: "Flake", blend: "Virginia, Perique",
+  force: 3, roomNote: 2, taste: 4, rating: 4, rebuy: true,
+  agingMax: "10", tags: ["voyage"], tastingNotes: "", description: "",
+  lots: [
+    { id: 101, uid: "u-l1", status: "cellar", originalStatus: "cellar",
+      weightG: "50", weightInitial: "50", datePurchased: "2020-02-01",
+      boxNumber: "1", price: "12", seller: "", disposed: false },
+    { id: 102, uid: "u-l2", status: "jar", originalStatus: "jar",
+      weightG: "20", weightInitial: "50", datePurchased: "2024-01-01",
+      dateOpened: "2024-06-01", boxNumber: "2", price: "12", seller: "", disposed: false },
+    { id: 103, uid: "u-l3", status: "finished", originalStatus: "cellar",
+      weightG: "0", weightInitial: "50", datePurchased: "2019-01-01",
+      dateOpened: "2019-06-01", dateFinished: "2021-01-01",
+      boxNumber: "3", price: "12", seller: "", disposed: false },
+  ],
+};
+const A11Y_TOB2 = {
+  id: 2, uid: "u-t2", brand: "Vondel", name: "Kade 12",
+  category: "Anglais", cut: "Ribbon", blend: "Latakia, Virginia",
+  force: 4, roomNote: 4, taste: 3, rating: 2, rebuy: false, // the ✕ badge
+  agingMax: "", tags: [], tastingNotes: "", description: "",
+  lots: [{ id: 201, uid: "u-l4", status: "jar", originalStatus: "jar",
+    weightG: "5", weightInitial: "50", datePurchased: "2025-01-01",
+    dateOpened: "2025-02-01", boxNumber: "", price: "9", seller: "", disposed: false }],
+};
+const A11Y_PIPES = [
+  { id: 1, uid: "u-p1", brand: "Halvorsen", name: "Early Tide", shape: "Billiard",
+    courbure: "Droite", bowlMaterial: "Bruyère", stemMaterial: "Ébonite",
+    finish: "Lisse", rating: 5, status: "active", maintenance: [], photos: [], tags: [] },
+  { id: 2, uid: "u-p2", brand: "Østergaard", name: "Rivière", shape: "Bulldog",
+    courbure: "Courbée", bowlMaterial: "Bruyère", stemMaterial: "Cumberland",
+    finish: "Sablée", rating: 3, status: "finished", maintenance: [], photos: [], tags: [] },
+];
+const A11Y_ACC = [
+  { id: 1, uid: "u-a1", brand: "Corvane", name: "Tempête", type: "Briquet",
+    fuel: "Gaz", rating: 4, status: "active", notes: "", tags: [] },
+  { id: 2, uid: "u-a2", brand: "Marlow", name: "Sac", type: "Blague à tabac",
+    rating: 2, status: "retired", notes: "", tags: [] },
+];
+const A11Y_SESSIONS = [
+  { id: 1, uid: "u-s1", date: "2026-05-10", time: "18:30", tobaccoId: 1, pipeId: 1,
+    lotId: "102", duration: "45", rating: 5, notes: "calme", weightG: "2.5",
+    aromas: ["vanilla", "leather"] },
+  { id: 2, uid: "u-s2", date: "2026-05-02", tobaccoId: 2, pipeId: 2,
+    lotId: "", duration: "30", rating: 3, notes: "", weightG: "2" },
+];
+const A11Y_WISH = [
+  { id: 1, uid: "u-w1", brand: "Aldwych", name: "Coin de rue",
+    category: "Balkan", cut: "Plug", priority: "medium", notes: "" },
+];
+const A11Y_DATA = {
+  tobaccos: [A11Y_TOB, A11Y_TOB2],
+  pipes: A11Y_PIPES,
+  accessories: A11Y_ACC,
+  sessions: A11Y_SESSIONS,
+  wishlist: A11Y_WISH,
+  nxT: 3, nxP: 3, nxA: 3, nxJ: 3, nxW: 2,
+};
+
 describe("a11y smoke — Curator views", () => {
   it("HomeView has no serious/critical a11y violations", async () => {
     const { container } = renderWithCtx(<CuratorHomeViewV2 />, {
       view: "home",
-      stats: { activeRefs: 0, pipesActive: 0, avg: "—" },
+      stats: { activeRefs: 2, pipesActive: 1, avg: "4.0" },
       chartData: {},
-      data: { tobaccos: [], pipes: [], accessories: [], sessions: [], wishlist: [] },
+      data: A11Y_DATA,
     });
     const results = await axe(container, axeOpts);
     expect(results).toHaveNoViolations();
@@ -56,8 +135,24 @@ describe("a11y smoke — Curator views", () => {
   it("InventoryListView has no serious/critical a11y violations", async () => {
     const { container } = renderWithCtx(<CuratorInventoryListView />, {
       view: "inv",
-      filtered: [],
+      data: A11Y_DATA,
+      filtered: A11Y_DATA.tobaccos,
       statusFilter: "all",
+      tobGrouped: false,
+    });
+    const results = await axe(container, axeOpts);
+    expect(results).toHaveNoViolations();
+  });
+
+  it("the WISHLIST mode of the inventory list is clean too", async () => {
+    // A different card component (`WishCard`) on the same view — reachable
+    // only through `statusFilter`, so the tobacco case above never renders it.
+    const { container } = renderWithCtx(<CuratorInventoryListView />, {
+      view: "inv",
+      data: A11Y_DATA,
+      filtered: [],
+      statusFilter: "wish",
+      wishGrouped: false,
     });
     const results = await axe(container, axeOpts);
     expect(results).toHaveNoViolations();
@@ -66,8 +161,10 @@ describe("a11y smoke — Curator views", () => {
   it("PipesListView has no serious/critical a11y violations", async () => {
     const { container } = renderWithCtx(<CuratorPipesListView />, {
       view: "pipes",
-      filteredPipes: [],
+      data: A11Y_DATA,
+      filteredPipes: A11Y_PIPES,
       stats: { pipeVal: 0 },
+      pipesGrouped: false,
     });
     const results = await axe(container, axeOpts);
     expect(results).toHaveNoViolations();
@@ -76,7 +173,8 @@ describe("a11y smoke — Curator views", () => {
   it("AccListView has no serious/critical a11y violations", async () => {
     const { container } = renderWithCtx(<CuratorAccListView />, {
       view: "acc",
-      data: { wishlist: [], tobaccos: [], pipes: [], accessories: [], sessions: [] },
+      data: A11Y_DATA,
+      accsGrouped: false,
     });
     const results = await axe(container, axeOpts);
     expect(results).toHaveNoViolations();
@@ -85,6 +183,8 @@ describe("a11y smoke — Curator views", () => {
   it("JournalView has no serious/critical a11y violations", async () => {
     const { container } = renderWithCtx(<CuratorJournalView />, {
       view: "journal",
+      data: A11Y_DATA,
+      sessGrouped: false,
     });
     const results = await axe(container, axeOpts);
     expect(results).toHaveNoViolations();

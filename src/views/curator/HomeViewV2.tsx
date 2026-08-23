@@ -709,47 +709,64 @@ export function CuratorHomeViewV2() {
                     <span style={{ fontFamily: F.display, fontSize: fs(24), color: C.ivory, fontStyle: "italic", lineHeight: 1.1 }}>{hero.tob.name || "—"}</span>
                     {hero.chip && <span style={{ padding: "2px 8px", borderRadius: 999, background: alpha(hero.chipColor, "22"), color: hero.chipColor, fontFamily: F.mono, fontSize: fs(11), letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, whiteSpace: "nowrap" }}>{hero.chip}</span>}
                   </div>
-                  {restedPipeObj && (
-                    <div style={{ marginTop: 6, fontSize: fs(13.5), color: C.tx2, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
-                      <span>{t ? t("home_pair_with") : "À accorder avec"}</span>
-                      {/* Tapping the pipe name opens the PIPE fiche
-                          (the rest of the card opens the tobacco). PressCard
-                          fires on pointerUp, not just click, so we stop BOTH
-                          pointer + click propagation — a click-only
-                          stopPropagation leaked and opened the tobacco.
-                          It was a padding:0 text-only target (too hard
-                          to tap on the hero photo). Now a real chip — inline-
-                          flex, oxblood tint + border, generous padding — so the
-                          hit area is a comfortable tap size. */}
-                      <button type="button"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onPointerUp={(e) => e.stopPropagation()}
-                        onClick={(e) => { e.stopPropagation(); if (crossOpenDetail) crossOpenDetail({ view: "pipes", kind: "pipe", obj: restedPipeObj }); }}
-                        style={{
-                          display: "inline-flex", alignItems: "center", minHeight: 32,
-                          padding: "5px 11px", borderRadius: 999,
-                          background: alpha(C.oxbloodHi, "1e"), border: `1px solid ${alpha(C.oxbloodHi, "55")}`,
-                          font: "inherit", fontWeight: 600, color: C.oxbloodHi, cursor: "pointer",
-                        }}>
-                        {[restedPipeObj.brand, restedPipeObj.name].filter(Boolean).join(" ")}
-                      </button>
-                      {restedPipe && restedPipe.restDays !== null
-                        ? <span>· {String(t ? t("rest_chip") : "repos {n} j").replace("{n}", String(restedPipe.restDays))}</span>
-                        : null}
-                      {/* The pipe was picked because it ACCORDS with tonight's
-                          family, not merely because it was rested. Saying so is
-                          not decoration: an accord applied silently is a
-                          behaviour the user cannot see, and this repo's rule is
-                          that any state changing how the app behaves must be
-                          visible somewhere. It also answers "why this pipe?",
-                          which is the question the suggestion invites. */}
-                      {restedPipe && restedPipe.matched
-                        ? <span style={{ color: C.sage }}>· {t ? t("home_pair_accord") : "accordée"}</span>
-                        : null}
-                    </div>
-                  )}
                 </div>
               </PressCard>
+              {/* THE ACCORD ROW IS A SIBLING OF THE CARD, NOT A CHILD OF IT.
+                  It used to sit INSIDE the PressCard, which is `role="button"`
+                  — so a real `<button>` for the pipe was nested inside a
+                  button. axe calls that `nested-interactive` (WCAG 4.1.2), and
+                  the cost is concrete rather than theoretical: VoiceOver
+                  flattens a button's subtree into its accessible name, so the
+                  pipe chip was NOT separately focusable and the whole accord
+                  shortcut was unreachable to that user, on the app's landing
+                  screen.
+
+                  It was ALSO fighting the platform, and said so: the chip
+                  carried `stopPropagation` on pointerdown, pointerup AND click
+                  because "a click-only stopPropagation leaked and opened the
+                  tobacco". All three are gone — outside the card there is
+                  nothing to leak into, so the chip is a plain button again.
+
+                  The line is metadata explaining the suggestion, so reading it
+                  as a caption under the card is faithful to what it says. It
+                  keeps the page gutter, so it stays aligned with the blend
+                  name above it.
+
+                  Found by the a11y suite only once its fixture stopped being
+                  an empty cellar — with no suggestion there is no hero, and
+                  with no rested pipe there is no chip to nest. */}
+              {restedPipeObj && (
+                <div style={{ marginTop: 6, padding: "0 12px", fontSize: fs(13.5), color: C.tx2, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+                  <span>{t ? t("home_pair_with") : "À accorder avec"}</span>
+                  {/* A real chip — inline-flex, oxblood tint + border, generous
+                      padding — so the hit area is a comfortable tap size (it
+                      was once a padding:0 text-only target and too hard to
+                      tap). */}
+                  <button type="button"
+                    onClick={() => { if (crossOpenDetail) crossOpenDetail({ view: "pipes", kind: "pipe", obj: restedPipeObj }); }}
+                    style={{
+                      display: "inline-flex", alignItems: "center", minHeight: 32,
+                      padding: "5px 11px", borderRadius: 999,
+                      background: alpha(C.oxbloodHi, "1e"), border: `1px solid ${alpha(C.oxbloodHi, "55")}`,
+                      font: "inherit", fontWeight: 600, color: C.oxbloodHi, cursor: "pointer",
+                    }}>
+                    {[restedPipeObj.brand, restedPipeObj.name].filter(Boolean).join(" ")}
+                  </button>
+                  {restedPipe && restedPipe.restDays !== null
+                    ? <span>· {String(t ? t("rest_chip") : "repos {n} j").replace("{n}", String(restedPipe.restDays))}</span>
+                    : null}
+                  {/* The pipe was picked because it ACCORDS with tonight's
+                      family, not merely because it was rested. Saying so is
+                      not decoration: an accord applied silently is a
+                      behaviour the user cannot see, and this repo's rule is
+                      that any state changing how the app behaves must be
+                      visible somewhere. It also answers "why this pipe?",
+                      which is the question the suggestion invites. */}
+                  {restedPipe && restedPipe.matched
+                    ? <span style={{ color: C.sage }}>· {t ? t("home_pair_accord") : "accordée"}</span>
+                    : null}
+                </div>
+              )}
             </div>
           );
         })()}

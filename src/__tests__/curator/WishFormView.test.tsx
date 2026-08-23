@@ -72,6 +72,13 @@ describe("WishFormView — priority segmented", () => {
 // Warning only — save isn't blocked. Skipped on empty brand/name,
 // skipped on the entry being edited, skipped for trashed rows.
 describe("WishFormView — duplicate detection", () => {
+  // THE SAME UNFALSIFIABLE NEGATIVES AS THE TOBACCO FORM — see the note there.
+  // The two POSITIVE cases in this block already accept `wishdup_wish_pre` /
+  // `wishdup_own_pre`, because the harness `t` returns the KEY; the negatives
+  // forbade only « déjà » / « already », which appear nowhere under this
+  // harness, so they held no matter what the banner did.
+  const WISH_DUP_BANNER = /déjà|already|wishdup_wish_pre|wishdup_own_pre/i;
+
   it("does NOT show the banner when brand or name is empty", () => {
     const { container } = renderWithCtx(<CuratorWishFormView />, {
       showWishForm: true,
@@ -83,7 +90,7 @@ describe("WishFormView — duplicate detection", () => {
         tobaccos: [],
       },
     });
-    expect(container.textContent).not.toMatch(/déjà|already/i);
+    expect(container.textContent).not.toMatch(WISH_DUP_BANNER);
   });
 
   it("shows the 'wish dup' banner when an identical wish already exists", () => {
@@ -127,7 +134,7 @@ describe("WishFormView — duplicate detection", () => {
           deletedAt: "2026-05-15T10:00:00Z" }],
       },
     });
-    expect(container.textContent).not.toMatch(/déjà|already/i);
+    expect(container.textContent).not.toMatch(WISH_DUP_BANNER);
   });
 
   it("does NOT show the banner in edit mode when the matching row is the wish itself", () => {
@@ -141,7 +148,7 @@ describe("WishFormView — duplicate detection", () => {
         tobaccos: [],
       },
     });
-    expect(container.textContent).not.toMatch(/déjà|already/i);
+    expect(container.textContent).not.toMatch(WISH_DUP_BANNER);
   });
 });
 

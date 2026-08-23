@@ -82,47 +82,66 @@ describe("TastingBanner — overtime", () => {
     expect(container.textContent).toMatch(/⚠|overtime|dépassement|Auto|Fin|End/);
   });
 
-  it("Extend button calls tastingPostponeOvertime", () => {
-    const postpone = vi.fn();
-    const { getByText } = renderWithCtx(<CuratorTastingBanner />, {
-      view: "home",
-      tasting: runningTasting,
-      tastingElapsedMs: () => 90 * 60 * 1000,
-      tastingOvertimePrompt: () => true,
-      tastingOvertimeRemainingMs: () => 5 * 60 * 1000,
-      tastingPostponeOvertime: postpone,
-      tastingEnd: vi.fn(),
-    });
-    // Button text contains "Continuer" (fr) or "Extend" (en)
-    const btn = (() => {
-      try { return getByText(/Continuer|Extend/); }
-      catch { return null; }
-    })();
-    if (btn) {
-      fireEvent.click(btn);
-      expect(postpone).toHaveBeenCalled();
-    }
-  });
-
-  it("End-now button calls tastingEnd", () => {
-    const end = vi.fn();
-    const { getByText } = renderWithCtx(<CuratorTastingBanner />, {
+  // ── THESE TWO WERE VACUOUS, AND IN A WAY THE COMMENT ITSELF ADMITTED ─────
+  //
+  // They read `getByText(/Continuer|Extend/)` inside a try/catch, then wrapped
+  // the click and the assertion in `if (btn) { … }`. The harness's `t` returns
+  // the KEY, so the button renders as `tasting_overtime_extend` and that regex
+  // could never match — `btn` was always null and both cases passed with ZERO
+  // assertions, on the two controls of the prompt that closes a live tasting.
+  //
+  // The comment even said what the text "contains", which is what made it look
+  // deliberate. Selecting on a translated string under a key-returning `t` is
+  // the bug; the KEY is the stable contract, so that is what they target now —
+  // and finding no button is a failure rather than a skip.
+  function overtimeCtx(extra: any) {
+    return {
       view: "home",
       tasting: runningTasting,
       tastingElapsedMs: () => 90 * 60 * 1000,
       tastingOvertimePrompt: () => true,
       tastingOvertimeRemainingMs: () => 5 * 60 * 1000,
       tastingPostponeOvertime: vi.fn(),
-      tastingEnd: end,
-    });
-    const btn = (() => {
-      try { return getByText(/Terminer|End now/); }
-      catch { return null; }
-    })();
-    if (btn) {
-      fireEvent.click(btn);
-      expect(end).toHaveBeenCalled();
-    }
+      tastingEnd: vi.fn(),
+      ...extra,
+    };
+  }
+  // Accepts the key (harness `t`) or the French fallback (no `t` at all), so
+  // the selection survives either harness rather than silently skipping.
+  const EXTEND = /tasting_overtime_extend|Continuer/;
+  const END_NOW = /tasting_overtime_end_now|Terminer/;
+
+  it("Extend button calls tastingPostponeOvertime", () => {
+    const postpone = vi.fn();
+    const { getByText } = renderWithCtx(
+      <CuratorTastingBanner />, overtimeCtx({ tastingPostponeOvertime: postpone }));
+    const btn = getByText(EXTEND);
+    fireEvent.click(btn);
+    expect(postpone).toHaveBeenCalled();
+  });
+
+  it("End-now button calls tastingEnd", () => {
+    const end = vi.fn();
+    const { getByText } = renderWithCtx(
+      <CuratorTastingBanner />, overtimeCtx({ tastingEnd: end }));
+    const btn = getByText(END_NOW);
+    fireEvent.click(btn);
+    expect(end).toHaveBeenCalled();
+  });
+
+  it("the two actions are DISTINCT controls, not one wired twice", () => {
+    // The pair is « keep smoking » and « close the session now »: one handler
+    // reached from both would silently end a tasting the user asked to
+    // extend. Nothing checked they were different elements.
+    const postpone = vi.fn();
+    const end = vi.fn();
+    const { getByText } = renderWithCtx(
+      <CuratorTastingBanner />,
+      overtimeCtx({ tastingPostponeOvertime: postpone, tastingEnd: end }));
+    expect(getByText(EXTEND)).not.toBe(getByText(END_NOW));
+    fireEvent.click(getByText(EXTEND));
+    expect(postpone).toHaveBeenCalledTimes(1);
+    expect(end, "extending also ended the tasting").not.toHaveBeenCalled();
   });
 });
 

@@ -372,3 +372,53 @@ describe("CuratorHomeViewV2", () => {
     expect(screen.getByText("home_zone_dash")).toBeInTheDocument();
   });
 });
+
+// ── THE ACCORD CHIP WAS A BUTTON INSIDE A BUTTON ──────────────────────────
+//
+// The « Ce soir ? » hero is a `PressCard`, i.e. `role="button"`, and the
+// paired-pipe chip was rendered INSIDE it as a real `<button>`. axe calls that
+// `nested-interactive` (WCAG 4.1.2) and the cost is concrete: VoiceOver
+// flattens a button's subtree into its accessible name, so the chip was not
+// separately focusable and the whole accord shortcut was unreachable to that
+// user — on the app's landing screen.
+//
+// It was also fighting the platform, and its own comment said so: the chip
+// carried `stopPropagation` on pointerdown, pointerup AND click because "a
+// click-only stopPropagation leaked and opened the tobacco". Outside the card
+// there is nothing to leak into.
+//
+// FOUND BY THE a11y SUITE ONLY AFTER ITS FIXTURE STOPPED BEING AN EMPTY
+// CELLAR — with no suggestion there is no hero, and with no rested pipe there
+// is no chip to nest.
+describe("HomeViewV2 — the accord chip is not nested in the hero card", () => {
+  it("the pipe chip is OUTSIDE every role=button ancestor", () => {
+    const crossOpenDetail = vi.fn();
+    const { container } = renderWith({ ...baseCtx, crossOpenDetail });
+    const chip = [...container.querySelectorAll("button")]
+      .find((b) => /Halvorsen SH/.test(b.textContent || ""));
+    expect(chip, "the paired-pipe chip is not rendered — check the fixture").toBeTruthy();
+    expect(chip!.closest('[role="button"]'),
+      "the chip is nested inside a role=button: VoiceOver cannot reach it").toBeNull();
+  });
+
+  it("…and the hero card is still a control in its own right", () => {
+    // Non-vacuity, and the half a careless fix would break: moving the chip out
+    // must not cost the card its own tap target.
+    const { container } = renderWith(baseCtx);
+    const cards = [...container.querySelectorAll('[role="button"]')]
+      .filter((el) => /Duskfall/.test(el.textContent || ""));
+    expect(cards.length, "the hero stopped being tappable").toBeGreaterThan(0);
+  });
+
+  it("tapping the chip opens the PIPE, and nothing else fires", () => {
+    // The propagation dance is gone, so this is the assertion that replaces
+    // it: one tap, one destination.
+    const crossOpenDetail = vi.fn();
+    const { container } = renderWith({ ...baseCtx, crossOpenDetail });
+    const chip = [...container.querySelectorAll("button")]
+      .find((b) => /Halvorsen SH/.test(b.textContent || ""));
+    fireEvent.click(chip!);
+    expect(crossOpenDetail).toHaveBeenCalledTimes(1);
+    expect(crossOpenDetail.mock.calls[0]![0]).toMatchObject({ view: "pipes", kind: "pipe" });
+  });
+});

@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
-import { applyLotWeightDelta, applyLifecycleDates } from "../utils/lotUtils";
+import { applyLotWeightDelta, applyLifecycleDates, roundWeightToUnit } from "../utils/lotUtils";
 import { checkAllInvariants } from "../utils/lotInvariants";
 
 // ─── Test domain — lightweight reducer mirroring the real stores ──────
@@ -82,11 +82,21 @@ function applyOp(data: TestData, op: Op): TestData {
       if (l.status === "finished") return data;
       const w = Math.min(op.weight, parseFloat(l.weightG) || 0);
       if (w <= 0) return data;
+      // THE MIRROR NOW ROUNDS WHERE THE STORE ROUNDS. `_persistSession` does
+      // `roundWeightToUnit(safeW(form.weightG), weightUnit)` and stores THAT,
+      // so the recorded weight and the lot debit are byte-identical. The
+      // mirror used to store and debit the same raw `w`, which models the
+      // FIXED world and can never reproduce the defect the rounding was added
+      // for: a hand-typed >1 dp weight stored raw while the lot debits a
+      // rounded value drifts Σ sub-grid until it crosses tolerance and reports
+      // a false `lot-balance-overflow`. With integer generators (which is what
+      // this file had) the rule was unreachable either way.
+      const rw = roundWeightToUnit(w, "g");
       const sess: TestSess = {
         id: "S" + data.nxId,
         tobaccoId: op.tobId,
         lotId: op.lotId,
-        weightG: String(w),
+        weightG: String(rw),
         date: "2024-01-01",
       };
       let nd: any = {
@@ -94,7 +104,7 @@ function applyOp(data: TestData, op: Op): TestData {
         sessions: [...data.sessions, sess],
         nxId: data.nxId + 1,
       };
-      nd = applyLotWeightDelta(nd, op.tobId, op.lotId, -w, "g");
+      nd = applyLotWeightDelta(nd, op.tobId, op.lotId, -rw, "g");
       return nd;
     }
 
@@ -104,9 +114,11 @@ function applyOp(data: TestData, op: Op): TestData {
       const tob = data.tobaccos.find(tb => tb.id === sess.tobaccoId);
       const lot = tob && tob.lots.find(l => l.id === sess.lotId);
       if (!lot) return data;
-      const ow = parseFloat(sess.weightG) || 0;
+      // `updateSession` rounds BOTH the old and the new weight before the
+      // restore(+ow) / deduct(-nw) pair, so all three agree on one precision.
+      const ow = roundWeightToUnit(parseFloat(sess.weightG) || 0, "g");
       const avail = (parseFloat(lot.weightG) || 0) + ow;
-      const nw = clamp(Math.min(op.newWeight, avail));
+      const nw = roundWeightToUnit(clamp(Math.min(op.newWeight, avail)), "g");
       const net = ow - nw;
       let nd: any = {
         ...data,
@@ -227,6 +239,20 @@ function applyOp(data: TestData, op: Op): TestData {
 
 // ─── Arbitraries ─────────────────────────────────────────────────────
 
+// SESSION WEIGHTS ARE GENERATED WITH 2 DECIMALS, NOT AS INTEGERS. Every
+// generator here produced whole grams, so `roundWeightToUnit` was a no-op on
+// every value fast-check ever tried and the deduction-grid rule — the one
+// whose absence produced a false `lot-balance-overflow` after enough
+// hand-typed >1 dp sessions — was unreachable by this file, whatever the
+// mirror did. A hand-typed 2.55 g is the ordinary case, not a corner: the
+// session form takes free text.
+//
+// LOT weights stay integers on purpose: the store does not round a lot's
+// recorded weight, only the session debit, so rounding them here would model
+// something the app does not do.
+const arbSessWeight = fc.integer({ min: 1, max: 3000 }).map((n) => n / 100);
+const arbEditWeight = fc.integer({ min: 0, max: 3000 }).map((n) => n / 100);
+
 const arbAddLot = fc.record({
   kind: fc.constant("addLot" as const),
   tobId: fc.constantFrom("T1", "T2"),
@@ -237,19 +263,19 @@ const arbAddSession = fc.record({
   kind: fc.constant("addSession" as const),
   tobId: fc.constantFrom("T1", "T2"),
   lotId: fc.constantFrom("L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"),
-  weight: fc.integer({ min: 1, max: 30 }),
+  weight: arbSessWeight,
 });
 const arbEditSession = fc.record({
   kind: fc.constant("editSessionWeight" as const),
   sessionId: fc.constantFrom("S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"),
-  newWeight: fc.integer({ min: 0, max: 30 }),
+  newWeight: arbEditWeight,
 });
 const arbEditSessionLot = fc.record({
   kind: fc.constant("editSessionLot" as const),
   sessionId: fc.constantFrom("S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"),
   newTobId: fc.constantFrom("T1", "T2"),
   newLotId: fc.constantFrom("L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"),
-  newWeight: fc.integer({ min: 0, max: 30 }),
+  newWeight: arbEditWeight,
 });
 const arbDeleteSession = fc.record({
   kind: fc.constant("deleteSession" as const),
@@ -356,5 +382,80 @@ describe("Lot lifecycle — property tests", () => {
 describe("(fast-check sanity)", () => {
   it("smoke test", () => {
     expect(typeof fc.property).toBe("function");
+  });
+});
+
+// ── THE DEDUCTION GRID, DETERMINISTICALLY ─────────────────────────────────
+//
+// The property above cannot see this rule, and finding out WHY is the point.
+// Probed: storing the RAW session weight while debiting the ROUNDED one — the
+// exact defect the rounding was added for — left all four property cases
+// GREEN. The absorbing layer is the tolerance: `roundWeightToUnit` rounds
+// grams to 1 dp, so the worst drift is 0.05 g per session, and 0.15 g covers
+// three of them. With 25 ops spread over 8 lot ids, a single lot rarely
+// carries more.
+//
+// So the rule needs a case built for it: MANY sessions on ONE lot, and Σ
+// asserted EXACTLY — which is what the store guarantees now that both the
+// stored weight and the debit go through the same rounding. This is also the
+// shape of the real report: the drift only became visible after enough
+// hand-typed >1 dp sessions accumulated on one tin.
+describe("the deduction grid — Σ is EXACT on a heavily-smoked lot", () => {
+  it("ten 2.55 g sessions on one lot leave no sub-grid drift", () => {
+    let d: TestData = {
+      tobaccos: [{ id: "T1", lots: [] }],
+      sessions: [],
+      nxId: 1,
+    };
+    d = applyOp(d, { kind: "addLot", tobId: "T1", status: "jar", weight: 100 });
+    const lotId = d.tobaccos[0]!.lots[0]!.id;
+    for (let i = 0; i < 10; i++) {
+      d = applyOp(d, { kind: "addSession", tobId: "T1", lotId, weight: 2.55 });
+    }
+    const lot = d.tobaccos[0]!.lots[0]!;
+    const smoked = d.sessions.reduce((a, s) => a + (parseFloat(s.weightG) || 0), 0);
+    const expected = (parseFloat(lot.weightInitial) || 0) - (parseFloat(lot.weightG) || 0);
+    expect(d.sessions.length, "the sessions were not recorded — check the fixture").toBe(10);
+    // EXACT, not within a tolerance: a tolerance is what hid this.
+    expect(Math.abs(smoked - expected), "the stored weights and the lot debit disagree")
+      .toBeLessThan(1e-9);
+    // And the value itself is on the grid: 2.55 → 2.6, ten times.
+    expect(smoked).toBeCloseTo(26, 9);
+  });
+
+  it("editing a session down keeps Σ exact too", () => {
+    // `updateSession` rounds the OLD and the NEW weight before the
+    // restore(+ow) / deduct(-nw) pair.
+    //
+    // WHAT THIS CASE DOES **NOT** GUARANTEE, stated rather than contrived
+    // around: dropping the rounding on `nw` leaves it GREEN, and the absorbing
+    // layer is the mirror's own shape. It stores `nw` and computes the delta
+    // from that SAME variable, so the two agree whatever the precision. The
+    // store is only exposed because it reads the raw `sessForm.weightG` and
+    // must land the stored value and the debit on one grid — a difference no
+    // model that derives one from the other can express.
+    //
+    // What it DOES guarantee is the half that is expressible and still worth
+    // holding: an edit that changes a weight leaves Σ exact, so the
+    // restore/deduct pair cannot leak. The store-side rule is covered by
+    // `roundWeightToUnit` in `lotUtils.test.ts` and by the first case here.
+    let d: TestData = {
+      tobaccos: [{ id: "T1", lots: [] }],
+      sessions: [],
+      nxId: 1,
+    };
+    d = applyOp(d, { kind: "addLot", tobId: "T1", status: "jar", weight: 100 });
+    const lotId = d.tobaccos[0]!.lots[0]!.id;
+    for (let i = 0; i < 6; i++) {
+      d = applyOp(d, { kind: "addSession", tobId: "T1", lotId, weight: 3.44 });
+    }
+    for (const s of [...d.sessions]) {
+      d = applyOp(d, { kind: "editSessionWeight", sessionId: s.id, newWeight: 1.26 });
+    }
+    const lot = d.tobaccos[0]!.lots[0]!;
+    const smoked = d.sessions.reduce((a, s) => a + (parseFloat(s.weightG) || 0), 0);
+    const expected = (parseFloat(lot.weightInitial) || 0) - (parseFloat(lot.weightG) || 0);
+    expect(Math.abs(smoked - expected)).toBeLessThan(1e-9);
+    expect(smoked).toBeCloseTo(7.8, 9); // 1.26 → 1.3, six times
   });
 });
