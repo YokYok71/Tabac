@@ -1070,6 +1070,7 @@ export var FR = {
   eb_chunk_body:"L'app a essayé de charger une nouvelle version mais le navigateur l'a refusée (cache obsolète). Touchez le bouton pour vider le cache local et recharger — vos données restent en sécurité.",
   eb_recovering:"Passage à la dernière version…",
   eb_retry_btn:"Vider le cache et recharger",
+  eb_unreachable:"Le site est injoignable : rien n'a été supprimé. Reconnectez-vous, puis réessayez.",
   diag_toast_count:"{n} anomalies de cohérence détectées.",
   diag_toast_hint:"Ouvre Paramètres → Diagnostic pour les inspecter.",
   repair_app_link:"Rien ne se passe ? Réparer l'application →",

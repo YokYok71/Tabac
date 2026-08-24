@@ -1077,6 +1077,7 @@ export var PT = {
   eb_chunk_body:"A app tentou carregar uma nova versão mas o navegador recusou-a (cache obsoleta). Toque no botão para limpar a cache local e recarregar — os seus dados estão em segurança.",
   eb_recovering:"A mudar para a versão mais recente…",
   eb_retry_btn:"Limpar a cache e recarregar",
+  eb_unreachable:"O site está inacessível: não foi eliminado nada. Volte a ligar-se e tente novamente.",
   diag_toast_count:"{n} anomalias de coerência detetadas.",
   diag_toast_hint:"Abra Definições → Diagnóstico para as inspecionar.",
   repair_app_link:"Nada acontece? Reparar a aplicação →",

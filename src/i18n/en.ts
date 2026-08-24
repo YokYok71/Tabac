@@ -1070,6 +1070,7 @@ export var EN = {
   eb_chunk_body:"The app tried to load a new version but the browser refused it (stale cache). Tap the button to clear the local cache and reload — your data is safe.",
   eb_recovering:"Switching to the latest version…",
   eb_retry_btn:"Clear cache and reload",
+  eb_unreachable:"The site is unreachable: nothing was deleted. Reconnect, then try again.",
   diag_toast_count:"{n} consistency anomalies detected.",
   diag_toast_hint:"Open Settings → Diagnostic to inspect them.",
   repair_app_link:"Nothing happening? Repair the app →",

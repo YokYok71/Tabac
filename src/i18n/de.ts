@@ -1070,6 +1070,7 @@ export var DE = {
   eb_chunk_body:"Die App wollte eine neue Version laden, aber der Browser hat sie abgelehnt (veralteter Cache). Tippe auf den Knopf, um den lokalen Cache zu leeren und neu zu laden — deine Daten sind sicher.",
   eb_recovering:"Wechsel zur neuesten Version…",
   eb_retry_btn:"Cache leeren und neu laden",
+  eb_unreachable:"Die Seite ist nicht erreichbar: Es wurde nichts gelöscht. Stelle die Verbindung wieder her und versuche es erneut.",
   diag_toast_count:"{n} Konsistenz-Anomalien erkannt.",
   diag_toast_hint:"Öffne Einstellungen → Diagnose zum Prüfen.",
   repair_app_link:"Nichts passiert? App reparieren →",

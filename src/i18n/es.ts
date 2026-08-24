@@ -1070,6 +1070,7 @@ export var ES = {
   eb_chunk_body:"La app intentó cargar una nueva versión pero el navegador la rechazó (caché obsoleta). Toca el botón para borrar la caché local y recargar — tus datos están a salvo.",
   eb_recovering:"Cambiando a la última versión…",
   eb_retry_btn:"Borrar caché y recargar",
+  eb_unreachable:"El sitio no está accesible: no se ha borrado nada. Vuelva a conectarse e inténtelo de nuevo.",
   diag_toast_count:"{n} anomalías de coherencia detectadas.",
   diag_toast_hint:"Abre Ajustes → Diagnóstico para inspeccionarlos.",
   repair_app_link:"¿No pasa nada? Repara la app →",

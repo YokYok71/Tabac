@@ -1070,6 +1070,7 @@ export var IT = {
   eb_chunk_body:"L'app ha provato a caricare una nuova versione ma il browser l'ha rifiutata (cache obsoleta). Tocca il pulsante per svuotare la cache locale e ricaricare — i tuoi dati sono al sicuro.",
   eb_recovering:"Passaggio all'ultima versione…",
   eb_retry_btn:"Svuota la cache e ricarica",
+  eb_unreachable:"Il sito non è raggiungibile: non è stato eliminato nulla. Riconnettiti, poi riprova.",
   diag_toast_count:"{n} anomalie di coerenza rilevate.",
   diag_toast_hint:"Apri Impostazioni → Diagnostica per ispezionarli.",
   repair_app_link:"Non succede niente? Ripara l'app →",

@@ -22,8 +22,41 @@ function isChunkLoadError(e: any): boolean {
   const msg = String(e.message || e);
   return /Importing a module|module script|Failed to fetch dynamically imported module|Loading chunk \d+ failed|ChunkLoadError|error loading dynamically imported module/i.test(msg);
 }
-async function purgeCachesAndReload() {
-  // Never purge while OFFLINE (audit HIGH).
+// Can the app actually be re-downloaded? Everything below hangs on this
+// question, and it must be answered BEFORE anything is deleted.
+//
+// `navigator.onLine` is checked first as a cheap short-circuit, but it is NOT
+// the test — it reports whether an interface exists, not whether the site
+// answers. MEASURED in Chromium with the server stopped and the interface up:
+// `onLine` stays `true`, the old guard let the purge through, and one tap on
+// an unvisited tab took the app to `chrome-error://chromewebdata/` —
+// "ERR_CONNECTION_REFUSED", with the SW registration and every cache gone.
+// A captive portal (hotel, airport, train), a mobile radio with no data, a DNS
+// failure, a corporate firewall and a mid-deploy window all leave `onLine`
+// true, so this was not a corner: it is the ordinary shape of "the network is
+// there but the site is not".
+//
+// `cache: 'no-store'` is what makes the answer trustworthy: `sw.js` returns
+// early for such a request (its third guard), so this genuinely reaches the
+// network instead of being satisfied by the very cache we are about to
+// destroy. The BODY is read too, because a captive portal answers 200 with its
+// own page and `res.ok` alone would wave it through.
+//
+// The sibling page `public/reset.html` carries this exact probe, for these
+// exact reasons — it was hardened first and this call site was missed.
+async function appReachable(): Promise<boolean> {
+  try { if (typeof navigator !== "undefined" && navigator.onLine === false) return false; } catch (_e) {}
+  try {
+    const res = await fetch("./?_probe=" + Date.now(), { cache: "no-store" });
+    if (!res || !res.ok) return false;
+    const body = await res.text();
+    return body.indexOf('id="root"') >= 0;
+  } catch (_e) { return false; }
+}
+
+/** Returns true when it actually purged (and therefore reloaded). */
+async function purgeCachesAndReload(): Promise<boolean> {
+  // Never purge while the app cannot be re-downloaded (audit HIGH).
   //
   // The recovery is triggered by a failed dynamic import — and offline, a lazy
   // chunk the user has never opened (Stats, Settings, Trash, Help, a language,
@@ -35,11 +68,15 @@ async function purgeCachesAndReload() {
   //
   // Disproportionate on its face — a transient chunk miss answered by
   // destroying the installed app — and the identical guard already exists at
-  // the sibling call site (useAppUpdate `fireSilent`) and now in
-  // `doUpdate`. This was the one purge path still missing it. Falling through
-  // to the manual fallback screen is the right outcome: it explains itself and
-  // leaves the caches intact.
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  // the sibling call site (useAppUpdate `fireSilent`) and in `doUpdate`.
+  //
+  // THE ASYMMETRY THAT SETTLES THE STRICTNESS, and it is the one `reset.html`
+  // states: a probe that wrongly FAILS costs one tap on the manual button and
+  // deletes nothing, while one that wrongly PASSES leaves the user with no
+  // application at all. So it errs toward refusing. Falling through to the
+  // manual fallback screen is the right outcome: it explains itself and leaves
+  // the caches intact.
+  if (!(await appReachable())) return false;
   try {
     if ("serviceWorker" in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
@@ -51,14 +88,15 @@ async function purgeCachesAndReload() {
     }
   } catch (_e) {}
   location.reload();
+  return true;
 }
 export class EB extends React.Component<
   { children?: React.ReactNode },
-  { err: any; recovering: boolean }
+  { err: any; recovering: boolean; unreachable: boolean }
 > {
   constructor(props: any) {
     super(props);
-    this.state = { err: null, recovering: false };
+    this.state = { err: null, recovering: false, unreachable: false };
   }
   static getDerivedStateFromError(e: any) {
     // Read-only: React can call getDerivedStateFromError more than once per
@@ -93,8 +131,17 @@ export class EB extends React.Component<
       try {
         lsSet("cave-eb-recovery-ts", String(Date.now()));
       } catch (_e) {}
-      // Fire-and-forget: purgeCachesAndReload triggers location.reload().
-      void purgeCachesAndReload();
+      // NOT fire-and-forget any more. `getDerivedStateFromError` is
+      // synchronous and static, so it cannot await the reachability probe — it
+      // keeps the cheap `navigator.onLine` guess. This is where that guess is
+      // CORRECTED: when the purge refuses (the site is unreachable), leaving
+      // `recovering` set would strand the user on "Passage à la dernière
+      // version…" waiting for a reload that is never coming — the exact
+      // failure that method's own comment describes. Drop to the manual
+      // screen, which explains itself and leaves the installed app intact.
+      void purgeCachesAndReload().then((purged) => {
+        if (!purged) this.setState({ recovering: false, unreachable: true });
+      });
     }
   }
   render() {
@@ -161,7 +208,20 @@ export class EB extends React.Component<
             </div>
             <button
               type="button"
-              onClick={() => { void purgeCachesAndReload(); }}
+              // A BUTTON THAT REFUSES MUST SAY SO. The purge now probes the
+              // network first, so offline — which is exactly when this screen
+              // is reached — the tap legitimately does nothing. Silence there
+              // is the "dead control" failure this repo has already paid for
+              // (`Vérifier les sauvegardes` answering three rows away, the
+              // panel with no way out): the user taps, nothing moves, and they
+              // cannot tell a refusal from a broken button. So the refusal is
+              // reported, and it names what did NOT happen — nothing was
+              // deleted — because that is the reassuring half and it is true.
+              onClick={() => {
+                void purgeCachesAndReload().then((purged) => {
+                  if (!purged) this.setState({ unreachable: true });
+                });
+              }}
               style={{
                 padding: "12px 20px", minHeight: 44,
                 background: "#d4a661", color: "#0e1311",
@@ -171,6 +231,11 @@ export class EB extends React.Component<
               }}>
               {L.eb_retry_btn || "Vider le cache et recharger"}
             </button>
+            {this.state.unreachable ? (
+              <div style={{ fontSize: 13, lineHeight: 1.5, color: "#e89556", marginTop: 14 }}>
+                {L.eb_unreachable || "Le site est injoignable : rien n'a été supprimé. Reconnectez-vous, puis réessayez."}
+              </div>
+            ) : null}
           </div>
         </div>
       );
