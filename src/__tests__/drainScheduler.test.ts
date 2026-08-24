@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -6,6 +7,7 @@ import {
   isSchedulerProbeInstalled,
   pendingImmediates,
   settleReactWork,
+  suppressedAfterTeardown,
 } from "./drainScheduler";
 
 // Blank comments (length-preserving) before any source assertion. A check that
@@ -141,6 +143,129 @@ describe("drainSchedulerQueue", () => {
 
     await settleReactWork();
     expect(ran).toBe(true);
+  });
+
+  // ── THE DRAIN IS A MITIGATION; THIS IS THE GUARD ─────────────────────────
+  //
+  // Everything above removes PRECONDITIONS: it gives queued work a chance to
+  // finish while the environment is still alive. It cannot promise that nothing
+  // is left, and the file's own header says so — the drain is BOUNDED on
+  // purpose (a runaway chain must shorten it, never hang the suite), and work
+  // scheduled on a delay longer than the one tick `settleReactWork` spends is
+  // queued strictly after it. So the race stayed open: one run in ~five exited
+  // 1 on a fully green suite.
+  //
+  // What closes it is the observation that the reported stack put the wrapper's
+  // own callback ONE FRAME above the crash:
+  //
+  //     ReferenceError: window is not defined
+  //      ❯ performWorkOnRootViaSchedulerTask   react-dom-client.development.js
+  //      ❯ performWorkUntilDeadline            scheduler.development.js
+  //      ❯ Immediate.<anonymous>               src/__tests__/drainScheduler.ts
+  //
+  // i.e. the leaked slice goes through code this module owns, so it can be
+  // stopped at the moment it fires rather than raced to the exit.
+  //
+  // NOTHING OBSERVABLE IS LOST. A callback that fires after `window` has been
+  // deleted belongs to a file that has ended; no assertion can depend on it,
+  // and running it produces a `ReferenceError` and an exit code, never a
+  // result. This is not error suppression: a genuine defect runs inside a live
+  // file, with a window, and is untouched.
+  describe("the post-teardown guard", () => {
+    // Vitest's teardown, in miniature: delete the global, let the check phase
+    // run, put it back. Restored in a `finally` so a failing assertion cannot
+    // leave the rest of the file without a DOM.
+    async function withTornDownEnvironment(fn: () => void) {
+      const g = globalThis as unknown as Record<string, unknown>;
+      const realWindow = g["window"];
+      try {
+        fn();
+        delete g["window"];
+        await new Promise<void>((r) => { setTimeout(r, 2); });
+      } finally {
+        g["window"] = realWindow;
+      }
+    }
+
+    it("skips a callback whose environment was torn down under it", async () => {
+      let ran = false;
+      const before = suppressedAfterTeardown();
+      await withTornDownEnvironment(() => {
+        setImmediate(() => { ran = true; });
+      });
+      expect(ran, "the callback ran against a deleted `window` — the crash").toBe(false);
+      expect(suppressedAfterTeardown(),
+        "the skip is not reported, so nothing could ever measure it").toBe(before + 1);
+    });
+
+    it("releases the token, so the drain's accounting stays honest", async () => {
+      // A skipped callback that kept its token would hold `pendingImmediates()`
+      // above zero for ever and make every later file spend the full bound —
+      // the same silent tax `clearImmediate` is wrapped to avoid.
+      await withTornDownEnvironment(() => { setImmediate(() => {}); });
+      expect(pendingImmediates()).toBe(0);
+    });
+
+    it("runs normally while the environment is alive", async () => {
+      // Non-vacuity. Without this, a guard that skipped EVERYTHING would pass
+      // the case above — and would silently disable the drain it sits inside.
+      let ran = false;
+      setImmediate(() => { ran = true; });
+      await drainSchedulerQueue();
+      expect(ran).toBe(true);
+    });
+
+    it("survives the REAL thing: a React slice in flight when the window goes", async () => {
+      // The miniature above proves the rule; this proves it applies to the work
+      // that actually crashes. A concurrent root rendered outside `act()` holds
+      // a slice in the scheduler — the exact state the reported stack died in —
+      // and here the environment is deleted under it.
+      //
+      // Without the guard this file fails as an UNHANDLED `ReferenceError:
+      // window is not defined`, which is the reported failure verbatim: no
+      // assertion catches it, because the throw happens inside a Node immediate
+      // long after the test that queued it returned. That is why it is worth
+      // reproducing rather than trusting the miniature.
+      //
+      // LAST in this block on purpose: the skipped slice leaves React's
+      // scheduler believing work is still pending, so no later case here may
+      // depend on a render completing.
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      createRoot(host).render(React.createElement("p", null, "gone"));
+      await Promise.resolve();                     // render() defers to a microtask
+      expect(pendingImmediates(), "React queued nothing — fixture is stale")
+        .toBeGreaterThan(0);
+
+      const before = suppressedAfterTeardown();
+      const g = globalThis as unknown as Record<string, unknown>;
+      const realWindow = g["window"];
+      try {
+        delete g["window"];
+        await new Promise<void>((r) => { setTimeout(r, 2); });
+      } finally {
+        g["window"] = realWindow;
+      }
+
+      expect(suppressedAfterTeardown(), "the React slice was let through").toBe(before + 1);
+      expect(host.innerHTML, "it rendered into a dead environment").toBe("");
+    });
+
+    it("does not fire when there was never a window to lose", async () => {
+      // The rule is "the environment DIED", not "there is no window". A node
+      // environment has no `window` at either end, and its callbacks must run.
+      const g = globalThis as unknown as Record<string, unknown>;
+      const realWindow = g["window"];
+      let ran = false;
+      try {
+        delete g["window"];
+        setImmediate(() => { ran = true; });
+        await new Promise<void>((r) => { setTimeout(r, 2); });
+      } finally {
+        g["window"] = realWindow;
+      }
+      expect(ran, "a callback queued outside jsdom was skipped").toBe(true);
+    });
   });
 
   // The helper being correct guarantees nothing if nobody calls it — the

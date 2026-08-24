@@ -82,6 +82,42 @@
  * `setImmediate` — there is no quiescence signal and the loop degrades to the
  * fixed count, i.e. to the old behaviour.
  *
+ * ── THE DRAIN IS A MITIGATION. THE GUARD IS THE FIX ─────────────────────────
+ *
+ * Everything above removes PRECONDITIONS: it gives queued work a chance to
+ * finish while the environment is still alive. It cannot promise that nothing
+ * is left, and it never could — the loop is BOUNDED on purpose, and work
+ * scheduled on a delay longer than the one tick `settleReactWork` spends is
+ * queued strictly after it. So the race stayed open, at roughly one run in
+ * five: a fully green suite exiting 1 on the trace at the top of this file.
+ *
+ * What closes it is a detail of that trace nobody had used: the wrapper's own
+ * callback sits ONE FRAME above the crash (`Immediate.<anonymous>` at this
+ * file). The leaked slice goes through code this module owns, so it can be
+ * stopped at the moment it fires instead of being raced to the exit. Each
+ * wrapped immediate records whether a window existed when it was queued and
+ * compares that when it runs; if the environment has gone in between, the
+ * callback is dropped and counted (`suppressedAfterTeardown`).
+ *
+ * NOTHING OBSERVABLE IS LOST. A callback firing after `window` has been deleted
+ * belongs to a file that has ended; no assertion can depend on it, and running
+ * it produces a `ReferenceError` and an exit code, never a result. It is not
+ * error suppression: a genuine defect runs inside a live file, with a window,
+ * and is untouched — which is also why the condition is "the environment DIED"
+ * rather than "there is no window", so a runtime that never had one is unaffected.
+ *
+ * WHY THE DRAIN STAYS. It is what lets legitimately-queued work FINISH rather
+ * than be dropped — a render that yielded still needs to complete for the file
+ * that owns it. The guard only catches what the drain could not reach.
+ *
+ * WHAT IT DOES NOT COVER, stated so the next reader does not assume otherwise:
+ * React work rescheduled through `setTimeout` rather than `setImmediate` would
+ * crash the same way one frame lower, outside this wrapper. Wrapping timers too
+ * was rejected — every fake-timer test in the suite replaces them, so the probe
+ * would be installed over and torn out at random. The observed signature has
+ * always gone through the immediate path, which is the one React's scheduler
+ * picks when `setImmediate` exists.
+ *
  * Returns the number of turns taken, so both the break and the bound are
  * observable to its test.
  */
@@ -93,19 +129,30 @@ const realSetImmediate: typeof setImmediate | null =
 
 const live = new Set<unknown>();
 let probeInstalled = false;
+let suppressed = 0;
 
 if (realSetImmediate) {
   const g = globalThis as unknown as Record<string, unknown>;
   const realClear = typeof clearImmediate === "function" ? clearImmediate : null;
 
   const wrappedSetImmediate = (fn: (...a: unknown[]) => void, ...args: unknown[]) => {
+    // Was there a jsdom environment when this was queued? Compared again when
+    // it fires: if the window has gone in between, Vitest tore the environment
+    // down under it and running the callback IS the crash. The condition is
+    // "the environment DIED", not "there is no window" — a node environment
+    // never had one and its callbacks must still run.
+    const hadWindow = typeof window !== "undefined";
     // The callback needs the token to release it, and the token only exists
     // once the call returns — hence the cell rather than a self-referencing
     // binding. It cannot run before the assignment: an immediate is queued for
     // the next check phase, and this is all one synchronous statement.
     const cell: { token?: unknown } = {};
     cell.token = realSetImmediate(((...a: unknown[]) => {
+      // Released before the guard, never after: a skipped callback that kept
+      // its token would hold `pendingImmediates()` above zero for ever and make
+      // every later file spend the full bound.
       live.delete(cell.token);
+      if (hadWindow && typeof window === "undefined") { suppressed++; return; }
       return fn(...a);
     }) as never, ...(args as never[]));
     live.add(cell.token);
@@ -124,6 +171,11 @@ if (realSetImmediate) {
   } catch {
     probeInstalled = false;
   }
+}
+
+/** Callbacks dropped because their jsdom environment had gone. */
+export function suppressedAfterTeardown(): number {
+  return suppressed;
 }
 
 /** Immediates queued by anyone other than the drain itself. */
@@ -158,11 +210,17 @@ export async function drainSchedulerQueue(maxTurns: number = 200): Promise<numbe
  * the stray slice does it on a DELAY, and the only way to give a 0 ms timer its
  * turn is to spend the millisecond it is clamped to.
  *
- * Stated honestly, because a mitigation described as a fix is how the next reader
- * stops looking: the race is not reproducible on demand — one run in ten — and
- * this does not prove it closed. What it does is remove two demonstrated
- * preconditions instead of one. A longer wait would cover more and cost real
- * time on every one of ~236 files; one tick is the cheap end of that trade.
+ * This paragraph used to end "the race is not reproducible on demand — one run
+ * in ten — and this does not prove it closed", and it was right: it removed two
+ * demonstrated preconditions instead of one, and the failure came back. It is
+ * corrected in place rather than deleted, because a mitigation described as a
+ * fix is how the next reader stops looking, and knowing that this WAS one is
+ * the reason the guard in the wrapper exists. What closes the race is that
+ * guard; what this does is let the work finish properly first.
+ *
+ * A longer wait would settle more of it and cost real time on every one of
+ * ~236 files; one tick is the cheap end of that trade, and with the guard
+ * behind it there is nothing left for a longer one to buy.
  */
 export async function settleReactWork(): Promise<void> {
   await drainSchedulerQueue();
