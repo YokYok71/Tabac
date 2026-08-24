@@ -1288,7 +1288,12 @@ describe("fmtLotAge", () => {
     expect(fmtLotAge(0, t)).toBe("0age_d");
     expect(fmtLotAge(29, t)).toBe("29age_d");
     expect(fmtLotAge(30, t)).toBe("1age_mo");
-    expect(fmtLotAge(364, t)).toBe("12age_mo");
+    // REVERSED. This asserted "12age_mo", i.e. it pinned the defect — two
+    // lines below sits a case named "caps months at 11", which covered the
+    // YEAR branch only, so the suite asserted a rule and its violation side by
+    // side. Twelve months is a year: 360-364 days read "12 mois" on the lot
+    // row, the card and the fiche, then flipped to "1 an" the following week.
+    expect(fmtLotAge(364, t)).toBe("11age_mo");
     expect(fmtLotAge(365, t)).toBe("1age_y");
     expect(fmtLotAge(400, t)).toBe("1age_y 1age_m");
   });

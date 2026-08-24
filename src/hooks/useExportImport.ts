@@ -2,7 +2,7 @@ import React from "react";
 import { collectSettings } from "../utils/appSettings.ts";
 import { wipeAppStorage } from "../utils/appStorage.ts";
 import { INIT, SCHEMA_VERSION } from "../constants.ts";
-import { daysSince, fmtDate, isTrashed, stripDeleted, isPlausibleBackup, monotonicId } from "../utils.ts";
+import { daysSince, fmtDate, isTrashed, stripDeleted, isPlausibleBackup, monotonicId, today, localDayKey } from "../utils.ts";
 import { sanitizeAromas, aromaLabelKey } from "../utils/aromas.ts";
 import { imgCache } from "../utils/imgCache.ts";
 import { buildCollectionReport } from "../utils/collectionReport.ts";
@@ -557,7 +557,11 @@ export function useExportImport({
     var now = new Date();
     var pad = function (n: number) { return String(n).padStart(2, "0"); };
     var compact = String(now.getFullYear()) + pad(now.getMonth() + 1) + pad(now.getDate());
-    var human = fmtDate(now.toISOString().slice(0, 10), dateFormat) +
+    // The LOCAL day, like `compact` above and like the HH:MM appended
+    // below. It was `toISOString().slice(0,10)` — the UTC day — so from the
+    // late afternoon westward the document a user files with an insurer was
+    // stamped TOMORROW, and disagreed with the name of the file it arrived in.
+    var human = fmtDate(localDayKey(now.getTime()), dateFormat) +
       " " + pad(now.getHours()) + ":" + pad(now.getMinutes());
     var labels = {
       title: t ? t("report_title") : "Rapport de collection",
@@ -659,7 +663,11 @@ export function useExportImport({
           var raw = String(reader.result || "");
           // Hand the parser today's date so it can back-fill the
           // lifecycle date a status implies (a "Pot" row with no opening date).
-          var parsed = parseTobaccoCsv(raw, { todayIso: new Date().toISOString().slice(0, 10) });
+          // `today()`, not the UTC day: this value is WRITTEN into the
+          // cellar as the lifecycle date a status implies, so a western user
+          // importing in the evening got a lot "mise en pot" tomorrow — and
+          // nothing warns, since `daysSince` clamps a negative age to 0.
+          var parsed = parseTobaccoCsv(raw, { todayIso: today() });
           // A stale panel must never outlive the file that produced it.
           setCsvIssues(null);
           // Re-stamp every lot id from the canonical unique-id

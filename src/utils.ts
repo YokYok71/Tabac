@@ -14,13 +14,14 @@ import { isLocalPhotoRef } from "./utils/imgCache.ts";
 // path (which already builds the date from local components). All the calendar
 // / heatmap / stat consumers key on LOCAL day keys, so this makes `today()`
 // agree with them. Mirrors the tasting-end derivation exactly.
-export var today = function (): string {
-  var d = new Date();
+export function localDayKey(ms: number): string {
+  var d = new Date(ms);
   var y = d.getFullYear();
   var m = d.getMonth() + 1;
   var day = d.getDate();
   return y + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
-};
+}
+export var today = function (): string { return localDayKey(Date.now()); };
 
 /** The LOCAL wall clock as "HH:MM" — the companion of `today()`, and the
  *  prefill for every form field that records when something happened.
@@ -203,7 +204,10 @@ export function plural(n: number, one: string, other: string, lang?: string): st
 export function fmtLotAge(d: number | null | undefined, t: (k: string) => string): string {
   if (d === null || d === undefined) return "—";
   if (d < 30) return d + t("age_d");
-  if (d < 365) return Math.floor(d / 30) + t("age_mo");
+  // Capped here TOO, not only in the year branch below: the docstring
+  // promised it and the cap was applied to one branch, so 360-364 days read
+  // "12 mois" — twelve months is a year — and flipped to "1 an" a week later.
+  if (d < 365) return Math.min(11, Math.floor(d / 30)) + t("age_mo");
   var y = Math.floor(d / 365);
   var mo = Math.min(11, Math.floor((d % 365) / 30));
   return mo > 0 ? y + t("age_y") + " " + mo + t("age_m") : y + t("age_y");
@@ -217,7 +221,14 @@ export function daysSince(d: string): number | null {
   // `number | null` but callers assume null on parse failure — NaN
   // breaks downstream arithmetic silently. Discovered via the
   // format-helper property fuzz.
-  var t = new Date(d).getTime();
+  // `parseLocalDate`, NOT `new Date(d)`. A bare "YYYY-MM-DD" parses as UTC
+  // midnight, and diffing that against a local `Date.now()` shifts the answer
+  // by a day for part of every day: MEASURED, Los Angeles is wrong from 17:00
+  // (ages one day too HIGH), Auckland all morning and Paris from midnight to
+  // 02:00 (too LOW). Every sibling — pipeRestDays, computePipeRest, suggest.ts
+  // — already went through the local parser; this one, which feeds every lot
+  // age in the app, was the survivor.
+  var t = parseLocalDate(d);
   if (isNaN(t)) return null;
   return Math.max(0, Math.floor((Date.now() - t) / 864e5));
 }

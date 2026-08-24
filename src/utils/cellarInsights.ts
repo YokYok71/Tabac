@@ -3,7 +3,7 @@
 // stored data; every value is derived from the live tobaccos/sessions the
 // app already holds. Kept pure + testable, like computeWatchlist.
 
-import { lotAgingStatus, daysSince, parseAgingMax, effectiveAgingMax, lotAge, isUntrackedWeight } from "../utils.ts";
+import { lotAgingStatus, daysSince, parseAgingMax, effectiveAgingMax, lotAge, isUntrackedWeight, localDayKey } from "../utils.ts";
 // Route weights through safeNonNeg (Infinity/NaN/negative →
 // 0) like every sibling engine (stats/watchlist/shopping/cost-per-session). The
 // raw `parseFloat(String(x)) || 0` used here let a forged "Infinity" weightG
@@ -349,11 +349,41 @@ export function computeCellarDepletion(
 
 // ── Activité — heatmap grid (weeks columns × 7 rows), levels 0-3 ─────────────
 export interface ActivityHeatmap { grid: number[][]; total: number; }
-function localDayKey(ms: number): string {
-  var d = new Date(ms);
-  var m = String(d.getMonth() + 1);
-  var dd = String(d.getDate());
-  return d.getFullYear() + "-" + (m.length < 2 ? "0" + m : m) + "-" + (dd.length < 2 ? "0" + dd : dd);
+
+/**
+ * The local calendar days the strip covers, oldest first, `weeks * 7` of them,
+ * ending on the day containing `nowMs`.
+ *
+ * WALKED WITH `setDate`, NEVER WITH A FIXED 86 400 000 ms STEP. A local day is
+ * 23 or 25 hours long twice a year, so stepping by a constant day silently
+ * SKIPS one calendar day in spring and emits one TWICE in autumn — MEASURED in
+ * Paris and Los Angeles, in both directions. The consequence is not cosmetic:
+ * a day's smoking vanishes from the calendar while the total above it still
+ * counts it, and tapping the affected cell filters the journal by the wrong
+ * date. `Charts.jsx`'s Stats calendar already walked it this way; the Home
+ * strip did not.
+ *
+ * EXPORTED because the geometry had THREE copies — this builder, the month
+ * ticks, and `HomeViewV2`'s own tap handler — and three copies of one rule is
+ * what this repo keeps paying for. Every consumer reads the same array now.
+ */
+export function heatmapDayKeys(weeks: number, nowMs: number): string[] {
+  return heatmapDates(weeks, nowMs).map(function (d) { return localDayKey(d.getTime()); });
+}
+
+function heatmapDates(weeks: number, nowMs: number): Date[] {
+  var cols = Math.max(1, Math.floor(weeks) || 1);
+  var span = cols * 7;
+  var out: Date[] = [];
+  for (var i = 0; i < span; i++) {
+    // Noon, so the ±1 h a transition moves the wall clock can never push the
+    // date across a midnight of its own.
+    var d = new Date(nowMs);
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() - (span - 1 - i));
+    out.push(d);
+  }
+  return out;
 }
 export function computeActivityHeatmap(
   sessions: any[] | null | undefined,
@@ -369,12 +399,12 @@ export function computeActivityHeatmap(
     byDay[k] = (byDay[k] || 0) + 1;
     total += 1;
   });
-  var DAY = 86400000;
   var grid: number[][] = [];
   for (var c = 0; c < cols; c++) grid.push([0, 0, 0, 0, 0, 0, 0]);
+  var keys = heatmapDayKeys(cols, nowMs);
   var span = cols * 7;
   for (var i = 0; i < span; i++) {
-    var key = localDayKey(nowMs - (span - 1 - i) * DAY);
+    var key = keys[i] as string;
     var n = byDay[key] || 0;
     var lvl = n === 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : 3;
     var col = grid[Math.floor(i / 7)] as number[];
@@ -391,13 +421,11 @@ export function computeActivityHeatmap(
 // computeActivityHeatmap so the labels line up with the cells.
 export function activityHeatmapMonths(weeks: number, nowMs: number): number[] {
   var cols = Math.max(1, Math.floor(weeks) || 1);
-  var DAY = 86400000;
-  var span = cols * 7;
+  var dates = heatmapDates(cols, nowMs);
   var out: number[] = [];
   for (var c = 0; c < cols; c++) {
     // Month of this column's most recent day (day-row index 6).
-    var i = c * 7 + 6;
-    out.push(new Date(nowMs - (span - 1 - i) * DAY).getMonth());
+    out.push((dates[c * 7 + 6] as Date).getMonth());
   }
   return out;
 }

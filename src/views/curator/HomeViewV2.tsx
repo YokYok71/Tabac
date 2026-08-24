@@ -26,7 +26,7 @@ import { computeTasteProfile } from "../../utils/tasteProfile.ts";
 import { aromaLabelKey } from "../../utils/aromas.ts";
 import {
   computeCellarMaturity, computeYearConsumption, computeActivityHeatmap,
-  activityHeatmapMonths, computeCellarDepletion, computeCellarPeaks,
+  activityHeatmapMonths, computeCellarDepletion, computeCellarPeaks, heatmapDayKeys,
 } from "../../utils/cellarInsights.ts";
 import { plural } from "../../utils.ts";
 import { Modal, ModalHeader } from "../../components/curator/Modal.tsx";
@@ -241,14 +241,11 @@ export function CuratorHomeViewV2() {
         const k = String(s.date).slice(0, 10);
         byDay[k] = (byDay[k] || 0) + 1;
       });
-      const DAY = 86400000;
-      const span = 10 * 7;
-      const cellKey = (c: number, d: number) => {
-        const dt = new Date(nowMs - (span - 1 - (c * 7 + d)) * DAY);
-        const m = String(dt.getMonth() + 1).padStart(2, "0");
-        const dd = String(dt.getDate()).padStart(2, "0");
-        return dt.getFullYear() + "-" + m + "-" + dd;
-      };
+      // The SAME array the grid is built from — this was a third hand-rolled
+      // copy of the walk, stepping by a fixed 86 400 000 ms, so across a DST
+      // transition a tap resolved to the wrong calendar day.
+      const dayKeys = heatmapDayKeys(10, nowMs);
+      const cellKey = (c: number, d: number) => String(dayKeys[c * 7 + d] ?? "");
       return Object.assign(hm, { months: activityHeatmapMonths(10, nowMs), byDay, cellKey });
     },
     [data?.sessions],

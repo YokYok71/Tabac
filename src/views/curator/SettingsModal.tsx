@@ -17,7 +17,7 @@ import { LANGUAGES } from "../../i18n/languages.ts";
 import { alpha, fs, fsInput, C, F, CARD_BG } from "../../theme-curator.ts";
 import { getDiagnosticSnapshot, clearDiagnostic } from "../../utils/diagnostic.ts";
 import { readAutosaveDiag, readCloudCheckDiag } from "../../hooks/useGdriveSync.ts";
-import { fmtDate, fmtDateTime, today, plural } from "../../utils.ts";
+import { fmtDate, fmtDateTime, today, plural, localDayKey } from "../../utils.ts";
 import { useFocusRing, caretToEnd } from "../../components/curator/FormFields.tsx";
 import { Lbl, PressCard, Spinner } from "../../components/curator/primitives.tsx";
 import { Ico, IcoName } from "../../components/curator/icons.tsx";
@@ -1267,7 +1267,7 @@ export function CuratorSettingsModal() {
             return (
               <Notice tone="warn" icon="diamond">
                 {(t ? t("upd_check_stale") : "Impossible de vérifier les mises à jour depuis un moment — vérifiez votre connexion.")
-                  + (lastCheckOkMs ? " (" + fmtDate(new Date(lastCheckOkMs).toISOString().slice(0, 10), dateFormat) + ")" : "")}
+                  + (lastCheckOkMs ? " (" + fmtDate(localDayKey(lastCheckOkMs), dateFormat) + ")" : "")}
               </Notice>
             );
           })()}
@@ -2586,7 +2586,7 @@ function CatalogueStatus({
             contrast. See CLAUDE.md: never dim TEXT with opacity. */}
         <span>
           {String(tr("cat_loaded_on", "Chargé le {d}"))
-            .replace("{d}", meta.loadedAt ? fmtDate(new Date(meta.loadedAt).toISOString().slice(0, 10), dateFormat) : "—")}
+            .replace("{d}", meta.loadedAt ? fmtDate(localDayKey(meta.loadedAt), dateFormat) : "—")}
           {meta.name ? " · " + meta.name : ""}
         </span>
         {meta.skippedNoIdentity > 0 && (
