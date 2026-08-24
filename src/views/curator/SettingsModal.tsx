@@ -843,6 +843,7 @@ export function CuratorSettingsModal() {
                 { kind: "no-identity", n: csvIssues.skipped, label: String(t("cat_audit_identity")).replace("{n}", String(csvIssues.skipped)) },
                 { kind: "category", n: csvIssues.badCategory, label: String(t("csv_issues_cat")).replace("{n}", String(csvIssues.badCategory)).replace("{v}", autreLabel) },
                 { kind: "cut", n: csvIssues.badCut, label: String(t("csv_issues_cut")).replace("{n}", String(csvIssues.badCut)).replace("{v}", autreLabel) },
+                { kind: "number", n: csvIssues.badNumber, label: String(t("csv_issues_num")).replace("{n}", String(csvIssues.badNumber)) },
               ]}
               issues={csvIssues.issues}
               truncated={!!csvIssues.truncated}

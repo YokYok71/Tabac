@@ -125,6 +125,7 @@ export var PT = {
   csv_issues_scope:"Os valores de família e corte têm de vir da taxonomia da app (veja o manual). Um valor desconhecido passa a «{v}» em vez de ser guardado tal como está: o formulário não tem uma opção para ele e reescrevê-lo-ia ao primeiro guardar.",
   csv_issues_cat:"{n} linha(s) com uma família não reconhecida — passada a «{v}»",
   csv_issues_cut:"{n} linha(s) com um corte não reconhecido — passado a «{v}»",
+  csv_issues_num:"{n} valor(es) numérico(s) ilegível(eis) — deixado(s) vazio(s)",
   csv_import_done:"{n} tabaco(s) e {l} lote(s) importados (fundidos).",
   csv_import_uptodate:"{m} tabaco(s) já presente(s): nenhum novo lote adicionado (a fusão CSV só adiciona lotes).",
   merge_recap_lots:"{l} novo(s) lote(s) adicionado(s) a {m} tabaco(s) já presente(s).",

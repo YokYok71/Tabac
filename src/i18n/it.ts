@@ -118,6 +118,7 @@ export var IT = {
   csv_issues_scope:"I valori di famiglia e taglio devono venire dalla tassonomia dell'app (vedi la guida). Un valore non riconosciuto viene ricondotto a «{v}» invece di essere conservato così com'è: il modulo non ha un'opzione per esso e lo riscriverebbe al primo salvataggio.",
   csv_issues_cat:"{n} riga/righe con una famiglia non riconosciuta — ricondotta a «{v}»",
   csv_issues_cut:"{n} riga/righe con un taglio non riconosciuto — ricondotto a «{v}»",
+  csv_issues_num:"{n} valore/i numerico/i illeggibile/i — lasciato/i vuoto/i",
   csv_import_done:"{n} tabacco/i e {l} lotto/i importati (uniti).",
   csv_import_uptodate:"{m} tabacco(i) già presenti: nessun nuovo lotto aggiunto (la fusione CSV aggiunge solo lotti).",
   merge_recap_lots:"{l} nuovo(i) lotto(i) aggiunto(i) a {m} tabacco(i) già presenti.",

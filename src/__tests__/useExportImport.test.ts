@@ -247,6 +247,61 @@ describe("doCollectionReport", () => {
     const a = created[created.length - 1];
     expect(a.download).toMatch(/^cave-tabac-rapport-\d{8}\.html$/);
   });
+
+  // THE WIRING, which is what rots. `collectionReport.ts` is
+  // language-neutral by design, so the decimal separator can only reach it
+  // through the `formatNumber` the HOOK passes — and the module's own tests
+  // exercise that option directly, which says nothing about whether anyone
+  // hands it a real formatter. The report used to print a DOT decimal in a
+  // comma-decimal UI: `12.50 €` in a document generated from a screen showing
+  // `12,50 €`.
+  function reportHtml(props: any): string {
+    let text = "";
+    (globalThis as any).URL.createObjectURL = vi.fn().mockReturnValue("blob:fake");
+    const RealBlob = globalThis.Blob;
+    (globalThis as any).Blob = class extends RealBlob {
+      constructor(parts: any[], o: any) { super(parts, o); text = String(parts[0]); }
+    };
+    const { result } = renderHook(() => useExportImport(props as any));
+    act(() => { result.current.doCollectionReport(); });
+    (globalThis as any).Blob = RealBlob;
+    return text;
+  }
+
+  const PRICED = {
+    ...INIT,
+    pipes: [{ id: 1, brand: "Halvorsen", name: "Sherlock", shape: "Billiard", price: "80.5" }],
+  };
+
+  it("renders money and weight with the UI's decimal separator (fr)", () => {
+    const html = reportHtml(makeProps({ currencySymbol: "€", weightUnit: "g", lang: "fr", data: PRICED }));
+    expect(html, "captured the report").toContain("report_disclaimer");
+    expect(html).toContain("80,50");
+    expect(html).not.toContain("80.50");
+  });
+
+  it("keeps the dot in English — the formatter is the UI's, not a blanket comma", () => {
+    const html = reportHtml(makeProps({ currencySymbol: "$", weightUnit: "g", lang: "en", data: PRICED }));
+    expect(html).toContain("80.50");
+    expect(html).not.toContain("80,50");
+  });
+
+  it("formats the WEIGHT columns too, not only the money ones", () => {
+    // 41.6 g of cellar stock: a one-decimal weight is the shape that shows
+    // the separator, and the weight columns go through a different helper
+    // from the money ones — a fix threaded into one and not the other would
+    // pass the case above.
+    const data = {
+      ...INIT,
+      tobaccos: [{
+        id: 1, brand: "Halvorsen", name: "No. 4", category: "Virginia",
+        lots: [{ id: 1, status: "cellar", weightG: "41.6", price: "0" }],
+      }],
+    };
+    const html = reportHtml(makeProps({ currencySymbol: "€", weightUnit: "g", lang: "fr", data }));
+    expect(html).toContain("41,6");
+    expect(html).not.toContain("41.6");
+  });
 });
 
 // ── CSV template + import ────────────────────────────────────────

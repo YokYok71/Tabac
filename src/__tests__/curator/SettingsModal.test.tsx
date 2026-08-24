@@ -1522,6 +1522,29 @@ describe("SettingsModal — the CSV import panel", () => {
     if (next > -1) expect(panel, "panel drifted past the next control").toBeLessThan(next);
   });
 
+  it("reports an unreadable NUMBER too, and only when there is one", () => {
+    // THE WIRING IS WHAT ROTS: the parser can count `badNumber` perfectly while
+    // the panel never renders a row for it, and every parser test stays green.
+    // The defect it reports is a truncation — `1 234,5` imported as **1** —
+    // which is invisible in the data, so the panel is the only place it is said.
+    const withNum = renderWithCtx(<CuratorSettingsModal />, base({
+      csvIssues: {
+        rows: 2, skipped: 0, badCategory: 0, badCut: 0, badNumber: 2, truncated: false,
+        issues: [{ row: 2, kind: "number", brand: "Halvorsen", name: "Ansgar", value: "50g" }],
+      },
+    }));
+    const txt = withNum.container.textContent || "";
+    expect(txt).toContain(trFr("csv_issues_num").replace("{n}", "2"));
+    expect(txt, "the offending cell is named").toContain("50g");
+    expect(txt, "and never the raw placeholder").not.toContain("{n}");
+    // NON-VACUITY — the row must not appear on an import whose numbers were all
+    // readable, or every taxonomy report would grow a phantom "0 numbers" line.
+    const noNum = renderWithCtx(<CuratorSettingsModal />, base({ csvIssues: ISSUES }));
+    const head = trFr("csv_issues_num").split("{n}")[1]!.slice(0, 12);
+    expect(head.length, "the fr string still carries the placeholder").toBeGreaterThan(5);
+    expect(noNum.container.textContent || "").not.toContain(head);
+  });
+
   it("carries its own close ×", () => {
     // The panel appears on its own after an import, so there is no
     // toggle to tap again — without its own way out there is none at all.

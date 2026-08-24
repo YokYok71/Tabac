@@ -118,6 +118,7 @@ export var DE = {
   csv_issues_scope:"Familien- und Schnittwerte müssen aus der Taxonomie der App stammen (siehe Anleitung). Ein unbekannter Wert wird auf „{v}“ gesetzt statt unverändert übernommen: das Formular hat keine Option dafür und würde ihn beim ersten Speichern überschreiben.",
   csv_issues_cat:"{n} Zeile(n) mit unbekannter Familie — auf „{v}“ gesetzt",
   csv_issues_cut:"{n} Zeile(n) mit unbekanntem Schnitt — auf „{v}“ gesetzt",
+  csv_issues_num:"{n} unlesbare Zahl(en) — leer gelassen",
   csv_import_done:"{n} Tabak(e) und {l} Los(e) importiert (zusammengeführt).",
   csv_import_uptodate:"{m} bereits vorhandene(r) Tabak(e): kein neues Los hinzugefügt (die CSV-Zusammenführung fügt nur Lose hinzu).",
   merge_recap_lots:"{l} neue(s) Los(e) zu {m} bereits vorhandenen Tabak(en) hinzugefügt.",

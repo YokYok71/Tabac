@@ -8,7 +8,7 @@ import React from "react";
 import { useAppCtx } from "../../AppContext.tsx";
 import { alpha, fs, C, F, catColor, CARD_BG, CARD_SHADOW } from "../../theme-curator.ts";
 import { CATS_EN, monthsShort } from "../../constants.ts";
-import { fmtDate, parseLocalDate, today, softBreakSlashes } from "../../utils.ts";
+import { fmtDate, fmtNum, parseLocalDate, today, softBreakSlashes } from "../../utils.ts";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import {
   AnimNum, Stars, Lbl, IconBtn, PressCard, ScreenWash, GrowBarH, Spinner,
@@ -224,8 +224,11 @@ export function CuratorHomeViewV2() {
     [data?.tobaccos, data?.sessions],
   );
   const yearCons = React.useMemo(
-    () => computeYearConsumption(data?.sessions || [], new Date().getFullYear()),
-    [data?.sessions],
+    // `weightUnit` is a real dependency, not decoration: the aggregate is
+    // rounded on a grid the unit decides (whole grams / tenths of an ounce),
+    // so switching the setting must recompute the tile.
+    () => computeYearConsumption(data?.sessions || [], new Date().getFullYear(), weightUnit),
+    [data?.sessions, weightUnit],
   );
   const heatmap = React.useMemo(
     () => {
@@ -658,7 +661,13 @@ export function CuratorHomeViewV2() {
             // The average rating drills to the Statistics page
             // (its natural home — rating distribution, top-rated) instead of
             // being an inert number.
-            { v: (typeof s.avg === "string" ? s.avg : (s.avg || "—")), l: t ? t("stat_avg") : "Moyenne", c: C.brassHi, onClick: () => nav("stats") },
+            // `computeStats().avg` is a `.toFixed(1)` STRING, and it was
+            // rendered verbatim — so this one decimal on the landing screen
+            // printed a DOT in a comma-decimal UI, beside three integers.
+            // `fmtNum` on a STRING honours the typed precision, so "5.0" stays
+            // "5,0" rather than collapsing to "5", and the "—" placeholder
+            // (parseFloat → NaN) comes back untouched.
+            { v: fmtNum((typeof s.avg === "string" ? s.avg : (s.avg || "—")), lang), l: t ? t("stat_avg") : "Moyenne", c: C.brassHi, onClick: () => nav("stats") },
           ].map((x, i, a) => (
             <React.Fragment key={x.l}>
               <PressCard onClick={x.onClick || undefined} style={{ flex: 1 }}>

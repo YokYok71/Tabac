@@ -10,7 +10,7 @@ import { lotAgingStatus, daysSince, parseAgingMax, effectiveAgingMax, lotAge, is
 // through (Infinity is truthy, so `|| 0` never fired), poisoning the Home
 // "Autonomie estimée" + year-consumption stats.
 import { safeNonNeg } from "./stats.ts";
-import { heldWeight } from "./lotUtils.ts";
+import { heldWeight, roundAggregateWeight } from "./lotUtils.ts";
 
 // ── Cave à maturité — distribution of active lots by aging window ────────────
 export interface CellarMaturity {
@@ -271,6 +271,7 @@ export interface YearConsumption {
 export function computeYearConsumption(
   sessions: any[] | null | undefined,
   year: number,
+  weightUnit?: string,
 ): YearConsumption {
   if (!Array.isArray(sessions)) return { thisYear: 0, lastYear: 0, trendPct: null };
   var ty = 0, ly = 0;
@@ -282,8 +283,14 @@ export function computeYearConsumption(
     if (yr === year) ty += w;
     else if (yr === year - 1) ly += w;
   });
+  // The two totals are ROUNDED FOR DISPLAY on a grid the unit can carry —
+  // `Math.round` alone is 1 g in gram mode and 28.35 g in ounce mode, so a
+  // light ounce year (3 bowls at 0.09 oz) reported 0. `trendPct` deliberately
+  // stays on the RAW sums: it is a ratio, so rounding its inputs would make the
+  // percentage disagree with the two numbers printed beside it.
   return {
-    thisYear: Math.round(ty), lastYear: Math.round(ly),
+    thisYear: roundAggregateWeight(ty, weightUnit),
+    lastYear: roundAggregateWeight(ly, weightUnit),
     trendPct: ly > 0 ? Math.round(((ty - ly) / ly) * 100) : null,
   };
 }

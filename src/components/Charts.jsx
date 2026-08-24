@@ -12,7 +12,15 @@ const hi = C.ivory, bg3 = C.bg2, tx3 = C.tx3, green = C.sage, red = C.oxbloodHi;
 // that ESLint scope fix did NOT catch it: `no-hardcoded-jsx-text` visits
 // JSXText nodes only, and this leak is in a `title` ATTRIBUTE built by string
 // concatenation. Bringing .jsx into scope closed one half of the class.
-export function hBars(items, _w, filterHint) {
+// `fmt` — the number formatter, passed IN by the caller, exactly
+// like `filterHint` above and `totalLabel` below. The row used to render
+// `String(item.value)`, which is wrong twice over: it prints a DOT decimal in
+// a comma-decimal UI (the same Stats screen showed `56,6g` in a donut legend
+// and `148.89999999999998g` in the bar chart under it, because the legend goes
+// through `fmtNum` and this did not), and it prints IEEE-754 accumulation
+// noise verbatim. It is OPTIONAL so the many existing callers — all of them
+// tests — degrade to the previous rendering instead of printing "undefined".
+export function hBars(items, _w, filterHint, fmt) {
   if (!items || !items.length) return null;
   var max = Math.max.apply(null, items.map(function (i) { return i.value; }));
   if (!max) return null;
@@ -97,7 +105,7 @@ export function hBars(items, _w, filterHint) {
                   minWidth: 40,
                   textAlign: "right",
                 }}>
-                {String(item.value) + (item.unit || "")}
+                {(fmt ? fmt(item.value) : String(item.value)) + (item.unit || "")}
               </span>
             </div>
           </div>
@@ -177,10 +185,20 @@ export function vBars(items, w, hh) {
 // It went unnoticed because this file matched no ESLint config at all (see the
 // `src/**/*.{js,jsx}` block in eslint.config.js), so the no-hardcoded-jsx-text rule that
 // exists precisely for this never ran on it.
-export function donutChart(items, size, weightUnit, totalLabel) {
+// `fmt` is the same caller-supplied number formatter `hBars` takes.
+// The centre caption printed `total + weightUnit` — a raw JS number
+// concatenation, so a dot decimal and every noise digit. Rounding the SERIES
+// this donut is fed does not cover it: `total` re-SUMS those values, and
+// `0.1 + 0.2` is `0.30000000000000004` however clean the inputs are.
+export function donutChart(items, size, weightUnit, totalLabel, fmt) {
   if (!items || !items.length) return null;
   var total = items.reduce(function (s, i) { return s + i.value; }, 0);
   if (!total) return null;
+  // TWO render paths print this caption (single slice / multi slice) and both
+  // must use it — the hardcoded "total actif" this file already had to fix
+  // was likewise in both, and a fix applied to one of them is the failure
+  // shape that produced it.
+  var totalTxt = (fmt ? fmt(total) : String(total)) + weightUnit;
   var cx = size / 2, cy = size / 2, r = size * 0.4, ri = size * 0.23;
   if (items.length === 1)
     return (
@@ -194,7 +212,7 @@ export function donutChart(items, size, weightUnit, totalLabel) {
           fontWeight="bold"
           fontFamily={F.mono}
           style={{ fontSize: fs(16), fill: hi }}>
-          {total + weightUnit}
+          {totalTxt}
         </text>
         <text
           x={cx}
@@ -241,7 +259,7 @@ export function donutChart(items, size, weightUnit, totalLabel) {
         // attribute (see the same note on Ico). The sibling render
         // path above was already correct; this one had been missed.
         style={{ fontSize: fs(16), fill: hi }}>
-        {total + weightUnit}
+        {totalTxt}
       </text>
       <text
         x={cx}

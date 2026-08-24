@@ -2401,6 +2401,7 @@ function App() {
     currencySymbol,
     ageLabel,
     dateFormat,
+    lang,
     stageImport,
     markExported,
     setImportRecap,

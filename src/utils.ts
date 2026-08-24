@@ -43,13 +43,35 @@ export var nowTime = function (): string {
 // VALUE UNTOUCHED — when the input isn't a finite number (empty / garbage, so
 // the read-site display default keeps applying) or when `fromUnit === toUnit`.
 // Finite-guarded so a legitimate 0 converts (never substituted by a fallback),
-// and oz is rounded to 2 dp so a sub-1.4 g value survives the round-trip instead
-// of collapsing to "0" (the corruption this replaced: 1 g default → "0" → 85 g;
-// watchLowWeight 1 g → 1418 g). Accepts a comma decimal.
+// and oz is rounded to 3 dp so the g→oz→g round trip is the IDENTITY. Accepts a
+// comma decimal.
+//
+// The oz precision has now been raised TWICE, for the same reason each time,
+// and the second raise is what makes the round trip exact rather than merely
+// survivable. At 1 dp a 1 g default collapsed to "0" and came back as 85 g
+// (with watchLowWeight 1 g → 1418 g) — the corruption this function replaced.
+// At 2 dp nothing exploded, but the grid was still coarser than the gram side:
+// MEASURED over the 2000 one-decimal gram values from 0.1 to 200.0, **1295 did
+// not survive g→oz→g**, drifting by up to 0.10 g — and 0.1 g still went to
+// "0.00 oz" and then to "0", which greys the session form's Save for ever with
+// nothing on screen explaining why. At 3 dp: 0 of 2000 fail.
+//
+// That matters because these two values are PREFERENCES the user typed
+// (`cave-session-default-weight`, `cave-watch-low-weight`): toggling the
+// display unit and back must give them their own number, not a nearby one.
+// Neither sits on the app's DEDUCTION grid (`roundWeightToUnit`, 1 dp g / 2 dp
+// oz) — the default is a prefill re-rounded at save, the threshold is only ever
+// compared — so a third decimal here does not put an unrepresentable weight
+// anywhere near a lot.
+//
+// RESIDUAL, disclosed: oz→g→oz still drifts one gram-grid step (0.1 oz is
+// 2.835 g, stored "2.8", read back 0.099 oz) because the GRAM side stays at
+// 1 dp — the grid the whole app deducts on, which is not this function's to
+// move. The g→oz→g direction is the one a preference actually travels.
 export function convertWeightUnit(raw: any, fromUnit: string, toUnit: string): string | null {
   var v = parseFloat(String(raw == null ? "" : raw).replace(",", "."));
   if (!Number.isFinite(v)) return null;
-  if (toUnit === "oz" && fromUnit === "g") return String(Math.round((v / 28.35) * 100) / 100);
+  if (toUnit === "oz" && fromUnit === "g") return String(Math.round((v / 28.35) * 1000) / 1000);
   if (toUnit === "g" && fromUnit === "oz") return String(Math.round(v * 28.35 * 10) / 10);
   return null;
 }

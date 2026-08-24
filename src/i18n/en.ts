@@ -118,6 +118,7 @@ export var EN = {
   csv_issues_scope:"Family and cut values must come from the app's own taxonomy (see the guide). An unrecognised value is snapped to “{v}” rather than kept as-is: the form has no option for it and would rewrite it on the first save.",
   csv_issues_cat:"{n} row(s) with an unrecognised family — snapped to “{v}”",
   csv_issues_cut:"{n} row(s) with an unrecognised cut — snapped to “{v}”",
+  csv_issues_num:"{n} unreadable number(s) — left empty",
   csv_import_done:"{n} tobacco(s) and {l} lot(s) imported (merged).",
   csv_import_uptodate:"{m} tobacco(s) already present: no new lot added (CSV merge only adds lots).",
   merge_recap_lots:"{l} new lot(s) added to {m} tobacco(s) already present.",

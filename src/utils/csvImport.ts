@@ -27,10 +27,10 @@ import { CATS, CUTS, CAT_MAP, CUT_MAP, BT, BL } from "../constants.ts";
  */
 export interface CsvImportIssue {
   row: number;
-  kind: "no-identity" | "category" | "cut";
+  kind: "no-identity" | "category" | "cut" | "number";
   brand: string;
   name: string;
-  /** The offending label, for the two taxonomy kinds. */
+  /** The offending label, for the taxonomy kinds and for `number`. */
   value: string;
 }
 
@@ -49,6 +49,7 @@ export interface CsvImportResult {
   capped: boolean;    // true if MAX_ROWS was reached and the rest was dropped
   badCategory: number; // rows whose category was snapped to "Autre" (EXACT)
   badCut: number;      // rows whose cut was snapped to "Autre" (EXACT)
+  badNumber: number;   // numeric cells that held something unreadable (EXACT)
   issues: CsvImportIssue[]; // capped at MAX_CSV_ISSUES
   issuesTruncated: boolean; // the list hit the cap; the counts above did not
 }
@@ -268,12 +269,54 @@ function normStatus(v: any): string {
   return "";
 }
 
-function numStr(v: any): string {
-  var raw = String(v == null ? "" : v).trim().replace(",", ".");
-  if (!raw) return "";
-  var n = parseFloat(raw);
-  if (!Number.isFinite(n) || n < 0) return "";
-  return String(n);
+/** Group separators a spreadsheet emits: ASCII space, NBSP, narrow NBSP, thin
+ *  space, and the Swiss apostrophe (straight and typographic). */
+var GROUP_SEP_RE = /[ \u00A0\u202F\u2009'\u2019]/g;
+/** A plain decimal, once grouping is stripped and the decimal mark is a dot.
+ *  Deliberately STRICTER than `parseFloat`, which stops at the first character
+ *  it cannot read and reports nothing — that silence is the defect. */
+var PLAIN_NUM_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
+
+/**
+ * Read a numeric cell.
+ *
+ * `value` is the canonical decimal string, or "" when the cell is empty OR
+ * unreadable — the caller stores "" either way, and the app already reads an
+ * absent weight as "untracked" rather than as zero. `bad` carries the raw text
+ * when the cell held SOMETHING the parser could not read, so the caller can
+ * report it; an EMPTY cell is never `bad`, because an absence is not a defect.
+ *
+ * It used to be `String(v).trim().replace(",", ".")` then `parseFloat` — ONE
+ * comma, no other separator, and a parse that stops at the first character it
+ * cannot read while reporting nothing. So `1 234,5` (what a fr/de spreadsheet
+ * emits) imported as **1** and `1,234.56` as **1.234**: three orders of
+ * magnitude of stock, on a module whose stated contract is that an export
+ * edited in a spreadsheet round-trips, with the row neither `skipped` nor
+ * listed in `issues`.
+ */
+function readNum(v: any): { value: string; bad: string } {
+  var raw = String(v == null ? "" : v).trim();
+  if (!raw) return { value: "", bad: "" };
+  var s = raw.replace(GROUP_SEP_RE, "");
+  var lastComma = s.lastIndexOf(",");
+  var lastDot = s.lastIndexOf(".");
+  if (lastComma >= 0 && lastDot >= 0) {
+    // Both marks present: the LAST one is the decimal, the other is grouping.
+    // `1.234,56` and `1,234.56` are the same number written two ways.
+    if (lastComma > lastDot) s = String(s).replace(/\./g, "").replace(",", ".");
+    else s = String(s).replace(/,/g, "");
+  } else if (lastComma >= 0) {
+    // A SINGLE comma stays a DECIMAL mark — that is what this parser has always
+    // done and what a French spreadsheet emits, so `2,000` reads as 2 and not
+    // as 2000. Genuinely ambiguous, and changing it would silently multiply
+    // every fr-locale weight by a thousand. SEVERAL commas can only be grouping.
+    if (s.indexOf(",") === lastComma) s = String(s).replace(",", ".");
+    else s = String(s).replace(/,/g, "");
+  }
+  if (!PLAIN_NUM_RE.test(s)) return { value: "", bad: raw };
+  var n = parseFloat(s);
+  if (!Number.isFinite(n) || n < 0) return { value: "", bad: raw };
+  return { value: String(n), bad: "" };
 }
 
 var EN_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -338,7 +381,7 @@ export function parseTobaccoCsv(
   text: string,
   opts?: { idBase?: number; todayIso?: string },
 ): CsvImportResult {
-  var empty: CsvImportResult = { tobaccos: [], rows: 0, skipped: 0, lots: 0, headers: [], sectioned: false, capped: false, badCategory: 0, badCut: 0, issues: [], issuesTruncated: false };
+  var empty: CsvImportResult = { tobaccos: [], rows: 0, skipped: 0, lots: 0, headers: [], sectioned: false, capped: false, badCategory: 0, badCut: 0, badNumber: 0, issues: [], issuesTruncated: false };
   if (typeof text !== "string") return empty;
   var clean = String(text).replace(/^\uFEFF/, "");
   if (!clean.trim()) return empty;
@@ -375,7 +418,7 @@ export function parseTobaccoCsv(
   var groups: Record<string, any> = Object.create(null);
   var dataRows = 0, skipped = 0, lotCount = 0;
   var sectioned = false, capped = false;
-  var badCategory = 0, badCut = 0;
+  var badCategory = 0, badCut = 0, badNumber = 0;
   var issues: CsvImportIssue[] = [];
   var note = function (row: number, kind: CsvImportIssue["kind"], b: string, n: string, value: string) {
     if (issues.length < MAX_CSV_ISSUES) issues.push({ row: row, kind: kind, brand: b, name: n, value: value });
@@ -468,8 +511,16 @@ export function parseTobaccoCsv(
     // A lot is created when the row carries any lot-level data.
     var hasLot = LOT_FIELDS.some(function (f) { return String(rec[f] || "").trim() !== ""; });
     if (hasLot) {
-      var wG = numStr(rec["weightG"]);
-      var wInit = numStr(rec["weightInitial"]) || wG;
+      // A numeric cell the parser could not read is BLANKED (as it always was)
+      // and now REPORTED — the silence was the costly half of the defect, since
+      // a truncated `1 234,5` looked exactly like a clean import.
+      var readCell = function (field: string): string {
+        var res = readNum(rec[field]);
+        if (res.bad) { badNumber++; note(lineNo, "number", brand, name, res.bad); }
+        return res.value;
+      };
+      var wG = readCell("weightG");
+      var wInit = readCell("weightInitial") || wG;
       // A smoked-down lot can never have
       // current weight > initial. A hand-edited spreadsheet row with weightG >
       // weightInitial would otherwise persist a balance-overflow lot (the
@@ -492,7 +543,7 @@ export function parseTobaccoCsv(
         // (these two are back-filled below — see fillLifecycleDate.)
         boxNumber: rec["boxNumber"] || "",
         storageLocation: rec["storageLocation"] || "",
-        price: numStr(rec["price"]),
+        price: readCell("price"),
         seller: rec["seller"] || "",
         sellerUrl: rec["sellerUrl"] || "",
         disposed: parseBool(rec["disposed"]),
@@ -526,5 +577,5 @@ export function parseTobaccoCsv(
   }
 
   var tobaccos = order.map(function (k) { return groups[k]; });
-  return { tobaccos: tobaccos, rows: dataRows, skipped: skipped, lots: lotCount, headers: recognised, sectioned: sectioned, capped: capped, badCategory: badCategory, badCut: badCut, issues: issues, issuesTruncated: issues.length >= MAX_CSV_ISSUES };
+  return { tobaccos: tobaccos, rows: dataRows, skipped: skipped, lots: lotCount, headers: recognised, sectioned: sectioned, capped: capped, badCategory: badCategory, badCut: badCut, badNumber: badNumber, issues: issues, issuesTruncated: issues.length >= MAX_CSV_ISSUES };
 }

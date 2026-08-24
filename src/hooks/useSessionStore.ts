@@ -291,7 +291,17 @@ export function useSessionStore({
         // collapse it to 0 g — so the 0 g the fifth-reader bug wrote could
         // never be corrected by hand either.
         var avail = safeW(capL.weightG) + ow;
-        nw = Math.min(nw, avail);
+        // The cap must land back ON THE GRID. `ow` and `capL.weightG` are each
+        // grid values, but their SUM is not — `0.1 + 2.7` is
+        // 2.8000000000000003 in IEEE-754 — and the result was stored with a
+        // bare `String(nw)`, so the journal rendered `2,8000000000000003g` and
+        // the CSV export wrote it verbatim. Every other weight in this store
+        // already goes through `roundWeightToUnit`; the cap was the one
+        // arithmetic result that did not. `_persistSession`'s cap has no
+        // addition (`Math.min(w, safeW(lot.weightG))`), so it can only ever
+        // return a value that is already on the grid — this branch is the only
+        // one that adds.
+        nw = roundWeightToUnit(Math.min(nw, avail), weightUnit);
       }
       nd = Object.assign({}, nd, {
         sessions: (nd.sessions || []).map(function (s: any) {

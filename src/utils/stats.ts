@@ -438,9 +438,21 @@ export function computeChartStats(
     return Object.entries(o).sort(function (a, b) { return b[1] - a[1]; });
   }
 
+  // `round1` on the two WEIGHT series, matching `monthlyWeight` /
+  // `yearlyWeight` below. They were the only two series fed to a chart
+  // unrounded, and a sum of grid-aligned decimals is not grid-aligned —
+  // `20.1 + 20.3` is `40.400000000000006` — so the bar row and the donut
+  // centre printed every noise digit while the legend beside them, which goes
+  // through `fmtNum`, printed the clean value. 1 dp because that is the grid
+  // the weights are stored on, and the grid its two siblings already use.
+  function round1(n: number): number { return Math.round(n * 10) / 10; }
+  function roundVals(pairs: [string, number][]): [string, number][] {
+    return pairs.map(function (e): [string, number] { return [e[0], round1(e[1])]; });
+  }
+
   return {
-    catW: sortByVal(catW),
-    brandW: sortByVal(brandW).slice(0, 10),
+    catW: roundVals(sortByVal(catW)),
+    brandW: roundVals(sortByVal(brandW).slice(0, 10)),
     ratings: ratings,
     pShapes: sortByVal(pShapes),
     pBowl: sortByVal(pBowl),

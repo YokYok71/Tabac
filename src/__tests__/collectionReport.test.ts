@@ -195,3 +195,90 @@ describe("buildCollectionReport", () => {
     expect(() => buildCollectionReport({ tobaccos: null, pipes: undefined }, opts)).not.toThrow();
   });
 });
+
+// ── Two readers of one field, and a notation nobody can read ──────────────
+//
+// `num()` coerced with `Number(v)` while every other reader of a price in the
+// app uses `parseFloat` (`computeStats`'s `nonNeg`, `stats.safeWeight`). So a
+// price stored as "2,5" — a shape the app itself produces, since `fmtNum`
+// renders a comma in every language but English — was read as 2 by the
+// spending stats and as **0** by the document filed with an insurer. The
+// defect is the INCONSISTENCY, so the fix is to read it the way everything
+// else does, NOT to invent a third reading: `parseFloat("2,5")` is 2, and a
+// comma-normalising `num` would make this module the odd one out again in the
+// opposite direction.
+describe("buildCollectionReport — a price is read the way the rest of the app reads it", () => {
+  it("reads a comma decimal like `computeStats` does, not as zero", () => {
+    const data = {
+      tobaccos: [{ brand: "A", name: "B", category: "C", lots: [{ price: "2,5" }] }],
+      pipes: [], accessories: [],
+    };
+    const html = buildCollectionReport(data, opts);
+    // parseFloat("2,5") === 2 — the same figure the spending stats report.
+    expect(html).toContain("2.00 €");
+    expect(html).not.toContain("0.00 €");
+  });
+
+  it("still rejects garbage and negatives (non-vacuity)", () => {
+    // Widening the coercion must not widen what counts as a price.
+    const data = {
+      tobaccos: [{ brand: "A", name: "B", category: "C", lots: [{ price: "abc" }, { price: "-5" }, { price: "Infinity" }] }],
+      pipes: [], accessories: [],
+    };
+    const html = buildCollectionReport(data, opts);
+    expect(html).toContain("0.00 €");
+  });
+
+  it("never prints exponential notation in a money figure", () => {
+    // `toFixed` switches to exponential at 1e21, so a pasted price rendered
+    // "1e+21 €" in the grand total — a value nobody can read, in a document
+    // that exists to be read by someone else.
+    const data = {
+      tobaccos: [], pipes: [{ brand: "P", name: "Q", shape: "Billiard", price: "1e21" }], accessories: [],
+    };
+    const html = buildCollectionReport(data, opts);
+    expect(html).not.toContain("e+21");
+    expect(html).toContain("1000000000000000000000.00 €");
+  });
+
+  it("leaves an ordinary amount byte-identical (non-vacuity)", () => {
+    // The exponential guard must be unreachable below the threshold, or every
+    // ordinary report changes for a case nobody will ever hit.
+    const data = { tobaccos: [], pipes: [{ brand: "P", name: "Q", shape: "Billiard", price: "123456.789" }], accessories: [] };
+    expect(buildCollectionReport(data, opts)).toContain("123456.79 €");
+  });
+});
+
+// ── The decimal separator ─────────────────────────────────────────────────
+//
+// Every LABEL in this document is pre-translated by the caller, and its
+// numbers were not: a French report read "40.00 €" and "12.5 g". The
+// formatter is passed IN, like `xlEnum` beside it, because this module is
+// deliberately language-neutral and string-only — importing `fmtNum` here
+// would drag the i18n machinery into it, and re-deriving the separator at the
+// call site would be the rule written a second time.
+describe("buildCollectionReport — the caller owns the decimal separator", () => {
+  const data = {
+    tobaccos: [{ brand: "A", name: "Alpha", category: "Virginia", lots: [{ price: "40.5", weightG: "12.5", status: "cellar" }] }],
+    pipes: [], accessories: [],
+  };
+
+  it("routes money AND weight through the supplied formatter", () => {
+    const html = buildCollectionReport(data, {
+      ...opts,
+      formatNumber: (v: string) => String(v).replace(".", ","),
+    });
+    expect(html).toContain("40,50 €");
+    expect(html).toContain("12,5 g");
+    expect(html).not.toContain("40.50");
+    expect(html).not.toContain("12.5 g");
+  });
+
+  it("defaults to the dot form when no formatter is passed (non-vacuity)", () => {
+    // The parameter is OPTIONAL so a caller that does not care — and every
+    // pre-existing test — behaves exactly as before.
+    const html = buildCollectionReport(data, opts);
+    expect(html).toContain("40.50 €");
+    expect(html).toContain("12.5 g");
+  });
+});

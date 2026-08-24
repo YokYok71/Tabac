@@ -65,6 +65,16 @@ export interface CollectionReportOpts {
    *  the Curator VIEWS, so `src/utils/**` is unguarded — and the rule looks for
    *  a JSX container, which a hand-built HTML string is not. */
   xlEnum?: ((value: string, kind: EnumKind) => string) | undefined;
+  /** Formatter for every NUMBER the report prints (money + weight). The app
+   *  renders a COMMA decimal in every language but English (`fmtNum`), so a
+   *  report full of dot decimals is the one document that disagrees with the
+   *  screen it was generated from. Passed IN for the same reason as `xlEnum`:
+   *  this module is deliberately language-neutral and string-only, so it must
+   *  not import the i18n machinery to learn a separator. Receives an
+   *  already-rounded plain string (`"12.50"`, `"41.6"`) and returns whatever the
+   *  caller wants shown. Defaults to identity, so an existing caller is
+   *  byte-for-byte unchanged. */
+  formatNumber?: NumFmt | undefined;
 }
 
 /** Which enum table a cell value belongs to (the caller owns the maps). */
@@ -79,19 +89,46 @@ function esc(v: any): string {
     .replace(/'/g, "&#39;");
 }
 
+// `parseFloat`, NOT `Number` — and the difference is the defect.
+// Every other reader of a price in the app coerces with `parseFloat`
+// (`computeStats`'s `nonNeg`, `stats.safeWeight`), and `Number("2,5")` is NaN
+// where `parseFloat("2,5")` is 2. So a price stored with a comma decimal — a
+// shape the app itself produces, since `fmtNum` renders one in every language
+// but English — was counted as 2 by the spending stats and as **0** by the
+// document filed with an insurer: two readers of one field disagreeing.
+//
+// Deliberately NOT comma-normalised first: that would give 2.5 and make this
+// module the odd one out again, in the other direction. What is wanted is the
+// same answer as everything else, not a better one in one place.
 function num(v: any): number {
-  var n = Number(v);
+  var n = parseFloat(v);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-function money(n: number, sym: string): string {
-  return Number(n).toFixed(2) + " " + sym;
+/** The decimal separator is the CALLER's (see `formatNumber`); a
+ *  formatter is passed down rather than imported, so these two stay pure and
+ *  language-neutral. */
+type NumFmt = (v: string) => string;
+
+function money(n: number, sym: string, fmt: NumFmt): string {
+  var v = Number(n);
+  // `toFixed` switches to EXPONENTIAL notation at 1e21, so a pasted price
+  // printed "1e+21 €" in the grand total of a document whose whole purpose is
+  // to be read by someone else. Below the threshold this is byte-identical to
+  // the plain `toFixed(2)` by construction, so an ordinary report cannot
+  // change; above it the digits are written out in full. A non-finite value
+  // reads 0, matching `num`, which already maps one to 0.
+  if (!Number.isFinite(v)) v = 0;
+  var out = Math.abs(v) >= 1e21
+    ? v.toLocaleString("en-US", { useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : Number(v).toFixed(2);
+  return fmt(out) + " " + sym;
 }
 
-function weight(n: number, unit: string): string {
+function weight(n: number, unit: string, fmt: NumFmt): string {
   // up to 1 decimal, trailing .0 stripped
   var r = Math.round(n * 10) / 10;
-  return (Number.isInteger(r) ? String(r) : Number(r).toFixed(1)) + " " + unit;
+  return fmt(Number.isInteger(r) ? String(r) : Number(r).toFixed(1)) + " " + unit;
 }
 
 function notTrashed(row: any): boolean {
@@ -104,6 +141,8 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
   var wu = opts.weightUnit || "g";
   // Identity default: a caller that passes nothing gets the old behaviour.
   var xe = opts.xlEnum || function (v: string) { return v; };
+  // Same identity default, same reason (see `formatNumber`).
+  var fn: NumFmt = opts.formatNumber || function (v: string) { return v; };
 
   // Every section reads by BRAND then NAME. A document you print
   // and file is scanned by looking a maker up, which insertion order (the id
@@ -139,9 +178,9 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
     return (
       "<tr><td>" + esc(tb.brand) + "</td><td>" + esc(tb.name) +
       "</td><td>" + esc(xe(String(tb.category || ""), "category")) + "</td><td class=\"n\">" + lots.length +
-      "</td><td class=\"n\">" + esc(weight(cellarW, wu)) +
-      "</td><td class=\"n\">" + esc(weight(jarW, wu)) +
-      "</td><td class=\"n\">" + esc(money(value, sym)) + "</td></tr>"
+      "</td><td class=\"n\">" + esc(weight(cellarW, wu, fn)) +
+      "</td><td class=\"n\">" + esc(weight(jarW, wu, fn)) +
+      "</td><td class=\"n\">" + esc(money(value, sym, fn)) + "</td></tr>"
     );
   }).join("");
 
@@ -152,7 +191,7 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
     pipeTotal += value;
     return (
       "<tr><td>" + esc(p.brand) + "</td><td>" + esc(p.name) +
-      "</td><td>" + esc(xe(String(p.shape || ""), "shape")) + "</td><td class=\"n\">" + esc(money(value, sym)) + "</td></tr>"
+      "</td><td>" + esc(xe(String(p.shape || ""), "shape")) + "</td><td class=\"n\">" + esc(money(value, sym, fn)) + "</td></tr>"
     );
   }).join("");
 
@@ -163,7 +202,7 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
     accTotal += value;
     return (
       "<tr><td>" + esc(a.brand) + "</td><td>" + esc(a.name) +
-      "</td><td>" + esc(xe(String(a.type || ""), "accType")) + "</td><td class=\"n\">" + esc(money(value, sym)) + "</td></tr>"
+      "</td><td>" + esc(xe(String(a.type || ""), "accType")) + "</td><td class=\"n\">" + esc(money(value, sym, fn)) + "</td></tr>"
     );
   }).join("");
 
@@ -189,7 +228,7 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
       "<h2>" + esc(heading) + " <span class=\"count\">" + count + " " + esc(L.items) + "</span></h2>" +
       "<table><thead><tr>" + ths + "</tr></thead><tbody>" + rows +
       "<tr class=\"subtotal\"><td colspan=\"" + (headerCells.length - 1 - extra.length) + "\">" + esc(L.totalValue) +
-      "</td>" + extraCells + "<td class=\"n\">" + esc(money(subtotal, sym)) + "</td></tr></tbody></table>"
+      "</td>" + extraCells + "<td class=\"n\">" + esc(money(subtotal, sym, fn)) + "</td></tr></tbody></table>"
     );
   }
 
@@ -220,7 +259,7 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
     "<div class=\"box\"><div class=\"k\">" + esc(L.tobaccos) + "</div><div class=\"v\">" + tobs.length + "</div></div>" +
     "<div class=\"box\"><div class=\"k\">" + esc(L.pipes) + "</div><div class=\"v\">" + pipes.length + "</div></div>" +
     "<div class=\"box\"><div class=\"k\">" + esc(L.accessories) + "</div><div class=\"v\">" + accs.length + "</div></div>" +
-    "<div class=\"box grand\"><div class=\"k\">" + esc(L.totalValue) + "</div><div class=\"v\">" + esc(money(grand, sym)) + "</div></div>" +
+    "<div class=\"box grand\"><div class=\"k\">" + esc(L.totalValue) + "</div><div class=\"v\">" + esc(money(grand, sym, fn)) + "</div></div>" +
     "</div>";
 
   return (
@@ -237,7 +276,7 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
       // The two weight totals belong on the subtotal row for the same reason
       // the split exists: how much of the cellar is still sealed is the
       // question an inventory document is asked.
-      [weight(tobCellar, wu), weight(tobJar, wu)]) +
+      [weight(tobCellar, wu, fn), weight(tobJar, wu, fn)]) +
     section(L.pipes, pipes.length, [L.colBrand, L.colName, L.colShape, L.colValue], pipeRows, pipeTotal) +
     section(L.accessories, accs.length, [L.colBrand, L.colName, L.colType, L.colValue], accRows, accTotal) +
     "<p class=\"disclaimer\">" + esc(L.disclaimer) + "</p>" +

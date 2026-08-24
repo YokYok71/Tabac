@@ -303,6 +303,29 @@ export function roundWeightToUnit(w: any, weightUnit?: string): number {
   return Math.round(v * factor) / factor;
 }
 
+/**
+ * Round a DISPLAY AGGREGATE (a year's consumption, a total) to a precision the
+ * unit can carry. A weight is stored in whatever unit the user typed — the unit
+ * setting is display-only — so `Math.round` means 1 g in gram mode and 28.35 g
+ * in ounce mode: a year of light smoking (3 bowls at 0.09 oz) reported "0 oz",
+ * and 8 bowls reported "1 oz" for 20 g actually smoked.
+ *
+ * Grams keep WHOLE units, which is what every gram user has always seen; ounces
+ * get one decimal (0.1 oz = 2.8 g), the closest match on a tile that must also
+ * fit a four-digit total. Two decimals would be finer than the gram branch's own
+ * resolution, so it would be precision the figure does not have.
+ *
+ * This is the DISPLAY grid; `roundWeightToUnit` above is the DEDUCTION grid
+ * (1 dp / 2 dp) and the two are deliberately different — a stored balance needs
+ * more precision than a headline total.
+ */
+export function roundAggregateWeight(v: any, weightUnit?: string): number {
+  var n = parseFloat(String(v));
+  if (!Number.isFinite(n)) return 0;
+  var factor = weightUnit === "oz" ? 10 : 1;
+  return Math.round(n * factor) / factor;
+}
+
 export function stepApplyDelta(lot: any, delta: any, weightUnit?: string): any {
   // An UNWEIGHED lot has no balance to move, so it is left
   // exactly as it is. This is the other half of the isUsableLot fix and it is

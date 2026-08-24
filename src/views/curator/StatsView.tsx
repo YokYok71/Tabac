@@ -13,6 +13,7 @@ import {
 } from "../../constants.ts";
 import { FilterChipSimple, ScrollableChipRow } from "../../components/curator/FilterControls.tsx";
 import { fmtNum, fmtDate, plural, softBreakSlashes } from "../../utils.ts";
+import { roundAggregateWeight } from "../../utils/lotUtils.ts";
 // The categories come from THE palette (constants.ts, via catColor)
 // — this view used to import a SECOND, divergent one aliased to the same name,
 // which is exactly why the split went unnoticed for so long.
@@ -49,8 +50,16 @@ export function CuratorStatsView() {
   // filtrer"), shown as-is in all five languages. hBars now takes the hint as a
   // parameter; this wrapper supplies it once for all 19 call sites in this view
   // rather than threading a third argument through each.
+  // `chartNum` is the same wrapper's answer to the second thing
+  // Charts.jsx could not know: how to WRITE a number. The bar value rendered
+  // `String(item.value)`, so this screen printed `56,6g` in a donut legend
+  // (which goes through `fmtNum`) and `148.89999999999998g` in the bar chart
+  // directly below it — a dot decimal in a comma-decimal UI, plus every
+  // float-noise digit. One formatter for all 19 bar call sites AND the donut
+  // centre, so the three renderings of one number cannot disagree again.
+  const chartNum = (n: number) => fmtNum(n, lang);
   const bars = (items: any, w: number) =>
-    hBars(items, w, t ? t("chart_tap_to_filter") : " — clic pour filtrer");
+    hBars(items, w, t ? t("chart_tap_to_filter") : " — clic pour filtrer", chartNum);
   const calScrollRef = useRef<HTMLDivElement | null>(null);
   const [calSel, setCalSel] = useState<{ date: string; count: number } | null>(null);
   // Aging-curve family filter ("" = all families).
@@ -441,7 +450,10 @@ export function CuratorStatsView() {
                   fontFamily: F.display, fontSize: fs(56), color: C.brassHi,
                   lineHeight: 1, marginTop: 10, letterSpacing: -2.2, fontStyle: "italic",
                 }}>
-                  {fmtNum(Math.round(yearTotal), lang)}
+                  {/* Rounded on a grid the UNIT can carry: `Math.round` alone
+                      is 1 g in gram mode and 28.35 g in ounce mode, so a light
+                      ounce year read "0" on the biggest number of this page. */}
+                  {fmtNum(roundAggregateWeight(yearTotal, weightUnit), lang)}
                   <span style={{ fontSize: fs(24), color: C.tx2, fontStyle: "normal" }}>{weightUnit}</span>
                 </div>
               </button>
@@ -451,7 +463,7 @@ export function CuratorStatsView() {
             {ci.catW.length > 0 && (
               <Card title={(t ? t("stat_chart_cat") : "Stock par catégorie") + ` (${weightUnit})`} accent={C.amber}>
                 <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
-                  {donutChart(ci.catW, 160, weightUnit, t ? t("chart_total_active") : "total actif")}
+                  {donutChart(ci.catW, 160, weightUnit, t ? t("chart_total_active") : "total actif", chartNum)}
                   <div style={{
                     flex: 1, minWidth: 110,
                     display: "flex", flexDirection: "column", gap: 5,
@@ -725,10 +737,16 @@ export function CuratorStatsView() {
                       <div style={{ flex: 1 }}>
                         <Stars n={Math.round(val)} size={12} color={col} />
                       </div>
+                      {/* `.toFixed(1)` alone printed a DOT decimal on a page
+                          whose donut legend already prints a comma. The
+                          `toFixed` STAYS — the three rows must line up on one
+                          decimal, and `fmtNum` on a STRING honours exactly
+                          that typed precision, so a whole 2 still reads
+                          "2,0" and only the separator changes. */}
                       <div style={{
                         fontFamily: F.display, fontStyle: "italic", fontSize: fs(20),
                         color: col, minWidth: 36, textAlign: "right",
-                      }}>{Number(val).toFixed(1)}</div>
+                      }}>{fmtNum(Number(val).toFixed(1), lang)}</div>
                     </div>
                   ))}
                 </button>

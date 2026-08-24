@@ -2,7 +2,7 @@ import React from "react";
 import { collectSettings } from "../utils/appSettings.ts";
 import { wipeAppStorage } from "../utils/appStorage.ts";
 import { INIT, SCHEMA_VERSION } from "../constants.ts";
-import { daysSince, fmtDate, isTrashed, stripDeleted, isPlausibleBackup, monotonicId, today, localDayKey } from "../utils.ts";
+import { daysSince, fmtDate, fmtNum, isTrashed, stripDeleted, isPlausibleBackup, monotonicId, today, localDayKey } from "../utils.ts";
 import { sanitizeAromas, aromaLabelKey } from "../utils/aromas.ts";
 import { imgCache } from "../utils/imgCache.ts";
 import { buildCollectionReport } from "../utils/collectionReport.ts";
@@ -28,6 +28,10 @@ export function useExportImport({
   currencySymbol,
   ageLabel,
   dateFormat,
+  // Active UI language — the collection report's decimal separator (see
+  // `formatNumber` in collectionReport.ts). NOT used for anything else here:
+  // the CSV is French by construction (see the `lang-axis-ok` note below).
+  lang,
   stageImport,
   markExported,
   setImportRecap,
@@ -47,6 +51,7 @@ export function useExportImport({
   currencySymbol: string;
   ageLabel: (d: any) => string;
   dateFormat?: string;
+  lang?: string;
   stageImport: (parsed: any, source: "file" | "drive", options?: { autoApply?: "replace" | "merge"; onMerged?: (summary: any) => void; keepModalOpen?: boolean }) => void;
   markExported?: () => void;
   // Non-blocking recap sink (App's setImportRecap). When present,
@@ -631,6 +636,13 @@ export function useExportImport({
         var m = kind === "category" ? CATS_EN : kind === "shape" ? SHAPES_EN : ACC_TYPES_EN;
         return xl(v, m);
       },
+      // The report printed a DOT decimal in a comma-decimal UI —
+      // `12.50 €` in a document generated from a screen that says `12,50 €`.
+      // `fmtNum` is the app's single source of truth for the separator, and it
+      // lives in `utils.ts`, which imports `LANG`; passing it IN keeps
+      // `collectionReport.ts` language-neutral (its design premise) instead of
+      // dragging the i18n machinery into a string-only module.
+      formatNumber: function (v: string) { return fmtNum(v, lang); },
     });
     dlFile(html, "cave-tabac-rapport-" + compact + ".html", "text/html;charset=utf-8")
       .then(function (ok: boolean) { if (ok && markExported) markExported(); });
@@ -740,7 +752,7 @@ export function useExportImport({
             // Computed BEFORE the import because it decides
             // whether Settings stays open — the row-level panel renders there,
             // and `_runImport` closes the modal for a "file" source.
-            var _coerced = (parsed.badCategory || 0) + (parsed.badCut || 0);
+            var _coerced = (parsed.badCategory || 0) + (parsed.badCut || 0) + (parsed.badNumber || 0);
             var _hasIssues = parsed.skipped > 0 || _coerced > 0;
             stageImport({ tobaccos: parsed.tobaccos }, "file", {
               autoApply: "merge",
@@ -844,6 +856,7 @@ export function useExportImport({
                 skipped: parsed.skipped,
                 badCategory: parsed.badCategory || 0,
                 badCut: parsed.badCut || 0,
+                badNumber: parsed.badNumber || 0,
                 issues: parsed.issues || [],
                 truncated: !!parsed.issuesTruncated,
               });
