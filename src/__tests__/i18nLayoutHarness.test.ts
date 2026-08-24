@@ -26,6 +26,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { LANGUAGES } from "../i18n/languages";
 import { checkAllInvariants } from "../utils/lotInvariants";
 import { migrateData } from "../utils";
+import { PROGRESSIVE_STEP } from "../hooks/useProgressiveList";
 
 const requireCjs = createRequire(import.meta.url);
 const H = requireCjs("../../scripts/i18n-layout.cjs");
@@ -351,6 +352,81 @@ describe("the seed exercises the surfaces being measured", () => {
     expect(cats).toContain("Anglais");
     expect(H.DATA.pipes[0].bowlMaterial).toBe("Bruyère");
     expect(H.DATA.accessories[0].type).toBe("Briquet");
+  });
+});
+
+describe("the enlarged cellar reaches the control it exists for", () => {
+  // The flat lists render a bounded prefix, so the « Afficher la suite (N) »
+  // footer only appears above `PROGRESSIVE_STEP` rows — and the shared seed
+  // holds 18 tobaccos, so neither browser check had ever measured that control
+  // in any language. The `inv-long` screen swaps in a bigger cellar for itself.
+  const big = H.bigListCellar();
+
+  it("holds more rows than the cap, or the footer never renders", () => {
+    expect(big.tobaccos.length).toBeGreaterThan(PROGRESSIVE_STEP);
+    // With margin: a step that grew slightly must not silently un-reach it.
+    expect(big.tobaccos.length).toBeGreaterThanOrEqual(PROGRESSIVE_STEP + 20);
+  });
+
+  it("is itself a cellar the app's own invariants accept", () => {
+    // Same rule as the base seed. An unbalanced clone would trip
+    // `useLotIntegrityProbe` 1.5 s after load and change what the screen
+    // measures, without the run saying a word.
+    const v = checkAllInvariants(migrateData(JSON.parse(JSON.stringify(big))));
+    expect(v.map((x: any) => `${x.rule} ${x.detail || ""}`)).toEqual([]);
+  });
+
+  it("its clones survive the ACTIVE filter", () => {
+    // A lot-less tobacco is excluded from the default list (`countActive`
+    // requires a non-finished lot), so clones without one would never reach the
+    // list at all and the screen would measure the ordinary 18 rows.
+    const clones = big.tobaccos.filter((t: any) => String(t.uid || "").startsWith("seed-big-"));
+    expect(clones.length).toBe(H.BIG_LIST_ROWS);
+    for (const c of clones) {
+      expect((c.lots || []).some((l: any) => l.status !== "finished"),
+        `clone ${c.uid} has no active lot`).toBe(true);
+    }
+  });
+
+  it("the screen exists, asks for the footer by name, and is the only bigList one", () => {
+    const scr = H.SCREENS.filter((x: any) => x.bigList);
+    expect(scr.length, "exactly one screen should carry the enlarged cellar").toBe(1);
+    expect(scr[0].expect, "the marker must prove the FOOTER is on screen, not just the list")
+      .toBe("list_more");
+  });
+
+  it("pins the cellar across the reload it needs", () => {
+    // THE DEFECT THIS CAUGHT, and it is the reason the case exists rather than
+    // a comment: `addInitScript` runs before EVERY page load in the context, so
+    // the reload a cellar swap requires immediately overwrote the swapped
+    // cellar. The screen then reported as unreachable — a seed that never
+    // arrived, dressed as a navigation problem, which is exactly the diagnosis
+    // this harness has been fooled by before.
+    const src = readFileSync("scripts/i18n-layout.cjs", "utf8");
+    expect(src).toMatch(/__harness-cellar-pinned/);
+    expect(src, "the init script must honour the pin, not just set it")
+      .toMatch(/if \(localStorage\.getItem\("__harness-cellar-pinned"\) !== "1"\)/);
+    expect(src, "the swap must set the pin, or the reload undoes it")
+      .toMatch(/setCellar\(page, scr\.bigList \? bigListCellar\(\) : DATA, !!scr\.bigList\)/);
+  });
+
+  it("a marker carrying a placeholder is matched on what the app renders", () => {
+    // `list_more` is "Mehr anzeigen ({n})" and the app interpolates the count,
+    // so the raw dictionary value never appears on the page. Truncating at the
+    // placeholder is the fix; the LENGTH GUARD is what keeps it honest, since a
+    // value beginning with its placeholder would leave a prefix short enough to
+    // match half the page and turn "screen reached" into a vacuous pass.
+    expect(H.markerText("Mehr anzeigen ({n})", "list_more")).toBe("Mehr anzeigen (");
+    expect(H.markerText("Arômes", "x")).toBe("Arômes");
+    expect(() => H.markerText("{n} restants", "x")).toThrow();
+  });
+
+  it("does not leave the enlarged cellar behind for the next screen", () => {
+    // The catalogue swap taught this: a state a screen sets must be restored, or
+    // every screen after it measures a page no user has.
+    const src = readFileSync("scripts/i18n-layout.cjs", "utf8");
+    expect(src).toMatch(/if \(scr\.bigList \|\| prevBigList\)/);
+    expect(src).toMatch(/setCellar\(page, scr\.bigList \? bigListCellar\(\) : DATA,/);
   });
 });
 

@@ -29,7 +29,7 @@
  *
  *   PRE-RELEASE (the default): the whole matrix — EVERY language in the
  *   LANGUAGES registry (not a literal list: see registryLangs) × every screen ×
- *   2 text sizes × 2 widths. Six languages over 35 screens is ~840 renders and
+ *   2 text sizes × 2 widths. Six languages over 36 screens is ~864 renders and
  *   well over an hour, so run it before a release, not on every commit.
  *
  *   ITERATION: one combination, ~45 s — while fixing something the full matrix
@@ -316,6 +316,59 @@ const SEED_KEYS = {
   "cave-last-export-ts": "@now",
 };
 
+// ── The one screen that needs MORE ROWS THAN THE SEED HAS ───────────────────
+//
+// The flat lists render a bounded prefix (`useProgressiveList`, 60 rows) with a
+// « Afficher la suite (N) » footer below it. That footer is a CONTROL — a mono
+// uppercase label with letter-spacing, in six languages — and the shared seed
+// holds 18 tobaccos, so it never rendered and neither check had ever measured
+// it. Verbatim the rule this harness keeps re-learning: **the seed is a screen
+// GATE**, and a green run over a state the seed cannot reach is the most
+// reassuring way to miss a control.
+//
+// The clones are DELIBERATELY MINIMAL and each carries ONE BALANCED LOT. A
+// lot-less tobacco is filtered out of the default "Actifs" list (`countActive`
+// requires a non-finished lot), so it would never reach the list at all; and an
+// unbalanced one trips `useLotIntegrityProbe` 1.5 s after load, which turns the
+// diagnostic oxblood and silently changes what the screen measures. Ids start
+// far above anything in DATA so nothing collides.
+const BIG_LIST_ROWS = 80;
+function bigListCellar() {
+  const extra = [];
+  for (let i = 0; i < BIG_LIST_ROWS; i++) {
+    extra.push({
+      id: 9000 + i, uid: "seed-big-" + i,
+      brand: "Vondel", name: "Overflow " + (i + 1),
+      category: "Virginia", cut: "Flake", force: 3, roomNote: 2, taste: 3,
+      rating: 4, rebuy: null, tastingNotes: "", description: "", imageUrl: "",
+      agingMax: "", tags: [],
+      lots: [{
+        id: 9e11 + i, status: "cellar", weightG: "50", weightInitial: "50",
+        datePurchased: "2025-01-01", dateProduction: "", dateOpened: "",
+        dateFinished: "", boxNumber: String(i + 1), price: "12", seller: "",
+        disposed: false,
+      }],
+    });
+  }
+  return Object.assign({}, DATA, {
+    tobaccos: DATA.tobaccos.concat(extra),
+    nxT: 9000 + BIG_LIST_ROWS + 1,
+  });
+}
+
+/** Swap the cellar for the screen about to run. Needs a RELOAD: the app reads
+ *  localStorage once at boot, so writing it under a live page changes nothing
+ *  — the same reason the catalogue swap re-navigates. */
+async function setCellar(page, payload, pinned) {
+  await page.evaluate(([json, pin]) => {
+    localStorage.setItem("pipe-cellar-v6", json);
+    // Tells the context's init script to leave the cellar alone on the reload
+    // that follows — see the guard there.
+    if (pin) localStorage.setItem("__harness-cellar-pinned", "1");
+    else localStorage.removeItem("__harness-cellar-pinned");
+  }, [JSON.stringify(payload), !!pinned]);
+}
+
 // The excerpt the test suite already uses (28 real rows over 26 brands), so
 // the harness and the unit tests measure the same catalogue.
 const CATALOGUE_CSV = fs.readFileSync(
@@ -378,6 +431,28 @@ function label(dict, key, lang) {
   return v;
 }
 
+/** The part of a dictionary value the app ACTUALLY RENDERS.
+ *
+ *  A marker is matched as a substring of the page, and several values carry a
+ *  `{n}` the app interpolates — so the raw value never appears and the screen
+ *  reports as unreachable. That is exactly what happened to `inv-long`'s
+ *  `list_more` ("Mehr anzeigen ({n})"): the run failed on a marker problem
+ *  dressed as a navigation problem.
+ *
+ *  Truncating at the first placeholder is the fix, and the LENGTH GUARD is what
+ *  keeps it honest: a value beginning with its placeholder would leave a prefix
+ *  short enough to match half the page, turning "screen reached" into a
+ *  vacuous pass — the failure this whole marker mechanism exists to prevent. */
+function markerText(v, key) {
+  const i = String(v).indexOf("{");
+  const head = (i === -1 ? String(v) : String(v).slice(0, i)).trim();
+  if (head.length < 3) {
+    die(`i18n key "${key}" starts with a placeholder, so it leaves nothing\n` +
+        "  distinctive to match. Pick a marker whose literal text the app renders.");
+  }
+  return head;
+}
+
 // Each screen knows how to reach itself from the one before. `dock` is an index
 // in the bottom bar; `go` is a custom navigation run against the page.
 const SCREENS = [
@@ -403,6 +478,13 @@ const SCREENS = [
     async go(page, dict, lang) {
       await page.getByLabel(label(dict, "btn_add", lang), { exact: false }).first().click({ force: true });
     },
+  },
+  {
+    // The « Afficher la suite (N) » footer. `bigList` swaps in a cellar with
+    // more tobaccos than `PROGRESSIVE_STEP`, which is the only way this control
+    // reaches the screen. The marker is `list_more` — unique to that footer, so
+    // it proves the CONTROL is on screen and not merely the list behind it.
+    name: "inv-long", dock: 1, bigList: true, expect: "list_more",
   },
   // ── The RETIRED slices ─────────────────────────────────────────────────────
   // Adding a retired pipe / accessory to DATA is not enough on its own: both
@@ -929,7 +1011,14 @@ async function main() {
       const ctx = await browser.newContext({ viewport: { width, height: 780 } });
       const page = await ctx.newPage();
       await page.addInitScript(([d, l, sc, seedKeys]) => {
-        localStorage.setItem("pipe-cellar-v6", d);
+        // THE GUARD IS NOT DECORATION. This script runs before EVERY page load
+        // in the context, so without it the reload that a per-screen cellar
+        // swap needs would immediately overwrite the swapped cellar — and the
+        // screen reports as unreachable, which reads as a navigation problem
+        // rather than as a seed that never arrived. `setCellar` sets the flag.
+        if (localStorage.getItem("__harness-cellar-pinned") !== "1") {
+          localStorage.setItem("pipe-cellar-v6", d);
+        }
         localStorage.setItem("cave-lang", l);
         // "Taille du texte" — "l" scales every font size by 1.12.
         localStorage.setItem("cave-font-scale", sc);
@@ -941,6 +1030,7 @@ async function main() {
       await page.waitForTimeout(900);
 
       let prevNoCatalogue = false;
+      let prevBigList = false;
       // Seed once before the first screen; the loop keeps it in step after.
       await setCatalogue(page, CATALOGUE_CSV);
       for (const scr of SCREENS) {
@@ -966,6 +1056,14 @@ async function main() {
           await page.waitForTimeout(1000);
         }
         prevNoCatalogue = !!scr.noCatalogue;
+        // Same shape as the catalogue swap above, and for the same reason: the
+        // cellar is read once per boot, so a change needs a fresh JS context.
+        if (scr.bigList || prevBigList) {
+          await setCellar(page, scr.bigList ? bigListCellar() : DATA, !!scr.bigList);
+          await page.goto(URL, { waitUntil: "networkidle" });
+          await page.waitForTimeout(1000);
+        }
+        prevBigList = !!scr.bigList;
         if (scr.dock !== null) {
           const btns = await page.locator("nav button, [role=navigation] button").all();
           if (btns.length > scr.dock) await btns[scr.dock].click({ force: true }).catch(() => {});
@@ -983,7 +1081,7 @@ async function main() {
         // A dense screen that never opened would measure a page we already
         // covered — a silent pass. Every navigated screen proves it arrived.
         if (scr.expect) {
-          const marker = label(dict, scr.expect, lang);
+          const marker = markerText(label(dict, scr.expect, lang), scr.expect);
           const seen = await page.getByText(marker, { exact: false }).count();
           if (!seen) {
             unreached.push(`${width}px/${scale}/${lang}/${scr.name} (no "${marker}")`);
@@ -1062,6 +1160,8 @@ async function main() {
 // consumer in the same commit; `i18nLayoutHarness.test.ts` asserts both.
 module.exports = {
   SCREENS, DATA, SEED_KEYS, LANGS, SCALES, WIDTHS, readDict,
+  BIG_LIST_ROWS, bigListCellar,
+  markerText,
   setCatalogue, CATALOGUE_CSV,
 };
 
