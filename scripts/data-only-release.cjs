@@ -38,8 +38,20 @@ const path = require("path");
 function main(opts) {
   opts = opts || {};
   const silent = opts.silent !== false;
-  const constantsPath = path.join(__dirname, "..", "src", "constants.ts");
-  const versionPath = path.join(__dirname, "..", "public", "version.json");
+  // WHERE it writes is injected, like `applyCataloguePlan`'s `nowIso` and
+  // `catalogueSave`'s `nowMs`. The default is the repo this script lives in, so
+  // the CLI is unchanged — what this buys is a caller that must NOT touch the
+  // tree being able to say so. `dataOnlyRelease.test.ts` is that caller: it used
+  // to snapshot the real `src/constants.ts` and `public/version.json`, let the
+  // script bump them, and restore afterwards, which holds only while the process
+  // survives to the restore and is the only writer. Neither held — an
+  // interrupted run left the repo bumped, and three worktrees running their own
+  // suites clobbered each other's files (the test resolves its paths against
+  // `process.cwd()`, this script against `__dirname`), leaving a real working
+  // copy with a truncated constants.ts and an empty version.json.
+  const root = opts.root ? String(opts.root) : path.join(__dirname, "..");
+  const constantsPath = path.join(root, "src", "constants.ts");
+  const versionPath = path.join(root, "public", "version.json");
 
   const constSrc = fs.readFileSync(constantsPath, "utf8");
   const m = constSrc.match(/APP_BUILD\s*=\s*"(\d+)"/);

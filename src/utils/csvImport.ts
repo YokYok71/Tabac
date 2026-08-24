@@ -276,6 +276,21 @@ var GROUP_SEP_RE = /[ \u00A0\u202F\u2009'\u2019]/g;
  *  Deliberately STRICTER than `parseFloat`, which stops at the first character
  *  it cannot read and reports nothing — that silence is the defect. */
 var PLAIN_NUM_RE = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
+/** The same decimal followed by a UNIT — a trailing run holding no digit.
+ *
+ *  Strictness against `parseFloat` is right for `1 234,5` → 1, where the answer
+ *  is silently wrong by three orders of magnitude. It is WRONG for `50g`, where
+ *  `parseFloat` returns 50, i.e. the correct answer: refusing that cell fixes
+ *  no defect and destroys a weight this parser had always read. A tin is sold
+ *  as "50g" or "2oz", so a hand-built file is likely to carry one, and this
+ *  module's contract is tolerance everywhere else (accent-insensitive headers,
+ *  FR+EN aliases, `dd.mm.yyyy`, EN-locale dates).
+ *
+ *  A suffix with no digit in it can only name the unit the column already
+ *  names, so the number is unambiguous. A leading word (`env. 12` — an
+ *  approximation) or a second number (`12abc34`) is refused and REPORTED,
+ *  which is the half that was genuinely missing. */
+var NUM_WITH_UNIT_RE = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))[^\d]*$/;
 
 /**
  * Read a numeric cell.
@@ -313,7 +328,11 @@ function readNum(v: any): { value: string; bad: string } {
     if (s.indexOf(",") === lastComma) s = String(s).replace(",", ".");
     else s = String(s).replace(/,/g, "");
   }
-  if (!PLAIN_NUM_RE.test(s)) return { value: "", bad: raw };
+  if (!PLAIN_NUM_RE.test(s)) {
+    var unit = NUM_WITH_UNIT_RE.exec(s);
+    if (!unit) return { value: "", bad: raw };
+    s = unit[1] as string;
+  }
   var n = parseFloat(s);
   if (!Number.isFinite(n) || n < 0) return { value: "", bad: raw };
   return { value: String(n), bad: "" };

@@ -72,13 +72,17 @@ describe("parseTobaccoCsv — group separators do not truncate a number", () => 
 
 describe("parseTobaccoCsv — a value it could not read is REPORTED", () => {
   it("blanks and reports a genuinely unreadable number", () => {
-    const r = parse("Halvorsen;Ansgar;50g;;env. 12");
+    // REVERSED: this case used to pass `50g` as the weight and assert it was
+    // blanked and reported. That was the over-strict half of the change — see
+    // the "a trailing unit is read, not refused" block below — so the fixture
+    // now uses a genuinely unreadable weight and `50g` is asserted READ there.
+    const r = parse("Halvorsen;Ansgar;12abc34;;env. 12");
     const lot = r.tobaccos[0]!.lots[0];
     expect(lot.weightG).toBe("");
     expect(lot.price).toBe("");
     expect(r.badNumber).toBe(2);
     const nums = r.issues.filter((i) => i.kind === "number");
-    expect(nums.map((i) => i.value).sort()).toEqual(["50g", "env. 12"]);
+    expect(nums.map((i) => i.value).sort()).toEqual(["12abc34", "env. 12"]);
     // The row number counts the header as line 1, so it matches the gutter of
     // the spreadsheet the reader has open — same rule as the taxonomy kinds.
     expect(nums.every((i) => i.row === 2)).toBe(true);
@@ -106,10 +110,58 @@ describe("parseTobaccoCsv — a value it could not read is REPORTED", () => {
     // whole job is saying what is wrong would otherwise print a reassuring
     // number. Two bad cells per row, so 600 rows is 1200 against a 500 cap.
     const rows: string[] = [];
-    for (let i = 0; i < 600; i++) rows.push("B" + i + ";N" + i + ";50g;;env. 1");
+    // (Fixture amended with the same reversal: `50g` is READ now, so it is no
+    // longer a defect and cannot stand in for one here. The subject of this
+    // case is the count-vs-cap property, not which value is unreadable.)
+    for (let i = 0; i < 600; i++) rows.push("B" + i + ";N" + i + ";12abc34;;env. 1");
     const r = parse(...rows);
     expect(r.badNumber).toBe(1200);
     expect(r.issues.length).toBe(500);
     expect(r.issuesTruncated).toBe(true);
+  });
+});
+
+// A TRAILING UNIT IS NOT GARBAGE — AND `parseFloat` ALREADY READ IT.
+//
+// The strict form above was written against `parseFloat`'s silent truncation,
+// which is right for `1 234,5` → 1 (three orders of magnitude, no word said).
+// It is WRONG for `50g`: `parseFloat("50g")` is 50, which is the correct
+// answer, so refusing the cell does not fix a defect — it destroys a weight
+// this parser had always read. And a tin sold as "50g" or "2oz" is how this
+// domain writes a quantity, so a hand-built file is likely to carry one.
+//
+// The rule that separates the two: a numeric prefix followed by NOTHING THAT
+// CONTAINS A DIGIT is a unit naming the column the value is already in, and
+// the number is unambiguous. Anything else (a leading word, a second number)
+// stays refused AND reported, which is the half that was genuinely missing.
+//
+// This module's stated contract is tolerance — accent- and case-insensitive
+// headers, FR+EN aliases, `dd.mm.yyyy`, EN-locale export dates — so a stricter
+// number reader than the rest of the parser would be the odd one out.
+describe("parseTobaccoCsv — a trailing unit is read, not refused", () => {
+  it("reads a weight written the way a tin is sold", () => {
+    const r = parse("Halvorsen;Ansgar;50g;;12,50 €", "Vondel;Zesde;2.5 grammes;;0");
+    expect(r.tobaccos[0]!.lots[0].weightG).toBe("50");
+    expect(r.tobaccos[0]!.lots[0].price).toBe("12.5");
+    expect(r.tobaccos[1]!.lots[0].weightG).toBe("2.5");
+    expect(r.badNumber, "a unit suffix is not a defect to report").toBe(0);
+    expect(r.issues.filter((i) => i.kind === "number")).toEqual([]);
+  });
+
+  it("…and still refuses what is genuinely unreadable", () => {
+    // Non-vacuity: accepting any prefix would swallow `env. 12` (a leading
+    // word, where the number is an approximation) and `12abc34` (two numbers
+    // glued, where no reading is safe) — the cases the report exists for.
+    const r = parse("Halvorsen;Ansgar;env. 12;;12abc34");
+    expect(r.tobaccos[0]!.lots[0].weightG).toBe("");
+    expect(r.tobaccos[0]!.lots[0].price).toBe("");
+    expect(r.badNumber).toBe(2);
+  });
+
+  it("does not let a suffix rescue a grouped number", () => {
+    // The original defect must stay fixed: `1 234,5 g` is 1234.5, never 1.
+    const r = parse("Halvorsen;Ansgar;1 234,5 g;;0");
+    expect(r.tobaccos[0]!.lots[0].weightG).toBe("1234.5");
+    expect(r.badNumber).toBe(0);
   });
 });

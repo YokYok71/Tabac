@@ -19,7 +19,9 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { createRequire } from "node:module";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { APP_VERSION, APP_BUILD, APP_GENERATION } from "../constants";
 
 const require_ = createRequire(import.meta.url);
@@ -134,5 +136,64 @@ describe("the script is REACHABLE", () => {
   it("and its header no longer names a script that was deleted", () => {
     const src = readFileSync(SCRIPT, "utf8");
     expect(src, "import-tobacco-db.cjs is gone").not.toContain("import-tobacco-db");
+  });
+});
+
+// THE TEST USED TO WRITE THE REAL TREE, AND THAT COST A WORKING COPY.
+//
+// `beforeEach` snapshots `src/constants.ts` + `public/version.json`, the script
+// bumps them, `afterEach` restores. That holds only while the process survives
+// to the restore AND is the only writer. Neither held: a run interrupted
+// between the two leaves the repo with APP_BUILD already bumped, and three
+// concurrent checkouts of this repo (git worktrees, each running its own suite)
+// resolve `CONSTANTS` against `process.cwd()` while the script resolves its own
+// paths against `__dirname` — so the copies read and wrote each other's files.
+// MEASURED: `src/constants.ts` came back TRUNCATED and `public/version.json`
+// EMPTY, in a working tree with real uncommitted work in it, and the failure
+// surfaced as "could not parse APP_BUILD" — an error about the repo, not about
+// the script.
+//
+// The repo's own answer to ambient state is injection: `applyCataloguePlan`
+// takes `nowIso`, `catalogueSave` takes `nowMs`, `useUserCatalogue` is handed
+// `dlFile`. So the writer takes a ROOT. The default is unchanged (`..` from the
+// script), so the CLI and `npm run release:data` behave exactly as before —
+// this only gives a caller that must not touch the tree a way to say so.
+describe("the writer can be pointed somewhere that is not the repo", () => {
+  it("writes under the given root and leaves the real tree alone", () => {
+    const realConst = readFileSync(CONSTANTS, "utf8");
+    const realVer = readFileSync(VERSION, "utf8");
+    const root = mkdtempSync(join(tmpdir(), "release-"));
+    mkdirSync(join(root, "src"), { recursive: true });
+    mkdirSync(join(root, "public"), { recursive: true });
+    writeFileSync(join(root, "src", "constants.ts"), realConst);
+    writeFileSync(join(root, "public", "version.json"), realVer);
+
+    delete require_.cache[require_.resolve("../../" + SCRIPT)];
+    const res = require_("../../" + SCRIPT).bumpDataOnly({ root });
+
+    // It did the job — over there.
+    expect(res.nextBuild).toBe(String(Number(APP_BUILD) + 1));
+    const wrote = JSON.parse(readFileSync(join(root, "public", "version.json"), "utf8"));
+    expect(wrote.build).toBe(String(Number(APP_BUILD) + 1));
+    expect(wrote.generation).toBe(Number(APP_GENERATION));
+    expect(readFileSync(join(root, "src", "constants.ts"), "utf8"))
+      .toMatch(new RegExp('APP_BUILD\\s*=\\s*"' + (Number(APP_BUILD) + 1) + '"'));
+
+    // …and NOT here. This is the assertion the whole block exists for: the
+    // `afterEach` above would hide a write to the real tree, so it is checked
+    // before the hook can paper over it.
+    expect(readFileSync(CONSTANTS, "utf8"), "the real constants.ts was written").toBe(realConst);
+    expect(readFileSync(VERSION, "utf8"), "the real version.json was written").toBe(realVer);
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("still defaults to the repo when no root is given", () => {
+    // Non-vacuity: a `root` that silently became mandatory, or a default that
+    // pointed anywhere else, would make `npm run release:data` write nothing
+    // where the release actually has to happen — and no other case would notice,
+    // because they all restore what they clobber.
+    run();
+    expect(Number(readFileSync(CONSTANTS, "utf8").match(/APP_BUILD\s*=\s*"(\d+)"/)![1]))
+      .toBe(Number(APP_BUILD) + 1);
   });
 });
