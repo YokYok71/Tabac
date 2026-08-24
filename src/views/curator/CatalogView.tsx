@@ -34,6 +34,28 @@ import { useFocusRing } from "../../components/curator/FormFields.tsx";
 import { Ico } from "../../components/curator/icons.tsx";
 import { CuratorCompareModal } from "./CompareModal.tsx";
 
+// THE FILTER IS DEBOUNCED; THE FIELD IS NOT.
+//
+// MEASURED on this machine, running the real `tobaccoDbSearchMatch` over a
+// synthetic catalogue: 6-13 ms per keystroke at 1594 rows and 66-148 ms at
+// 20000 (`MAX_CATALOGUE_ROWS`), the cost rising with the query length because a
+// longer token falls through to the Levenshtein fallback. A phone is several
+// times slower again. Typing "capstan blue" paid that twelve times, once per
+// character, each pass blocking the keystroke that followed.
+//
+// 160 ms: above a fast typist's 120-200 ms inter-key gap, so a burst collapses
+// to ONE pass, and below the ~200 ms at which a delayed UI starts reading as
+// lag. Only the QUERY lags — `search` stays the controlled value of the input
+// and updates on every keystroke, because debouncing the input itself is the
+// prefill-race trap CLAUDE.md records (the field snaps back under the user's
+// fingers).
+//
+// AN EMPTY QUERY APPLIES AT ONCE. Clearing the field is a "show me everything"
+// gesture and the empty branch does zero matching work (`sq` empty
+// short-circuits before `tobaccoDbSearchMatch`), so there is nothing to save by
+// delaying it — only a list that looks stuck.
+export const CATALOG_SEARCH_DEBOUNCE_MS = 160;
+
 export function CuratorCatalogView() {
   const ctx = useAppCtx();
   const { view, t, xl, lang, data, BT, BW, addTobacco, addWish, nav, catalogSeed, setCatalogSeed,
@@ -52,6 +74,9 @@ export function CuratorCatalogView() {
   // one non-db state, not two, and nothing to retry.
   const [noCatalogue, setNoCatalogue] = useState(false);
   const [search, setSearch] = useState("");
+  // What the FILTER reads. Lags `search` by CATALOG_SEARCH_DEBOUNCE_MS; see
+  // that constant for the measurement and for why the input is never debounced.
+  const [query, setQuery] = useState("");
   const [catFilter, setCatFilter] = useState<string>(""); // "" = all
   const [brandFilter, setBrandFilter] = useState<string>(""); // "" = all
   const [grouped, setGrouped] = useState<boolean>(true);
@@ -115,9 +140,22 @@ export function CuratorCatalogView() {
   useEffect(() => {
     if (view === "catalog" && catalogSeed) {
       setSearch(catalogSeed);
+      // Applied to the FILTER immediately, not through the debounce: this
+      // page's contract is that a catalogue hit "opens CatalogView pre-filtered
+      // on the query", and a delay there would show the unfiltered catalogue
+      // first — exactly what the seed exists to avoid.
+      setQuery(catalogSeed);
       setCatalogSeed && setCatalogSeed("");
     }
   }, [view, catalogSeed, setCatalogSeed]);
+
+  // The debounce itself. An empty field applies at once (see the constant).
+  useEffect(() => {
+    if (search === query) return;
+    if (!search) { setQuery(""); return; }
+    const id = setTimeout(() => setQuery(search), CATALOG_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [search, query]);
 
   // ─── Owned-set: which catalog keys the user already has ───
   // Compute once per inventory change so we don't run the canonical
@@ -171,7 +209,7 @@ export function CuratorCatalogView() {
   // a user query "capstan blue") and on brand typos ("capitan blue").
   const filteredKeys = useMemo(() => {
     if (!db) return [] as string[];
-    const sq = String(search).trim();
+    const sq = String(query).trim();
     return Object.keys(db.blends).filter((k) => {
       const e = db.blends[k]!;
       if (catFilter && e.category !== catFilter) return false;
@@ -180,7 +218,7 @@ export function CuratorCatalogView() {
       if (sq && !tobaccoDbSearchMatch(k, e, sq)) return false;
       return true;
     }).sort();
-  }, [db, search, catFilter, brandFilter]);
+  }, [db, query, catFilter, brandFilter]);
 
   // Unique brands + categories available for filter chips
   const brandOptions = useMemo(() => {
@@ -340,6 +378,7 @@ export function CuratorCatalogView() {
     // still active on return. Clear the search + filters + group-collapse so the
     // next browse starts fresh (the toast still confirms the add + links to it).
     setSearch("");
+    setQuery("");
     setCatFilter("");
     setBrandFilter("");
     setCollapsed({});

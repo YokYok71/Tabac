@@ -180,6 +180,18 @@ function App() {
   var _ic = useState<Record<string, any>>(imgMap()),
     imgLocal = _ic[0],
     setImgLocal = _ic[1];
+  // Latest-ref mirror of `imgLocal`, so the photo-resolution effect can ask
+  // "do I already hold this key?" without listing `imgLocal` in its deps — the
+  // effect WRITES that state, so a dep would loop.
+  // The mirror is an EFFECT, not a render-time assignment (`react-hooks/refs`
+  // forbids the latter, and it is an error-level rule here). It is NOT one
+  // render stale: React runs a commit's effects in DECLARATION order, and this
+  // one is declared far above the resolution effect, so the resolution effect
+  // always reads a mirror already updated for the same commit.
+  var imgLocalRef = useRef<Record<string, any>>(imgLocal);
+  useEffect(function () {
+    imgLocalRef.current = imgLocal;
+  }, [imgLocal]);
   var _cf = useState(""),
     catFilter = _cf[0],
     setCatFilter = _cf[1];
@@ -1207,13 +1219,39 @@ function App() {
     },
     [load],
   );
+  // RESOLVE EVERY COVER PHOTO INTO `imgLocal` — ONCE, NOT ON EVERY SAVE.
+  //
+  // MEASURED on a 300-cover cellar by driving the real App with a counting
+  // `imgCache`: this used to cost 600 `imgCache.get` calls on the cold load and
+  // 600 MORE on every save (two overlapping effects walked the same
+  // collections), and it wrote the result back through `imgMap(prev, upd)` —
+  // a fresh object — so `imgLocal` changed identity on every save even when the
+  // resolved set was byte-identical, re-rendering every consumer of the map for
+  // nothing.
+  //
+  // `imgLocalRef` is what lets the walk skip a key the map already holds
+  // WITHOUT putting `imgLocal` in the deps (which would loop: the effect writes
+  // it). A key that is NOT in the map is still asked for on every pass, and
+  // that half is deliberate — a miss means the blob is not there YET (an
+  // eviction, or an import whose `_imageData` writes land after its `save`), so
+  // remembering the miss would make that photo unrecoverable for the session.
+  // The cost of the miss case is the old cost; the cost of the ordinary case is
+  // zero, and `upd` then stays empty so the map keeps its identity.
   useEffect(
     function () {
       if (!data) return;
+      var have = imgLocalRef.current;
       var keys: string[] = [];
+      var seen: Record<string, boolean> = Object.create(null);
       function chk(obj: any) {
-        if (obj && obj.imageUrl && obj.imageUrl.indexOf("local-photo-") === 0)
-          keys.push(obj.imageUrl);
+        if (!obj || !obj.imageUrl) return;
+        var k = obj.imageUrl;
+        if (String(k).indexOf("local-photo-") !== 0) return;
+        // Already resolved, or already queued by this same pass (two rows can
+        // legitimately share a key after a duplicate merge).
+        if (seen[k] || (have && Object.prototype.hasOwnProperty.call(have, k))) return;
+        seen[k] = true;
+        keys.push(k);
       }
       (data.tobaccos || []).forEach(chk);
       (data.pipes || []).forEach(chk);
@@ -1307,54 +1345,16 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [data],
   );
-  useEffect(
-    function () {
-      if (!data) return;
-      var urls: string[] = [];
-      (data.tobaccos || []).forEach(function (t) {
-        if (t.imageUrl) urls.push(t.imageUrl);
-      });
-      (data.pipes || []).forEach(function (p) {
-        if (p.imageUrl) urls.push(p.imageUrl);
-      });
-      (data.accessories || []).forEach(function (a) {
-        if (a.imageUrl) urls.push(a.imageUrl);
-      });
-      (data.wishlist || []).forEach(function (w) {
-        if (w.imageUrl) urls.push(w.imageUrl);
-      });
-      if (!urls.length) return;
-      // Replaced the hand-rolled `pending--` counter with a
-      // proper `Promise.all`. The counter was shared mutable state
-      // between every .then() / .catch() callback in the forEach loop;
-      // if two cache hits resolved in the same micro-task the counter
-      // could be decremented "concurrently" (well, interleaved) and
-      // setImgLocal could either fire twice with partial state OR not
-      // fire at all if both branches saw `pending > 0` on the same
-      // read. Promise.allSettled guarantees we collect every result
-      // before the single setImgLocal call. Same behaviour on the
-      // happy path, no race in degenerate timings.
-      Promise.allSettled(
-        urls.map(function (u: string) {
-          return imgCache.get(u).then(function (cached) {
-            return { url: u, cached };
-          });
-        }),
-      ).then(function (results) {
-        var newLocal: Record<string, any> = {};
-        results.forEach(function (r) {
-          if (r.status === "fulfilled" && r.value && r.value.cached) {
-            newLocal[r.value.url] = r.value.cached;
-          }
-        });
-        setImgLocal(function (prev) {
-          return imgMap(prev, newLocal);
-        });
-      });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data],
-  );
+  // (A second photo-resolution effect stood here and is DELETED. It collected
+  // every `imageUrl` — not just the `local-photo-*` ones, and never the session
+  // snapshots — so it re-read the same covers the effect above had just read:
+  // MEASURED at 600 `imgCache.get` calls for 300 covers, per save. The only key
+  // it could contribute that the surviving effect does not is one that is
+  // truthy, resolvable from `imgCache`, and NOT `local-photo-*` — and
+  // `migrateData._clearForeignImageRefs` blanks every `imageUrl` that is not a
+  // `local-photo-*` key or a `data:image/…` URI, while a `data:` URI is never an
+  // `imgCache` key. `photoCacheReadsOnce.test.ts` pins that property, so the
+  // deletion cannot quietly start losing photos.)
 
   function nav(v: string, opts?: { restoreScroll?: boolean }) {
     // Push the screen we're LEAVING onto the back-history stack —

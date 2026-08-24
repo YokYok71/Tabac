@@ -17,7 +17,7 @@ import { Ico, Orn } from "../../components/curator/icons.tsx";
 import { CuratorTrashIndicator } from "../../components/curator/TrashIndicator.tsx";
 import { computeSmokeSuggestions, suggestRestedPipe, rotateDailyHero, dailyWindow, seededShuffle, FEATURE_ROTATE_MS } from "../../utils/suggest.ts";
 import { homeRotationSeed } from "../../utils/homeRotation.ts";
-import { computePipeGhostingRisk, pipeAccordsWithFamily } from "../../utils/ghosting.ts";
+import { computePipeGhostingRisk, pipeAccordsWithFamily, buildPipeCategoryIndex } from "../../utils/ghosting.ts";
 import { computePipeMaintenanceReminders } from "../../utils/pipeMaint.ts";
 import type { SuggestionReason } from "../../utils/suggest.ts";
 import { computeWatchlist } from "../../utils/watchlist.ts";
@@ -476,10 +476,22 @@ export function CuratorHomeViewV2() {
   // stay the safest pairing). Computed after the hero so we know tonight's
   // tobacco; if every pipe would ghost, suggestRestedPipe keeps them all.
   const heroTobId = hero ? hero.tob.id : null;
+  // ONE pass over the journal for the two per-pipe loops below.
+  //
+  // Both of them ask an O(tobaccos + sessions) question about EVERY pipe, and
+  // neither is a `useMemo` — nor can be, since they sit below this view's
+  // `if (view !== "home") return null` and a hook there would break hook order.
+  // MEASURED on a 300/200/3000 cellar: a single render that changed no data
+  // (flipping the Settings tab) ran the two helpers 200 times each, ~1.3 M
+  // session rows, 53-63 ms — repaid on the Home for every App render, i.e. once
+  // a second during a tasting. `buildPipeCategoryIndex` is the repair this
+  // module already documents for `computePipeUsageProfile`; the two helpers
+  // simply never had an index handed to them.
+  const ghostIndex = buildPipeCategoryIndex(data?.sessions || [], data?.tobaccos || []);
   const ghostExclude = new Set<string>(
     heroTobId != null
       ? ((data?.pipes || []) as any[])
-          .filter((p) => computePipeGhostingRisk(p.id, heroTobId, data?.sessions || [], data?.tobaccos || []))
+          .filter((p) => computePipeGhostingRisk(p.id, heroTobId, data?.sessions || [], data?.tobaccos || [], ghostIndex))
           .map((p) => String(p.id))
       : [],
   );
@@ -498,7 +510,7 @@ export function CuratorHomeViewV2() {
   const accordPrefer = new Set<string>(
     heroCat
       ? ((data?.pipes || []) as any[])
-          .filter((p) => pipeAccordsWithFamily(p.id, heroCat, data?.sessions || [], data?.tobaccos || []))
+          .filter((p) => pipeAccordsWithFamily(p.id, heroCat, data?.sessions || [], data?.tobaccos || [], ghostIndex))
           .map((p) => String(p.id))
       : [],
   );

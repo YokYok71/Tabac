@@ -43,6 +43,7 @@ export function computePipeGhostingRisk(
   tobaccoId: any,
   sessions: any[] | null | undefined,
   tobaccos: any[] | null | undefined,
+  index?: PipeCategoryIndex,
 ): GhostingRisk | null {
   if (pipeId === undefined || pipeId === null || pipeId === "") return null;
   if (tobaccoId === undefined || tobaccoId === null || tobaccoId === "") return null;
@@ -61,16 +62,32 @@ export function computePipeGhostingRisk(
   if (!incoming) return null; // selected tobacco has no category to compare
 
   // Count categories smoked in this pipe across the passed session set.
-  var counts: Record<string, number> = Object.create(null);
-  var total = 0;
-  sessions.forEach(function (s: any) {
-    if (!s) return;
-    if (String(s.pipeId) !== String(pipeId)) return;
-    var cat = catByTob[String(s.tobaccoId)];
-    if (!cat) return;
-    counts[cat] = (counts[cat] || 0) + 1;
-    total += 1;
-  });
+  //
+  // With a precomputed `index` (`buildPipeCategoryIndex`) this is a lookup
+  // instead of a full pass PER PIPE — the repair `computePipeUsageProfile`
+  // already carries, and the reason the Home can ask about every pipe twice
+  // without rescanning the journal 400 times. The tally is the SAME one the
+  // inline loop below builds (identical filter, identical insertion order), so
+  // the `Object.keys` tie-break under it is unaffected.
+  var counts: Record<string, number>;
+  var total: number;
+  if (index) {
+    var entry = index.get(String(pipeId));
+    if (!entry) return null;
+    counts = entry.counts;
+    total = entry.total;
+  } else {
+    counts = Object.create(null);
+    total = 0;
+    sessions.forEach(function (s: any) {
+      if (!s) return;
+      if (String(s.pipeId) !== String(pipeId)) return;
+      var cat = catByTob[String(s.tobaccoId)];
+      if (!cat) return;
+      counts[cat] = (counts[cat] || 0) + 1;
+      total += 1;
+    });
+  }
   if (total < MIN_TOTAL) return null;
 
   // Dominant family.
@@ -257,10 +274,15 @@ export function pipeAccordsWithFamily(
   category: string | null | undefined,
   sessions: any[] | null | undefined,
   tobaccos: any[] | null | undefined,
+  index?: PipeCategoryIndex,
 ): boolean {
   var cat = String(category || "");
   if (!cat) return false;
-  var prof = computePipeUsageProfile(pipeId, sessions, tobaccos);
+  // Forwarded, not re-derived: `computePipeUsageProfile` has taken an optional
+  // index since the quadratic repair one function up, and this wrapper simply
+  // never passed one — so the Home's per-pipe accord loop paid a full pass over
+  // the journal for every pipe it asked about.
+  var prof = computePipeUsageProfile(pipeId, sessions, tobaccos, index);
   return prof.total >= MIN_TOTAL
     && prof.dominantShare >= DOMINANT_SHARE
     && prof.dominant === cat;
