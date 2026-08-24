@@ -58,10 +58,11 @@ describe("a late location capture does not revert a live tasting", () => {
 
     act(() => { capture(); });   // …the geocode lands only now
 
-    expect(result.current.tasting.notes, "the notes were reverted").toBe("calme, fin de journée");
-    expect(result.current.tasting.rating).toBe(4);
-    expect(result.current.tasting.aromas).toEqual(["leather", "vanilla"]);
-    expect(result.current.tasting.locationCity, "…and the place must still land").toBe("Paris");
+    const live = result.current.tasting!;
+    expect(live.notes, "the notes were reverted").toBe("calme, fin de journée");
+    expect(live.rating).toBe(4);
+    expect(live.aromas).toEqual(["leather", "vanilla"]);
+    expect(live.locationCity, "…and the place must still land").toBe("Paris");
   });
 
   it("persists the merged state, not the snapshot", async () => {
