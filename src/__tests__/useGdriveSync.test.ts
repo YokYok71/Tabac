@@ -25,6 +25,7 @@ import {
   writeCloudDismissed,
   clearCloudDismissed,
   readCloudCheckDiag,
+  ownStampedSince,
   BACKUP_DELETE_PENDING_KEY,
   CLOUD_CHECK_PENDING_KEY,
 } from "../hooks/useGdriveSync";
@@ -229,6 +230,89 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     );
     expect(hit).not.toBeNull();
     expect(hit!.name).toBe(device2Newer.name);
+  });
+});
+
+// ── doGdriveConfirm — the LAZY-download branch ────────────────────────────────
+//
+// Every case above hands the picker a pre-loaded `opt.d`, so the whole
+// download → decrypt → parse → validate → ack chain was executed by nothing.
+// Probed: dropping the `!r.ok` check, dropping the plausibility guard, and
+// swapping the ack timestamp for `Date.now()` each left the file green.
+describe("doGdriveConfirm — lazy download validates before it stages", () => {
+  function cachedToken() {
+    sessionStorage.setItem("gdrive-tk", JSON.stringify({ t: "tok-restore", x: Date.now() + 3600000 }));
+  }
+  // The lazy branch resolves through download → maybeDecryptText → JSON.parse,
+  // i.e. several microtask hops before stageImport can have been called.
+  async function settleRestore() {
+    await act(async () => {
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  }
+  function pick(opt: any) {
+    const stageImport = vi.fn();
+    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport }) as any));
+    act(() => { result.current.setGdriveConfirm({ options: [opt], sel: 0 }); });
+    act(() => { result.current.doGdriveConfirm(); });
+    return { result, stageImport };
+  }
+
+  it("refuses a non-2xx download instead of staging the error page as a cellar", async () => {
+    cachedToken();
+    // A 5xx from Drive RESOLVES — it does not reject — so without the
+    // status check the HTML/JSON error body is parsed and staged as if it
+    // were the user's backup, over their whole cellar.
+    mockFetch.mockResolvedValueOnce({
+      ok: false, status: 503,
+      text: () => Promise.resolve(JSON.stringify({ tobaccos: [{ id: 99, name: "not-yours" }] })),
+    });
+    const { result, stageImport } = pick({ id: "f1", name: "cave-tabac-20260101-000000-t1-p0-w0-a0-j0.json" });
+    await settleRestore();
+    expect(stageImport).not.toHaveBeenCalled();
+    expect(String(result.current.gdriveStatus)).toContain("503");
+  });
+
+  it("refuses a parseable payload that is not a backup", async () => {
+    cachedToken();
+    // Valid JSON, no `tobaccos` array — isPlausibleBackup's whole subject.
+    mockFetch.mockResolvedValueOnce({
+      ok: true, status: 200,
+      text: () => Promise.resolve(JSON.stringify({ error: { message: "File not found" } })),
+    });
+    const { result, stageImport } = pick({ id: "f1", name: "cave-tabac-20260101-000000-t1-p0-w0-a0-j0.json" });
+    await settleRestore();
+    expect(stageImport).not.toHaveBeenCalled();
+    expect(String(result.current.gdriveStatus)).toContain("alert_invalid_file");
+  });
+
+  it("stages a valid downloaded payload and acks the FILE's ts, not the wall clock", async () => {
+    cachedToken();
+    const payload = { tobaccos: [{ id: 1, name: "Halvorsen" }] };
+    mockFetch.mockResolvedValueOnce({
+      ok: true, status: 200,
+      text: () => Promise.resolve(JSON.stringify(payload)),
+    });
+    const modifiedTime = "2026-01-02T03:04:05.000Z";
+    const fileTs = new Date(modifiedTime).getTime();
+    const name = "cave-tabac-auto-abc123-20260102-030405-t1-p0-w0-a0-j0.json";
+    const { stageImport } = pick({ id: "f1", name, modifiedTime });
+    await settleRestore();
+    expect(stageImport).toHaveBeenCalledWith(payload, "drive");
+    // Same rule the pre-loaded branch already had: the dismissed floor is
+    // the restored FILE's moment. `Date.now()` here is newer than every
+    // cloud file, so it would silence a second device's newer backup.
+    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBe(String(fileTs));
+    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe(name);
+  });
+
+  it("refuses a pre-loaded payload that is not a backup", () => {
+    // The pre-loaded branch has its own guard — the lazy one above cannot
+    // cover it, since `opt.d` short-circuits the download entirely.
+    const { result, stageImport } = pick({ d: { notes: "hand-edited" }, ds: "", name: "b" });
+    expect(stageImport).not.toHaveBeenCalled();
+    expect(String(result.current.gdriveStatus)).toContain("alert_invalid_file");
   });
 });
 
@@ -459,6 +543,93 @@ describe("gdriveSave — Drive API calls, backup metadata, and state updates", (
     const metaText = await metaBlob.text();
     expect(metaText).toMatch(/cave-tabac-\d{8}-\d{6}-t2-p1-w3-a0-j5\.json/);
   });
+
+  // ── the two mid-flight guards of the manual save ────────────────────────
+  //
+  // Both were argued at length in the source and asserted by nothing: probed,
+  // `if (true)` on the snapshot re-check and deleting the `_quietBusy` return
+  // each left the whole cloud subset green.
+
+  function deleteCalls() {
+    return mockFetch.mock.calls.filter((c: any) => c[1] && c[1].method === "DELETE");
+  }
+  async function settleSave() {
+    await act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  }
+  function ownAutos() {
+    localStorage.setItem("cave-device-id", "mine1");
+    return [
+      { id: "a-new", name: "cave-tabac-auto-mine1-20260518-120000-t1-p0-w0-a0-j0.json", createdTime: "2026-05-18T12:00:00Z" },
+      { id: "a-old", name: "cave-tabac-auto-mine1-20260517-120000-t1-p0-w0-a0-j0.json", createdTime: "2026-05-17T12:00:00Z" },
+    ];
+  }
+
+  it("skips the auto-straggler sweep while a quiet save holds a FRESH lock", async () => {
+    // The quiet save owns auto convergence; sweeping from this (now possibly
+    // stale) listing could delete the very file it is writing to.
+    localStorage.setItem("cave-autosave-lock", String(Date.now()));
+    setupFetch(ownAutos());
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSave("fake-token"); });
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    await settleSave();
+    expect(deleteCalls()).toHaveLength(0);
+  });
+
+  it("does sweep this device's auto stragglers when no quiet save is in flight", async () => {
+    // The counterpart: without it the case above would pass on a manual save
+    // that had simply stopped sweeping at all.
+    setupFetch(ownAutos());
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSave("fake-token"); });
+    await waitFor(() => expect(deleteCalls().length).toBe(1));
+    await settleSave();
+    const dels = deleteCalls();
+    expect(dels).toHaveLength(1);
+    // The NEWEST own auto file is kept; the straggler goes.
+    expect(String(dels[0]![0])).toContain("a-old");
+  });
+
+  it("keeps the cellar dirty when an edit lands DURING the upload", async () => {
+    localStorage.setItem("pipe-cellar-v6", JSON.stringify({ ...INIT, nxT: 1 }));
+    // The upload HANGS so the edit can land between the snapshot freeze and
+    // the success handler — the window this re-check exists for.
+    let resolveUpload: (v: any) => void = () => {};
+    const uploadPending = new Promise((r) => { resolveUpload = r; });
+    mockFetch
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ files: [] }) })
+      .mockImplementationOnce(() => uploadPending)
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    const setPendingSync = vi.fn();
+    const { result } = renderHook(() => useGdriveSync(makeProps({ setPendingSync }) as any));
+    act(() => { result.current.gdriveSave("fake-token"); });
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+    // An edit lands while the (stale) payload is still on the wire.
+    localStorage.setItem("pipe-cellar-v6", JSON.stringify({ ...INIT, nxT: 2 }));
+    await act(async () => {
+      resolveUpload({ json: () => Promise.resolve({ id: "new-file-id" }) });
+      await settleSave();
+    });
+    // The cloud holds the OLD snapshot, so "synced" would be a lie — the
+    // dirty flag has to survive for the auto-save effect to flush the newer
+    // state. The save itself still succeeded.
+    expect(setPendingSync).not.toHaveBeenCalledWith(false);
+    expect(localStorage.getItem("gdrive-fid")).toBe("new-file-id");
+  });
+
+  it("declares synced when the cellar did not move during the upload", async () => {
+    // Same shape, unchanged data — the guard must not make every manual save
+    // leave the app permanently dirty.
+    localStorage.setItem("pipe-cellar-v6", JSON.stringify({ ...INIT, nxT: 1 }));
+    setupFetch([]);
+    const setPendingSync = vi.fn();
+    const { result } = renderHook(() => useGdriveSync(makeProps({ setPendingSync }) as any));
+    act(() => { result.current.gdriveSave("fake-token"); });
+    await waitFor(() => expect(setPendingSync).toHaveBeenCalledWith(false));
+  });
 });
 
 // ── C. gdriveSaveQuiet ────────────────────────────────────────────────────────
@@ -503,33 +674,98 @@ describe("gdriveSaveQuiet — auto-save mode (POST + rotate)", () => {
       .mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });             // DELETEs
   }
 
-  it("no-ops when no token is available in localStorage or driveTokenRef", () => {
+  // THE THREE GATE CASES BELOW ARE `async` AND SETTLE FIRST, AND THAT IS THE
+  // WHOLE POINT — they were VACUOUS as synchronous assertions.
+  //
+  // gdriveSaveQuiet reaches the network only after `gatherLocalImages(snap)`
+  // and `maybeEncryptPayloadQuiet` have resolved, i.e. several microtasks past
+  // the synchronous call. A bare `act(() => quiet())` followed immediately by
+  // `expect(mockFetch).not.toHaveBeenCalled()` therefore passed with the guard
+  // DELETED — probed: removing `if (lsGet("cave-autosave") !== "1") return;`
+  // left this file green. Each case now settles the chain first, and its
+  // sibling `it` proves the settle is long enough by watching the SAME chain
+  // reach fetch when the gate is open (a negative assertion is only worth what
+  // its positive control is worth).
+  async function settle() {
+    await act(async () => {
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  }
+
+  it("no-ops when no token is available in localStorage or driveTokenRef", async () => {
     const { result } = renderHook(() => useGdriveSync(makeProps() as any));
     act(() => { result.current.gdriveSaveQuiet(); });
+    await settle();
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
   // defense-in-depth — gdriveSaveQuiet must never reach the
   // network when the auto-save toggle is off, regardless of token state.
-  it("no-ops when cave-autosave toggle is off, even with a valid token", () => {
+  it("no-ops when cave-autosave toggle is off, even with a valid token", async () => {
     localStorage.removeItem("cave-autosave");
     setToken();
     setupListAndUpload([]);
     const { result } = renderHook(() => useGdriveSync(makeProps() as any));
     act(() => { result.current.gdriveSaveQuiet(); });
+    await settle();
     expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  // The positive control for the case above: the SAME settle() window, with the
+  // toggle on, must reach the network — otherwise the negative proves nothing.
+  it("…and the same wait DOES reach the network once the toggle is on", async () => {
+    setToken();
+    setupListAndUpload([]);
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await settle();
+    expect(mockFetch).toHaveBeenCalled();
   });
 
   // cross-tab lock. A fresh `cave-autosave-lock` written
   // by another tab (< 30 s old) must block this tab's quiet save so two
   // tabs don't PATCH the same auto-fid in parallel with stale snapshots.
-  it("skips when another tab holds the cross-tab lock (< 30 s)", () => {
+  it("skips when another tab holds the cross-tab lock (< 30 s)", async () => {
     setToken();
     setupListAndUpload([]);
     localStorage.setItem("cave-autosave-lock", String(Date.now() - 5000));
     const { result } = renderHook(() => useGdriveSync(makeProps() as any));
     act(() => { result.current.gdriveSaveQuiet(); });
+    await settle();
     expect(mockFetch).not.toHaveBeenCalled();
+    expect(readAutosaveDiag()?.stage).toBe("skip-locked");
+  });
+
+  // The in-progress REF guard, which had no case at all: a second call while
+  // the first is still in flight must not start a second list+upload pair.
+  // Consequence of losing it: two uploads of the same auto file race, and the
+  // slower one overwrites the faster with a stale snapshot.
+  it("a re-entrant call while a save is in flight does not start a second upload", async () => {
+    setToken();
+    setupListAndUpload([]);
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    // Second call before the first has settled — the ref guard (backed by the
+    // fresh lock) must swallow it.
+    act(() => { result.current.gdriveSaveQuiet(); });
+    // Read the diagnostic HERE, before settling: the first save's own sweep
+    // records a terminal "ok" once it lands, which would overwrite this.
+    //
+    // The DIAGNOSTIC stage is what actually pins the REF guard, and the call
+    // count below cannot: the cross-tab lock is written by the first call, so
+    // deleting the ref guard still yields one upload — the second call simply
+    // falls through to the lock instead (probed: the count assertion alone
+    // stayed green with the ref guard removed). The two skips mean different
+    // things to whoever reads Settings → Données ("this tab is already
+    // saving" vs "another tab holds the lock"), so the stage is the
+    // observable difference and the one worth asserting.
+    expect(readAutosaveDiag()?.stage).toBe("skip-inprogress");
+    await settle();
+    const lists = mockFetch.mock.calls.filter(
+      (c: any[]) => !c[1] || (c[1].method || "GET") === "GET",
+    );
+    expect(lists.length).toBe(1);
   });
 
   it("ignores a stale cross-tab lock (> 30 s) and proceeds", async () => {
@@ -862,6 +1098,138 @@ describe("gdriveSaveQuiet — auto-save mode (POST + rotate)", () => {
     expect(posts.length).toBe(1);
     expect(deletes.length).toBe(0);
   });
+
+  // ── Consequence cases from the mutation pass ────────────────────────────
+  // Each of the following was chosen by asking "what does the user lose if
+  // this line is wrong", then confirmed by deleting the line and watching the
+  // suite stay green. The comment on each names the loss.
+
+  // A FOREIGN device's auto file must never be adopted as this device's
+  // save target. `chooseAutoSaveTarget` filters the listing to own + legacy
+  // files; bypassing it (taking `autoFiles[0]`) makes this device PATCH the
+  // other phone's backup and store its id in AUTO_FID_KEY, so every later
+  // save overwrites that device's cellar with this one's. The pure helper
+  // has its own suite in gdriveApi.test.ts — what was untested is that the
+  // hook still ROUTES through it, which is the half that rots.
+  it("never PATCHes another device's auto file (POSTs its own instead)", async () => {
+    setToken();
+    const foreign = {
+      id: "foreign-auto",
+      name: "cave-tabac-auto-zzforeign99-20260101-120000-t0-p0-w0-a0-j0.json",
+      modifiedTime: "2026-01-01T12:00:00Z",
+    };
+    setupListAndUpload([foreign]);
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await waitFor(() => expect(mockFetch.mock.calls.length).toBeGreaterThan(1));
+    const patches = mockFetch.mock.calls.filter(([, o]) => (o as RequestInit)?.method === "PATCH");
+    const posts = mockFetch.mock.calls.filter(([, o]) => (o as RequestInit)?.method === "POST");
+    expect(patches.length).toBe(0);
+    expect(posts.length).toBe(1);
+    // …and the foreign id is never tracked as ours.
+    expect(localStorage.getItem("gdrive-auto-fid")).not.toBe("foreign-auto");
+    // Nor is it deleted — the sweep leaves a foreign device's file alone.
+    const deletedIds = mockFetch.mock.calls
+      .filter(([, o]) => (o as RequestInit)?.method === "DELETE")
+      .map(([url]) => String(url));
+    expect(deletedIds.some((u) => u.includes("foreign-auto"))).toBe(false);
+  });
+
+  // With no cellar in localStorage there is nothing to back up, and
+  // `JSON.parse(null)` is `null` — so dropping this guard uploads a
+  // metadata-only file (_savedAt/_saveType/_settings and no cellar) OVER the
+  // auto file, i.e. it replaces a good backup with an empty one.
+  it("uploads nothing when there is no cellar snapshot on disk", async () => {
+    setToken();
+    localStorage.removeItem("pipe-cellar-v6");
+    setupListAndUpload([]);
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await settle();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  // `cave-auto-stamped` is what tells the launch-time multi-device guard that
+  // this device writes device-stamped auto files, so it may skip its OWN
+  // legacy unstamped ones. Never writing it makes the device nag the user to
+  // "restore" its own pre-device-id backup.
+  it("stamps cave-auto-stamped once a save has landed", async () => {
+    setToken();
+    setupListAndUpload([]);
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await waitFor(() => expect(localStorage.getItem("cave-auto-stamped")).toBeTruthy());
+    // A TIMESTAMP, not "1" — see ownStampedSince: a boolean cannot answer
+    // "could this unstamped file be mine?" for a device that lost its id.
+    expect(Number(localStorage.getItem("cave-auto-stamped"))).toBeGreaterThan(100000000000);
+  });
+
+  // The per-provider save-TYPE drives the Settings line ("Dernière sauvegarde
+  // auto" vs "…manuelle"). A quiet save recording "manual" tells the user
+  // they backed up deliberately when they did not.
+  it("records the last save type as auto", async () => {
+    setToken();
+    setupListAndUpload([]);
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await waitFor(() =>
+      expect(localStorage.getItem("cave-last-save-type-gdrive")).toBe("auto"));
+  });
+
+  // A tracked fid can go stale (the file was deleted from Drive by hand, or
+  // by another client). The PATCH then 404s and the save MUST fall back to a
+  // POST — without it the auto-save chain is broken for good on that device:
+  // every later save re-PATCHes the same dead id and silently uploads nothing.
+  it("falls back to POST when the tracked auto file is gone (404 on PATCH)", async () => {
+    setToken();
+    localStorage.setItem("gdrive-auto-fid", "auto-dead");
+    const own = "cave-tabac-auto-" + getDeviceId() + "-20260101-120000-t0-p0-w0-a0-j0.json";
+    mockFetch
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ files: [{ id: "auto-dead", name: own, modifiedTime: "2026-01-01T12:00:00Z" }] }) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ error: { code: 404, message: "File not found" } }) })
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ id: "auto-fresh" }) })
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await waitFor(() => {
+      const posts = mockFetch.mock.calls.filter(([, o]) => (o as RequestInit)?.method === "POST");
+      expect(posts.length).toBe(1);
+    });
+    expect(localStorage.getItem("gdrive-auto-fid")).toBe("auto-fresh");
+  });
+
+  // `releaseQuietLock` releases ONLY if this attempt still owns the lock —
+  // the sweep runs detached and calls it again long after a NEWER save may
+  // have re-acquired it. Releasing unconditionally lets a third save start
+  // while the newer one is mid-upload, which is exactly the parallel-PATCH
+  // race the lock exists to prevent.
+  it("a save that lost the lock to a newer one does not release it", async () => {
+    setToken();
+    // The upload HANGS until we resolve it, which is what makes the
+    // interleaving deterministic: without a pending upload the two releases
+    // (_onSuccess and the outer chain) both fire in the same microtask run
+    // and the window this guard protects never opens.
+    let resolveUpload: (v: any) => void = () => {};
+    const uploadPending = new Promise((r) => { resolveUpload = r; });
+    mockFetch
+      .mockResolvedValueOnce({ json: () => Promise.resolve({ files: [] }) })
+      .mockImplementationOnce(() => uploadPending)
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await waitFor(() => expect(mockFetch.mock.calls.length).toBe(2));
+    // A NEWER save has taken the lock while this one is still uploading.
+    const newer = String(Date.now() + 5000);
+    localStorage.setItem("cave-autosave-lock", newer);
+    await act(async () => {
+      resolveUpload({ json: () => Promise.resolve({ id: "new-auto-id" }) });
+      await settle();
+    });
+    // The stale save must leave it alone — clearing it would let a third save
+    // start while the newer one is mid-upload, which is the parallel-PATCH
+    // race the lock exists to prevent.
+    expect(localStorage.getItem("cave-autosave-lock")).toBe(newer);
+  });
 });
 
 // ── D. gdriveRestore ──────────────────────────────────────────────────────────
@@ -988,6 +1356,42 @@ describe("gdriveRestore — listing-only flow (no per-file download)", () => {
     await waitFor(() => expect(result.current.gdriveConfirm).not.toBeNull());
     expect(localStorage.getItem("gdrive-auto-fid")).toBeNull();
     expect(localStorage.getItem("gdrive-fid")).toBe("m1");
+  });
+
+  // The picker is READ-ONLY, but it stamps AUTO_FID_KEY as a side effect —
+  // and the next quiet save PATCHES whatever that key names. Adopting a
+  // FOREIGN device's auto file therefore overwrites that device's backup on
+  // the next edit. The device-scoping was in place and asserted by nothing:
+  // probed, `return true` in the `.find` left the whole cloud subset green.
+  it("never adopts a FOREIGN device's auto file as this device's auto fid", async () => {
+    localStorage.setItem("cave-device-id", "mine1");
+    mockFetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({ files: [
+        // The foreign file is the NEWEST, so an unscoped `.find` over the
+        // ts-sorted options takes it — which is exactly the defect.
+        { id: "theirs", name: "cave-tabac-auto-other9-20260518-120000-t1-p0-w0-a0-j0.json", modifiedTime: "2026-05-18T12:00:00Z" },
+        { id: "mine", name: "cave-tabac-auto-mine1-20260517-120000-t1-p0-w0-a0-j0.json", modifiedTime: "2026-05-17T12:00:00Z" },
+      ] }),
+    });
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveRestore("fake-token"); });
+    await waitFor(() => expect(result.current.gdriveConfirm).not.toBeNull());
+    expect(localStorage.getItem("gdrive-auto-fid")).toBe("mine");
+  });
+
+  it("leaves the auto fid unset when the only auto file belongs to another device", async () => {
+    localStorage.setItem("cave-device-id", "mine1");
+    mockFetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({ files: [
+        { id: "theirs", name: "cave-tabac-auto-other9-20260518-120000-t1-p0-w0-a0-j0.json", modifiedTime: "2026-05-18T12:00:00Z" },
+      ] }),
+    });
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveRestore("fake-token"); });
+    await waitFor(() => expect(result.current.gdriveConfirm).not.toBeNull());
+    // No own/legacy auto file to reuse — the next quiet save must POST a new
+    // one rather than PATCH somebody else's.
+    expect(localStorage.getItem("gdrive-auto-fid")).toBeNull();
   });
 });
 
@@ -1899,6 +2303,102 @@ describe("cloudNewerBackup — launch check", () => {
     vi.useRealTimers();
     expect(result.current.cloudNewerBackup).toBeNull();
     expect(mockFetch).not.toHaveBeenCalled();
+    // The two assertions above are NOT enough on their own: probed, replacing
+    // the early return with `getCloudToken("list")` leaves them green, because
+    // the interactive Drive path injects the GSI script and never settles in
+    // jsdom — so "no fetch" is exactly what a POPUP would also look like. The
+    // diagnostic stage is the one observable that says the check declined on
+    // purpose rather than hanging on a consent screen.
+    expect(readCloudCheckDiag()!.stage).toBe("no-drive-token");
+  });
+
+  // ── the three inputs the guard is HANDED ──────────────────────────────────
+  //
+  // The launch check passes four values into `findNewerCloudBackup`; three of
+  // them had no test at all. Probed: ignoring the dismissed markers, passing no
+  // device id, and neutering the legacy-marker migration each left the whole
+  // cloud subset green — every case above only ever exercised the "flag it"
+  // direction, so nothing covered the reasons NOT to flag.
+
+  function cloudFile(name: string, agoMs: number) {
+    return {
+      ok: true, status: 200,
+      json: () => Promise.resolve({
+        files: [{ id: "f1", name, modifiedTime: new Date(Date.now() - agoMs).toISOString() }],
+      }),
+    };
+  }
+  async function runCheck() {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    vi.useRealTimers();
+    return result;
+  }
+
+  it("keeps a DISMISSED backup silent — the marker is not decoration", async () => {
+    localStorage.setItem("cave-autosave", "1");
+    localStorage.setItem("cave-autosave-ts-gdrive", String(Date.now() - 3 * 86400000));
+    tokenInSession();
+    const name = "cave-tabac-20260612-101010-t5-p2-w0-a1-j9.json";
+    localStorage.setItem(cloudDismissKeys(false).name, name);
+    mockFetch.mockResolvedValue(cloudFile(name, 3600000));
+    const result = await runCheck();
+    // A banner the user dismissed must stay dismissed across relaunches;
+    // otherwise the guard nags on every cold start with no way to silence it.
+    expect(result.current.cloudNewerBackup).toBeNull();
+    expect(readCloudCheckDiag()!.stage).toBe("none");
+  });
+
+  it("flags the SAME file once the marker names another one", async () => {
+    // The control: without it the case above would pass on a check that had
+    // simply stopped looking.
+    localStorage.setItem("cave-autosave", "1");
+    localStorage.setItem("cave-autosave-ts-gdrive", String(Date.now() - 3 * 86400000));
+    tokenInSession();
+    localStorage.setItem(cloudDismissKeys(false).name, "cave-tabac-some-other-file.json");
+    mockFetch.mockResolvedValue(cloudFile("cave-tabac-20260612-101010-t5-p2-w0-a1-j9.json", 3600000));
+    const result = await runCheck();
+    expect(result.current.cloudNewerBackup).not.toBeNull();
+  });
+
+  it("never offers this device its OWN auto file back", async () => {
+    localStorage.setItem("cave-device-id", "mine1");
+    localStorage.setItem("cave-autosave", "1");
+    localStorage.setItem("cave-autosave-ts-gdrive", String(Date.now() - 3 * 86400000));
+    tokenInSession();
+    // Our own auto file is legitimately newer than our last recorded save
+    // (the timestamp write can fail while the upload succeeds — that is the
+    // whole reason the guard is device-scoped rather than time-scoped).
+    mockFetch.mockResolvedValue(cloudFile("cave-tabac-auto-mine1-20260612-101010-t5-p2-w0-a1-j9.json", 3600000));
+    const result = await runCheck();
+    expect(result.current.cloudNewerBackup).toBeNull();
+  });
+
+  it("still flags a FOREIGN device's auto file", async () => {
+    // The counterpart: the device-id is a filter, not an off switch.
+    localStorage.setItem("cave-device-id", "mine1");
+    localStorage.setItem("cave-autosave", "1");
+    localStorage.setItem("cave-autosave-ts-gdrive", String(Date.now() - 3 * 86400000));
+    tokenInSession();
+    mockFetch.mockResolvedValue(cloudFile("cave-tabac-auto-other9-20260612-101010-t5-p2-w0-a1-j9.json", 3600000));
+    const result = await runCheck();
+    expect(result.current.cloudNewerBackup).not.toBeNull();
+  });
+
+  it("migrates a legacy cave-auto-stamped marker to a real moment", () => {
+    // "1" carries no date, so a device holding it could not tell its own
+    // pre-stamping leftovers from a sibling's file. Reading it must rewrite it
+    // to NOW — genuinely-old leftovers stay suppressed, anything written from
+    // here on is judged on its date.
+    localStorage.setItem("cave-auto-stamped", "1");
+    const before = Date.now();
+    const got = ownStampedSince();
+    expect(got).toBeGreaterThanOrEqual(before);
+    expect(localStorage.getItem("cave-auto-stamped")).toBe(String(got));
+    // Idempotent: a second read returns the SAME moment, or the suppression
+    // window would slide forward on every launch and swallow newer files.
+    expect(ownStampedSince()).toBe(got);
   });
 
   it("dismissCloudNewerBackup persists the marker and clears the state", async () => {

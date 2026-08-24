@@ -247,6 +247,30 @@ describe("catalogueCloudRestore (the hook)", () => {
     expect(String(mockFetch.mock.calls[1]![0])).toContain("c1");
   });
 
+  // The case above holds ONE catalogue file, so the sort that picks `cats[0]`
+  // is never exercised by it — probed: reversing the comparator (oldest first)
+  // left that case, and the whole cloud subset, green. A user who re-uploads a
+  // corrected catalogue and then fetches it on the second device would silently
+  // get the superseded one back, with « Catalogue restauré » on screen.
+  it("picks the NEWEST of several catalogue files, whatever the listing order", async () => {
+    const OLD = makeCatalogueName("old.csv");
+    const NEW = makeCatalogueName("new.csv");
+    mockFetch
+      // The newest is listed SECOND on purpose: a comparator that is simply
+      // absent would take the first entry and pass a listing-order assertion.
+      .mockResolvedValueOnce({ json: async () => ({ files: [
+        { id: "cat-old", name: OLD, modifiedTime: "2026-08-01T00:00:00Z" },
+        { id: "cat-new", name: NEW, modifiedTime: "2026-08-20T00:00:00Z" },
+      ] }) })
+      .mockResolvedValueOnce({ ok: true, text: async () => "brand_key,blend_name\nA,B\n" });
+    const { result } = renderHook(() => useGdriveSync(props()));
+    let ok: any;
+    await act(async () => { ok = await result.current.catalogueCloudRestore("tok"); });
+    expect(ok).toBe(true);
+    expect(String(mockFetch.mock.calls[1]![0])).toContain("cat-new");
+    expect(String(mockFetch.mock.calls[1]![0])).not.toContain("cat-old");
+  });
+
   it("goes through catalogueSave — one parse path, one set of warnings", async () => {
     mockFetch
       .mockResolvedValueOnce({ json: async () => ({ files: [{ id: "c1", name: NAME, modifiedTime: "2026-08-11T00:00:00Z" }] }) })

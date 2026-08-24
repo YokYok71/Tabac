@@ -1435,3 +1435,176 @@ describe("useTastingSession — effect deps survive live typing", () => {
     }
   });
 });
+
+// ── the four survivors of the useTastingSession mutation pass ────────────────
+//
+// Each case below closes a gap found by injecting the defect and watching the
+// whole tasting subset stay green. Every one is a rule the hook's own comments
+// argue for at length and that nothing was checking.
+
+describe("useTastingSession — a payload missing a pause field still TICKS", () => {
+  it("defaults an absent pausedAccumMs so the elapsed time is a NUMBER", () => {
+    // `readTasting`'s comment names the consequence exactly: the validation
+    // ladder only REJECTS a bogus value, so an ABSENT pausedAccumMs passed and
+    // fed `endTs - startTs - undefined` → NaN. The timer then renders NaN:NaN
+    // for ever AND the auto-end can never fire (`NaN >= threshold` is false),
+    // so the zombie also blocks every automatic update. The sibling default
+    // (pauseStartTs) was already pinned by "accepts a valid running payload";
+    // this one was not, and the assertion has to be about the ARITHMETIC —
+    // asserting the field equals 0 would pass on a hook that defaulted it and
+    // then computed the elapsed time some other broken way.
+    localStorage.setItem(
+      TASTING_KEY,
+      JSON.stringify({
+        stage: "running",
+        startTs: Date.now() - 60 * 1000,
+        // pausedAccumMs deliberately ABSENT (a legacy or hand-edited blob).
+        tobaccoId: "T1", pipeId: "P1", lotId: "L1",
+        rating: 0, notes: "", weightG: "3",
+      }),
+    );
+    const { result } = renderHook(() => useTastingSession(deps({ loading: false })));
+    expect(result.current.tasting).not.toBeNull();
+    const ms = result.current.tastingElapsedMs();
+    expect(Number.isFinite(ms)).toBe(true);
+    expect(ms).toBeGreaterThanOrEqual(59_000);
+    expect((result.current.tasting as any).pausedAccumMs).toBe(0);
+  });
+});
+
+describe("useTastingSession — the AUTO path clears a tasting whose save failed", () => {
+  function zombie(overrides: Record<string, any> = {}) {
+    localStorage.setItem(
+      TASTING_KEY,
+      JSON.stringify(Object.assign({
+        stage: "running",
+        startTs: Date.now() - 3 * 3600 * 1000, // well past threshold + auto-end
+        pausedAccumMs: 0,
+        pauseStartTs: null,
+        tobaccoId: "T1", pipeId: "P1", lotId: "1111",
+        rating: 0, notes: "", weightG: "3",
+      }, overrides)),
+    );
+  }
+  const liveCellar = {
+    tobaccos: [{ id: "T1", lots: [{ id: "1111", status: "jar", weightG: "61" }] }],
+    pipes: [], sessions: [],
+  };
+
+  it("wipes the zombie even when addSessionFromTasting refuses", () => {
+    // `if (ok || auto) update(null)` — the `|| auto` half. The manual path
+    // KEEPS the state so the user can fix the cause and retry (pinned by
+    // "preserves the tasting state when addSessionFromTasting refuses"), and
+    // the auto path must do the OPPOSITE: it fires from a timer with nobody
+    // watching, so keeping the state leaves a tasting that re-fires this same
+    // effect on every tick and blocks every automatic update, for ever. Losing
+    // one journal entry is the cheaper failure. Two paths, one rule each — and
+    // only the first of the two was covered.
+    zombie();
+    const addSessionFromTasting = vi.fn(() => false);
+    const setSaveError = vi.fn();
+    const { result } = renderHook(() =>
+      useTastingSession(deps({ addSessionFromTasting, setSaveError, data: liveCellar, loading: false })),
+    );
+    expect(addSessionFromTasting).toHaveBeenCalledTimes(1);
+    expect(result.current.tasting).toBeNull();
+    expect(localStorage.getItem(TASTING_KEY)).toBeNull();
+    // And it must SAY the save failed — a cleared tasting with a success
+    // notice is a sentence about a session that exists nowhere.
+    expect(setSaveError).toHaveBeenCalled();
+  });
+
+  it("does NOT navigate away, even on that failure path", () => {
+    // The auto path fires while the user is elsewhere, possibly mid-form, and
+    // a direct nav() bypasses the unsaved-changes guard (only goBack consults
+    // it). The failure branch must not be an exception to that.
+    zombie();
+    const d = deps({
+      addSessionFromTasting: vi.fn(() => false),
+      setSaveError: vi.fn(),
+      data: liveCellar,
+      loading: false,
+    });
+    renderHook(() => useTastingSession(d));
+    expect(d.nav).not.toHaveBeenCalled();
+  });
+});
+
+describe("useTastingSession — live notes survive a reload", () => {
+  it("persists rating / notes / aromas typed during the running stage", () => {
+    // `tastingUpdate` writes through `writeTasting`, and only the in-memory
+    // half was covered ("patches rating / notes / weightG"). Drop the persist
+    // and every keystroke of a live tasting is lost on the next launch, with
+    // the app looking perfectly correct until then — which is the same shape
+    // as the stale-write defect this function's own comment was written for.
+    const { result } = renderHook(() => useTastingSession(deps()));
+    act(() => {
+      result.current.tastingStart({ tobaccoId: "T1", pipeId: "P1", lotId: "L1", weightG: "3" });
+    });
+    act(() => { result.current.tastingIgnite(); });
+    act(() => {
+      result.current.tastingUpdate({ rating: 4, notes: "tourbé", aromas: ["leather"] });
+    });
+
+    const raw = localStorage.getItem(TASTING_KEY);
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(String(raw))).toMatchObject({
+      rating: 4, notes: "tourbé", aromas: ["leather"],
+    });
+
+    // The consequence, stated as the user would meet it: close the app,
+    // reopen it, the notes are still there.
+    const reopened = renderHook(() => useTastingSession(deps()));
+    expect(reopened.result.current.tasting).toMatchObject({
+      stage: "running", rating: 4, notes: "tourbé",
+    });
+  });
+});
+
+describe("useTastingSession — clearing the location clears the place NAME too", () => {
+  function started() {
+    const { result } = renderHook(() => useTastingSession(deps()));
+    act(() => {
+      result.current.tastingStart({ tobaccoId: "T1", pipeId: "P1", lotId: "L1", weightG: "3" });
+    });
+    act(() => {
+      result.current.tastingSetLocation(48.8566, 2.3522, {
+        name: "Jardin", city: "Vondelbrug", country: "Pays-Bas",
+      });
+    });
+    return result;
+  }
+
+  it("wipes the three place parts along with the coordinates", () => {
+    // The three parts are stored separately from lat/lng, so dropping only
+    // the coordinates leaves a session carrying a place name and no position —
+    // and `computeLocationStats` groups on the COUNTRY alone, so the Stats
+    // « Pays » chart would go on counting a location the user deliberately
+    // removed.
+    const result = started();
+    expect(result.current.tasting).toMatchObject({ locationCountry: "Pays-Bas" });
+
+    act(() => { result.current.tastingSetLocation(undefined, undefined); });
+
+    const t = result.current.tasting as any;
+    expect(t.lat).toBeUndefined();
+    expect(t.lng).toBeUndefined();
+    expect(t.locationName).toBeUndefined();
+    expect(t.locationCity).toBeUndefined();
+    expect(t.locationCountry).toBeUndefined();
+    // …and the same on disk, or the next launch resurrects the name.
+    const stored = JSON.parse(String(localStorage.getItem(TASTING_KEY)));
+    expect(stored.locationCountry).toBeUndefined();
+  });
+
+  it("a bare coords update PRESERVES the parts (the clear is not a blanket wipe)", () => {
+    // The counterpart, and the reason the first assertion cannot simply be
+    // "always drop the parts": a second GPS fix arrives with no geocode yet,
+    // and it must not blank a name the lookup already resolved.
+    const result = started();
+    act(() => { result.current.tastingSetLocation(45.76, 4.83); });
+    expect(result.current.tasting).toMatchObject({
+      lat: 45.76, lng: 4.83, locationCountry: "Pays-Bas", locationName: "Jardin",
+    });
+  });
+});
