@@ -1078,6 +1078,8 @@ export var PT = {
   eb_recovering:"A mudar para a versão mais recente…",
   eb_retry_btn:"Limpar a cache e recarregar",
   eb_unreachable:"O site está inacessível: não foi eliminado nada. Volte a ligar-se e tente novamente.",
+  err_cloud_full:"A sua destinação na nuvem já não tem espaço. Liberte espaço e tente novamente.",
+  err_cloud_rate:"A sua destinação na nuvem está a recusar escritas temporariamente. Tente novamente dentro de alguns minutos.",
   diag_toast_count:"{n} anomalias de coerência detetadas.",
   diag_toast_hint:"Abra Definições → Diagnóstico para as inspecionar.",
   repair_app_link:"Nada acontece? Reparar a aplicação →",

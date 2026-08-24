@@ -28,6 +28,8 @@ import {
   summariseCloudDevices,
   autoFileDeviceId,
   chooseAutoSaveTarget,
+  isAuthRefusal,
+  cloudRefusalKind,
   pickKeepAuto,
 } from "../utils/gdriveApi.ts";
 import type { CloudBackupDiag, CloudDeviceSummary } from "../utils/gdriveApi.ts";
@@ -525,6 +527,21 @@ export function useGdriveSync({
   var gdriveGetToken = auth.gdriveGetToken;
   var gdriveReconnect = auth.gdriveReconnect;
   var triggerIosAutosaveReauthGdrive = auth.triggerIosAutosaveReauth;
+  // NOMMER CE QU'ON SAIT NOMMER. Le message du fournisseur est de la prose
+  // ANGLAISE — « The user's Drive storage quota has been exceeded. » — et il
+  // remonte verbatim dans `gdriveStatus`, donc un utilisateur francophone lisait
+  // « Erreur : » suivi d'anglais, sur le seul refus où le remède compte
+  // (libérer de la place, pas se reconnecter). On traduit les deux cas qu'on
+  // sait classer et on laisse le message brut pour tout le reste : inventer une
+  // traduction d'un refus qu'on n'a pas identifié dirait à l'utilisateur
+  // quelque chose qu'on ne sait pas.
+  function refusalMessage(err: any): string {
+    var kind = cloudRefusalKind(err);
+    if (kind === "quota") return t("err_cloud_full");
+    if (kind === "rate") return t("err_cloud_rate");
+    return String((err && err.message) || "");
+  }
+
   var quietSaveInProgressRef = useRef(false);
 
   // ── Provider routing ───────────────────────────────────────────────
@@ -1743,11 +1760,11 @@ export function useGdriveSync({
           })
           .then(function (list: any) {
             if (list.error) {
-              if (list.error.code === 401 || list.error.code === 403) {
+              if (isAuthRefusal(list.error)) {
                 cloudTokenInvalidate();
                 if (!_retried) throw { __retry__: true };
               }
-              throw new Error(list.error.message || "Drive error");
+              throw new Error(refusalMessage(list.error) || "Drive error");
             }
             var existingFiles = list.files || [];
             var bkBase = Object.assign({}, data, {
@@ -1810,11 +1827,11 @@ export function useGdriveSync({
                 })
                 .then(function (f) {
                   if (f.error) {
-                    if (f.error.code === 401 || f.error.code === 403) {
+                    if (isAuthRefusal(f.error)) {
                       cloudTokenInvalidate();
                       if (!_retried) throw { __retry__: true };
                     }
-                    throw new Error(f.error.message);
+                    throw new Error(refusalMessage(f.error));
                   }
                   if (f.id) lsSet(FID_KEY, f.id);
                   var _ts = Date.now();
@@ -1944,11 +1961,11 @@ export function useGdriveSync({
           })
           .then(function (list: any) {
             if (list.error) {
-              if (list.error.code === 401 || list.error.code === 403) {
+              if (isAuthRefusal(list.error)) {
                 cloudTokenInvalidate();
                 if (!_retried) throw { __retry__: true };
               }
-              throw new Error(list.error.message || "Drive error");
+              throw new Error(refusalMessage(list.error) || "Drive error");
             }
             // The CATALOGUE stream is not a cellar backup.
             // Offering it here would put a CSV in the "restore a backup"
@@ -2319,7 +2336,7 @@ export function useGdriveSync({
               // retries (dropboxProvider.remove + dbxUpload).
               sweepOwnAutoFiles(autoFilesForCleanup, f.id || null);
               return;
-            } else if (f && f.error && (f.error.code === 401 || f.error.code === 403)) {
+            } else if (f && f.error && (isAuthRefusal(f.error))) {
               recordAutosaveDiag("upload-auth-error", "POST " + f.error.code);
               cloudTokenInvalidate();
               // Silent in-place retry on Android/desktop
@@ -2375,7 +2392,7 @@ export function useGdriveSync({
               lsRemove(AUTO_FID_KEY);
               return postNew(autoFilesForCleanup);
             }
-            if (f && f.error && (f.error.code === 401 || f.error.code === 403)) {
+            if (f && f.error && (isAuthRefusal(f.error))) {
               recordAutosaveDiag("upload-auth-error", "PATCH " + f.error.code);
               cloudTokenInvalidate();
               // See postNew 401 branch above.
@@ -2400,7 +2417,7 @@ export function useGdriveSync({
         .then(function (r) { return r.json(); })
         .then(function (list: any) {
           if (list && list.error) {
-            if (list.error.code === 401 || list.error.code === 403) {
+            if (isAuthRefusal(list.error)) {
               recordAutosaveDiag("list-auth-error", String(list.error.code));
               cloudTokenInvalidate();
               // Silent in-place retry on Android/desktop.
@@ -2734,7 +2751,7 @@ export function useGdriveSync({
             .then(function (resp: any) { return resp.json(); })
             .then(function (f: any) {
               if (f.error) {
-                if (f.error.code === 401 || f.error.code === 403) {
+                if (isAuthRefusal(f.error)) {
                   cloudTokenInvalidate();
                   if (!_retried) throw { __retry__: true };
                 }
@@ -2787,11 +2804,11 @@ export function useGdriveSync({
           .then(function (resp: any) { return resp.json(); })
           .then(function (list: any) {
             if (list && list.error) {
-              if (list.error.code === 401 || list.error.code === 403) {
+              if (isAuthRefusal(list.error)) {
                 cloudTokenInvalidate();
                 if (!_retried) throw { __retry__: true };
               }
-              throw new Error(list.error.message || "list failed");
+              throw new Error(refusalMessage(list.error) || "list failed");
             }
             var cats = ((list && list.files) || []).filter(function (f: any) {
               return classifyBackup(f && f.name) === "catalogue";

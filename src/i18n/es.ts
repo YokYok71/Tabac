@@ -1071,6 +1071,8 @@ export var ES = {
   eb_recovering:"Cambiando a la última versión…",
   eb_retry_btn:"Borrar caché y recargar",
   eb_unreachable:"El sitio no está accesible: no se ha borrado nada. Vuelva a conectarse e inténtelo de nuevo.",
+  err_cloud_full:"Tu destino en la nube no tiene espacio. Libera espacio y vuelve a intentarlo.",
+  err_cloud_rate:"Tu destino en la nube rechaza temporalmente las escrituras. Inténtalo de nuevo en unos minutos.",
   diag_toast_count:"{n} anomalías de coherencia detectadas.",
   diag_toast_hint:"Abre Ajustes → Diagnóstico para inspeccionarlos.",
   repair_app_link:"¿No pasa nada? Repara la app →",

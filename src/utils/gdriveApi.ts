@@ -574,3 +574,67 @@ export function pruneByType(
     });
   }, Promise.resolve());
 }
+
+// ── QUI REFUSE, ET POURQUOI ─────────────────────────────────────────────────
+//
+// « Le serveur refuse » n'est pas « votre session a expiré », et le code ne
+// regardait que `code`. Or Google rend **403** pour les deux : un Drive plein
+// et une autorisation insuffisante. MESURÉ en pilotant le vrai hook, les deux
+// aboutissaient au même endroit — jeton JETÉ, écran bloqué sur « Connexion… ».
+//
+// Ce que coûtait la confusion : un Drive plein faisait jeter un jeton VALIDE
+// puis relancer une authentification — sur iOS standalone une redirection OAuth
+// complète — donc l'utilisateur repassait par Google, en boucle, pour un
+// problème sans rapport avec sa session, et on ne lui disait jamais que son
+// Drive était plein. C'est la forme d'échec la plus consignée ici : envoyer
+// l'utilisateur au mauvais remède. Le quota gratuit de Drive étant partagé avec
+// Gmail et Photos, le saturer est ordinaire.
+//
+// **ON NE RECLASSE QUE CE QU'ON SAIT NOMMER**, et c'est ce qui rend le
+// changement sûr : un 401, et un 403 dont la raison n'est pas reconnue, restent
+// `auth` — exactement l'ancien comportement. Seules les raisons explicitement
+// listées sortent du chemin d'authentification.
+export type CloudRefusal = "auth" | "quota" | "rate" | "other";
+
+// Google met le discriminant dans `error.errors[].reason`.
+var GOOGLE_QUOTA_REASONS = ["storagequotaexceeded", "quotaexceeded"];
+var GOOGLE_RATE_REASONS = ["ratelimitexceeded", "userratelimitexceeded"];
+
+export function cloudRefusalKind(err: any): CloudRefusal {
+  if (!err || typeof err !== "object") return "other";
+  var code = Number((err as any).code);
+  var msg = String((err as any).message || "").toLowerCase();
+
+  // Dropbox : `dropboxProvider` normalise en `{code: <statut HTTP>, message:
+  // "Dropbox: " + error_summary}`, donc le marqueur est dans le MESSAGE. On ne
+  // l'accepte QUE sur les statuts que Dropbox utilise pour ça — sinon un
+  // message quelconque contenant le mot serait lu comme un quota.
+  if (code === 507 && msg.indexOf("insufficient_space") >= 0) return "quota";
+  if (code === 429) return "rate";
+
+  var reasons: string[] = [];
+  var raw = (err as any).errors;
+  if (Array.isArray(raw)) {
+    for (var i = 0; i < raw.length; i++) {
+      var r = raw[i];
+      if (r && typeof r === "object" && typeof (r as any).reason === "string") {
+        reasons.push(String((r as any).reason).toLowerCase());
+      }
+    }
+  }
+  for (var j = 0; j < reasons.length; j++) {
+    var re = reasons[j] as string;
+    if (GOOGLE_QUOTA_REASONS.indexOf(re) >= 0) return "quota";
+    if (GOOGLE_RATE_REASONS.indexOf(re) >= 0) return "rate";
+  }
+
+  if (code === 401 || code === 403) return "auth";
+  return "other";
+}
+
+/** Le refus est-il une question d'AUTHENTIFICATION — donc « jeter le jeton et
+ *  se réauthentifier » ? Tout le reste doit garder le jeton : le jeter envoie
+ *  l'utilisateur réparer ce qui n'est pas cassé. */
+export function isAuthRefusal(err: any): boolean {
+  return cloudRefusalKind(err) === "auth";
+}

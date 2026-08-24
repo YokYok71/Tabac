@@ -1071,6 +1071,8 @@ export var EN = {
   eb_recovering:"Switching to the latest version…",
   eb_retry_btn:"Clear cache and reload",
   eb_unreachable:"The site is unreachable: nothing was deleted. Reconnect, then try again.",
+  err_cloud_full:"Your cloud destination is out of storage. Free up space, then try again.",
+  err_cloud_rate:"Your cloud destination is temporarily refusing writes. Try again in a few minutes.",
   diag_toast_count:"{n} consistency anomalies detected.",
   diag_toast_hint:"Open Settings → Diagnostic to inspect them.",
   repair_app_link:"Nothing happening? Repair the app →",

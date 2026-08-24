@@ -1071,6 +1071,8 @@ export var DE = {
   eb_recovering:"Wechsel zur neuesten Version…",
   eb_retry_btn:"Cache leeren und neu laden",
   eb_unreachable:"Die Seite ist nicht erreichbar: Es wurde nichts gelöscht. Stelle die Verbindung wieder her und versuche es erneut.",
+  err_cloud_full:"Bei deinem Cloud-Ziel ist kein Speicherplatz mehr frei. Schaffe Platz und versuche es erneut.",
+  err_cloud_rate:"Dein Cloud-Ziel weist Schreibvorgänge vorübergehend ab. Versuche es in ein paar Minuten erneut.",
   diag_toast_count:"{n} Konsistenz-Anomalien erkannt.",
   diag_toast_hint:"Öffne Einstellungen → Diagnose zum Prüfen.",
   repair_app_link:"Nichts passiert? App reparieren →",
