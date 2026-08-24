@@ -313,7 +313,23 @@ export function useTastingSession({
     weightG?: string;
   }) {
     if (!tasting || tasting.stage !== "setup") return;
-    update(Object.assign({}, tasting, patch));
+    // FUNCTIONAL, and the guards moved inside it. This wrote
+    // `Object.assign({}, tasting, patch)` against the `tasting` captured at
+    // TAP time — and the window is a GPS fix plus a Nominatim round-trip,
+    // seconds, on a fully interactive screen whose whole purpose is writing
+    // notes. So: tap "Capturer la position", type your notes, set a rating,
+    // tap a few aromas — and when the geocode landed it wrote the old
+    // snapshot back, blanking all of it. Worse, `writeTasting` persisted the
+    // reverted object, so a reload did not recover it. `onCoords` fires right
+    // after the GPS fix and `onPlace` after the lookup, so there were two
+    // revert points per capture.
+    setTasting(function (prev: any) {
+      if (!prev) return prev;
+      if (prev.stage !== "setup" && prev.stage !== "running") return prev;
+      var next = Object.assign({}, prev, patch);
+      writeTasting(next);
+      return next;
+    });
   }
 
   // Dedicated location setter so the user can attach
@@ -327,8 +343,6 @@ export function useTastingSession({
     lng: number | undefined,
     parts?: { name?: string; city?: string; country?: string } | undefined,
   ) {
-    if (!tasting) return;
-    if (tasting.stage !== "setup" && tasting.stage !== "running") return;
     var hasGeo = typeof lat === "number" && typeof lng === "number";
     // Also carry the optional reverse-geocoded place parts
     // (spot / commune / country). Clearing the location wipes them; a bare
@@ -342,7 +356,23 @@ export function useTastingSession({
     } else {
       patch = { lat: lat, lng: lng };
     }
-    update(Object.assign({}, tasting, patch));
+    // FUNCTIONAL, and the guards moved inside it. This wrote
+    // `Object.assign({}, tasting, patch)` against the `tasting` captured at
+    // TAP time — and the window is a GPS fix plus a Nominatim round-trip,
+    // seconds, on a fully interactive screen whose whole purpose is writing
+    // notes. So: tap "Capturer la position", type your notes, set a rating,
+    // tap a few aromas — and when the geocode landed it wrote the old
+    // snapshot back, blanking all of it. Worse, `writeTasting` persisted the
+    // reverted object, so a reload did not recover it. `onCoords` fires right
+    // after the GPS fix and `onPlace` after the lookup, so there were two
+    // revert points per capture.
+    setTasting(function (prev: any) {
+      if (!prev) return prev;
+      if (prev.stage !== "setup" && prev.stage !== "running") return prev;
+      var next = Object.assign({}, prev, patch);
+      writeTasting(next);
+      return next;
+    });
   }
 
   function tastingIgnite() {
@@ -381,7 +411,23 @@ export function useTastingSession({
 
   function tastingUpdate(patch: { rating?: number; notes?: string; weightG?: string; aromas?: string[] }) {
     if (!tasting) return;
-    update(Object.assign({}, tasting, patch));
+    // FUNCTIONAL, and the guards moved inside it. This wrote
+    // `Object.assign({}, tasting, patch)` against the `tasting` captured at
+    // TAP time — and the window is a GPS fix plus a Nominatim round-trip,
+    // seconds, on a fully interactive screen whose whole purpose is writing
+    // notes. So: tap "Capturer la position", type your notes, set a rating,
+    // tap a few aromas — and when the geocode landed it wrote the old
+    // snapshot back, blanking all of it. Worse, `writeTasting` persisted the
+    // reverted object, so a reload did not recover it. `onCoords` fires right
+    // after the GPS fix and `onPlace` after the lookup, so there were two
+    // revert points per capture.
+    setTasting(function (prev: any) {
+      if (!prev) return prev;
+      if (prev.stage !== "setup" && prev.stage !== "running") return prev;
+      var next = Object.assign({}, prev, patch);
+      writeTasting(next);
+      return next;
+    });
   }
 
   function tastingElapsedMs(): number {

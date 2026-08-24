@@ -896,7 +896,21 @@ export function useAiAutoFill({
       return;
     }
     q = String(q).substring(0, 200);
-    setAiLoad(true);
+    // WHICH FICHE ASKED. A provider call has a 60 s abort budget and is not
+    // cancelled on navigation, so the answer could land on whatever working
+    // copy was current when it resolved: open tobacco A, tap Rechercher, back
+    // out, open tobacco B — and A's brand, name, category, blend, force, room
+    // note, taste, ageing and description were merged into B. One Save then
+    // wrote A's data over B's row.
+    //
+    // The id is the identity (`nav()` may not reset it — that is the hard
+    // invariant — and the working copy carries it for an edit). RESIDUAL,
+    // disclosed: two successive ADD forms both have `undefined`, so they
+    // cannot be told apart this way. Guarding those on the typed brand+name
+    // was written and rejected — the scan→auto-fill chain builds its query
+    // from the SCAN result while the form still holds the previous value, so
+    // that rule would have dropped a result the user was waiting for.
+    var targetId = type === "pipe" ? pipeForm.id : type === "wish" ? wishForm.id : form.id;
     setAiErr("");
     var jT =
       '{"name":"","brand":"","category":"Anglais|Aromatique|Balkan|Burley|Cavendish|Dark Fired|Écossais|Latakia|Oriental|Perique|Turkish|VaPer|Virginia|Virginia/Burley","blend":"varietes","cut":"Broken Flake|Coins|Crumble Cake|Cube Cut|Curly Cut|Flake|Loose Cut|Plug|Pressed|Ready Rubbed|Ribbon|Rope|Rough Cut|Shag|Sliced","force":1,"room_note":1,"taste":1,"aging_max_years":"","description":""}';
@@ -1101,6 +1115,8 @@ export function useAiAutoFill({
       setAiSource(aiProvider as any);
       if (type === "pipe") {
         setPipeForm(function (f: any) {
+          if (f && f.id !== targetId) return f;   // another fiche is open now
+
           var validSh = normShape(info.shape || "") || f.shape;
           var lmm = parseFloat(info.length_mm);
           var wg = parseFloat(info.weight_g);
@@ -1127,17 +1143,24 @@ export function useAiAutoFill({
                 : f.filterType;
           var cd = parseFloat(info.chamber_diameter_mm);
           var cdp = parseFloat(info.chamber_depth_mm);
+          // ALWAYS MILLIMETRES, never `lengthUnit`. `length` and `weight`
+          // legitimately follow the user's unit — their labels interpolate it
+          // — but the CHAMBER pair does not: the form label hardcodes "(mm)",
+          // the fiche prints " mm", `chamberVolumeCm3` documents mm and
+          // CHAMBER_DIAMETER_MIN/MAX are 8-40 mm. They were given the length
+          // field's treatment by mistake, so with the unit set to inches the
+          // AI wrote 0.75 into a field the whole app reads as 0.75 mm: the
+          // bowl-weight estimate collapsed to 0, and since `canSave` requires
+          // a positive weight the session form's Save — and the tasting's
+          // Ignite — stayed permanently greyed with nothing saying why. The
+          // app's own validator flagged the value it had just written.
           var cdVal =
             !isNaN(cd) && cd > 0
-              ? lengthUnit === "in"
-                ? String((cd / 25.4).toFixed(2))
-                : String(Math.round(cd))
+              ? String(Math.round(cd))
               : f.chamberDiameter;
           var cdpVal =
             !isNaN(cdp) && cdp > 0
-              ? lengthUnit === "in"
-                ? String((cdp / 25.4).toFixed(2))
-                : String(Math.round(cdp))
+              ? String(Math.round(cdp))
               : f.chamberDepth;
           var bm =
             info.bowl_material && BOWL_MATS.indexOf(info.bowl_material) >= 0
@@ -1173,6 +1196,8 @@ export function useAiAutoFill({
         });
       } else if (type === "wish") {
         setWishForm(function (f: any) {
+          if (f && f.id !== targetId) return f;   // another fiche is open now
+
           var fv = parseInt(info.force) || f.force || 0;
           var rn = parseInt(info.room_note) || f.roomNote || 0;
           var ts = parseInt(info.taste) || f.taste || 0;
@@ -1191,6 +1216,8 @@ export function useAiAutoFill({
         });
       } else {
         setForm(function (f: any) {
+          if (f && f.id !== targetId) return f;   // another fiche is open now
+
           var fv = parseInt(info.force) || f.force || 0;
           var rn = parseInt(info.room_note) || f.roomNote || 0;
           var ts = parseInt(info.taste) || f.taste || 0;

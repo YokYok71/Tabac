@@ -88,6 +88,17 @@ export function CuratorPipesDetailView() {
     setCollapsedMaint(latestSessionMonthSeed(pipeDet?.maintenance || []));
   }, [pipeDet]);
   const toggleMaint = (key: string) => setCollapsedMaint((prev) => toggleCollapseKey(prev, key));
+  // THE MODAL MUST NOT OUTLIVE ITS PIPE. This view is mounted unconditionally
+  // by CuratorApp and self-gates with the early return below, so it never
+  // unmounts and its `useState` survives: open pipe A, tap "Ajouter un
+  // entretien", tap a dock tab (nav() clears `pipeDet`, the view returns
+  // null), then open pipe B — and the modal is on screen again over B, still
+  // holding what was typed for A. `onSave` reads the CURRENT `p.id`, so an
+  // add landed on B, while an edit or delete targeted an entry id B does not
+  // have and silently no-opped — with the undo toast still shown for a delete
+  // that never happened. `nav()` clears `sessionDetail` for exactly this
+  // reason and simply cannot see this state.
+  useEffect(() => { setMaintForm(null); }, [pipeDet?.id]);
   if (view !== "pipes" || !pipeDet) return null;
   const p: Pipe = pipeDet;
   const active = p.status === "active";

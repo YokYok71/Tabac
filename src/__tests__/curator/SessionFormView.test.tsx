@@ -120,8 +120,14 @@ describe("SessionFormView — apply default weight", () => {
     expect(btn).toBeTruthy();
     fireEvent.click(btn);
     expect(setSessForm).toHaveBeenCalled();
+    // `set` patches through an UPDATER now, so the argument is a function of
+    // the previous form rather than the merged object. The change was made
+    // because `handlePhotoUpload`'s callback fires long after the picker
+    // closes and was reverting anything typed in between; what this case
+    // asserts — the button re-applies the chamber x cut estimate — is unchanged.
     const lastArg = setSessForm.mock.calls[setSessForm.mock.calls.length - 1]![0];
-    expect(lastArg.weightG).toBe("2.5");
+    const merged = typeof lastArg === "function" ? lastArg({}) : lastArg;
+    expect(merged.weightG).toBe("2.5");
   });
 
   it("hides the button when the recorded weight already equals the default", () => {
@@ -687,7 +693,8 @@ describe("SessionFormView — editable coordinates", () => {
     expect(lat.value).toBe("48.85");
     // …and the form receives lat as a real number.
     const committed = setForm.mock.calls.some((c) => {
-      const arg = c[0];
+      // Same reason as above: `set` is an updater now, so resolve it.
+      const arg = typeof c[0] === "function" ? (c[0] as any)({}) : c[0];
       return arg && typeof arg === "object" && arg.lat === 48.85;
     });
     expect(committed).toBe(true);

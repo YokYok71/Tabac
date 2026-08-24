@@ -33,7 +33,12 @@ export function CuratorAccessoryFormView() {
   if (view !== "addA" && view !== "editA") return null;
   if (!form) return null;
 
-  const set = (patch: any) => setForm(Object.assign({}, form, patch));
+  // FUNCTIONAL. `handlePhotoUpload` is a FileReader → Image decode → canvas →
+  // IndexedDB chain, so its callback fires a fraction of a second after the
+  // picker closes, holding the `form` from the render in which the button was
+  // tapped — and any field edited in that window was reverted when the photo
+  // key was written back.
+  const set = (patch: any) => setForm((prev: any) => Object.assign({}, prev, patch));
   const isLighter = form.type === "Briquet";
 
   return (

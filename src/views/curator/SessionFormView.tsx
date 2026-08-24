@@ -236,7 +236,9 @@ export function CuratorSessionFormView() {
   if (!form) return null;
   const isEdit = view === "editJ";
 
-  const set = (patch: any) => setForm(Object.assign({}, form, patch));
+  // FUNCTIONAL, like its four siblings: any async callback using `set` would
+  // otherwise write back the `form` captured at tap time.
+  const set = (patch: any) => setForm((prev: any) => Object.assign({}, prev, patch));
   const cancel = () => { setForm(Object.assign({}, BJ)); nav("journal", { restoreScroll: true }); };
 
   // Explicit geolocation capture. Never fires on its own

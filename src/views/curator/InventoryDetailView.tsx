@@ -70,6 +70,11 @@ export function CuratorInventoryDetailView() {
   // user see the whole tobacco without touching the global list filter (so
   // going back keeps their filter).
   const [lotScopeOff, setLotScopeOff] = useState(false);
+  // THE LOT MODALS MUST NOT OUTLIVE THEIR TOBACCO — see the identical guard in
+  // PipesDetailView. Higher stakes here: a lot carries a weight, a price and
+  // dates, and feeds the balance invariants, so a form opened on tobacco A and
+  // saved over tobacco B writes stock that never existed.
+  useEffect(() => { setLotForm(null); setLotDetail(null); }, [detail?.id]);
 
   if (view !== "inv" || !detail) return null;
   const tob: Tobacco = detail;

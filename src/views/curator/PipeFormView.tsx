@@ -46,7 +46,12 @@ export function CuratorPipeFormView() {
   if (view !== "addP" && view !== "editP") return null;
   if (!form) return null;
 
-  const set = (patch: any) => setForm(Object.assign({}, form, patch));
+  // FUNCTIONAL. `handlePhotoUpload` is a FileReader → Image decode → canvas →
+  // IndexedDB chain, so its callback fires a fraction of a second after the
+  // picker closes, holding the `form` from the render in which the button was
+  // tapped — and any field edited in that window was reverted when the photo
+  // key was written back.
+  const set = (patch: any) => setForm((prev: any) => Object.assign({}, prev, patch));
 
   return (
     <FormScreen
@@ -193,7 +198,18 @@ export function CuratorPipeFormView() {
         />
         {/* Additional pipe photos (pipes only). Loaded on demand,
             never into the global imgLocal — so a big collection stays light. */}
-        <PipeExtraPhotos photos={form.photos || []} onChange={(next: string[]) => set({ photos: next })} />
+        <PipeExtraPhotos
+          photos={form.photos || []}
+          onChange={(next: string[]) => set({ photos: next })}
+          // Appending goes through an UPDATER, not `[...photos, key]`: the
+          // photo chain is async, so a second photo queued before the first
+          // landed rebuilt the array from a stale snapshot and dropped one.
+          onAppend={(key: string) => setForm((prev: any) => {
+            const cur: string[] = prev.photos || [];
+            if (cur.indexOf(key) >= 0 || cur.length >= PIPE_MAX_EXTRA_PHOTOS) return prev;
+            return Object.assign({}, prev, { photos: cur.concat([key]) });
+          })}
+        />
       </FormSection>
     </FormScreen>
   );
@@ -203,7 +219,7 @@ export function CuratorPipeFormView() {
 // preview state) so its hooks don't sit before the parent's early return.
 // Existing photo keys are resolved from IndexedDB on demand; freshly-added
 // ones cache their data URL immediately for instant preview.
-function PipeExtraPhotos({ photos, onChange }: { photos: string[]; onChange: (next: string[]) => void }) {
+function PipeExtraPhotos({ photos, onChange, onAppend }: { photos: string[]; onChange: (next: string[]) => void; onAppend: (key: string) => void }) {
   const ctx = useAppCtx();
   const { t, handlePhotoUpload, setPhotoErr } = ctx as any;
   const [previews, setPreviews] = useState<Record<string, string>>({});
@@ -240,7 +256,7 @@ function PipeExtraPhotos({ photos, onChange }: { photos: string[]; onChange: (ne
         return;
       }
       setPreviews((p) => Object.assign({}, p, { [key]: du }));
-      onChange([...photos, key]);
+      onAppend(key);
     });
   }
   function remove(key: string) {
