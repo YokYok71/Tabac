@@ -224,6 +224,191 @@ describe("the catalogue, which was the worst of them", () => {
   });
 });
 
+// ── L'AUTRE PORTE : UN GROUPE DÉPLIÉ ────────────────────────────────────────
+//
+// Ce fichier ne mesurait que le branchement PLAT, et la note écrite avec lui
+// affirmait que le groupé était « naturellement borné (une ligne repliée par
+// marque) ». C'était mesuré sur un fixture à NEUF groupes — donc neuf en-têtes.
+// Re-mesuré avec UN groupe déplié, en jsdom :
+//
+//   journal, 5 000 séances dans un mois        86 →  185 093 nœuds
+//   inventaire, 5 000 tabacs sous une marque   92 →  140 093 nœuds
+//   catalogue, 20 000 blends sous une marque  128 →  200 073 nœuds
+//   catalogue, 20 000 MARQUES repliées               140 065 nœuds
+//
+// Soit exactement l'ordre de grandeur qui a motivé tout le rendu progressif, à
+// un tap d'un en-tête qui n'existe que pour être tapé. Un plafond sur le seul
+// branchement plat est une demi-correction, et c'est ce bloc qui l'aurait dit.
+
+const GROUPED: Array<{ what: string; render: (n: number) => HTMLElement }> = [
+  {
+    what: "journal (un mois déplié)",
+    render: (n) => renderWithCtx(<CuratorJournalView />, {
+      view: "journal", sessGrouped: true,
+      // Toutes les séances au même mois : le pire cas, et le seul qui teste le
+      // CONTENU du groupe plutôt que le nombre de groupes.
+      collapsedSessGroups: { "y:2026": false, "m:2026-08": false },
+      data: cellar({ sessions: sessions(n), tobaccos: tobaccos(1), pipes: pipes(1) }),
+    }).container,
+  },
+  {
+    what: "inventaire (une marque dépliée)",
+    render: (n) => {
+      const list = tobaccos(n).map((t) => Object.assign({}, t, { brand: "UneMarque" }));
+      return renderWithCtx(<CuratorInventoryListView />, {
+        view: "inv", tobGrouped: true, statusFilter: "all",
+        collapsedTobGroups: { UneMarque: false },
+        data: cellar({ tobaccos: list }), filtered: list, BT, BW,
+      }).container;
+    },
+  },
+  {
+    what: "wishlist (une marque dépliée)",
+    render: (n) => {
+      const list = tobaccos(n).map((t) => Object.assign({}, t, { brand: "UneMarque" }));
+      return renderWithCtx(<CuratorInventoryListView />, {
+        view: "inv", wishGrouped: true, statusFilter: "wish",
+        collapsedWishGroups: { UneMarque: false },
+        data: cellar({ wishlist: list }), BT, BW,
+      }).container;
+    },
+  },
+  {
+    what: "pipes (une marque dépliée)",
+    render: (n) => {
+      const list = pipes(n).map((p) => Object.assign({}, p, { brand: "UneMarque" }));
+      return renderWithCtx(<CuratorPipesListView />, {
+        view: "pipes", pipesGrouped: true,
+        collapsedPipeGroups: { UneMarque: false },
+        data: cellar({ pipes: list }), filteredPipes: list,
+      }).container;
+    },
+  },
+  {
+    what: "accessoires (un type déplié)",
+    render: (n) => renderWithCtx(<CuratorAccListView />, {
+      view: "acc", accsGrouped: true,
+      collapsedAccGroups: { Briquet: false },
+      data: cellar({ accessories: accessories(n) }),
+    }).container,
+  },
+];
+
+describe("un groupe déplié ne grandit pas non plus avec la collection", () => {
+  for (const v of GROUPED) {
+    it(`${v.what}`, () => {
+      const small = nodes(v.render(SMALL));
+      const large = nodes(v.render(LARGE));
+      expect(small, `${v.what} n'a rendu aucune ligne — le groupe n'est pas déplié`)
+        .toBeGreaterThan(200);
+      expect(large - small,
+        `${v.what} grandit avec la collection : ${small} nœuds à ${SMALL} lignes, `
+        + `${large} à ${LARGE}. Un groupe déplié doit rendre un préfixe borné `
+        + `(useProgressiveGroups) — sinon un seul tap sur l'en-tête gèle le fil `
+        + `principal, exactement comme le faisait la liste plate.`)
+        .toBeLessThanOrEqual(CHROME_SLACK);
+    });
+  }
+});
+
+describe("le catalogue groupé : les EN-TÊTES aussi", () => {
+  beforeEach(() => { resetCatalogueFixture(); _resetTobaccoDbForTests(); });
+
+  // La clé de groupe est le `brand_key` du CSV de l'utilisateur, donc un fichier
+  // à une marque par ligne donne un en-tête par ligne. C'est la seule des cinq
+  // listes où le NOMBRE de groupes n'est pas borné par le monde réel : une cave
+  // contient les marques qu'on possède, un catalogue contient ce que le fichier
+  // dit.
+  function catalogueCsv(rows: number, brands: number): string {
+    const out = ["brand_key,brand_name,blend_name,category,cut,composition,strength,room_note,taste,aging_max,description_fr,description_en"];
+    for (let i = 1; i <= rows; i++) {
+      const b = brands >= rows ? i : (i % brands);
+      out.push([`b${b}`, `Marque ${b}`, `Blend ${i}`, "Virginia", "Flake",
+        "Virginia", "3", "2", "3", "10", "fr " + i, "en " + i].join(","));
+    }
+    return out.join("\n");
+  }
+
+  async function render(rows: number, brands: number): Promise<HTMLElement> {
+    resetCatalogueFixture();
+    _resetTobaccoDbForTests();
+    installCatalogueCsv(catalogueCsv(rows, brands));
+    await loadTobaccoDb();
+    let container!: HTMLElement;
+    await act(async () => {
+      container = renderWithCtx(<CuratorCatalogView />, {
+        view: "catalog", data: cellar({}), BT, BW,
+        addTobacco: vi.fn(), addWish: vi.fn(),
+      }).container;
+    });
+    return container;
+  }
+
+  // LE `<select>` DES MARQUES EST LE SEUL TERME LINÉAIRE QUI RESTE, ET IL RESTE
+  // EXPRÈS. Il rend une `<option>` par marque — mesuré exactement un nœud de
+  // plus par marque — et le plafonner ferait un filtre INCOMPLET, c'est-à-dire
+  // un contrôle qui ment sur ce qu'il permet de choisir : pire qu'un contrôle
+  // lourd. À la borne dure de l'app (MAX_CATALOGUE_ROWS = 20 000) cela vaut
+  // 20 000 nœuds à ~1 nœud pièce, contre les ~140 000 que les en-têtes
+  // coûtaient à ~7 nœuds pièce. On l'exclut donc du compte — pour mesurer ce
+  // que ce cas prétend mesurer, la LISTE — et on l'épingle séparément juste en
+  // dessous, pour que ce soit une quantité connue et bornée plutôt qu'une
+  // surprise.
+  const listNodes = (c: HTMLElement) =>
+    c.getElementsByTagName("*").length - c.querySelectorAll("option").length;
+
+  it("une marque par ligne : les en-têtes sont bornés", async () => {
+    const small = listNodes(await render(SMALL, SMALL));
+    const large = listNodes(await render(LARGE, LARGE));
+    expect(small, "aucun en-tête rendu").toBeGreaterThan(100);
+    expect(large - small,
+      `le catalogue groupé grandit avec le nombre de MARQUES : ${small} nœuds à `
+      + `${SMALL} marques, ${large} à ${LARGE}. MESURÉ non borné à 20 000 marques : `
+      + `140 065 nœuds.`)
+      .toBeLessThanOrEqual(CHROME_SLACK);
+  });
+
+  it("le filtre marque coûte UNE option par marque, et rien de plus", async () => {
+    // Non-vacuité de l'exclusion ci-dessus : si le `<select>` devenait lui aussi
+    // coûteux — un composant par marque plutôt qu'une `<option>` — le cas
+    // précédent continuerait de passer en l'ignorant. Ici on le mesure.
+    const a = await render(SMALL, SMALL);
+    const b = await render(LARGE, LARGE);
+    const optA = a.querySelectorAll("option").length;
+    const optB = b.querySelectorAll("option").length;
+    expect(optB - optA, "le filtre marque ne suit plus le nombre de marques")
+      .toBe(LARGE - SMALL);
+    // Une `<option>` est une FEUILLE : pas d'enfants, donc pas de coût caché.
+    expect(Array.from(b.querySelectorAll("option")).every((o) => o.children.length === 0),
+      "une option porte des enfants — le filtre n'est plus une simple liste")
+      .toBe(true);
+  });
+
+  it("une seule marque, groupe déplié : le CONTENU est borné", async () => {
+    // Le dépliage passe par le clavier : `PressCard` avale le clic programmatique
+    // qui suit un pointeur (la défense contre le clic fantôme), donc un `.click()`
+    // ne déplie rien et le cas passerait en mesurant l'état replié.
+    async function expanded(n: number): Promise<HTMLElement> {
+      const c = await render(n, 1);
+      const header = Array.from(c.querySelectorAll('[role="button"]'))
+        .find((e) => /^\s*Marque/.test(e.textContent || ""));
+      expect(header, "en-tête de groupe introuvable — le cas ne mesure rien").toBeTruthy();
+      await act(async () => {
+        (header as HTMLElement).dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      });
+      return c;
+    }
+    const small = nodes(await expanded(SMALL));
+    const large = nodes(await expanded(LARGE));
+    expect(small, "le groupe ne s'est pas déplié").toBeGreaterThan(200);
+    expect(large - small,
+      `le groupe déplié grandit avec le catalogue : ${small} → ${large} nœuds. `
+      + `MESURÉ non borné : 200 073 nœuds à 20 000 blends.`)
+      .toBeLessThanOrEqual(CHROME_SLACK);
+  });
+});
+
 describe("the guard is not vacuous", () => {
   it("a deliberately unbounded list IS caught", () => {
     // The control for the whole file. If `CHROME_SLACK` were ever widened past

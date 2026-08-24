@@ -2,7 +2,7 @@
 
 import { useMemo, useCallback, useEffect, useState } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
-import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { useProgressiveList, useProgressiveGroups } from "../../hooks/useProgressiveList.ts";
 import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { distinctSortedBrands } from "../../utils.ts";
@@ -160,6 +160,9 @@ export function CuratorAccListView() {
   // per accessory with nothing capping it, which is what « Listes groupées par
   // défaut » OFF gives on every visit. Hook above the early return.
   const flat = useProgressiveList(visible);
+  // ET LE GROUPÉ : un TYPE déplié rend tous ses accessoires — même porte que le
+  // branchement plat, voir `useProgressiveGroups`.
+  const groupRows = useProgressiveGroups();
 
   if (view !== "acc" || accDet) return null;
 
@@ -396,11 +399,15 @@ export function CuratorAccListView() {
                       <Ico name="chevron" size={14} sw={1.7} />
                     </span>
                   </PressCard>
-                  {!collapsed && items.map((a, i) => (
+                  {!collapsed && items.slice(0, groupRows.shownFor(type)).map((a, i) => (
                     <AccessoryCard key={a.id} a={a} icon={TYPE_ICONS[type] || "more"}
                       delay={250 + si * 100 + i * 50} idx={i}
                       onOpen={() => setAccDet && setAccDet(a)} />
                   ))}
+                  {!collapsed && (
+                    <ProgressiveMore hidden={items.length - groupRows.shownFor(type)}
+                      onMore={() => groupRows.revealMoreIn(type)} t={t} accent={C.ember} />
+                  )}
                 </div>
               );
             })

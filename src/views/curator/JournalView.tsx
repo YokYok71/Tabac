@@ -1,7 +1,7 @@
 // Curator JournalView — full feature parity (sort, group, expand).
 
 import { useEffect, useMemo, useState } from "react";
-import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { useProgressiveList, useProgressiveGroups } from "../../hooks/useProgressiveList.ts";
 import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 import { useAppCtx } from "../../AppContext.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
@@ -329,6 +329,12 @@ export function CuratorJournalView() {
   // only), so it is left alone. Hook above the early return, per the hook-order
   // rule.
   const flat = useProgressiveList(sessions);
+  // ET LE GROUPÉ. Le plafond du branchement PLAT ne couvrait qu'une porte : un
+  // MOIS déplié rend toutes ses séances. MESURÉ en jsdom avec 5 000 séances dans
+  // un seul mois — 86 nœuds replié, **185 093 dépliés**, soit exactement l'ordre
+  // de grandeur qui a motivé tout le rendu progressif, à un tap d'un en-tête
+  // qui n'existe que pour être tapé.
+  const groupRows = useProgressiveGroups();
 
   if (view !== "journal") return null;
 
@@ -723,7 +729,7 @@ export function CuratorJournalView() {
                             <Ico name="chevron" size={14} sw={1.7} />
                           </span>
                         </PressCard>
-                        {!collapsed && g.items.map((s, i) => {
+                        {!collapsed && g.items.slice(0, groupRows.shownFor(g.monthKey)).map((s, i) => {
                           const tob = tobOf(s.tobaccoId);
                           const pp = pipeOf(s.pipeId);
                           return (
@@ -734,6 +740,10 @@ export function CuratorJournalView() {
                               onOpen={() => setDetailSession(s)} />
                           );
                         })}
+                        {!collapsed && (
+                          <ProgressiveMore hidden={g.items.length - groupRows.shownFor(g.monthKey)}
+                            onMore={() => groupRows.revealMoreIn(g.monthKey)} t={t} accent={C.sageHi} />
+                        )}
                       </div>
                     );
                   })}

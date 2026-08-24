@@ -126,3 +126,75 @@ export function useProgressiveList<T>(
 
   return { visible: visible, hidden: hidden, revealMore: revealMore, sentinelRef: sentinelRef };
 }
+
+// ── THE OTHER DOOR: A GROUP THAT IS EXPANDED ────────────────────────────────
+//
+// `useProgressiveList` bounded the FLAT branch of every long list, and the note
+// written with it said the grouped branch was "naturally bounded (one collapsed
+// row per brand)". MEASURED, that was wrong — it had been measured on a fixture
+// with NINE groups, so it measured nine headers and nothing else. With one
+// group EXPANDED, in jsdom:
+//
+//   screen                       collapsed        one group expanded
+//   journal (one month)                 86               185 093 nodes
+//   inventory (one brand)               92               140 093 nodes
+//   catalogue (one brand)              128               200 073 nodes
+//   catalogue, 20 000 BRANDS       140 065                          —
+//
+// Which is the same order as the flat states the whole progressive-rendering
+// pass was written for, one tap away, on lists whose group headers invite
+// exactly that tap. A cap on the flat branch alone is half a fix.
+//
+// WHY THIS IS A SECOND HOOK RATHER THAN THE FIRST ONE REUSED. `useProgressiveList`
+// keeps ONE count, and a view has as many expanded groups as the reader opens —
+// so it would need one hook per group, called from inside a `.map()`, which the
+// rules of hooks forbid outright. This keeps one `Record<key, number>` for the
+// whole view instead, the same shape the `collapsed` maps already have.
+//
+// THE MAP IS NULL-PROTOTYPE, and here that is correctness rather than house
+// style: the key is a BRAND from the user's own CSV (or a month key), so a row
+// keyed `__proto__` resolves to a member of `Object.prototype` on a plain
+// object — truthy, not a number — and the count comparison then reads as
+// nonsense. `CatalogView`'s `collapsed` is null-prototype for this exact
+// reason, and `Object.assign({}, prev)` in the updater would hand the prototype
+// straight back, so the copy is null-prototype too.
+//
+// **RESIDUAL, DISCLOSED: no IntersectionObserver inside a group.** The flat
+// hook's sentinel makes browsing continuous; giving each group its own would
+// mean a callback ref per key feeding a shared observer, i.e. real machinery
+// for the accelerator rather than the guarantee. The BUTTON is the way through,
+// and it is the same trade the Home's maintenance section already makes. What
+// must never be true is a cap that hides its own existence — `ProgressiveMore`
+// prints the remaining count either way.
+export interface ProgressiveGroups {
+  /** How many rows of this group may render. */
+  shownFor: (key: string) => number;
+  /** Reveal one more step inside this group. */
+  revealMoreIn: (key: string) => void;
+}
+
+export function useProgressiveGroups(step?: number): ProgressiveGroups {
+  var n = Number(step);
+  var size = Number.isFinite(n) && n >= 1 ? Math.floor(n) : PROGRESSIVE_STEP;
+
+  const [shown, setShown] = React.useState<Record<string, number>>(
+    function () { return Object.create(null) as Record<string, number>; },
+  );
+
+  var shownFor = React.useCallback(function (key: string) {
+    var v = shown[String(key)];
+    return typeof v === "number" && v > 0 ? v : size;
+  }, [shown, size]);
+
+  var revealMoreIn = React.useCallback(function (key: string) {
+    setShown(function (prev) {
+      var next = Object.assign(Object.create(null), prev) as Record<string, number>;
+      var k = String(key);
+      var cur = typeof next[k] === "number" && next[k]! > 0 ? next[k]! : size;
+      next[k] = cur + size;
+      return next;
+    });
+  }, [size]);
+
+  return { shownFor: shownFor, revealMoreIn: revealMoreIn };
+}

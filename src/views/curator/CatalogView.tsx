@@ -33,7 +33,7 @@ import { ModalAction } from "../../components/curator/ModalAction.tsx";
 import { useFocusRing } from "../../components/curator/FormFields.tsx";
 import { Ico } from "../../components/curator/icons.tsx";
 import { CuratorCompareModal } from "./CompareModal.tsx";
-import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { useProgressiveList, useProgressiveGroups } from "../../hooks/useProgressiveList.ts";
 import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 
 // THE FILTER IS DEBOUNCED; THE FIELD IS NOT.
@@ -265,11 +265,25 @@ export function CuratorCatalogView() {
   // The FLAT branch renders one row per blend, and a user catalogue may hold up
   // to MAX_CATALOGUE_ROWS. MEASURED at 20 000 rows: 200 613 DOM nodes, 93 MB of
   // heap, a page 1 220 601 px tall and 13.2 SECONDS of frozen main thread — one
-  // tap on the grouping toggle above. The grouped branch is naturally bounded
-  // (one collapsed row per brand, 2 935 nodes on the same catalogue) and is left
-  // alone; a single brand's expanded blends are bounded by how many that maker
-  // sells. Hook called ABOVE the early return, per the hook-order rule.
+  // tap on the grouping toggle above.
+  //
+  // THE GROUPED BRANCH IS NOT "NATURALLY BOUNDED", AND THE SENTENCE THAT USED TO
+  // STAND HERE SAYING SO WAS MEASURED ON A NINE-BRAND FIXTURE — so it measured
+  // nine headers and called the branch safe. Re-measured on both shapes this
+  // page can actually take:
+  //
+  //   20 000 blends over 20 000 BRANDS, everything collapsed   140 065 nodes
+  //   20 000 blends under ONE brand, that group expanded       200 073 nodes
+  //   20 000 blends over 9 brands (the old fixture)                128 nodes
+  //
+  // Neither is exotic. The brand key comes from the user's own CSV, so a file
+  // keyed one brand per row gives one header per row; and a group expands on a
+  // single tap of a header that exists to be tapped. Both branches are capped
+  // now — `groups` over the HEADERS, `groupRows` over each expanded group's
+  // content. Hooks called ABOVE the early return, per the hook-order rule.
   const flat = useProgressiveList(filteredKeys);
+  const groups = useProgressiveList(groupedView);
+  const groupRows = useProgressiveGroups();
 
   if (view !== "catalog") return null;
   if (!db) {
@@ -600,9 +614,12 @@ export function CuratorCatalogView() {
             </div>
           )}
           {grouped
-            ? groupedView.map(({ brandKey, blendKeys }) => {
+            ? <>
+              {groups.visible.map(({ brandKey, blendKeys }) => {
                 const isCollapsed = collapsed[brandKey] !== false; // default collapsed
                 const brandDisplay = (db.brands[brandKey] && db.brands[brandKey]!.displayName) || brandKey;
+                const shown = groupRows.shownFor(brandKey);
+                const overflow = blendKeys.length - shown;
                 return (
                   <div key={brandKey} style={{ marginBottom: 10 }}>
                     <PressCard
@@ -619,14 +636,19 @@ export function CuratorCatalogView() {
                     </PressCard>
                     {!isCollapsed && (
                       <div style={{ marginTop: 6 }}>
-                        {blendKeys.map((k) => (
+                        {blendKeys.slice(0, shown).map((k) => (
                           <BlendRow key={k} entry={db.blends[k]!} owned={ownedKeys.has(k)} wished={wishedKeys.has(k)} onClick={() => openDetail(k)} t={t} xl={xl} />
                         ))}
+                        <ProgressiveMore hidden={overflow} onMore={() => groupRows.revealMoreIn(brandKey)}
+                          t={t} accent={C.brassHi} />
                       </div>
                     )}
                   </div>
                 );
-              })
+              })}
+              <ProgressiveMore hidden={groups.hidden} onMore={groups.revealMore}
+                sentinelRef={groups.sentinelRef} t={t} accent={C.brassHi} />
+            </>
             : (
               <>
                 {flat.visible.map((k) => (

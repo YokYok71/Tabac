@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
-import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { useProgressiveList, useProgressiveGroups } from "../../hooks/useProgressiveList.ts";
 import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { allTags } from "../../utils/tags.ts";
@@ -697,6 +697,9 @@ function GroupedPipeList({
     });
     return Object.keys(g).sort((a, b) => String(a).localeCompare(String(b))).map(k => ({ name: k, items: g[k] || [] }));
   }, [pipes, noBrandLbl]);
+  // Une marque dépliée rend toutes ses pipes — voir `useProgressiveGroups`.
+  const groupRows = useProgressiveGroups();
+
   return (
     <>
       {groups.map(({ name, items }) => {
@@ -726,10 +729,12 @@ function GroupedPipeList({
             </PressCard>
             {!collapsed && (
               <div style={{ marginBottom: 10 }}>
-                {items.map((p, i) => (
+                {items.slice(0, groupRows.shownFor(name)).map((p, i) => (
                   <PipeCard key={p.id} p={p} idx={i} restDays={restMap[String(p.id)]} maintDue={maintDueSet.has(String(p.id))}
                     onOpen={() => onOpen(p)} />
                 ))}
+                <ProgressiveMore hidden={items.length - groupRows.shownFor(name)}
+                  onMore={() => groupRows.revealMoreIn(name)} t={t} accent={C.oxbloodHi} />
               </div>
             )}
           </div>

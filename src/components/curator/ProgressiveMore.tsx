@@ -28,9 +28,15 @@ export function ProgressiveMore({
 }: {
   hidden: number;
   onMore: () => void;
-  sentinelRef: React.RefObject<HTMLDivElement | null>;
-  t?: (k: string) => string;
-  accent?: string;
+  /** Optional: an EXPANDED GROUP has no observer (see `useProgressiveGroups`),
+   *  so it renders the button alone. The count is printed either way, which is
+   *  the half that must never be dropped. */
+  sentinelRef?: React.RefObject<HTMLDivElement | null> | undefined;
+  // `| undefined` explicitly: `exactOptionalPropertyTypes` is on, and the views
+  // read `t` off a context typed as possibly-absent, so a caller forwarding it
+  // straight through is the ordinary shape here.
+  t?: ((k: string) => string) | undefined;
+  accent?: string | undefined;
 }) {
   if (!hidden || hidden <= 0) return null;
   const col = accent || C.brassHi;

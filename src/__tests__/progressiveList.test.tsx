@@ -23,7 +23,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { renderHook, act, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
-import { useProgressiveList, PROGRESSIVE_STEP } from "../hooks/useProgressiveList.ts";
+import { useProgressiveList, useProgressiveGroups, PROGRESSIVE_STEP } from "../hooks/useProgressiveList.ts";
 import { ProgressiveMore } from "../components/curator/ProgressiveMore.tsx";
 import { LANGUAGES } from "../i18n/languages.ts";
 import { translate } from "../i18n.ts";
@@ -116,6 +116,79 @@ describe("useProgressiveList — the window is bounded and it grows", () => {
       .toHaveLength(PROGRESSIVE_STEP);
     expect(renderHook(() => useProgressiveList(rows(100), -5 as any)).result.current.visible)
       .toHaveLength(PROGRESSIVE_STEP);
+  });
+});
+
+describe("useProgressiveGroups — un groupe déplié est borné lui aussi", () => {
+  it("rend un pas par défaut, et compte par CLÉ", () => {
+    const { result } = renderHook(() => useProgressiveGroups(10));
+    expect(result.current.shownFor("aout")).toBe(10);
+    expect(result.current.shownFor("septembre")).toBe(10);
+    act(() => { result.current.revealMoreIn("aout"); });
+    expect(result.current.shownFor("aout")).toBe(20);
+    // Le point de tout l'exercice : déplier un groupe ne déplie pas les autres.
+    expect(result.current.shownFor("septembre"), "révéler dans un groupe a bougé un autre").toBe(10);
+  });
+
+  it("cumule les révélations successives dans le même groupe", () => {
+    const { result } = renderHook(() => useProgressiveGroups(10));
+    act(() => { result.current.revealMoreIn("a"); });
+    act(() => { result.current.revealMoreIn("a"); });
+    expect(result.current.shownFor("a")).toBe(30);
+  });
+
+  it("un pas invalide retombe sur la valeur par défaut", () => {
+    expect(renderHook(() => useProgressiveGroups(0)).result.current.shownFor("x")).toBe(PROGRESSIVE_STEP);
+    expect(renderHook(() => useProgressiveGroups(-3 as any)).result.current.shownFor("x")).toBe(PROGRESSIVE_STEP);
+    expect(renderHook(() => useProgressiveGroups()).result.current.shownFor("x")).toBe(PROGRESSIVE_STEP);
+  });
+
+  it("survit à une clé qui est un membre de Object.prototype", () => {
+    // La clé est une MARQUE issue du CSV de l'utilisateur (ou un mois). Sur un
+    // objet ordinaire, `shown["__proto__"]` rend `Object.prototype` — un objet,
+    // donc pas un nombre — et `revealMoreIn` écrirait à travers le SETTER
+    // `__proto__`, qui ignore une valeur non-objet : le groupe ne se déplierait
+    // JAMAIS, quel que soit le nombre de taps. C'est le défaut déjà rencontré
+    // sur la carte `collapsed` de CatalogView, à l'identique.
+    const { result } = renderHook(() => useProgressiveGroups(10));
+    for (const k of ["__proto__", "constructor", "toString", "hasOwnProperty"]) {
+      expect(result.current.shownFor(k), k + " ne rend pas un nombre").toBe(10);
+    }
+    act(() => { result.current.revealMoreIn("__proto__"); });
+    expect(result.current.shownFor("__proto__"), "le groupe ne se déplie jamais").toBe(20);
+    // …et il n'a pas empoisonné les autres au passage.
+    expect(result.current.shownFor("marque-ordinaire")).toBe(10);
+    expect(({} as any).__proto__ === Object.prototype).toBe(true);
+  });
+});
+
+describe("les branches GROUPÉES sont câblées dessus", () => {
+  // Par FICHIER, comme le bloc plat au-dessus, et pour la même raison : ce qui
+  // pourrit est une liste qui cesse de passer par le plafond. Les cinq listes
+  // groupées partagent le défaut — mesuré, un seul groupe déplié rend 140 000 à
+  // 200 000 nœuds — donc les cinq doivent être câblées.
+  const VIEWS: Array<[string, string]> = [
+    ["src/views/curator/CatalogView.tsx", "catalogue"],
+    ["src/views/curator/JournalView.tsx", "journal"],
+    ["src/views/curator/InventoryListView.tsx", "inventaire + wishlist"],
+    ["src/views/curator/PipesListView.tsx", "pipes"],
+    ["src/views/curator/AccListView.tsx", "accessoires"],
+  ];
+  for (const [file, what] of VIEWS) {
+    it(`${what} borne le contenu d'un groupe déplié`, () => {
+      const src = blankComments(readFileSync(file, "utf8"));
+      expect(src, `${file} n'appelle pas useProgressiveGroups`).toMatch(/useProgressiveGroups\(/);
+      expect(src, `${file} borne sans le dire`).toMatch(/shownFor\(/);
+      expect(src, `${file} plafonne sans donner d'issue`).toMatch(/revealMoreIn\(/);
+    });
+  }
+
+  it("le catalogue borne AUSSI ses en-têtes", () => {
+    // La seule des cinq où le NOMBRE de groupes n'est pas borné par le monde
+    // réel : la clé de groupe est le `brand_key` du fichier de l'utilisateur.
+    const src = blankComments(readFileSync("src/views/curator/CatalogView.tsx", "utf8"));
+    expect(src, "les en-têtes ne passent pas par un préfixe borné")
+      .toMatch(/useProgressiveList\(groupedView\)/);
   });
 });
 
@@ -227,17 +300,44 @@ describe("the flat branches are wired to it", () => {
     });
   }
 
-  it("every ProgressiveMore is handed a sentinel and a reveal", () => {
-    // A footer rendered without its sentinel is a button nobody scrolls to; one
-    // without `onMore` is a cap with no way through.
+  it("every ProgressiveMore is handed a reveal, and every FLAT one a sentinel", () => {
+    // AFFAIBLI SUR UNE MOITIÉ, ET LA MOITIÉ COMPTE. La règle d'origine — toute
+    // ProgressiveMore porte une sentinelle — a été écrite quand tous les pieds
+    // de page appartenaient à une liste PLATE. Il en existe deux sortes
+    // maintenant : le pied plat (sentinelle + bouton) et le pied de GROUPE, qui
+    // n'a délibérément pas d'observateur — lui en donner un voudrait dire une
+    // ref de rappel par clé alimentant un observateur partagé, soit de la
+    // machinerie pour l'accélérateur et non pour la garantie (voir
+    // `useProgressiveGroups`).
+    //
+    // Ce qui reste UNIVERSEL, et ce que ce cas protège vraiment : un plafond
+    // sans issue est un cul-de-sac. `onMore` est donc exigé partout.
+    //
+    // On distingue les deux par le SENS, pas par le fichier : un pied de groupe
+    // est celui dont `onMore` appelle `revealMoreIn`.
     for (const [file] of VIEWS) {
       const src = blankComments(readFileSync(file, "utf8"));
       const uses = src.match(/<ProgressiveMore[\s\S]*?\/>/g) || [];
       expect(uses.length, `${file} renders no ProgressiveMore`).toBeGreaterThan(0);
       for (const u of uses) {
-        expect(u, `${file}: a footer with no sentinel`).toMatch(/sentinelRef=/);
         expect(u, `${file}: a footer with no way through`).toMatch(/onMore=/);
+        if (/revealMoreIn\(/.test(u)) continue; // pied de GROUPE : bouton seul
+        expect(u, `${file}: a FLAT footer with no sentinel`).toMatch(/sentinelRef=/);
       }
     }
+  });
+
+  it("les deux formes existent réellement — la distinction n'est pas une échappatoire", () => {
+    // Non-vacuité : si plus aucun pied ne portait de sentinelle, ou si aucun
+    // n'était un pied de groupe, le cas ci-dessus passerait en n'exigeant rien.
+    let flat = 0, group = 0;
+    for (const [file] of VIEWS) {
+      const src = blankComments(readFileSync(file, "utf8"));
+      for (const u of src.match(/<ProgressiveMore[\s\S]*?\/>/g) || []) {
+        if (/revealMoreIn\(/.test(u)) group++; else flat++;
+      }
+    }
+    expect(flat, "plus aucun pied plat : la sentinelle n'est exigée nulle part").toBeGreaterThan(0);
+    expect(group, "plus aucun pied de groupe : l'exemption ne sert à rien").toBeGreaterThan(0);
   });
 });

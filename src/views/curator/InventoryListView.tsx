@@ -5,7 +5,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import React from "react";
 import { useAppCtx } from "../../AppContext.tsx";
-import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { useProgressiveList, useProgressiveGroups } from "../../hooks/useProgressiveList.ts";
 import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { alpha, fs, C, F, CARD_ACCENTS, CARD_BG, CARD_SHADOW } from "../../theme-curator.ts";
@@ -324,6 +324,11 @@ export function CuratorInventoryListView() {
   // never reaches the cap.
   const flatTob = useProgressiveList(visible);
   const flatWish = useProgressiveList(wishShown);
+  // ET LES GROUPES. Le plafond du branchement PLAT ne couvrait qu'une porte : une
+  // MARQUE dépliée rend tous ses tabacs. MESURÉ en jsdom, 5 000 tabacs sous une
+  // seule marque — 92 nœuds replié, **140 093 dépliés**. Un tap sur un en-tête
+  // qui n'existe que pour être tapé.
+  const wishGroupRows = useProgressiveGroups();
 
   if (view !== "inv" || detail) return null;
   if (showWishForm || editWishId) return null;
@@ -907,7 +912,7 @@ export function CuratorInventoryListView() {
                             <Ico name="chevron" size={14} sw={1.7} />
                           </span>
                         </PressCard>
-                        {!collapsed && items.map((w, i) => (
+                        {!collapsed && items.slice(0, wishGroupRows.shownFor(name)).map((w, i) => (
                           <WishCard key={w.id} w={w} idx={i}
                             focused={String(w.id) === String(focusedWishId)}
                             onAcquire={() => wishToInv && wishToInv(w)}
@@ -922,6 +927,10 @@ export function CuratorInventoryListView() {
                             }}
                             onDelete={() => { delWish && delWish(w.id); }} />
                         ))}
+                        {!collapsed && (
+                          <ProgressiveMore hidden={items.length - wishGroupRows.shownFor(name)}
+                            onMore={() => wishGroupRows.revealMoreIn(name)} t={t} accent={C.oxbloodHi} />
+                        )}
                       </div>
                     );
                   });
@@ -1355,6 +1364,9 @@ function GroupedTobaccoList({
     return keys.map(k => ({ name: k, items: g[k] || [] }));
   }, [tobaccos, noBrandLbl, sortBy]);
 
+  // Une marque dépliée rend tous ses tabacs — voir `useProgressiveGroups`.
+  const groupRows = useProgressiveGroups();
+
   return (
     <>
       {groups.map(({ name, items }) => {
@@ -1384,10 +1396,12 @@ function GroupedTobaccoList({
             </PressCard>
             {!collapsed && (
               <div style={{ marginBottom: 10 }}>
-                {items.map((tob, i) => (
+                {items.slice(0, groupRows.shownFor(name)).map((tob, i) => (
                   <TobaccoCard key={tob.id} t={tob} idx={i} expanded={expandCards}
                     onOpen={() => onOpen(tob)} />
                 ))}
+                <ProgressiveMore hidden={items.length - groupRows.shownFor(name)}
+                  onMore={() => groupRows.revealMoreIn(name)} t={t} accent={C.brassHi} />
               </div>
             )}
           </div>
