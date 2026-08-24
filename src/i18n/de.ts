@@ -515,6 +515,7 @@ export var DE = {
   journal_no_match:"Keine Sitzung passt zu den aktuellen Filtern",
   journal_no_sessions:"Noch keine Sitzungen",
   btn_reset_filters:"Filter zurücksetzen",
+  list_more:"Mehr anzeigen ({n})",
   list_no_match:"Keine Treffer für diese Filter",
   btn_add_tobacco:"Tabak hinzufügen",
   btn_add_accessory:"Zubehör hinzufügen",

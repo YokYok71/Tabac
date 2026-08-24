@@ -515,6 +515,7 @@ export var EN = {
   journal_no_match:"No session matches the current filters",
   journal_no_sessions:"No sessions yet",
   btn_reset_filters:"Reset filters",
+  list_more:"Show more ({n})",
   list_no_match:"No results for these filters",
   btn_add_tobacco:"Add a tobacco",
   btn_add_accessory:"Add an accessory",

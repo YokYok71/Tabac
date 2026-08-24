@@ -2,6 +2,8 @@
 
 import { useMemo, useCallback, useEffect, useState } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
+import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { distinctSortedBrands } from "../../utils.ts";
 import { alpha, fs, C, F, CARD_ACCENTS, CARD_BG, CARD_SHADOW } from "../../theme-curator.ts";
@@ -153,6 +155,11 @@ export function CuratorAccListView() {
     });
     return out;
   }, [visible]);
+
+  // Same rule as the tobacco and pipe lists: the FLAT branch renders one card
+  // per accessory with nothing capping it, which is what « Listes groupées par
+  // défaut » OFF gives on every visit. Hook above the early return.
+  const flat = useProgressiveList(visible);
 
   if (view !== "acc" || accDet) return null;
 
@@ -398,14 +405,18 @@ export function CuratorAccListView() {
               );
             })
           ) : (
-            visible.map((a, i) => {
-              const tp = a.type || "Autre";
-              return (
-                <AccessoryCard key={a.id} a={a} icon={TYPE_ICONS[tp] || "more"}
-                  delay={100 + i * 50} idx={i}
-                  onOpen={() => setAccDet && setAccDet(a)} />
-              );
-            })
+            <>
+              {flat.visible.map((a, i) => {
+                const tp = a.type || "Autre";
+                return (
+                  <AccessoryCard key={a.id} a={a} icon={TYPE_ICONS[tp] || "more"}
+                    delay={100 + i * 50} idx={i}
+                    onOpen={() => setAccDet && setAccDet(a)} />
+                );
+              })}
+              <ProgressiveMore hidden={flat.hidden} onMore={flat.revealMore}
+                sentinelRef={flat.sentinelRef} t={t} accent={C.ember} />
+            </>
           )}
         </div>
       </div>

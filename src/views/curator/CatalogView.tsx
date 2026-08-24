@@ -33,6 +33,8 @@ import { ModalAction } from "../../components/curator/ModalAction.tsx";
 import { useFocusRing } from "../../components/curator/FormFields.tsx";
 import { Ico } from "../../components/curator/icons.tsx";
 import { CuratorCompareModal } from "./CompareModal.tsx";
+import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 
 // THE FILTER IS DEBOUNCED; THE FIELD IS NOT.
 //
@@ -259,6 +261,15 @@ export function CuratorCatalogView() {
     const order = Object.keys(groups).sort();
     return order.map((bk) => ({ brandKey: bk, blendKeys: groups[bk]! }));
   }, [filteredKeys]);
+
+  // The FLAT branch renders one row per blend, and a user catalogue may hold up
+  // to MAX_CATALOGUE_ROWS. MEASURED at 20 000 rows: 200 613 DOM nodes, 93 MB of
+  // heap, a page 1 220 601 px tall and 13.2 SECONDS of frozen main thread — one
+  // tap on the grouping toggle above. The grouped branch is naturally bounded
+  // (one collapsed row per brand, 2 935 nodes on the same catalogue) and is left
+  // alone; a single brand's expanded blends are bounded by how many that maker
+  // sells. Hook called ABOVE the early return, per the hook-order rule.
+  const flat = useProgressiveList(filteredKeys);
 
   if (view !== "catalog") return null;
   if (!db) {
@@ -616,9 +627,15 @@ export function CuratorCatalogView() {
                   </div>
                 );
               })
-            : filteredKeys.map((k) => (
-                <BlendRow key={k} entry={db.blends[k]!} owned={ownedKeys.has(k)} wished={wishedKeys.has(k)} onClick={() => openDetail(k)} t={t} xl={xl} />
-              ))
+            : (
+              <>
+                {flat.visible.map((k) => (
+                  <BlendRow key={k} entry={db.blends[k]!} owned={ownedKeys.has(k)} wished={wishedKeys.has(k)} onClick={() => openDetail(k)} t={t} xl={xl} />
+                ))}
+                <ProgressiveMore hidden={flat.hidden} onMore={flat.revealMore}
+                  sentinelRef={flat.sentinelRef} t={t} accent={C.brassHi} />
+              </>
+            )
           }
         </div>
 

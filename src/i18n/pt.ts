@@ -522,6 +522,7 @@ export var PT = {
   journal_no_match:"Nenhuma sessão corresponde aos filtros",
   journal_no_sessions:"Nenhuma sessão",
   btn_reset_filters:"Reiniciar os filtros",
+  list_more:"Mostrar mais ({n})",
   list_no_match:"Nenhum resultado para estes filtros",
   btn_add_tobacco:"Adicionar um tabaco",
   btn_add_accessory:"Adicionar um acessório",

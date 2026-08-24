@@ -5,6 +5,8 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import React from "react";
 import { useAppCtx } from "../../AppContext.tsx";
+import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { alpha, fs, C, F, CARD_ACCENTS, CARD_BG, CARD_SHADOW } from "../../theme-curator.ts";
 import { fmtNum, plural, fmtLotAge, daysSince, effectiveAgingMax, countActive } from "../../utils.ts";
@@ -312,6 +314,16 @@ export function CuratorInventoryListView() {
       setCutFilter && setCutFilter("");
     }
   }, [filterDropdownOptions, catFilter, cutFilter, setCatFilter, setCutFilter]);
+
+  // The two FLAT branches render one card per row, unbounded. MEASURED at
+  // 390x844 on a 300-tobacco cellar with « Listes groupées par défaut » OFF:
+  // 21 757 DOM nodes, 35 MB of heap, a page 70 298 px tall, 2.5 s to render —
+  // against 437 nodes for the same cellar grouped. That preference is in
+  // Réglages, so a user who prefers flat lists pays it on EVERY visit. Hooks
+  // above the early returns, per the hook-order rule; a cellar of ordinary size
+  // never reaches the cap.
+  const flatTob = useProgressiveList(visible);
+  const flatWish = useProgressiveList(wishShown);
 
   if (view !== "inv" || detail) return null;
   if (showWishForm || editWishId) return null;
@@ -914,7 +926,7 @@ export function CuratorInventoryListView() {
                     );
                   });
                 })()
-              : wishShown.map((w, i) => (
+              : flatWish.visible.map((w, i) => (
                   <WishCard key={w.id} w={w} idx={i}
                     focused={String(w.id) === String(focusedWishId)}
                     onAcquire={() => wishToInv && wishToInv(w)}
@@ -929,7 +941,12 @@ export function CuratorInventoryListView() {
                     }}
                     onDelete={() => { delWish && delWish(w.id); }} />
                 ))
-          ) : tobGrouped ? (
+          ) : null}
+          {wishVisible && !wishGrouped && (
+            <ProgressiveMore hidden={flatWish.hidden} onMore={flatWish.revealMore}
+              sentinelRef={flatWish.sentinelRef} t={t} accent={C.oxbloodHi} />
+          )}
+          {!wishVisible && (tobGrouped ? (
             <GroupedTobaccoList
               tobaccos={visible}
               t={t}
@@ -940,12 +957,16 @@ export function CuratorInventoryListView() {
               onOpen={(tob) => setDetail && setDetail(tob)}
             />
           ) : (
-            visible.map((tob, i) => (
-              <TobaccoCard key={tob.id} t={tob} idx={i}
-                expanded={!!expandCards}
-                onOpen={() => setDetail && setDetail(tob)} />
-            ))
-          )}
+            <>
+              {flatTob.visible.map((tob, i) => (
+                <TobaccoCard key={tob.id} t={tob} idx={i}
+                  expanded={!!expandCards}
+                  onOpen={() => setDetail && setDetail(tob)} />
+              ))}
+              <ProgressiveMore hidden={flatTob.hidden} onMore={flatTob.revealMore}
+                sentinelRef={flatTob.sentinelRef} t={t} accent={C.amber} />
+            </>
+          ))}
         </div>
       </div>
 

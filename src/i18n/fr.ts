@@ -515,6 +515,7 @@ export var FR = {
   journal_no_match:"Aucune séance ne correspond aux filtres",
   journal_no_sessions:"Aucune séance",
   btn_reset_filters:"Réinitialiser les filtres",
+  list_more:"Afficher la suite ({n})",
   list_no_match:"Aucun résultat pour ces filtres",
   btn_add_tobacco:"Ajouter un tabac",
   btn_add_accessory:"Ajouter un accessoire",

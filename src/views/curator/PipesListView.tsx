@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
+import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { allTags } from "../../utils/tags.ts";
 import { alpha, fs, C, F, CARD_ACCENTS, CARD_BG, CARD_SHADOW } from "../../theme-curator.ts";
@@ -175,8 +177,20 @@ export function CuratorPipesListView() {
     if (view !== "pipes") setPFamilyFilter("");
   }, [view]);
 
-  if (view !== "pipes" || pipeDet) return null;
+  // HOISTED ABOVE THE EARLY RETURN so `useProgressiveList` can see the list it
+  // has to bound — a hook below `return null` would break hook order. Both are
+  // cheap (a coalesce and one `.filter`), and the whole point is that the FLAT
+  // branch below renders one card per pipe with nothing capping it: that is
+  // what « Listes groupées par défaut » OFF gives on every visit.
   const pipesBase = (filteredPipes || data?.pipes || []) as Pipe[];
+  const pipes = pFamilyFilter
+    ? pipesBase.filter((p) => pFamilyFilter === "__virgin__"
+        ? !pipeFamily[String(p.id)]
+        : pipeFamily[String(p.id)] === pFamilyFilter)
+    : pipesBase;
+  const flat = useProgressiveList(pipes);
+
+  if (view !== "pipes" || pipeDet) return null;
   // Is anything actually narrowing the list? `showFinishedPipes` is
   // EXCLUDED — it widens the list rather than narrowing it, so a reset that
   // turned it off would remove rows the user just asked to see.
@@ -206,12 +220,6 @@ export function CuratorPipesListView() {
     setPTagFilter && setPTagFilter("");
     setPFamilyFilter("");
   };
-
-  const pipes = pFamilyFilter
-    ? pipesBase.filter((p) => pFamilyFilter === "__virgin__"
-        ? !pipeFamily[String(p.id)]
-        : pipeFamily[String(p.id)] === pFamilyFilter)
-    : pipesBase;
 
   return (
     <div style={{
@@ -507,10 +515,14 @@ export function CuratorPipesListView() {
               maintDueSet={maintDueSet}
               onOpen={(p) => setPipeDet && setPipeDet(p)} />
           ) : (
-            pipes.map((p, i) => (
-              <PipeCard key={p.id} p={p} idx={i} restDays={restMap[String(p.id)]} maintDue={maintDueSet.has(String(p.id))}
-                onOpen={() => setPipeDet && setPipeDet(p)} />
-            ))
+            <>
+              {flat.visible.map((p, i) => (
+                <PipeCard key={p.id} p={p} idx={i} restDays={restMap[String(p.id)]} maintDue={maintDueSet.has(String(p.id))}
+                  onOpen={() => setPipeDet && setPipeDet(p)} />
+              ))}
+              <ProgressiveMore hidden={flat.hidden} onMore={flat.revealMore}
+                sentinelRef={flat.sentinelRef} t={t} accent={C.oxbloodHi} />
+            </>
           )}
         </div>
       </div>

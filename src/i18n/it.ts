@@ -515,6 +515,7 @@ export var IT = {
   journal_no_match:"Nessuna sessione corrisponde ai filtri attuali",
   journal_no_sessions:"Ancora nessuna sessione",
   btn_reset_filters:"Azzera filtri",
+  list_more:"Mostra altri ({n})",
   list_no_match:"Nessun risultato per questi filtri",
   btn_add_tobacco:"Aggiungi un tabacco",
   btn_add_accessory:"Aggiungi un accessorio",

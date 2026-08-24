@@ -1,6 +1,8 @@
 // Curator JournalView — full feature parity (sort, group, expand).
 
 import { useEffect, useMemo, useState } from "react";
+import { useProgressiveList } from "../../hooks/useProgressiveList.ts";
+import { ProgressiveMore } from "../../components/curator/ProgressiveMore.tsx";
 import { useAppCtx } from "../../AppContext.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { alpha, fs, C, F, catColor, CARD_BG, CARD_ACCENTS, CARD_SHADOW } from "../../theme-curator.ts";
@@ -318,6 +320,15 @@ export function CuratorJournalView() {
     // signal — it changes exactly when the translated label would.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, sessGrouped, lang]);
+
+  // The FLAT branch renders one card per session, unbounded. MEASURED on a
+  // 5000-session journal at 390x844: 185 654 DOM nodes, 149 MB of heap, a page
+  // 670 455 px tall and 13.3 SECONDS of frozen main thread — one tap on the
+  // « Grouper par mois » toggle in the controls row above. The GROUPED default
+  // is fine (4 142 nodes on the same journal: it expands the latest month
+  // only), so it is left alone. Hook above the early return, per the hook-order
+  // rule.
+  const flat = useProgressiveList(sessions);
 
   if (view !== "journal") return null;
 
@@ -730,17 +741,21 @@ export function CuratorJournalView() {
               );
             })
           ) : (
-            sessions.map((s, i) => {
-              const tob = tobOf(s.tobaccoId);
-              const pp = pipeOf(s.pipeId);
-              return (
-                <JournalEntry key={s.id} s={s} idx={i}
-                  expanded={!!expandSessCards}
-                  tob={tob} pipe={pp}
-                  weightUnit={weightUnit}
-                  onOpen={() => setDetailSession(s)} />
-              );
-            })
+            <>
+              {flat.visible.map((s, i) => {
+                const tob = tobOf(s.tobaccoId);
+                const pp = pipeOf(s.pipeId);
+                return (
+                  <JournalEntry key={s.id} s={s} idx={i}
+                    expanded={!!expandSessCards}
+                    tob={tob} pipe={pp}
+                    weightUnit={weightUnit}
+                    onOpen={() => setDetailSession(s)} />
+                );
+              })}
+              <ProgressiveMore hidden={flat.hidden} onMore={flat.revealMore}
+                sentinelRef={flat.sentinelRef} t={t} accent={C.sageHi} />
+            </>
           )}
         </div>
       </div>
