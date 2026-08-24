@@ -381,7 +381,11 @@ var _COUNTRY_ROW_BY_ISO: Record<string, string[]> = (function () {
   _COUNTRY_ROWS.forEach(function (r) { m[r[0]] = r; });
   return m;
 })();
-var _LANG_COL: Record<string, number> = { en: 1, fr: 2, es: 3, de: 4, it: 5, pt: 6 };
+// Null-prototype: indexed by the active UI language, which is read from
+// storage. On a plain object a forged code resolves to `Object.prototype` —
+// truthy, so the `|| 1` fallback never fires — and `row[col]` then returns
+// undefined, so it degraded to English by accident rather than by design.
+var _LANG_COL: Record<string, number> = Object.assign(Object.create(null), { en: 1, fr: 2, es: 3, de: 4, it: 5, pt: 6 }) as Record<string, number>;
 
 /**
  * ISO-3166-1 alpha-2 code → country name in the given UI language, falling

@@ -103,13 +103,13 @@ processOAuthReturn();
 // as dead and clean up.
 (function () {
   try {
-    var p = localStorage.getItem("gdrive-pending");
+    var p = lsGet("gdrive-pending");
     if (!p) return;
     var hasPayload =
       (window.location.hash && /access_token=|error=/.test(window.location.hash)) ||
       (window.location.search && /[?&]code=|[?&]error=/.test(window.location.search));
     if (hasPayload) return;
-    var pts = parseInt(localStorage.getItem("gdrive-pending-ts") || "0", 10);
+    var pts = parseInt(lsGet("gdrive-pending-ts") || "0", 10);
     if (pts === 0 || Date.now() - pts > GDRIVE_PENDING_STALE_MS) {
       // eslint-disable-next-line tabac-local/no-raw-storage-write -- OAuth pending key keeps its guarded path (read-before-clear)
       localStorage.removeItem("gdrive-pending");
@@ -158,7 +158,7 @@ function App() {
     setImportModal = _im[1];
   var _vs = useState<Record<string, any>>(function () {
       try {
-        return JSON.parse(localStorage.getItem("cave-sections") || "{}");
+        return JSON.parse(lsGet("cave-sections") || "{}");
       } catch (_e) {
         return {};
       }
@@ -280,7 +280,7 @@ function App() {
   var _jfco = useState(""),
     journalFilterCountry = _jfco[0],
     setJournalFilterCountry = _jfco[1];
-  var _ps = useState(localStorage.getItem("cave-pending-sync") === "1"),
+  var _ps = useState(lsGet("cave-pending-sync") === "1"),
     pendingSync = _ps[0],
     setPendingSync = _ps[1];
   // Non-blocking import/merge recap message (shown as a Notice toast
@@ -311,11 +311,11 @@ function App() {
         // sign of past Drive usage (fid stored, auto-save timestamp)
         // means the user was on Drive before the destination selector
         // existed → keep them on Drive.
-        var explicit = localStorage.getItem("cave-cloud-provider");
+        var explicit = lsGet("cave-cloud-provider");
         if (explicit === "gdrive" || explicit === "dropbox") return explicit;
-        var hadDrive = !!(localStorage.getItem("gdrive-fid") ||
-          localStorage.getItem("gdrive-auto-fid") ||
-          localStorage.getItem("cave-autosave-ts"));
+        var hadDrive = !!(lsGet("gdrive-fid") ||
+          lsGet("gdrive-auto-fid") ||
+          lsGet("cave-autosave-ts"));
         return hadDrive ? "gdrive" : "dropbox";
       })() as "gdrive" | "dropbox",
     ),
@@ -325,27 +325,27 @@ function App() {
     setCloudProviderId(v);
     lsSet("cave-cloud-provider", v);
   }
-  var _wu = useState(localStorage.getItem("cave-weight-unit") || "g"),
+  var _wu = useState(lsGet("cave-weight-unit") || "g"),
     weightUnit = _wu[0],
     setWeightUnit = _wu[1];
-  var _lu = useState(localStorage.getItem("cave-length-unit") || "mm"),
+  var _lu = useState(lsGet("cave-length-unit") || "mm"),
     lengthUnit = _lu[0],
     setLengthUnit = _lu[1];
   // Global "Taille du texte" (S/M/L). Drives the CSS variable
   // --cave-font-scale that every fs()-based font-size multiplies by, so the
   // whole app rescales live with no React re-render. Default "m" (the
   // baseline type-scale uplift). Persisted in localStorage["cave-font-scale"].
-  var _fsc = useState(localStorage.getItem("cave-font-scale") || "m"),
+  var _fsc = useState(lsGet("cave-font-scale") || "m"),
     fontScale = _fsc[0],
     setFontScale = _fsc[1];
   // Colour theme (brass default / steel-blue). Persisted in
   // localStorage["cave-theme"]; applied to <html> CSS vars (see effect below).
-  var _thm = useState(localStorage.getItem("cave-theme") || "brass"),
+  var _thm = useState(lsGet("cave-theme") || "brass"),
     themeId = _thm[0],
     setThemeId = _thm[1];
   // Light/dark mode (parchment vs vault), orthogonal to the colour
   // theme. Persisted in localStorage["cave-theme-mode"]; default dark.
-  var _thmMode = useState(localStorage.getItem("cave-theme-mode") || "dark"),
+  var _thmMode = useState(lsGet("cave-theme-mode") || "dark"),
     themeMode = _thmMode[0],
     setThemeMode = _thmMode[1];
   // Currency symbol — display-only suffix on every price
@@ -357,7 +357,7 @@ function App() {
   // a user dictionary edit doesn't get blocked.
   var _curRaw = (function () {
     try {
-      var v = localStorage.getItem("cave-currency");
+      var v = lsGet("cave-currency");
       return v && v.length > 0 ? v : "€";
     } catch (_e) { return "€"; }
   })();
@@ -380,12 +380,12 @@ function App() {
       // cave-maint-threshold-reset68), rewrites the stored value to 5,
       // then hands control back: the user's own choice is honoured for
       // ever after and this branch never re-fires.
-      if (localStorage.getItem("cave-maint-threshold-reset68") !== "1") {
+      if (lsGet("cave-maint-threshold-reset68") !== "1") {
         lsSet("cave-maint-threshold", "5");
         lsSet("cave-maint-threshold-reset68", "1");
         return 5;
       }
-      var n = parseInt(localStorage.getItem("cave-maint-threshold") || "", 10); return n >= 1 ? n : 5;
+      var n = parseInt(lsGet("cave-maint-threshold") || "", 10); return n >= 1 ? n : 5;
     }
     catch (_e) { return 5; }
   })();
@@ -403,7 +403,7 @@ function App() {
   // "À entretenir" section, PipesListView card chip, PipesDetailView Notice).
   // The threshold value is kept editable + untouched while OFF.
   var _mreRaw = (function () {
-    try { return localStorage.getItem("cave-maint-reminders-enabled") !== "0"; }
+    try { return lsGet("cave-maint-reminders-enabled") !== "0"; }
     catch (_e) { return true; }
   })();
   var _mre = useState(_mreRaw),
@@ -439,7 +439,7 @@ function App() {
   // key is left abandoned (not actively cleared on existing installs —
   // unused without a reader, harmless).
   var _sdw = useState(
-      localStorage.getItem("cave-session-default-weight") || "3",
+      lsGet("cave-session-default-weight") || "3",
     ),
     sessDefaultWeight = _sdw[0],
     setSessDefaultWeight = _sdw[1];
@@ -454,8 +454,8 @@ function App() {
   //  threshold were removed — the Home alert was noise.)
   // Default low-stock threshold is 25 g (≈ 0.9 oz) — was 50 g.
   var _wlw = useState(
-      localStorage.getItem("cave-watch-low-weight") ||
-        (localStorage.getItem("cave-weight-unit") === "oz" ? "0.9" : "25"),
+      lsGet("cave-watch-low-weight") ||
+        (lsGet("cave-weight-unit") === "oz" ? "0.9" : "25"),
     ),
     watchLowWeight = _wlw[0],
     setWatchLowWeight = _wlw[1];
@@ -475,7 +475,7 @@ function App() {
   // physical "I'm opening this tin" event keeps being recorded.
   // Default true; stored in `cave-accounting-enabled` ("0" = off).
   var _ae = useState(
-      localStorage.getItem("cave-accounting-enabled") !== "0",
+      lsGet("cave-accounting-enabled") !== "0",
     ),
     accountingEnabled = _ae[0],
     setAccountingEnabledState = _ae[1];
@@ -509,7 +509,7 @@ function App() {
   // Persisted in `cave-autofill-source`. The pipe form bypasses the catalogue
   // entirely (no pipe entries in it).
   var _afs = useState<"local" | "ai">(
-      (localStorage.getItem("cave-autofill-source") === "ai" ? "ai" : "local"),
+      (lsGet("cave-autofill-source") === "ai" ? "ai" : "local"),
     ),
     autofillSource = _afs[0],
     setAutofillSourceState = _afs[1];
@@ -527,7 +527,7 @@ function App() {
   // English — the UI was English, the Settings picker highlighted DE, and no
   // notice explained it. Read what is ACTUALLY loaded: the picker then tells
   // the truth and the same `langErr` notice as the switch path says why.
-  var _storedLng = localStorage.getItem("cave-lang") || "en";
+  var _storedLng = lsGet("cave-lang") || "en";
   // "pseudo" is a real, usable language here even though it has no
   // dictionary — `t()` builds it from EN at call time. The
   // `isLangLoaded` guard did not know that, so `lang` fell to "en", the
@@ -559,7 +559,7 @@ function App() {
     setLangErr = _le[1];
   // Generation counter for concurrent language switches (see saveLang).
   var langGenRef = useRef(0);
-  var _ta = useState(localStorage.getItem("cave-terms-accepted") === "1"),
+  var _ta = useState(lsGet("cave-terms-accepted") === "1"),
     termsAccepted = _ta[0],
     setTermsAccepted = _ta[1];
   // Optional Drive backup encryption (Phase 1).
@@ -570,7 +570,7 @@ function App() {
   // - `encryptionPrompt`: ephemeral { mode, resolve } pair; the
   //   PassphrasePromptModal reads it and calls resolve(pw|null) on
   //   submit / cancel, then the caller's Promise unblocks.
-  var _de = useState<boolean>(localStorage.getItem("cave-drive-encryption-enabled") === "1"),
+  var _de = useState<boolean>(lsGet("cave-drive-encryption-enabled") === "1"),
     driveEncryptionEnabled = _de[0],
     setDriveEncryptionEnabledState = _de[1];
   var _dpp = useState<string | null>(null),
@@ -661,7 +661,7 @@ function App() {
   // defaults to "prefs" (Préférences, which sits first).
   var _stab = useState<"data" | "prefs" | "app" | "help">(function () {
     try {
-      var saved = localStorage.getItem("cave-settings-tab");
+      var saved = lsGet("cave-settings-tab");
       if (saved === "data" || saved === "prefs" || saved === "app" || saved === "help") return saved;
     } catch (_e) {}
     return "prefs";
@@ -679,7 +679,7 @@ function App() {
   // to the same layout between sessions.
   var _chs = useState<Record<string, true>>(function () {
     try {
-      var saved = localStorage.getItem("cave-help-sections");
+      var saved = lsGet("cave-help-sections");
       if (saved) {
         var parsed = JSON.parse(saved);
         if (parsed && typeof parsed === "object") return parsed;
@@ -797,7 +797,7 @@ function App() {
   // mount-only effect (no deps) so it runs exactly once per launch.
   useEffect(function () {
     try {
-      var raw = localStorage.getItem("cave-eb-recovery-ts");
+      var raw = lsGet("cave-eb-recovery-ts");
       if (!raw) return;
       var ts = parseInt(raw, 10);
       if (isFinite(ts) && Date.now() - ts > 5 * 60_000) {
@@ -1032,9 +1032,9 @@ function App() {
             || (o.sessions || []).length));
         };
         if (!_hasAnyData(parsed)) {
-          var bkpTs = parseInt(localStorage.getItem(SK + "-bkp-ts") || "0");
+          var bkpTs = parseInt(lsGet(SK + "-bkp-ts") || "0");
           if (bkpTs && Date.now() - bkpTs < 600000) {
-            var bkpVal = localStorage.getItem(SK + "-bkp");
+            var bkpVal = lsGet(SK + "-bkp");
             if (bkpVal) {
               try {
                 var bd = JSON.parse(bkpVal);
@@ -1154,7 +1154,7 @@ function App() {
             // tracks the current preference even though save() is a
             // useCallback bound at mount time (its deps list doesn't
             // include `lang` on purpose — see closure note above).
-            var _lng = localStorage.getItem("cave-lang") || "en";
+            var _lng = lsGet("cave-lang") || "en";
             if (Object.keys(oldVals).length) {
               setImgLocal(function (prev) {
                 return imgMap(prev, oldVals);
@@ -1167,12 +1167,12 @@ function App() {
             }
           })
           .catch(function () {
-            var _lng = localStorage.getItem("cave-lang") || "en";
+            var _lng = lsGet("cave-lang") || "en";
             setSaveError(((LANG as any)[_lng] || (LANG as any).en)?.warn_storage_too_full_urgent
               || "⚠️ Stockage trop plein — exportez vos données immédiatement.");
           });
       } else {
-        var _lng = localStorage.getItem("cave-lang") || "en";
+        var _lng = lsGet("cave-lang") || "en";
         // Delegated to `getStorageBlockedHint` so the iOS↔Android
         // breadcrumb pair lives in one place (utils.ts).
         var _hint = getStorageBlockedHint(_lng, IS_IOS);
@@ -2314,8 +2314,8 @@ function App() {
     var lastExportTs = 0;
     var dismissedAt = 0;
     try {
-      lastExportTs = parseInt(localStorage.getItem("cave-last-export-ts") || "0") || 0;
-      dismissedAt = parseInt(localStorage.getItem("cave-export-reminder-dismissed") || "0") || 0;
+      lastExportTs = parseInt(lsGet("cave-last-export-ts") || "0") || 0;
+      dismissedAt = parseInt(lsGet("cave-export-reminder-dismissed") || "0") || 0;
     } catch (_e) {}
     var lastAnySave = Math.max(lastExportTs, lastAutoSaveTs || 0);
     if (isWithinDays(dismissedAt, 7)) { setExportReminder(false); return; }

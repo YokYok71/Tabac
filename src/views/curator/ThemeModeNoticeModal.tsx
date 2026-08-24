@@ -13,7 +13,7 @@ import { alpha, fs, C, F } from "../../theme-curator.ts";
 import { Lbl, PressCard } from "../../components/curator/primitives.tsx";
 import { Orn, Ico } from "../../components/curator/icons.tsx";
 import { Modal } from "../../components/curator/Modal.tsx";
-import { lsSet } from "../../utils/appStorage.ts";
+import { lsGet, lsSet } from "../../utils/appStorage.ts";
 import { WELCOME_KEY as WELCOME_KEY_C } from "../../constants.ts";
 
 const WELCOME_KEY = WELCOME_KEY_C;
@@ -37,8 +37,8 @@ export function CuratorThemeModeNoticeModal() {
   useEffect(() => {
     try {
       if (Date.now() > EXPIRY_MS) return;                       // window closed
-      if (localStorage.getItem(DISMISS_KEY) === "1") return;    // user opted out
-      if (localStorage.getItem(WELCOME_KEY) !== "1") return;    // defer to welcome
+      if (lsGet(DISMISS_KEY) === "1") return;    // user opted out
+      if (lsGet(WELCOME_KEY) !== "1") return;    // defer to welcome
     } catch (_e) {
       return;
     }

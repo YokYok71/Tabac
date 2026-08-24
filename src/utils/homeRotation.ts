@@ -18,7 +18,7 @@
 // Persisted in localStorage["cave-sugg-rot"] so the advance carries across
 // launches (otherwise every cold start would reset to the same offset).
 
-import { lsSet } from "./appStorage.ts";
+import { lsGet, lsSet } from "./appStorage.ts";
 
 var _seed: number | null = null;
 
@@ -35,7 +35,7 @@ export function homeRotationSeed(): number {
   if (_seed !== null) return _seed;
   var n = 0;
   try {
-    var raw = localStorage.getItem(HOME_ROT_KEY);
+    var raw = lsGet(HOME_ROT_KEY);
     n = raw === null ? 0 : parseInt(raw, 10);
   } catch (_e) { /* storage unavailable */ }
   if (!Number.isFinite(n) || n < 0) n = 0;

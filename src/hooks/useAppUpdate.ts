@@ -1,6 +1,6 @@
 import React from "react";
 import { APP_VERSION, APP_BUILD, APP_GENERATION } from "../constants.ts";
-import { lsSet } from "../utils/appStorage.ts";
+import { lsGet, lsSet } from "../utils/appStorage.ts";
 import { safeJsonParse } from "../utils/safeJson.ts";
 
 var useState = React.useState,
@@ -184,7 +184,7 @@ export function useAppUpdate(opts?: { deferAutoUpdate?: boolean; deferReason?: s
   // exactly like a healthy app, for ever, at one silent retry every 120 s.
   // Same principle throughout this hook: the mechanism may fail, it may not hide.
   var _lc = useState<number | null>(function () {
-    var raw = Number(localStorage.getItem(VERSION_CHECK_OK_KEY));
+    var raw = Number(lsGet(VERSION_CHECK_OK_KEY));
     return isFinite(raw) && raw > 0 ? raw : null;
   }),
     lastCheckOkMs = _lc[0],
@@ -270,7 +270,7 @@ export function useAppUpdate(opts?: { deferAutoUpdate?: boolean; deferReason?: s
               // the format simply orphans the stored marker once, which is
               // harmless — an unmatched marker suppresses nothing.
               var targetKey = attemptKey(d.version, d.build);
-              var marker = safeJsonParse(localStorage.getItem(UPDATE_ATTEMPT_KEY), null) as any;
+              var marker = safeJsonParse(lsGet(UPDATE_ATTEMPT_KEY), null) as any;
               var now = Date.now();
               if (shouldSuppressUpdate(marker, targetKey, now)) return;
               // COUNT ONCE PER SESSION PER TARGET.
@@ -528,7 +528,7 @@ export function useAppUpdate(opts?: { deferAutoUpdate?: boolean; deferReason?: s
   }, [!!silentUpdatePending, deferAutoUpdate]);
 
   useEffect(function () {
-    var _lb = localStorage.getItem("cave-last-build");
+    var _lb = lsGet("cave-last-build");
     lsSet("cave-last-build", APP_BUILD);
     if (_lb && _lb !== APP_BUILD) {
       setJustUpdated(true);
@@ -688,7 +688,7 @@ export function useAppUpdate(opts?: { deferAutoUpdate?: boolean; deferReason?: s
     // the wrong brake, or none — in the one hook whose design is "it may
     // refuse to act, but it must say WHICH brake is engaged".
     suppressed: !!newerBuild && shouldSuppressUpdate(
-      safeJsonParse(localStorage.getItem(UPDATE_ATTEMPT_KEY), null),
+      safeJsonParse(lsGet(UPDATE_ATTEMPT_KEY), null),
       attemptKey(newerBuild.version, newerBuild.build), Date.now()),
   });
 

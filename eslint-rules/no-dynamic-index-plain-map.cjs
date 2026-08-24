@@ -12,9 +12,16 @@
 // the unsafe shape at lint time so the class stops recurring.
 //
 // SCOPE (deliberately narrow to keep false positives ~0):
-//   - Only MODULE-SCOPE `const` declarations (the lookup-table pattern). A
-//     local `{}` accumulator indexed in a tight loop is a different animal and
-//     is not flagged.
+//   - Only MODULE-SCOPE `const` or `var` declarations (the lookup-table
+//     pattern; `let` is exempt, being genuinely reassignable). It was `const`
+//     ONLY until this project's real tables — declared `export var` throughout
+//     — turned out to be invisible to it, live defect included. A local `{}`
+//     accumulator indexed in a tight loop is a different animal and is not
+//     flagged.
+//   - Not flagged when the same statement already carries an own-property test
+//     on the SAME map (`Object.prototype.hasOwnProperty.call(M, k)` or
+//     `Object.hasOwn(M, k)`) — see hasOwnPropertyGuard for why that exemption
+//     is not a loophole.
 //   - Only when the initializer is a BARE ObjectExpression. The safe forms —
 //     `Object.create(null)`, `Object.assign(Object.create(null), {…})`,
 //     `new Map(…)` — are recognised and skipped.
@@ -136,11 +143,61 @@ function isModuleConstPlainMap(node, opts) {
   if (!def.node.range) return false;
   const declScope = variable.scope;
   if (!declScope || (declScope.type !== "module" && declScope.type !== "global")) return false;
-  // const only (a reassignable let could become anything).
+  // `const` and `var`, NOT `let`. The gate used to be `const` only, on the
+  // reasoning that a reassignable binding could become anything — true of
+  // `let`, and it made the rule BLIND to nearly every map in this project,
+  // which declares its lookup tables as `export var` throughout (constants.ts,
+  // the hooks). Measured: `npx eslint src/hooks/useAiAutoFill.ts` reported
+  // ZERO on a live defect — `AI_MODEL_OPTIONS[provider]`, indexed by a value
+  // read straight from storage, resolving `__proto__` to `Object.prototype`
+  // and throwing on every render of App.
+  //
+  // `var` is kept in scope because this codebase uses it as its module-level
+  // declaration form, not as a mutable one; `let` stays exempt, which is the
+  // distinction the original reasoning was really about.
   const parent = def.parent || def.node.parent;
-  if (parent && parent.kind && parent.kind !== "const") return false;
+  if (parent && parent.kind && parent.kind !== "const" && parent.kind !== "var") return false;
   if (!initIsPlainObjectMap(def.node.init)) return false;
   return keyTypeForgeable(def.node);
+}
+
+/**
+ * True when the read is already gated by an own-property test on the SAME map,
+ * inside the same statement.
+ *
+ * WHY THIS EXISTS. Widening the rule from `const` to `var` made it see the
+ * project's real lookup tables for the first time — and five of the seven
+ * sites it then reported were ALREADY CORRECT, each carrying an inline
+ * `Object.prototype.hasOwnProperty.call(MAP, k)` and a comment explaining it.
+ * Reporting those would have left two bad choices: revert the widening and
+ * lose the live defect it found, or bolt an `eslint-disable` onto five correct
+ * sites, which teaches the next reader to silence the rule. An over-strict
+ * guard gets correct work rewritten to please it — the failure this whole
+ * family of rules exists to avoid.
+ *
+ * Deliberately TEXTUAL and scoped to the enclosing statement: the map NAME is
+ * pinned, so a guard on a different map in the same statement does not count,
+ * and a guard several statements away does not either (it would be a
+ * different control-flow claim than this rule can verify). `Object.hasOwn` is
+ * accepted as the modern spelling of the same test.
+ *
+ * NOT accepted: a call to a named predicate that happens to wrap the test
+ * (`isLangLoaded(code)`). Following that would mean resolving an arbitrary
+ * function, and the honest answer for such a map is to build it
+ * null-prototype — which is what the two remaining sites did.
+ */
+function hasOwnPropertyGuard(node, sourceCode) {
+  const name = node.object && node.object.name;
+  if (!name) return false;
+  let cur = node;
+  while (cur && !/Statement$|Declaration$/.test(cur.type)) cur = cur.parent;
+  if (!cur) return false;
+  const text = sourceCode.getText(cur);
+  const esc = String(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(
+    "(?:hasOwnProperty\\s*\\.\\s*call\\s*\\(\\s*" + esc + "\\b"
+    + "|Object\\s*\\.\\s*hasOwn\\s*\\(\\s*" + esc + "\\b)",
+  ).test(text);
 }
 
 function isLiteralKey(prop) {
@@ -187,6 +244,7 @@ module.exports = {
         // Skip `delete M[k]` (removal, not a fall-through read).
         if (p && p.type === "UnaryExpression" && p.operator === "delete") return;
         if (!isModuleConstPlainMap(node.object, opts)) return;
+        if (hasOwnPropertyGuard(node, sourceCode)) return;
         context.report({ node, messageId: "unsafe", data: { name: node.object.name } });
       },
     };

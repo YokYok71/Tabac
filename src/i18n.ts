@@ -35,7 +35,15 @@ export type Dict = typeof EN;
 /** Dictionaries currently in memory. Starts with English only; `ensureLang`
  *  adds the others. Consumers keep `import { LANG } from "./i18n.ts"` and must
  *  treat a missing language as "not loaded yet", never as an error. */
-export var LANG: Record<string, Dict> = { en: EN };
+// NULL-PROTOTYPE. `lang` comes from `cave-lang`, i.e. straight from storage,
+// and on a plain object `LANG["__proto__"]` resolves to `Object.prototype` —
+// truthy, not a dictionary — after which every lookup returns the RAW KEY and
+// the whole UI renders as key names. `isLangLoaded` is an own-property test
+// and closed that door; building the map null-prototype closes it at the
+// source, so no reader has to remember the guard. The comment below used to
+// say the lint rule "does not fire here because LANG is a var" — the rule now
+// covers `var`, and this is the answer it asked for.
+export var LANG: Record<string, Dict> = Object.assign(Object.create(null), { en: EN }) as Record<string, Dict>;
 
 // ADD A LANGUAGE: drop `src/i18n/<code>.ts` exporting `<CODE>` and add the code
 // to ./i18n/languages.ts. Nothing here changes — the glob below picks it up and

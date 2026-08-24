@@ -819,7 +819,7 @@
         "CLAUDE.md — the AI Integration provider/default table + the model-selection paragraph"
       ],
       "why": "Vendor model line-ups now move every few months, and each refresh silently invalidates prose. One refresh proved the cost twice over: gemini-2.0-flash — the app's own Gemini DEFAULT — had been shut down for four months with every Gemini auto-fill failing, and gpt-4o had left OpenAI's list. The help note is deliberately family-only (Haiku / Sonnet / Opus), which is what kept it TRUE through that refresh — so check that property still holds before anything else. Then re-read: is the named default still the default and still the cheap tier? Does every family the note names still exist in AI_MODEL_OPTIONS? And if AI_MODEL_ALIASES changed, is the remapping sentence still accurate — a live model must never be aliased to a costlier one, and no alias may cross provider families.",
-      "fingerprint": "fcb882c0bd21415c"
+      "fingerprint": "3b9872066b614178"
     },
     {
       "id": "bowl-weight-estimate",

@@ -31,6 +31,7 @@ import {
 import { plural } from "../../utils.ts";
 import { Modal, ModalHeader } from "../../components/curator/Modal.tsx";
 import type { Pipe } from "../../types.ts";
+import { lsGet } from "../../utils/appStorage.ts";
 
 /** How many "à entretenir" rows the Home itself shows before handing the rest
  *  to the modal. The Home is a dashboard and this is its last block, so a
@@ -162,7 +163,7 @@ export function CuratorHomeViewV2() {
   // amber = stale, oxblood = error, hidden when the user never engaged Drive.
   const driveStatus = ((): null | "ok" | "stale" | "err" => {
     let hasFid = false;
-    try { hasFid = !!(localStorage.getItem("gdrive-fid") || localStorage.getItem("gdrive-auto-fid")); } catch (_e) { /* ignore */ }
+    try { hasFid = !!(lsGet("gdrive-fid") || lsGet("gdrive-auto-fid")); } catch (_e) { /* ignore */ }
     if (!(autoSaveDrive || lastAutoSaveTs || hasFid)) return null;
     const statusStr = gdriveStatus ? String(gdriveStatus).toLowerCase() : "";
     if (/erreur|error|fehler|expir|échec|invalid/.test(statusStr)) return "err";

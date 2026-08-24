@@ -9,7 +9,7 @@
  */
 
 import type { InvariantViolation } from "./lotInvariants.ts";
-import { lsSet, lsRemove } from "./appStorage.ts";
+import { lsGet, lsSet, lsRemove } from "./appStorage.ts";
 
 export var DIAGNOSTIC_KEY = "cave-diagnostic-v1";
 export var DIAGNOSTIC_MAX_RECENT = 20;
@@ -31,7 +31,7 @@ export interface DiagnosticSnapshot {
 
 function read(): DiagnosticSnapshot {
   try {
-    var raw = localStorage.getItem(DIAGNOSTIC_KEY);
+    var raw = lsGet(DIAGNOSTIC_KEY);
     if (!raw) return emptySnapshot();
     var p = JSON.parse(raw);
     if (!p || typeof p !== "object") return emptySnapshot();

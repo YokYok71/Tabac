@@ -2,7 +2,7 @@ import type { Tobacco, Lot, Pipe, Accessory } from "./types";
 import { LANG } from "./i18n.ts";
 import { sanitizeAromas } from "./utils/aromas.ts";
 import { sanitizeTags as _sanitizeTags } from "./utils/tags.ts";
-import { lsSet } from "./utils/appStorage.ts";
+import { lsGet, lsSet } from "./utils/appStorage.ts";
 import { PIPE_MAX_EXTRA_PHOTOS } from "./constants.ts";
 import { isLocalPhotoRef } from "./utils/imgCache.ts";
 
@@ -323,9 +323,9 @@ export function fmtDateTime(ts: number | string | Date | null | undefined, lang?
 // language picks the matching date format automatically.
 export function initDateFormat(): string {
   try {
-    var stored = localStorage.getItem("cave-date-format");
+    var stored = lsGet("cave-date-format");
     if (stored === "fr" || stored === "en") return stored;
-    var lang = localStorage.getItem("cave-lang");
+    var lang = lsGet("cave-lang");
     var seed = lang === "en" ? "en" : "fr";
     lsSet("cave-date-format", seed);
     return seed;
@@ -621,7 +621,7 @@ export function latestSessionMonthSeed(sessions: any): Record<string, false> {
 // inline try/catch copies of the raw literal key + `!== "0"` sense).
 export function readDefaultGrouped(): boolean {
   try {
-    return localStorage.getItem("cave-default-grouped") !== "0";
+    return lsGet("cave-default-grouped") !== "0";
   } catch (_e) {
     return true;
   }
@@ -1266,6 +1266,18 @@ function _clearForeignImageRefs(d: any): void {
 // wrapping every call site. (We still keep the view-level coercions
 // as defence-in-depth — see the lot picker sort in SessionFormView
 // for the canonical example.)
+// A 0-5 star rating, clamped. `JSON.parse('{"rating":1e999}')` yields
+// `Infinity`, and NOTHING clamped it: `Stars`' sequenced entry animation
+// registers one timer per star, so opening that fiche locked the main thread
+// outright — the tab had to be force-killed, and the value is persisted, so
+// every later attempt did it again. Reached by an ordinary JSON import or
+// cloud restore. Absent stays absent: a rating the user never gave is not 0.
+function _clampRating(obj: any): void {
+  if (!obj || obj.rating === undefined || obj.rating === null) return;
+  var n = Number(obj.rating);
+  obj.rating = !isFinite(n) ? 5 : Math.min(5, Math.max(0, Math.round(n)));
+}
+
 function _coerceStringFields(obj: any, keys: string[]): boolean {
   if (!obj) return false;
   var changed = false;
@@ -1276,7 +1288,25 @@ function _coerceStringFields(obj: any, keys: string[]): boolean {
     if (v === undefined || v === null) continue;
     var typ = typeof v;
     if (typ === "string") continue;
-    if (typ === "number" || typ === "boolean") {
+    // TOTAL, not "number and boolean". An object or an array fell straight
+    // through this loop, and `name` / `brand` are rendered as a React child on
+    // the Home — which mounts on EVERY launch — so a backup carrying
+    // `"name": {"fr":"N"}` produced "Objects are not valid as a React child"
+    // for ever. The blob is written by `save()` before anything renders, and
+    // neither recovery path clears localStorage, so the only escape was
+    // clearing site data.
+    //
+    // An ARRAY joins: `["Halvorsen"]` is a shape a hand-edited or
+    // machine-generated file really produces, and the word inside it is the
+    // user's own data — blanking would throw away something recoverable. A
+    // plain OBJECT blanks: `String({})` is "[object Object]", developer jargon
+    // leaking onto a fiche, and there is nothing to recover.
+    if (typ === "object") {
+      obj[k] = Array.isArray(v)
+        ? v.filter(function (x: any) { return typeof x === "string" || typeof x === "number"; }).join(" ")
+        : "";
+      changed = true;
+    } else {
       obj[k] = String(v);
       changed = true;
     }
@@ -1463,6 +1493,7 @@ export function migrateData(d: any): any {
   if (Array.isArray(d.tobaccos)) {
     for (var ti = 0; ti < d.tobaccos.length; ti++) {
       _coerceStringFields(d.tobaccos[ti], _TOB_STR_FIELDS);
+      _clampRating(d.tobaccos[ti]);
       // Normalise user tags (drops garbage from a forged import,
       // trims, dedups, caps). Leaves legacy tobaccos without `tags` untouched.
       var _tob = d.tobaccos[ti];
@@ -1492,6 +1523,7 @@ export function migrateData(d: any): any {
   if (Array.isArray(d.pipes)) {
     for (var pi = 0; pi < d.pipes.length; pi++) {
       _coerceStringFields(d.pipes[pi], _PIPE_STR_FIELDS);
+      _clampRating(d.pipes[pi]);
       // Additional pipe photos. Normalise a forged/imported value to
       // a clean string[] of local-photo-* keys (dedup, capped at
       // PIPE_MAX_EXTRA_PHOTOS — this replaced a literal 6, the THIRD
@@ -1587,6 +1619,7 @@ export function migrateData(d: any): any {
   if (Array.isArray(d.accessories)) {
     for (var ai = 0; ai < d.accessories.length; ai++) {
       _coerceStringFields(d.accessories[ai], _ACC_STR_FIELDS);
+      _clampRating(d.accessories[ai]);
       // User tags on accessories.
       var _acc = d.accessories[ai];
       if (_acc && _acc.tags !== undefined) _acc.tags = _sanitizeTags(_acc.tags);
@@ -1612,6 +1645,7 @@ export function migrateData(d: any): any {
   if (Array.isArray(d.sessions)) {
     for (var si = 0; si < d.sessions.length; si++) {
       _coerceStringFields(d.sessions[si], _SESS_STR_FIELDS);
+      _clampRating(d.sessions[si]);
       // Keep only known aroma keys (drops garbage from a forged
       // import) and normalise to wheel order. Leaves legacy sessions (no
       // `aromas`) untouched.

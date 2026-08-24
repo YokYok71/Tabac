@@ -7,7 +7,7 @@ import { alpha, fs, C, F } from "../../theme-curator.ts";
 import { Lbl, PressCard } from "../../components/curator/primitives.tsx";
 import { Orn } from "../../components/curator/icons.tsx";
 import { Modal } from "../../components/curator/Modal.tsx";
-import { lsSet } from "../../utils/appStorage.ts";
+import { lsGet, lsSet } from "../../utils/appStorage.ts";
 import { WELCOME_KEY } from "../../constants.ts";
 
 const KEY = WELCOME_KEY;
@@ -19,7 +19,7 @@ export function CuratorWelcomeModal() {
 
   useEffect(() => {
     try {
-      if (localStorage.getItem(KEY) !== "1") {
+      if (lsGet(KEY) !== "1") {
         const r = requestAnimationFrame(() => setOpen(true));
         return () => cancelAnimationFrame(r);
       }

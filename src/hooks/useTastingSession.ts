@@ -1,7 +1,7 @@
 import React from "react";
 import { LANG } from "../i18n.ts";
 import { findById } from "../utils.ts";
-import { lsSet, lsRemove } from "../utils/appStorage.ts";
+import { lsGet, lsSet, lsRemove } from "../utils/appStorage.ts";
 
 var useState = React.useState;
 var useEffect = React.useEffect;
@@ -64,7 +64,7 @@ export type TastingState =
 
 function readTasting(): TastingState | null {
   try {
-    var raw = localStorage.getItem(TASTING_KEY);
+    var raw = lsGet(TASTING_KEY);
     if (!raw) return null;
     var p = JSON.parse(raw);
     if (!p || (p.stage !== "setup" && p.stage !== "running")) return null;

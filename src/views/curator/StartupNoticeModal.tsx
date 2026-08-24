@@ -22,6 +22,7 @@ import { Modal } from "../../components/curator/Modal.tsx";
 import { useStartupNotice } from "../../hooks/useStartupNotice.ts";
 import { noticeToneColor, noticeDefaultIcon } from "../../components/curator/Notice.tsx";
 import { WELCOME_KEY as WELCOME_KEY_C } from "../../constants.ts";
+import { lsGet } from "../../utils/appStorage.ts";
 
 const WELCOME_KEY = WELCOME_KEY_C;
 
@@ -35,7 +36,7 @@ export function CuratorStartupNoticeModal() {
     if (!notice) return;
     let welcomed: string;
     try {
-      welcomed = localStorage.getItem(WELCOME_KEY) || "";
+      welcomed = lsGet(WELCOME_KEY) || "";
     } catch (_e) {
       welcomed = "1";
     }

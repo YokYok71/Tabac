@@ -14,7 +14,7 @@ import { Ico } from "../../components/curator/icons.tsx";
 import { Modal } from "../../components/curator/Modal.tsx";
 import { ModalAction } from "../../components/curator/ModalAction.tsx";
 import { getDiagnosticSnapshot } from "../../utils/diagnostic.ts";
-import { lsSet, lsRemove } from "../../utils/appStorage.ts";
+import { lsGet, lsSet, lsRemove } from "../../utils/appStorage.ts";
 
 // CuratorDelConfirmModal removed — every entity now
 // soft-deletes into the Trash (30-day retention) with an 8 s undo
@@ -513,9 +513,9 @@ export function CuratorLangDetectedToast() {
     const id = setInterval(() => {
       tries++;
       try {
-        const auto = localStorage.getItem("cave-lang-auto");
+        const auto = lsGet("cave-lang-auto");
         if (!auto || tries > 50) { clearInterval(id); return; } // cancelled / gave up (~60s)
-        if (localStorage.getItem(WELCOME_KEY) === "1") {
+        if (lsGet(WELCOME_KEY) === "1") {
           clearInterval(id);
           setShow(true);
         }
@@ -735,14 +735,14 @@ export function CuratorDriveExpiredBanner() {
   // browsing for >1h with an expired token no longer trips it.
   if (!pendingSync) {
     try {
-      if (localStorage.getItem("cave-pending-sync") !== "1") return null;
+      if (lsGet("cave-pending-sync") !== "1") return null;
     } catch (_e) { return null; }
   }
   // Never connected to Drive → no expired session to renew.
   var hasConnected = false;
   try {
-    hasConnected = !!(localStorage.getItem("gdrive-fid")
-                      || localStorage.getItem("gdrive-auto-fid"));
+    hasConnected = !!(lsGet("gdrive-fid")
+                      || lsGet("gdrive-auto-fid"));
   } catch (_e) {}
   if (!hasConnected) return null;
   // Token still valid → no banner.

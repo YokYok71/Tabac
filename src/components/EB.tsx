@@ -1,6 +1,6 @@
 import React from "react";
 import { LANG } from "../i18n.ts";
-import { lsSet } from "../utils/appStorage.ts";
+import { lsGet, lsSet } from "../utils/appStorage.ts";
 
 // Extracted verbatim from App.tsx (it was a module-level,
 // App-state-free block). App.tsx re-exports EB so importers (main.jsx,
@@ -68,7 +68,7 @@ export class EB extends React.Component<
     let recovering = false;
     if (isChunkLoadError(e)) {
       try {
-        const last = parseInt(localStorage.getItem("cave-eb-recovery-ts") || "0", 10);
+        const last = parseInt(lsGet("cave-eb-recovery-ts") || "0", 10);
         // Only a VALID, recent (<30 s) stamp
         // suppresses auto-recovery (the genuine anti-loop case). A NaN stamp
         // (`Date.now() - NaN` is NaN, `>= 30000` false) or a FUTURE stamp
@@ -105,7 +105,16 @@ export class EB extends React.Component<
     // hardcoded French literal, in precisely the case this boundary exists for
     // (a chunk that failed to load). Measured: `cave-lang=de` with the German
     // dictionary absent rendered "⚠ Erreur de rendu" to a German user.
-    const lang = (localStorage.getItem("cave-lang") || "en") as string;
+    // `lsGet`, NEVER a raw read. THIS LINE ONLY RUNS ONCE SOMETHING HAS
+    // ALREADY CRASHED, and a browser that refuses site storage (Safari with
+    // "Block all cookies", a blocked origin, an MDM profile) THROWS on the
+    // access rather than returning null — so the boundary threw the identical
+    // error while rendering the screen meant to explain it, React unmounted
+    // the tree, and `#root` was left EMPTY. The boot shell in index.html,
+    // including the "Réparer l'application" link, lives inside `#root` and had
+    // already been replaced: a white page with no way out. The boundary may
+    // not depend on anything that can be the thing that failed.
+    const lang = (lsGet("cave-lang") || "en") as string;
     const L = ((LANG as any)[lang] || (LANG as any).en) || {};
     const isChunk = isChunkLoadError(this.state.err);
     if (this.state.recovering) {

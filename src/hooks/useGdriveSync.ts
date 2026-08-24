@@ -41,7 +41,7 @@ import {
   captureAccountHint,
 } from "./useGdriveAuth.ts";
 import { gdriveProvider, dropboxProvider } from "../utils/cloudProvider.ts";
-import { lsSet, lsRemove } from "../utils/appStorage.ts";
+import { lsGet, lsSet, lsRemove } from "../utils/appStorage.ts";
 import { safeJsonParse } from "../utils/safeJson.ts";
 import { catalogueGetCsv, catalogueGetMeta, catalogueSave } from "../utils/catalogueStore.ts";
 import { tobaccoDbInvalidate } from "../utils/tobaccoDb.ts";
@@ -70,7 +70,7 @@ var useState = React.useState,
 export function cloudGuardLocalRef(isDbx: boolean): number {
   try {
     return parseInt(
-      localStorage.getItem("cave-autosave-ts-" + (isDbx ? "dropbox" : "gdrive")) || "0", 10,
+      lsGet("cave-autosave-ts-" + (isDbx ? "dropbox" : "gdrive")) || "0", 10,
     ) || 0;
   } catch { return 0; }
 }
@@ -106,11 +106,11 @@ export function cloudDismissKeys(isDbx: boolean): { ts: string; name: string } {
 export function readCloudDismissed(isDbx: boolean): { ts: number; name: string | null } {
   var k = cloudDismissKeys(isDbx);
   try {
-    var rawTs = localStorage.getItem(k.ts);
-    var rawName = localStorage.getItem(k.name);
+    var rawTs = lsGet(k.ts);
+    var rawName = lsGet(k.name);
     if (rawTs === null && rawName === null) {
-      var gTs = localStorage.getItem("cave-cloud-newer-dismissed");
-      var gName = localStorage.getItem("cave-cloud-newer-dismissed-name");
+      var gTs = lsGet("cave-cloud-newer-dismissed");
+      var gName = lsGet("cave-cloud-newer-dismissed-name");
       if (gTs !== null || gName !== null) {
         if (gTs !== null) lsSet(k.ts, gTs);
         if (gName !== null) lsSet(k.name, gName);
@@ -191,7 +191,7 @@ export function stableDeviceIdForGuard(): string {
  */
 export function ownStampedSince(): number {
   try {
-    var raw = localStorage.getItem("cave-auto-stamped");
+    var raw = lsGet("cave-auto-stamped");
     if (!raw) return 0;
     var n = parseInt(raw, 10);
     if (!isNaN(n) && n > 100000000000) return n;
@@ -203,7 +203,7 @@ export function ownStampedSince(): number {
 
 export function getDeviceId(): string {
   try {
-    var id = localStorage.getItem("cave-device-id");
+    var id = lsGet("cave-device-id");
     if (!id || !/^[0-9a-z]+$/.test(id)) {
       id =
         Math.random().toString(36).slice(2, 8) +
@@ -221,7 +221,7 @@ export function getDeviceId(): string {
 // "" when unset — makeBackupName then omits the segment. Read-only + crash-safe.
 export function getDeviceName(): string {
   try {
-    return localStorage.getItem("cave-device-name") || "";
+    return lsGet("cave-device-name") || "";
   } catch (_e) {
     return "";
   }
@@ -283,7 +283,7 @@ export function recordCloudCheckDiag(stage: string): void {
 }
 export function readCloudCheckDiag(): { ts: number; stage: string } | null {
   try {
-    var raw = localStorage.getItem("cave-cloudcheck-diag");
+    var raw = lsGet("cave-cloudcheck-diag");
     if (!raw) return null;
     var v = JSON.parse(raw);
     if (v && typeof v.stage === "string") return v;
@@ -293,7 +293,7 @@ export function readCloudCheckDiag(): { ts: number; stage: string } | null {
 
 export function readAutosaveDiag(): { ts: number; stage: string; detail: string } | null {
   try {
-    var raw = localStorage.getItem("cave-autosave-diag");
+    var raw = lsGet("cave-autosave-diag");
     if (!raw) return null;
     var v = JSON.parse(raw);
     if (v && typeof v.stage === "string") return v;
@@ -484,7 +484,7 @@ export function useGdriveSync({
   var _gdc = useState<{ options: any[]; sel: number } | null>(null),
     gdriveConfirm = _gdc[0],
     setGdriveConfirm = _gdc[1];
-  var _asd = useState(localStorage.getItem("cave-autosave") === "1"),
+  var _asd = useState(lsGet("cave-autosave") === "1"),
     autoSaveDrive = _asd[0],
     setAutoSaveDrive = _asd[1];
   // The "last save" timestamp is PER-PROVIDER. Each
@@ -498,8 +498,8 @@ export function useGdriveSync({
   var _lat = useState<number | null>(
       (function () {
         var _p = cloudProviderId === "dropbox" ? "dropbox" : "gdrive";
-        var raw = localStorage.getItem("cave-autosave-ts-" + _p)
-          || localStorage.getItem("cave-autosave-ts");
+        var raw = lsGet("cave-autosave-ts-" + _p)
+          || lsGet("cave-autosave-ts");
         return raw ? parseInt(raw, 10) : null;
       })(),
     ),
@@ -557,7 +557,7 @@ export function useGdriveSync({
       var dtk = dbxTokenRef.current;
       if (dtk) return dtk;
       try {
-        var _dls = JSON.parse(localStorage.getItem("dropbox-tk") || "null");
+        var _dls = JSON.parse(lsGet("dropbox-tk") || "null");
         if (_dls && _dls.t && _dls.x > Date.now() + 60000) return _dls.t;
       } catch (_e) {}
       return null;
@@ -620,7 +620,7 @@ export function useGdriveSync({
     // key belongs to whichever provider saved last, and surfacing it under
     // the OTHER destination is exactly the bug this fixes (so a never-saved
     // destination correctly shows "—").
-    var raw = localStorage.getItem("cave-autosave-ts-" + (cloudProviderId === "dropbox" ? "dropbox" : "gdrive"));
+    var raw = lsGet("cave-autosave-ts-" + (cloudProviderId === "dropbox" ? "dropbox" : "gdrive"));
     setLastAutoSaveTs(raw ? parseInt(raw, 10) : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloudProviderId]);
@@ -680,11 +680,11 @@ export function useGdriveSync({
       // of that which is not engagement.
       var engaged = false;
       try {
-        engaged = localStorage.getItem("cave-autosave") === "1"
-          || !!localStorage.getItem(FID_KEY)
-          || !!localStorage.getItem(AUTO_FID_KEY)
-          || (isDbx ? !!localStorage.getItem("dropbox-rt")
-                    : !!localStorage.getItem("gdrive-account-hint"));
+        engaged = lsGet("cave-autosave") === "1"
+          || !!lsGet(FID_KEY)
+          || !!lsGet(AUTO_FID_KEY)
+          || (isDbx ? !!lsGet("dropbox-rt")
+                    : !!lsGet("gdrive-account-hint"));
       } catch (_e) { /* storage blocked → stay silent */ }
       if (!engaged) { recordCloudCheckDiag("not-engaged"); return; }
       var cached = getCachedCloudToken();
@@ -892,7 +892,7 @@ export function useGdriveSync({
     return {
       deviceId: getDeviceId(),
       // The user-chosen friendly name for this device (if any).
-      deviceName: localStorage.getItem("cave-device-name") || "",
+      deviceName: lsGet("cave-device-name") || "",
       provider: isDbx ? "dropbox" : "gdrive",
       localRef: localRef,
       // This device's most recent DATA edit (max updatedAt),
@@ -1174,7 +1174,7 @@ export function useGdriveSync({
       // doesn't know (permanently unrecoverable). Legacy installs with no
       // verifier keep the old lenient behaviour.
       var marker: string | null = null;
-      if (!existing) { try { marker = localStorage.getItem("cave-drive-enc-verifier"); } catch (_e) {} }
+      if (!existing) { try { marker = lsGet("cave-drive-enc-verifier"); } catch (_e) {} }
       if (marker) {
         return verifyPassphrase(marker, pw).then(function (okPw) {
           if (!okPw) throw new Error(t("enc_err_wrong_passphrase"));
@@ -1234,7 +1234,7 @@ export function useGdriveSync({
         // best-effort, never blocks the restore.
         if (driveEncryptionEnabled) {
           var hasVerifier = false;
-          try { hasVerifier = !!localStorage.getItem("cave-drive-enc-verifier"); } catch (_e) { /* noop */ }
+          try { hasVerifier = !!lsGet("cave-drive-enc-verifier"); } catch (_e) { /* noop */ }
           if (!hasVerifier) {
             makeEncryptionVerifier(pw)
               .then(function (m) { lsSet("cave-drive-enc-verifier", m); })
@@ -1360,7 +1360,7 @@ export function useGdriveSync({
         // millisecond ordering must never let a read path swallow it.
         var delPend: string | null = null;
         try {
-          delPend = localStorage.getItem(BACKUP_DELETE_PENDING_KEY);
+          delPend = lsGet(BACKUP_DELETE_PENDING_KEY);
           if (delPend) lsRemove(BACKUP_DELETE_PENDING_KEY);
         } catch (_e) {}
         var delJob = delPend ? safeJsonParse<any>(delPend, null) : null;
@@ -1380,7 +1380,7 @@ export function useGdriveSync({
         }
         var checkPend: string | null = null;
         try {
-          checkPend = localStorage.getItem(CLOUD_CHECK_PENDING_KEY);
+          checkPend = lsGet(CLOUD_CHECK_PENDING_KEY);
           if (checkPend) lsRemove(CLOUD_CHECK_PENDING_KEY);
         } catch (_e) {}
         if (checkPend && Date.now() - (parseInt(checkPend, 10) || 0) < PENDING_RESUME_MAX_MS) {
@@ -1389,7 +1389,7 @@ export function useGdriveSync({
         }
         var diagPend: string | null = null;
         try {
-          diagPend = localStorage.getItem("cave-sync-diag-pending");
+          diagPend = lsGet("cave-sync-diag-pending");
           if (diagPend) lsRemove("cave-sync-diag-pending");
         } catch (_e) {}
         if (diagPend && Date.now() - (parseInt(diagPend, 10) || 0) < PENDING_RESUME_MAX_MS) {
@@ -1417,12 +1417,12 @@ export function useGdriveSync({
         var pendingCnbAckTs: number | undefined;
         var pendingCnbAckName: string | undefined;
         try {
-          pendingCnbId = localStorage.getItem("cave-cloud-newer-pending-id");
+          pendingCnbId = lsGet("cave-cloud-newer-pending-id");
           // Read the acked file's ts + name persisted pre-redirect
           // (read-before-clear) — cloudNewerBackup state is null on this
           // fresh mount, so this payload is the only source for the
           // dismissed markers ackCloudNewerBackup must write post-restore.
-          var _ackRaw = localStorage.getItem("cave-cloud-newer-pending-ack");
+          var _ackRaw = lsGet("cave-cloud-newer-pending-ack");
           if (_ackRaw) {
             // SafeJsonParse (null fallback) so a corrupt marker
             // doesn't throw past the lsRemove cleanup below — the pending
@@ -1499,10 +1499,10 @@ export function useGdriveSync({
         var pendingCnbAckTsDbx: number | undefined;
         var pendingCnbAckNameDbx: string | undefined;
         try {
-          pendingCnbIdDbx = localStorage.getItem("cave-cloud-newer-pending-id");
+          pendingCnbIdDbx = lsGet("cave-cloud-newer-pending-id");
           // See the Google branch — same ack payload, same
           // read-before-clear.
-          var _ackRawDbx = localStorage.getItem("cave-cloud-newer-pending-ack");
+          var _ackRawDbx = lsGet("cave-cloud-newer-pending-ack");
           if (_ackRawDbx) {
             // See the Google branch — safeJsonParse so a corrupt
             // marker still gets cleaned up below instead of throwing past it.
@@ -1562,7 +1562,7 @@ export function useGdriveSync({
       function onHide() {
         if (
           document.hidden &&
-          localStorage.getItem("cave-autosave") === "1" &&
+          lsGet("cave-autosave") === "1" &&
           pendingSync
         )
           gdriveSaveQuiet();
@@ -1780,7 +1780,7 @@ export function useGdriveSync({
                 // so the success path can detect an edit that lands DURING
                 // this upload (mirrors the quiet-save re-check).
                 var _manualRawSnap: string | null = null;
-                try { _manualRawSnap = localStorage.getItem(SK); } catch (_e) {}
+                try { _manualRawSnap = lsGet(SK); } catch (_e) {}
                 // Multipart construction + 60s upload timeout
                 // live in the provider now.
                 return cloud.uploadNew(token, makeBackupName(data, "manual", undefined, getDeviceName()), blob)
@@ -1810,7 +1810,7 @@ export function useGdriveSync({
                   // the dirty flag and let the auto-save effect (or the next
                   // manual save) flush the newer state.
                   var _stillCurrentManual;
-                  try { _stillCurrentManual = localStorage.getItem(SK) === _manualRawSnap; } catch (_e) { _stillCurrentManual = true; }
+                  try { _stillCurrentManual = lsGet(SK) === _manualRawSnap; } catch (_e) { _stillCurrentManual = true; }
                   if (_stillCurrentManual) {
                     setPendingSync(false);
                     lsRemove("cave-pending-sync");
@@ -1860,7 +1860,7 @@ export function useGdriveSync({
                   // file than the one it's tracking. The manual POST + manual
                   // prune still run; the autos converge on the next quiet save.
                   var _qLk = 0;
-                  try { _qLk = parseInt(localStorage.getItem("cave-autosave-lock") || "0", 10) || 0; } catch (_e) {}
+                  try { _qLk = parseInt(lsGet("cave-autosave-lock") || "0", 10) || 0; } catch (_e) {}
                   var _quietBusy = _qLk && (Date.now() - _qLk) < 12000;
                   return Promise.resolve(_pruneManual).then(function () {
                     if (_quietBusy) return;
@@ -2002,7 +2002,7 @@ export function useGdriveSync({
     // this, but a missed guard (or a 3 s setTimeout window where the
     // user toggles auto-save OFF) would still let the silent save
     // fire. Re-check here so the function is safe to call anywhere.
-    if (localStorage.getItem("cave-autosave") !== "1") return;
+    if (lsGet("cave-autosave") !== "1") return;
     // The in-progress ref has NO TTL of its own, so a prior save that died
     // without reaching releaseQuietLock() would leave it true and wedge
     // auto-save for the ENTIRE session (every call bails here). Self-heal:
@@ -2020,7 +2020,7 @@ export function useGdriveSync({
     var LOCK_TTL = 12000;
     if (quietSaveInProgressRef.current) {
       var _lk = 0;
-      try { _lk = parseInt(localStorage.getItem("cave-autosave-lock") || "0", 10) || 0; } catch (_e) {}
+      try { _lk = parseInt(lsGet("cave-autosave-lock") || "0", 10) || 0; } catch (_e) {}
       if (_lk && Date.now() - _lk < LOCK_TTL) { recordAutosaveDiag("skip-inprogress"); return; }
       quietSaveInProgressRef.current = false;
       recordAutosaveDiag("ref-reset-stale");
@@ -2036,7 +2036,7 @@ export function useGdriveSync({
     var LOCK_KEY = "cave-autosave-lock";
     var now = Date.now();
     try {
-      var raw = localStorage.getItem(LOCK_KEY);
+      var raw = lsGet(LOCK_KEY);
       var lockTs = raw ? parseInt(raw, 10) || 0 : 0;
       if (lockTs && now - lockTs < LOCK_TTL) { recordAutosaveDiag("skip-locked"); return; }
       lsSet(LOCK_KEY, String(now));
@@ -2050,7 +2050,7 @@ export function useGdriveSync({
         // again — by then a newer save may have re-acquired the lock (its own
         // `now`) and set the ref; clearing either would let a third save race
         // in (or drop the newer save's in-progress guard).
-        if ((localStorage.getItem(LOCK_KEY) || "") === String(now)) {
+        if ((lsGet(LOCK_KEY) || "") === String(now)) {
           quietSaveInProgressRef.current = false;
           lsRemove(LOCK_KEY);
         }
@@ -2084,7 +2084,7 @@ export function useGdriveSync({
     if (!tk) {
       if (
         !IS_IOS_STANDALONE &&
-        localStorage.getItem(AUTO_FID_KEY) &&
+        lsGet(AUTO_FID_KEY) &&
         window.google &&
         window.google.accounts &&
         window.google.accounts.oauth2
@@ -2120,7 +2120,7 @@ export function useGdriveSync({
       releaseQuietLock();
       return;
     }
-    var rawSnap = localStorage.getItem(SK);
+    var rawSnap = lsGet(SK);
     if (!rawSnap) { releaseQuietLock(); return; }
     var snap: any;
     try {
@@ -2129,9 +2129,9 @@ export function useGdriveSync({
       releaseQuietLock();
       return;
     }
-    var excluded = localStorage.getItem("cave-exclude-apikey") !== "0";
-    var activeProvider = localStorage.getItem("ai-provider") || "anthropic";
-    var ak = excluded ? "" : (localStorage.getItem(activeProvider + "-api-key") || "");
+    var excluded = lsGet("cave-exclude-apikey") !== "0";
+    var activeProvider = lsGet("ai-provider") || "anthropic";
+    var ak = excluded ? "" : (lsGet(activeProvider + "-api-key") || "");
     // See useImportConfirm._apiKeyProvider.
     var akProvider = excluded ? "" : activeProvider;
     // Auto-save now overwrites a single Drive file in place.
@@ -2207,7 +2207,7 @@ export function useGdriveSync({
         // follow-up save so S2 reaches the cloud (and the multi-device guard
         // compares against the right reference). Only clear when still current.
         var _stillCurrent;
-        try { _stillCurrent = localStorage.getItem(SK) === rawSnap; } catch (_e) { _stillCurrent = true; }
+        try { _stillCurrent = lsGet(SK) === rawSnap; } catch (_e) { _stillCurrent = true; }
         if (_stillCurrent) {
           setPendingSync(false);
           lsRemove("cave-pending-sync");
@@ -2406,7 +2406,7 @@ export function useGdriveSync({
           // newest own/legacy auto; on miss we POST a fresh device-stamped
           // file. The subsequent sweepOwnAutoFiles drains the rest. Build
           // 78: extracted to the pure `chooseAutoSaveTarget` (was inline).
-          var storedFid = localStorage.getItem(AUTO_FID_KEY);
+          var storedFid = lsGet(AUTO_FID_KEY);
           var targetFid = chooseAutoSaveTarget(autoFiles, storedFid, myDeviceId);
           if (targetFid) {
             return patchExisting(targetFid, autoFiles);
@@ -2653,7 +2653,7 @@ export function useGdriveSync({
         // straight from storage rather than from a panel's state, which is
         // what it always meant.
         try {
-          if (localStorage.getItem(AUTO_FID_KEY) === fileId) lsRemove(AUTO_FID_KEY);
+          if (lsGet(AUTO_FID_KEY) === fileId) lsRemove(AUTO_FID_KEY);
         } catch (_e) { /* private mode — the next save recovers via POST */ }
       });
     });

@@ -76,9 +76,14 @@ describe("the shipped default is the catalogue", () => {
     // The initialiser, read at source: it is a one-liner and the whole change,
     // and driving App.tsx here would mean mounting the entire application.
     const src = readFileSync("src/App.tsx", "utf8");
-    expect(src).toContain('localStorage.getItem("cave-autofill-source") === "ai" ? "ai" : "local"');
+    // `lsGet`, not a raw read: every storage read on the render path was
+    // routed through the crash-safe helper after a browser that REFUSES site
+    // storage (Safari with cookies blocked) was found to throw here and leave
+    // a blank page. The rule this case guards — absent means "local", and only
+    // an explicit "ai" flips it — is unchanged.
+    expect(src).toContain('lsGet("cave-autofill-source") === "ai" ? "ai" : "local"');
     // …and NOT the earlier shape, which read an absent value as "ai".
-    expect(src).not.toContain('localStorage.getItem("cave-autofill-source") === "local" ? "local" : "ai"');
+    expect(src).not.toContain('lsGet("cave-autofill-source") === "local" ? "local" : "ai"');
   });
 
   it("a stored 'ai' still wins — a deliberate pick is not a default", () => {
@@ -86,7 +91,7 @@ describe("the shipped default is the catalogue", () => {
     // not. `saveAutofillSource` writes only on change, so anyone who has ever
     // touched the Segmented keeps their pick.
     const src = readFileSync("src/App.tsx", "utf8");
-    const init = src.match(/getItem\("cave-autofill-source"\)[^,\n]*/)![0];
+    const init = src.match(/lsGet\("cave-autofill-source"\)[^,\n]*/)![0];
     expect(init).toContain('=== "ai" ? "ai"');
   });
 

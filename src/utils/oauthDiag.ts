@@ -22,7 +22,7 @@
  * history. The previous value is overwritten on every record() call.
  */
 
-import { lsSet, lsRemove } from "./appStorage.ts";
+import { lsGet, lsSet, lsRemove } from "./appStorage.ts";
 
 export var OAUTH_DIAG_KEY = "cave-oauth-diag";
 
@@ -48,7 +48,7 @@ export function recordOAuthEvent(
 
 export function readOAuthEvent(): OAuthDiagEntry | null {
   try {
-    var raw = localStorage.getItem(OAUTH_DIAG_KEY);
+    var raw = lsGet(OAUTH_DIAG_KEY);
     if (!raw) return null;
     var p = JSON.parse(raw);
     if (!p || typeof p !== "object" || typeof p.ts !== "number" || typeof p.type !== "string") {

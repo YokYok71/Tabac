@@ -35,7 +35,7 @@
 import React from "react";
 import type { NoticeTone } from "../components/curator/Notice.tsx";
 import { LANGUAGES } from "../i18n/languages.ts";
-import { lsSet } from "../utils/appStorage.ts";
+import { lsGet, lsSet } from "../utils/appStorage.ts";
 
 var useState = React.useState,
   useEffect = React.useEffect;
@@ -105,7 +105,7 @@ function isExpired(raw: RawNotice): boolean {
 
 function readSeen(): string {
   try {
-    return localStorage.getItem(NOTICE_SEEN_KEY) || "";
+    return lsGet(NOTICE_SEEN_KEY) || "";
   } catch (_) {
     return "";
   }

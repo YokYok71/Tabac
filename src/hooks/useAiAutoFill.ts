@@ -12,7 +12,7 @@ import {
   canonCut,
 } from "../constants.ts";
 import { stripMarkupFromString } from "../utils.ts";
-import { lsSet } from "../utils/appStorage.ts";
+import { lsGet, lsSet } from "../utils/appStorage.ts";
 import { safeJsonParse } from "../utils/safeJson.ts";
 import {
   tobaccoDbLookup,
@@ -202,11 +202,16 @@ export var AI_MODEL_AUTO = "auto";
 // Defaults apply ONLY when nothing is stored for that provider, so switching
 // them to "auto" changes no existing device's behaviour — it just stops new
 // installs from freezing a concrete id that a future refresh would strand.
-export var AI_MODEL_DEFAULTS: Record<string, string> = {
+// NULL-PROTOTYPE, like AI_MODEL_ALIASES below. Both are indexed by
+// `ai-provider`, a value read straight from storage — and on a plain object
+// `AI_MODEL_OPTIONS["__proto__"]` resolves to `Object.prototype`, which is
+// TRUTHY, so the `|| []` fallback never fires and `.filter is not a function`
+// throws on every render of App. Permanent, since the value is persisted.
+export var AI_MODEL_DEFAULTS: Record<string, string> = Object.assign(Object.create(null), {
   anthropic: AI_MODEL_AUTO,
   openai: AI_MODEL_AUTO,
   gemini: AI_MODEL_AUTO,
-};
+});
 // "auto" — the user delegates the choice.
 //
 // It does NOT mean "ask the provider which models exist". That naive reading
@@ -220,7 +225,7 @@ export var AI_MODEL_DEFAULTS: Record<string, string> = {
 // user forward automatically, and a model retired upstream is remembered as
 // dead (see markModelDead) and skipped from the next call on — which is
 // exactly how the four-month Gemini outage would have healed itself.
-export var AI_MODEL_OPTIONS: Record<string, Array<{ id: string; label: string }>> = {
+export var AI_MODEL_OPTIONS: Record<string, Array<{ id: string; label: string }>> = Object.assign(Object.create(null), {
   anthropic: [
     { id: AI_MODEL_AUTO, label: "Auto" },
     { id: "claude-haiku-4-5", label: "Haiku 4.5" },
@@ -240,7 +245,7 @@ export var AI_MODEL_OPTIONS: Record<string, Array<{ id: string; label: string }>
     { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite" },
     { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
   ],
-};
+});
 // Legacy → current model ids. The chosen model lives in
 // `ai-model-<provider>` for ever, so refreshing the option lists above would
 // otherwise leave a returning user pinned to a superseded id with no visible
@@ -578,20 +583,20 @@ export function useAiAutoFill({
     aiErr = _aiE[0],
     setAiErr = _aiE[1];
   var _aiK = useState(
-      localStorage.getItem(
-        (localStorage.getItem("ai-provider") || "anthropic") + "-api-key",
+      lsGet(
+        (lsGet("ai-provider") || "anthropic") + "-api-key",
       ) || "",
     ),
     apiKey = _aiK[0],
     setApiKey = _aiK[1];
-  var _aiP = useState(localStorage.getItem("ai-provider") || "anthropic"),
+  var _aiP = useState(lsGet("ai-provider") || "anthropic"),
     aiProvider = _aiP[0],
     setAiProvider = _aiP[1];
   // User-selectable model, stored per provider
   // (`ai-model-<provider>`), defaulting to that provider's default model.
   var _aiM = useState((function () {
-      var p = localStorage.getItem("ai-provider") || "anthropic";
-      return normalizeAiModel(localStorage.getItem("ai-model-" + p)) || defaultAiModel(p);
+      var p = lsGet("ai-provider") || "anthropic";
+      return normalizeAiModel(lsGet("ai-model-" + p)) || defaultAiModel(p);
     })()),
     aiModel = _aiM[0],
     setAiModel = _aiM[1];
@@ -600,7 +605,7 @@ export function useAiAutoFill({
   var _mp = useState<{ state: "busy" | "ok" | "gone" | "error"; model: string } | null>(null),
     modelProbe = _mp[0],
     setModelProbe = _mp[1];
-  var _xk = useState(localStorage.getItem("cave-exclude-apikey") !== "0"),
+  var _xk = useState(lsGet("cave-exclude-apikey") !== "0"),
     excludeApiKey = _xk[0],
     setExcludeApiKey = _xk[1];
   // Source of the last successful auto-fill. Surfaced
@@ -634,7 +639,7 @@ export function useAiAutoFill({
   // Dead-model memory (see deadModelsKey). Kept tiny and crash-safe:
   // a corrupt value degrades to "nothing is dead", i.e. the original behaviour.
   function readDead(provider: string): string[] {
-    var raw = safeJsonParse(localStorage.getItem(deadModelsKey(provider)), null) as any;
+    var raw = safeJsonParse(lsGet(deadModelsKey(provider)), null) as any;
     return Array.isArray(raw) ? raw.filter(function (x) { return typeof x === "string"; }) : [];
   }
   function markModelDead(provider: string, id: string) {
@@ -658,13 +663,13 @@ export function useAiAutoFill({
   // isFormerDefaultModel). Guarded by a flag so a user who deliberately picks
   // the cheapest tier AFTER the migration is never flipped back to auto.
   React.useEffect(function () {
-    if (localStorage.getItem(AI_AUTO_MIGRATED_KEY) === "1") return;
+    if (lsGet(AI_AUTO_MIGRATED_KEY) === "1") return;
     var changedActive = false;
     ["anthropic", "openai", "gemini"].forEach(function (p) {
-      var stored = localStorage.getItem("ai-model-" + p);
+      var stored = lsGet("ai-model-" + p);
       if (stored !== null && isFormerDefaultModel(stored)) {
         lsSet("ai-model-" + p, AI_MODEL_AUTO);
-        if (p === (localStorage.getItem("ai-provider") || "anthropic")) changedActive = true;
+        if (p === (lsGet("ai-provider") || "anthropic")) changedActive = true;
       }
     });
     lsSet(AI_AUTO_MIGRATED_KEY, "1");
@@ -681,7 +686,7 @@ export function useAiAutoFill({
     // provider when not provided (manual user save in Settings).
     var target = (provider && /^(anthropic|openai|gemini)$/.test(provider))
       ? provider
-      : (localStorage.getItem("ai-provider") || "anthropic");
+      : (lsGet("ai-provider") || "anthropic");
     // CodeQL js/clear-text-storage-of-sensitive-information — accepted risk.
     // Static PWA with no backend: the AI provider key must live on-device to
     // call api.anthropic.com / api.openai.com / generativelanguage.googleapis.com
@@ -691,16 +696,16 @@ export function useAiAutoFill({
     // provider's slot — otherwise we'd overwrite the displayed key in
     // Settings with the imported one even when the user is on another
     // provider.
-    var active = localStorage.getItem("ai-provider") || "anthropic";
+    var active = lsGet("ai-provider") || "anthropic";
     if (target === active) setApiKey(k);
   }
 
   function saveAiProvider(p: any) {
     setAiProvider(p);
     lsSet("ai-provider", p);
-    setApiKey(localStorage.getItem(p + "-api-key") || "");
+    setApiKey(lsGet(p + "-api-key") || "");
     // Recall this provider's saved model (or its default).
-    setAiModel(normalizeAiModel(localStorage.getItem("ai-model-" + p)) || defaultAiModel(p));
+    setAiModel(normalizeAiModel(lsGet("ai-model-" + p)) || defaultAiModel(p));
   }
 
   /**
@@ -712,7 +717,7 @@ export function useAiAutoFill({
    */
   function probeModel(modelArg?: string) {
     if (!apiKey) { setModelProbe(null); return; }
-    var prov = localStorage.getItem("ai-provider") || "anthropic";
+    var prov = lsGet("ai-provider") || "anthropic";
     var target = modelArg !== undefined
       ? resolveAiModel(prov, modelArg, readDead(prov))
       : effectiveModel();
@@ -726,8 +731,8 @@ export function useAiAutoFill({
         // this key. Anything else (401/403/429/5xx) is not a verdict ON THE
         // MODEL, so it must not be reported as one.
         if (r.status === 404) {
-          var auto = normalizeAiModel(localStorage.getItem("ai-model-" + prov)) === AI_MODEL_AUTO
-            || !localStorage.getItem("ai-model-" + prov);
+          var auto = normalizeAiModel(lsGet("ai-model-" + prov)) === AI_MODEL_AUTO
+            || !lsGet("ai-model-" + prov);
           if (auto) markModelDead(prov, target);
           setModelProbe({ state: "gone", model: target });
         } else {
@@ -741,7 +746,7 @@ export function useAiAutoFill({
   // Empty / whitespace falls back to the provider default so the request
   // never ships a blank model id.
   function saveAiModel(m: any) {
-    var active = localStorage.getItem("ai-provider") || "anthropic";
+    var active = lsGet("ai-provider") || "anthropic";
     var val = normalizeAiModel(m) || defaultAiModel(active);
     lsSet("ai-model-" + active, val);
     setAiModel(val);

@@ -64,6 +64,24 @@ tester.run("no-dynamic-index-plain-map", rule, {
     { code: `function f() { const M: Record<string, string> = { a: "x" }; return M[k]; }` },
     // dynamic index into a non-map call result — out of scope.
     { code: `const arr = [1, 2, 3]; const v = arr[i];` },
+    // `let` stays exempt — genuinely reassignable, so the map's shape at the
+    // read site is not knowable from the declaration.
+    { code: `let M: Record<string, string> = { a: "x" }; const v = M[k];` },
+    // ALREADY GUARDED by an own-property test on the SAME map. Widening the
+    // rule to `var` made it see this project's real tables for the first time,
+    // and five of the seven sites it reported were correct code carrying
+    // exactly this guard. Flagging them would have meant either reverting the
+    // widening (losing the live defect it found) or bolting a disable comment
+    // onto correct code, which teaches the next reader to silence the rule.
+    {
+      code: `var M: Record<string, string> = { a: "x" };\n`
+        + `function f(k: string) { return Object.prototype.hasOwnProperty.call(M, k) ? M[k]! : ""; }`,
+    },
+    // …and the modern spelling of the same test.
+    {
+      code: `var M: Record<string, string> = { a: "x" };\n`
+        + `function f(k: string) { return Object.hasOwn(M, k) ? M[k]! : ""; }`,
+    },
   ],
   invalid: [
     // Record<string, …> module const, dynamic index.
@@ -89,6 +107,34 @@ tester.run("no-dynamic-index-plain-map", rule, {
     // Record<any, …> is forgeable too.
     {
       code: `const M: Record<any, string> = { a: "x" }; const v = M[k];`,
+      errors: [{ messageId: "unsafe" }],
+    },
+    // MODULE-SCOPE `var`. The gate was `const` only, and this project declares
+    // its lookup tables as `export var` throughout — so the rule was blind to
+    // nearly all of them, live defect included (`AI_MODEL_OPTIONS[provider]`,
+    // indexed by a value read straight from storage).
+    {
+      code: `var M: Record<string, string> = { a: "x" }; const v = M[k];`,
+      errors: [{ messageId: "unsafe" }],
+    },
+    {
+      code: `export var M: Record<string, string> = { a: "x" }; const v = M[k];`,
+      errors: [{ messageId: "unsafe" }],
+    },
+    // The guard exemption is pinned to the map NAME: a test on a DIFFERENT map
+    // in the same statement must not launder the read.
+    {
+      code: `var M: Record<string, string> = { a: "x" };\n`
+        + `var N: Record<string, string> = { a: "y" };\n`
+        + `function f(k: string) { return Object.prototype.hasOwnProperty.call(N, k) ? M[k]! : ""; }`,
+      errors: [{ messageId: "unsafe" }],
+    },
+    // …and to the same STATEMENT: a guard several statements away is a
+    // control-flow claim this rule cannot verify.
+    {
+      code: `var M: Record<string, string> = { a: "x" };\n`
+        + `function f(k: string) { const ok = Object.prototype.hasOwnProperty.call(M, k);\n`
+        + `  if (!ok) return ""; return M[k]!; }`,
       errors: [{ messageId: "unsafe" }],
     },
   ],

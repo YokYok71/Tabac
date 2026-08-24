@@ -195,7 +195,16 @@ export function Stars({ n, size = 12, color = C.brassHi, sequenced = false, onCh
     if (!sequenced) { setShown(n); return; }
     setShown(0);
     const ids: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 1; i <= n; i++) {
+    // CLAMPED. `n` is a prop, and a rating of `Infinity` — which `JSON.parse`
+    // produces from a backup carrying `1e999` — made this loop register one
+    // timer per unit and locked the main thread outright: the tab had to be
+    // force-killed, and every later attempt to open that fiche did it again.
+    // `migrateData` clamps the stored value now; this is the second line,
+    // because `n` can reach the component by routes the migration never sees
+    // (a computed average, a future field). Only five stars are ever drawn, so
+    // more than five timers is waste on any input, hostile or not.
+    const steps = Math.min(5, Math.max(0, Math.floor(Number(n) || 0)));
+    for (let i = 1; i <= steps; i++) {
       ids.push(setTimeout(() => setShown(v => Math.max(v, i)), 80 * i + 200));
     }
     return () => ids.forEach(clearTimeout);

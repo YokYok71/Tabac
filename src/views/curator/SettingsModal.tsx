@@ -27,7 +27,7 @@ import { Notice, statusToneFromMessage } from "../../components/curator/Notice.t
 import { ScrollableChipRow } from "../../components/curator/FilterControls.tsx";
 import { AI_MODEL_OPTIONS } from "../../hooks/useAiAutoFill.ts";
 import { readOAuthEvent, clearOAuthEvent } from "../../utils/oauthDiag.ts";
-import { lsSet, lsRemove } from "../../utils/appStorage.ts";
+import { lsGet, lsSet, lsRemove } from "../../utils/appStorage.ts";
 import {
   findDuplicateGroups, duplicateCount, mergeDuplicates,
   type DupGroup, type DupKind,
@@ -125,7 +125,7 @@ export function CuratorSettingsModal() {
   // between-tests `beforeEach` keeps working.
   const [localTab, setLocalTab] = useState<SettingsTabId>(() => {
     try {
-      const saved = localStorage.getItem("cave-settings-tab");
+      const saved = lsGet("cave-settings-tab");
       if (saved === "data" || saved === "prefs" || saved === "app" || saved === "help") return saved;
     } catch (_e) {}
     return "prefs";
@@ -219,7 +219,7 @@ export function CuratorSettingsModal() {
               // the manual (gdriveSave) and auto (gdriveSaveQuiet) success
               // sites; read here so a manual save reads "manuelle".
               var ty = (function () {
-                try { return localStorage.getItem("cave-last-save-type-" + (cloudProviderId === "dropbox" ? "dropbox" : "gdrive")); } catch (_e) { return null; }
+                try { return lsGet("cave-last-save-type-" + (cloudProviderId === "dropbox" ? "dropbox" : "gdrive")); } catch (_e) { return null; }
               })();
               var lab = ty === "manual"
                 ? (t ? t("settings_last_manual_backup") : "Dernière sauvegarde manuelle :")
@@ -402,7 +402,7 @@ export function CuratorSettingsModal() {
             // common case; this stays as a fallback view if the user
             // has hidden the banner permanently.
             if (!autoSaveDrive ||
-                (!localStorage.getItem("gdrive-fid") && !localStorage.getItem("gdrive-auto-fid"))) return null;
+                (!lsGet("gdrive-fid") && !lsGet("gdrive-auto-fid"))) return null;
             if (cloudProviderId === "dropbox") return null;
             try {
               const _tk = JSON.parse((tkGet && tkGet()) || "null");
