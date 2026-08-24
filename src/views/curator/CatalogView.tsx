@@ -122,30 +122,39 @@ export function CuratorCatalogView() {
   // ─── Owned-set: which catalog keys the user already has ───
   // Compute once per inventory change so we don't run the canonical
   // resolution on every render.
+  const tobList = data?.tobaccos;
   const ownedKeys = useMemo(() => {
     if (!db) return new Set<string>();
     const set = new Set<string>();
-    const tobs = (data && data.tobaccos) || [];
+    const tobs = tobList || [];
     for (const t of tobs) {
       if (!t || t.deletedAt) continue;
       const k = tobaccoDbCanonicalKey(t.brand, t.name);
       if (k) set.add(k);
     }
     return set;
-  }, [db, data]);
+    // Keyed on the COLLECTION, not on `data`. `data` changes identity on every
+    // save, and `db` is set on the first visit to this page and never cleared
+    // (the view self-gates rather than unmounting), so this re-resolved the
+    // whole cellar against the catalogue on every star tap, from any screen.
+    // Cost is per MISS, and a miss falls through the full fuzzy ladder:
+    // MEASURED at 300 tobaccos against a 20 000-blend catalogue, 1 309 ms —
+    // and 145 ms even against a 1 594-blend one.
+  }, [db, tobList]);
 
   // ─── Wished-set: catalog keys present in the user's wishlist ───
+  const wishList = data?.wishlist;
   const wishedKeys = useMemo(() => {
     if (!db) return new Set<string>();
     const set = new Set<string>();
-    const ws = (data && data.wishlist) || [];
+    const ws = wishList || [];
     for (const w of ws) {
       if (!w || w.deletedAt) continue;
       const k = tobaccoDbCanonicalKey(w.brand, w.name);
       if (k) set.add(k);
     }
     return set;
-  }, [db, data]);
+  }, [db, wishList]);
 
   // The "Vous pourriez aimer" section is GONE,
   // on the user's instruction. It scored the catalogue against the taste

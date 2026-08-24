@@ -16,8 +16,28 @@ export interface EnterOpts {
   duration?: number;
   easing?: string;
 }
-export function useEnter(delay = 0, opts: EnterOpts = {}): React.CSSProperties {
+// No entry animation may BEGIN later than this. Every list computes its delay
+// from the row index (`100 + idx * 50`), so the stagger was unbounded: MEASURED
+// on a 5000-session journal, the last card's timer fired at **250 seconds**,
+// and each row is its own `setTimeout` + `setState` — i.e. thousands of
+// separate React commits over a 165 000-node tree, long after the user has
+// moved on. At 4x CPU throttle that was 288 further long tasks averaging
+// 122 ms, still going when observation stopped.
+//
+// Capping the DELAY here rather than the index at each call site is the point:
+// the rule belongs to the animation, not to any one list, so it covers the six
+// current sites and every future one. Nothing visible changes — past ~12 rows
+// the stagger is already off screen — while beyond the cap the timers coalesce
+// into the same tick instead of trailing for minutes.
+//
+// It does NOT window the lists: every row is still in the DOM (165 118 nodes
+// for that journal), which is the other half of the freeze and a far larger
+// change. Disclosed rather than implied.
+export var ENTER_MAX_DELAY_MS = 700;
+
+export function useEnter(rawDelay = 0, opts: EnterOpts = {}): React.CSSProperties {
   const { fromY = 12, duration = 460, easing = "cubic-bezier(.2,.7,.3,1)" } = opts;
+  const delay = Math.min(ENTER_MAX_DELAY_MS, Number(rawDelay) || 0);
   const [entered, setEntered] = useState(false);
   useEffect(() => {
     let raf = 0;

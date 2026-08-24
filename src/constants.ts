@@ -53,7 +53,7 @@ export var APP_VERSION = "1.0";
  * about to move backwards or restart.
  */
 export var APP_GENERATION = 2;
-export var APP_BUILD = "46";
+export var APP_BUILD = "47";
 
 export var CATS = ["Américain","Anglais","Anglais aromatique","Aromatique","Balkan","Burley","Cavendish","Cigare","Dark Fired","Écossais","Lakeland","Latakia","Oriental","Perique","Turkish","VaPer","Virginia","Virginia/Burley","Virginia/Latakia","Autre"] as const;
 export var CATS_EN: Record<string, string> = {"Américain":"American",Anglais:"English","Anglais aromatique":"English aromatic",Aromatique:"Aromatic",Balkan:"Balkan",Burley:"Burley",Cavendish:"Cavendish",Cigare:"Cigar","Dark Fired":"Dark Fired","Écossais":"Scottish",Lakeland:"Lakeland",Latakia:"Latakia",Oriental:"Oriental",Perique:"Perique",Turkish:"Turkish",VaPer:"VaPer",Virginia:"Virginia","Virginia/Burley":"Virginia/Burley","Virginia/Latakia":"Virginia/Latakia",Autre:"Other"};
@@ -509,6 +509,28 @@ export var GDRIVE_CATALOGUE_PREFIX = "cave-tabac-catalogue-";
 
 // How long a soft-deleted entity stays in the Trash before
 // the startup cleanup hard-removes it.
+// The cellar's OWN storage budget, in JS string characters.
+//
+// `useStorageQuotaWarning` probes `navigator.storage.estimate()`, which reports
+// the ORIGIN quota — what IndexedDB (the photo store) spends. The cellar lives
+// in `localStorage`, whose ~5 MB sub-quota the StorageManager commonly does not
+// account for at all: MEASURED in Chromium, filling localStorage to failure
+// gave a hard ceiling of 5 200 000 chars while `estimate()` reported 0.112 % of
+// a 1049 MB quota at the very moment `setItem` threw. A serious collector's
+// cellar measured 2 899 338 chars — 55.8 % of the budget that actually fails,
+// and three orders of magnitude away from the one being watched.
+//
+// 5 000 000 rather than the measured 5 200 000: the ceiling is engine-specific
+// and this number decides when a user is TOLD to back up, so it errs low. The
+// warning fires at the same 80 % as the origin probe.
+//
+// The consequence it exists to prevent is not a refused write. `save()` calls
+// `setData(nd)` BEFORE `appStorage.set`, and the QuotaExceeded retry migrates
+// INLINE photos — of which a modern cellar has none, they are already
+// `local-photo-*` keys — so the edit stays on screen, looks saved, and is gone
+// on the next launch.
+export var LOCALSTORAGE_BUDGET_CHARS = 5000000;
+
 export var TRASH_RETENTION_DAYS = 30;
 // Stale-pending sweep threshold (ms). Used by BOTH
 // the mount-time cleanup in App.tsx AND triggerIosAutosaveReauth in

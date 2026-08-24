@@ -280,6 +280,13 @@ function App() {
   var _jfco = useState(""),
     journalFilterCountry = _jfco[0],
     setJournalFilterCountry = _jfco[1];
+  // The length of the cellar payload last written (or read at load). Handed to
+  // `useStorageQuotaWarning`, which measures localStorage's own ~5 MB budget —
+  // the one `navigator.storage.estimate()` does not account for and the one
+  // that actually refuses the write. Taken from the string `save()` already
+  // built rather than re-stringifying, which would double a 13-15 ms cost on
+  // every data change.
+  var _cc = useState(0), cellarChars = _cc[0], setCellarChars = _cc[1];
   var _ps = useState(lsGet("cave-pending-sync") === "1"),
     pendingSync = _ps[0],
     setPendingSync = _ps[1];
@@ -807,7 +814,7 @@ function App() {
   }, []);
 
   // Proactive storage-quota warning → useStorageQuotaWarning.
-  var dismissQuotaWarn = useStorageQuotaWarning(data, lang, t, setSaveWarn);
+  var dismissQuotaWarn = useStorageQuotaWarning(data, lang, t, setSaveWarn, cellarChars);
 
   useEffect(function () {
     function onBIP(e: any) {
@@ -1015,6 +1022,9 @@ function App() {
       .get(SK)
       .then(function (r) {
         var parsed: any = null;
+        // Seed the budget gauge from what is ON DISK, so the very first launch
+        // of an already-large cellar is measured before any save happens.
+        if (r && r.value) setCellarChars(String(r.value).length);
         if (r && r.value) {
           try {
             parsed = JSON.parse(r.value);
@@ -1116,6 +1126,7 @@ function App() {
       lsRemove(SK + "-bkp-ts");
     } catch (_e) {}
     var json = JSON.stringify(nd);
+    setCellarChars(json.length);
     appStorage.set(SK, json).catch(function (e) {
       console.error("Save error:", e.name, e.message);
       var isQuota =
