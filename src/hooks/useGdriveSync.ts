@@ -402,7 +402,10 @@ export function useGdriveSync({
   stageImport: (
     parsed: any,
     source: "file" | "drive",
-    options?: { autoApply?: "replace" | "merge" },
+    // `onApplied` fires once the import is COMMITTED (either mode), never on
+    // cancel — the cloud-newer banner acks the backup there rather than at
+    // stage time, so backing out of the picker leaves the warning armed.
+    options?: { autoApply?: "replace" | "merge"; onApplied?: () => void },
   ) => void;
   markExported?: () => void;
   t: (k: string) => string;
@@ -1056,7 +1059,23 @@ export function useGdriveSync({
         catch (_parseErr) { throw new Error(t("alert_invalid_file")); }
         if (d.error || !isPlausibleBackup(d)) throw new Error(t("alert_invalid_file"));
         setGdriveStatus(null);
-        ackCloudNewerBackup(ackTs, ackName);
+        // The ack fires on the picker's APPLIED path, not here.
+        //
+        // It used to run at this line — the moment the download parsed — and
+        // it writes the PERSISTENT dismissed markers, of which the by-name one
+        // silences that file regardless of timestamp. So tapping « Restaurer »
+        // and then backing out of the Replace / Merge picker muted a
+        // genuinely-newer cloud backup for ever, with nothing on screen to say
+        // it had happened; the only way back is Réglages → « Vérifier les
+        // sauvegardes cloud », which nobody has a reason to look for.
+        //
+        // Harmless while the restore auto-applied (parsed and applied were one
+        // moment); the picker made the two separable, and this is the half
+        // that was not moved with it. Nothing is needed for the cancel path:
+        // `cloudNewerBackup` is simply never cleared, so the banner comes back
+        // — and it does not sit over the picker meanwhile, because every
+        // top-0 banner stands down while `importModal` is set.
+        //
         // The banner's « Restaurer » goes through the
         // Replace/Merge PICKER now, on the user's decision.
         //
@@ -1077,7 +1096,9 @@ export function useGdriveSync({
         // import pending with NOTHING on screen, a worse defect than the one
         // being fixed. Verified in CuratorApp's mount gate.
         setImportModal(true);
-        stageImport(d, "drive");
+        stageImport(d, "drive", {
+          onApplied: function () { ackCloudNewerBackup(ackTs, ackName); },
+        });
         finishBusy();
       })
       .catch(function (e: any) {

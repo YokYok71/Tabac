@@ -57,6 +57,35 @@ export function useExportImport({
   var _bk = useState<string | null>(null),
     backupStatus = _bk[0],
     setBackupStatus = _bk[1];
+  // ONE TAP, ONE ARTIFACT — the re-entry guard for the two exports that stay
+  // tappable for SECONDS while nothing visible happens.
+  //
+  // `doExport` walks the whole photo store and `doBackupZip` additionally
+  // waits on a CDN and then builds a ZIP with every photo in memory, so the
+  // button is live long after the tap. A second tap used to start a second
+  // run beside the first: two full passes, two `dlFile` calls — and on iOS,
+  // where `canShare({files})` is true, the second `navigator.share` rejects
+  // with `InvalidStateError` (a share is already in flight), which is NOT
+  // `AbortError`, so `dlFile` falls through to the anchor download and the
+  // user gets a share sheet AND a file from one intent.
+  //
+  // A REF, not state: the guard must be readable synchronously inside the
+  // same handler, and React has not re-rendered between two taps in one
+  // burst. Fixed field names rather than a keyed map — the keys are internal
+  // and a dynamic index into a plain object is the prototype-safety class
+  // this repo keeps paying for.
+  //
+  // EVERY exit RELEASES, failures included: a guard that stuck would turn
+  // "my photo store is unreadable" into "my export button stopped working",
+  // which is a worse report than the defect it hides. The non-vacuity cases
+  // in exportReentry.test.ts exist for exactly that.
+  //
+  // SCOPE, stated so the absence reads as a decision: the three synchronous
+  // exports (CSV, collection report, CSV template) are NOT guarded. They
+  // hand back a file within the gesture, so their re-entry window is one tap
+  // wide rather than seconds, and a guard there would be machinery with no
+  // window to protect.
+  var busyRef = React.useRef({ json: false, zip: false });
   // What the last CSV cellar import could not read.
   //
   // The recap TOAST says how many; this says WHICH ROW. It cannot go in the
@@ -125,6 +154,9 @@ export function useExportImport({
   }
 
   function doExport() {
+    // See `busyRef`. One tap, one file.
+    if (busyRef.current.json) return;
+    busyRef.current.json = true;
     var base = Object.assign({}, data, {
       _apiKey: excludeApiKey ? "" : apiKey || "",
       // Remember which provider this key belongs to so
@@ -157,6 +189,11 @@ export function useExportImport({
       // succeeded while no file was ever produced.
       .catch(function (e: any) {
         alert(exportFailMsg(e));
+      })
+      // Release on BOTH paths — `.catch` resolves, so this tail runs whether
+      // the export succeeded, was declined, or failed.
+      .then(function () {
+        busyRef.current.json = false;
       });
   }
 
@@ -831,6 +868,15 @@ export function useExportImport({
   }
 
   function doBackupZip() {
+    // See `busyRef`. The claim is taken BEFORE the `window.JSZip` check, so
+    // it covers the CDN wait too: a second tap while the script is in flight
+    // returns here instead of appending a second <script> whose own `onload`
+    // would run `_runZip` a second time.
+    if (busyRef.current.zip) return;
+    busyRef.current.zip = true;
+    function releaseZip() {
+      busyRef.current.zip = false;
+    }
     function _runZip() {
       withPhotos(data).then(function (rd: any) {
         var zip = new window.JSZip();
@@ -897,21 +943,27 @@ export function useExportImport({
           setBackupStatus(null);
           alert(t("err_export_failed") + " " + String((e && e.message) || e).slice(0, 120));
         }
+        // ONE tail for the two generateAsync sites — they were byte-near
+        // duplicates, and the re-entry guard needs a single place to release
+        // rather than a copy of the same three lines in each.
+        function emitZip() {
+          zip.generateAsync({ type: "blob" }).then(function (c: any) {
+            return dlFile(c, "cave-tabac-export.zip", "application/zip").then(function (ok: boolean) {
+              // A dismissed share sheet is not a backup — neither
+              // the reminder nor the "✓ OK" status may claim one happened.
+              if (!ok) { setBackupStatus(null); return; }
+              if (markExported) markExported();
+              setBackupStatus(t("st_done"));
+              setTimeout(function () {
+                setBackupStatus(null);
+              }, 3000);
+            });
+          }).catch(zipFail).then(releaseZip);
+        }
         function dlN(idx: any) {
           if (idx >= allImgs.length) {
             setBackupStatus(t("st_zipping"));
-            zip.generateAsync({ type: "blob" }).then(function (c: any) {
-              return dlFile(c, "cave-tabac-export.zip", "application/zip").then(function (ok: boolean) {
-                // A dismissed share sheet is not a backup — neither
-                // the reminder nor the "✓ OK" status may claim one happened.
-                if (!ok) { setBackupStatus(null); return; }
-                if (markExported) markExported();
-                setBackupStatus(t("st_done"));
-                setTimeout(function () {
-                  setBackupStatus(null);
-                }, 3000);
-              });
-            }).catch(zipFail);
+            emitZip();
             return;
           }
           setBackupStatus(t("st_images") + " " + (idx + 1) + "/" + total);
@@ -931,21 +983,15 @@ export function useExportImport({
           dlN(idx + 1);
         }
         if (total > 0) dlN(0);
-        else {
-          zip.generateAsync({ type: "blob" }).then(function (c: any) {
-            return dlFile(c, "cave-tabac-export.zip", "application/zip").then(function (ok: boolean) {
-              if (!ok) { setBackupStatus(null); return; }
-              if (markExported) markExported();
-              setBackupStatus(t("st_done"));
-              setTimeout(function () {
-                setBackupStatus(null);
-              }, 3000);
-            });
-          }).catch(zipFail);
-        }
+        // A photo-less cellar skips straight to the blob. Deliberately NO
+        // `st_zipping` here — that is what the pre-extraction code did, and
+        // adding a status flash to this branch would be a behaviour change
+        // smuggled into a re-entry fix.
+        else emitZip();
       }).catch(function (e: any) {
         // WithPhotos rejection (broken IndexedDB) — same
         // visibility rule as doExport.
+        releaseZip();
         setBackupStatus(null);
         alert(exportFailMsg(e));
       });
@@ -965,6 +1011,9 @@ export function useExportImport({
     // LABEL-CONTRACT:end jszip-cdn
     script.onload = _runZip;
     script.onerror = function () {
+      // Re-arm: a CDN blip is exactly the case where the user's remedy is to
+      // tap again, so the guard must not survive the failure.
+      releaseZip();
       setBackupStatus(null);
       alert(t("err_jszip"));
     };
@@ -987,8 +1036,30 @@ export function useExportImport({
   function resetAll() {
     if (!window.confirm(t("confirm_reset"))) return;
     save(Object.assign({}, INIT));
+    // THE WIPE IS SYNCHRONOUS AND IMMEDIATE, and that ordering is the fix
+    // rather than tidiness.
+    //
+    // `save(INIT)` writes the emptied cellar to localStorage and sets
+    // `pendingSync`, which ARMS the 1.2 s debounced `gdriveSaveQuiet` in
+    // useGdriveSync. That quiet save reads the cellar out of localStorage —
+    // by then INIT — and the only thing standing between it and an upload is
+    // its own `lsGet("cave-autosave") !== "1"` re-check. So the flag has to
+    // be gone before the timer can fire.
+    //
+    // It used to be wiped inside `done`, i.e. only after an AWAITED
+    // `imgCache.clear()`. Clearing a photo store holding hundreds of base64
+    // blobs can outlast 1.2 s on a phone, and in that window the reset
+    // uploaded an EMPTY cellar over the user's cloud backup and stamped it as
+    // the newest save — destroying the one copy that could undo a reset
+    // tapped by mistake. `appStorage.set` writes inside its executor, so
+    // `save` has already touched storage by the time this line runs; wiping
+    // here leaves exactly the fresh-install state (no cellar key, no pending
+    // flag) instead of resurrecting them.
+    //
+    // The photo clear still gates the RELOAD below: restarting over an
+    // in-flight IndexedDB transaction is how blobs survive a wipe.
+    wipeAppStorage();
     var done = function () {
-      wipeAppStorage();
       try { window.location.reload(); } catch (_e) { nav("home"); }
     };
     try {

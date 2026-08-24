@@ -20,6 +20,7 @@ function tr(lang: string | undefined, key: string): string {
 export function useSessionStore({
   data,
   save,
+  latestData,
   nav,
   weightUnit,
   setSaveError,
@@ -27,11 +28,22 @@ export function useSessionStore({
 }: {
   data: any;
   save: (d: any) => void;
+  /** The FRESHEST committed cellar (App's `latestDataRef`), optional so every
+   *  existing caller and test keeps working. `SessionFormView.submit` commits
+   *  the tasting-notes draft and THEN saves the session, both inside one
+   *  handler — React has not re-rendered between them, so a session payload
+   *  built from the render's `data` overwrites the notes write. See App.tsx. */
+  latestData?: () => any;
   nav: (v: string, opts?: { restoreScroll?: boolean }) => void;
   weightUnit: string;
   setSaveError?: (msg: string | null) => void;
   lang?: string;
 }) {
+  // The base every mutation below builds on. Falls back to the render snapshot
+  // when App did not hand a ref down (tests, and any future caller).
+  function fresh(): any {
+    return latestData ? latestData() : data;
+  }
   var _jf = useState(Object.assign({}, BJ)),
     sessForm = _jf[0],
     setSessForm = _jf[1];
@@ -65,6 +77,11 @@ export function useSessionStore({
   }, [data]);
 
   function _persistSession(form: any) {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     if (!form.date) return false;
     // Round the recorded weight to the deduction grid so the stored
     // session weightG and the lot debit are byte-identical (no sub-grid Σ drift
@@ -210,6 +227,11 @@ export function useSessionStore({
   }
 
   function updateSession() {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     // Mirror _persistSession's required-date guard. The
     // back-guard "Enregistrer" calls this without re-checking canSave, so a
     // session whose date was cleared must not persist a dateless row (which
@@ -361,6 +383,11 @@ export function useSessionStore({
   }
 
   function deleteSession(id: any) {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     // Soft-delete. The session row stays in the array tagged with
     // `deletedAt`; the weight it deducted from its lot is restored immediately
     // so the inventory stays accurate. Restoring from Trash re-deducts the

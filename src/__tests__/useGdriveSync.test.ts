@@ -1985,12 +1985,21 @@ describe("cloudNewerBackup — launch check", () => {
     // SettingsModal, which CuratorApp only mounts while `importModal` is set.
     // Staging without opening it would leave the import pending with nothing
     // on screen, which is worse than what was fixed.
-    expect(args[2], "an auto-applied replace is what this build removed").toBeUndefined();
+    expect(args[2]?.autoApply, "an auto-applied replace is what this build removed").toBeUndefined();
     expect(setImportModal, "the picker cannot render unless Settings is mounted")
       .toHaveBeenCalledWith(true);
-    // Banner is cleared + marker stamped.
-    expect(result.current.cloudNewerBackup).toBeNull();
-    expect(localStorage.getItem(cloudDismissKeys(false).ts)).not.toBeNull();
+    // ── REVERSED ─────────────────────────────────────────────────────────
+    // This asserted that the banner was ALREADY cleared and the dismissed
+    // marker ALREADY stamped at this point — i.e. before the user had touched
+    // the Replace / Merge picker. That is the defect: those markers are
+    // persistent and the by-name one silences the file regardless of
+    // timestamp, so cancelling the picker muted a genuinely-newer cloud
+    // backup for ever. The ack moved to the picker's APPLIED path
+    // (`onApplied`), so at THIS point nothing may be written and the banner
+    // must still be armed. See cloudNewerAckOnApply.test.ts.
+    expect(result.current.cloudNewerBackup).not.toBeNull();
+    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBeNull();
+    expect(typeof args[2]?.onApplied).toBe("function");
   });
 
   it("restoreCloudNewerBackup is a no-op when no banner is set", () => {
@@ -2023,6 +2032,17 @@ describe("cloudNewerBackup — launch check", () => {
     const stageImport = vi.fn();
     renderHook(() => useGdriveSync(makeProps({ stageImport }) as any));
     await waitFor(() => expect(stageImport).toHaveBeenCalled());
+    // ── AMENDED, same guarantee through the new seam ─────────────────────
+    // The ack fires on the picker's APPLIED path now (see
+    // cloudNewerAckOnApply.test.ts for why), so it is invoked here rather
+    // than read off localStorage straight after staging. What this case is
+    // ABOUT is unchanged and still the interesting half: on a redirect return
+    // the hook has just remounted, so `cloudNewerBackup` state is null — the
+    // ack must take the file's ts + name from the PERSISTED payload, or it
+    // writes no markers at all and the restored backup re-nags next launch.
+    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBeNull();
+    const opts = stageImport.mock.calls[0]![2];
+    await act(async () => { opts.onApplied(); });
     // The markers carry the FILE's ts + name from the persisted payload.
     expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBe(String(fileTs));
     expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe(fileName);

@@ -491,9 +491,22 @@ export function distinctSortedBrands(list: any[] | null | undefined): string[] {
 
 // True when `sinceMs` (a stored ms timestamp) is within the last `days`.
 // Shared by the export-reminder + storage-quota dismissal windows.
+//
+// The upper guard (`sinceMs <= now`) is load-bearing, not defensive tidiness:
+// without it a FUTURE stamp reads as "still within the window" for ever,
+// because `Date.now() - future` is NEGATIVE and any negative number is below
+// `days * DAY`. Both consumers use this to SUPPRESS a warning, so a device
+// whose clock was ahead when the value was written kept the storage-full
+// warning (7-day dismissal, useStorageQuotaWarning) and the "you have not
+// backed up in 30 days" reminder (App.tsx) muted until wall-clock caught up —
+// with nothing on screen saying so. `EB.getDerivedStateFromError` already
+// carries the identical `last <= Date.now()` guard for the identical reason;
+// this was the site that was missed.
 export function isWithinDays(sinceMs: number, days: number): boolean {
   if (!sinceMs || sinceMs <= 0) return false;
-  return Date.now() - sinceMs < days * 24 * 3600 * 1000;
+  var now = Date.now();
+  if (sinceMs > now) return false;
+  return now - sinceMs < days * 24 * 3600 * 1000;
 }
 
 // A short random suffix for `local-photo-<Date.now()>-<suffix>`
@@ -1364,6 +1377,68 @@ export function bumpCounterPastMaxId(counter: number, arr: any): number {
     if (!isNaN(id) && id > maxId) maxId = id;
   }
   return Math.max(counter, maxId + 1);
+}
+
+export type MigratedPhotoTask = {
+  coll: "tobaccos" | "pipes" | "accessories" | "wishlist";
+  id: any;
+  key: string;
+  du: string;
+};
+
+// Point the rows whose inline base64 was just persisted to IndexedDB at their
+// new `local-photo-*` key — applied to the cellar as it stands NOW, not to the
+// snapshot the caller held before the write.
+//
+// The caller (App.tsx's legacy-photo migration) awaits one IndexedDB
+// transaction per photo, and a user save can land inside that window. Building
+// the payload from the pre-await snapshot silently REVERTS that save, which is
+// why the caller rebases onto `latestData()`.
+//
+// Rebasing forces the match to be keyed on (collection, id, dataURL) rather
+// than on object identity: a concurrent save rebuilds every row object, so an
+// identity comparison against the captured objects finds nothing on the fresh
+// cellar and the swap becomes a silent no-op — the base64 stays inline for
+// ever while its blob sits unreferenced in IndexedDB. The dataURL is part of
+// the key so a photo the user REPLACED during the window is left alone: that
+// row no longer carries what we migrated.
+//
+// Returns the SAME object when nothing applies, so a launch with nothing left
+// to migrate cannot dirty the cellar or trigger a cloud save.
+export function applyMigratedPhotoKeys(
+  data: any,
+  tasks: MigratedPhotoTask[],
+): any {
+  if (!data || !Array.isArray(tasks) || tasks.length === 0) return data;
+  var patch: Record<string, any[]> = {};
+  var changed = false;
+  var colls: MigratedPhotoTask["coll"][] = ["tobaccos", "pipes", "accessories", "wishlist"];
+  for (var c = 0; c < colls.length; c++) {
+    var coll = colls[c]!;
+    var arr = data[coll];
+    if (!Array.isArray(arr)) continue;
+    var mine = tasks.filter(function (t) {
+      return t && t.coll === coll;
+    });
+    if (mine.length === 0) continue;
+    var collChanged = false;
+    var next = arr.map(function (item: any) {
+      if (!item || typeof item !== "object") return item;
+      for (var i = 0; i < mine.length; i++) {
+        var t = mine[i]!;
+        if (String(item.id) === String(t.id) && item.imageUrl === t.du) {
+          collChanged = true;
+          return Object.assign({}, item, { imageUrl: t.key });
+        }
+      }
+      return item;
+    });
+    if (collChanged) {
+      patch[coll] = next;
+      changed = true;
+    }
+  }
+  return changed ? Object.assign({}, data, patch) : data;
 }
 
 export function migrateData(d: any): any {

@@ -21,6 +21,8 @@ import {
   stripDeleted,
   newPhotoSuffix,
   convertWeightUnit,
+  applyMigratedPhotoKeys,
+  type MigratedPhotoTask,
 } from "./utils.ts";
 import {
   SK,
@@ -130,6 +132,28 @@ function App() {
   var _s = useState<AppData>(INIT),
     data = _s[0],
     setData = _s[1];
+  // THE FRESHEST COMMITTED CELLAR — mirrored synchronously by every
+  // `setData` site below, and the base a store mutation must build on when it
+  // can run as the SECOND write inside one handler.
+  //
+  // `data` is the RENDER's snapshot. `save` is a `useCallback([])` that does
+  // `setData(nd)`, and React does not re-render between two calls in one
+  // synchronous handler — so mutation #2 building on `data` is building on the
+  // pre-#1 payload and overwrites #1 in state AND on disk. Measured on
+  // `SessionFormView.submit`, the only handler in the app that chains two
+  // store mutations: the session landed, the lot was debited, and the
+  // `tastingNotes` write vanished.
+  //
+  // The ref is only ever AHEAD of `data` (every commit goes through one of the
+  // setData sites), never behind, so reading it is always safe. Stores take it
+  // as an OPTIONAL `latestData` and fall back to `data` when it is absent, so
+  // existing callers/tests are unchanged — which is exactly why the wiring is
+  // asserted at source level in twoStoreWritesOneHandler.test.tsx: an unwired
+  // store degrades silently to the old behaviour.
+  var latestDataRef = useRef<AppData>(INIT);
+  var latestData = useCallback(function () {
+    return latestDataRef.current;
+  }, []);
   var _l = useState(true),
     loading = _l[0],
     setLoading = _l[1];
@@ -1099,6 +1123,7 @@ function App() {
           if (Array.isArray(_puPipes)) _puPipes.forEach(function (p: any) { if (p) _checkUidArr(p.maintenance); });
         } catch (_e) { /* noop */ }
         var _migrated = migrateData(parsed || Object.assign({}, INIT));
+        latestDataRef.current = _migrated;
         setData(_migrated);
         if (_needUidPersist) {
           try { appStorage.set(SK, JSON.stringify(_migrated)).catch(function () {}); } catch (_e) { /* noop */ }
@@ -1106,7 +1131,9 @@ function App() {
         setLoading(false);
       })
       .catch(function () {
-        setData(Object.assign({}, INIT));
+        var _blank = Object.assign({}, INIT);
+        latestDataRef.current = _blank;
+        setData(_blank);
         setLoading(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1130,6 +1157,7 @@ function App() {
     // this no longer guards against a "pipeId not found" false positive; it
     // just keeps the lot/session/balance invariants running on every persist.)
     assertLotInvariants(nd);
+    latestDataRef.current = nd;
     setData(nd);
     setPendingSync(true);
     lsSet("cave-pending-sync", "1");
@@ -1172,6 +1200,7 @@ function App() {
             return appStorage.set(SK, JSON.stringify(slim));
           })
           .then(function () {
+            latestDataRef.current = slim;
             setData(slim);
             // Read the language directly from storage so the message
             // tracks the current preference even though save() is a
@@ -1301,16 +1330,20 @@ function App() {
           : Math.random().toString(36).slice(2, 12);
       }
       // Collect every legacy inline-base64 imageUrl to migrate into IndexedDB.
-      var _tasks: { item: any; key: string; du: string }[] = [];
-      var _collect = function (arr: any) {
+      // A task is keyed by (collection, id, dataURL) and NOT by the row object:
+      // the swap below runs after an IndexedDB round-trip, against whatever the
+      // cellar looks like THEN, and any save landing in that window replaces
+      // every row object — see applyMigratedPhotoKeys.
+      var _tasks: MigratedPhotoTask[] = [];
+      var _collect = function (arr: any, coll: MigratedPhotoTask["coll"]) {
         (arr || []).forEach(function (item: any) {
           if (item && typeof item.imageUrl === "string" && item.imageUrl.indexOf("data:") === 0) {
-            _tasks.push({ item: item, key: "local-photo-" + Date.now() + "-" + _rnd(), du: item.imageUrl });
+            _tasks.push({ coll: coll, id: item.id, key: "local-photo-" + Date.now() + "-" + _rnd(), du: item.imageUrl });
           }
         });
       };
-      _collect(data.tobaccos); _collect(data.pipes);
-      _collect(data.accessories); _collect(data.wishlist);
+      _collect(data.tobaccos, "tobaccos"); _collect(data.pipes, "pipes");
+      _collect(data.accessories, "accessories"); _collect(data.wishlist, "wishlist");
       if (_tasks.length === 0) return;
       // Only swap imageUrl → key for photos that ACTUALLY
       // persisted to IndexedDB. imgCache.put resolves false (and open() can
@@ -1329,16 +1362,14 @@ function App() {
         }).catch(function () { /* open() rejected → keep base64 inline */ });
       })).then(function () {
         if (Object.keys(_okKeys).length === 0) return; // nothing persisted → don't rewrite
-        var _swap = function (arr: any) {
-          return (arr || []).map(function (item: any) {
-            var tk = _tasks.find(function (x) { return x.item === item; });
-            return (tk && _okKeys[tk.key]) ? Object.assign({}, item, { imageUrl: tk.key }) : item;
-          });
-        };
-        var _nd = Object.assign({}, data, {
-          tobaccos: _swap(data.tobaccos), pipes: _swap(data.pipes),
-          accessories: _swap(data.accessories), wishlist: _swap(data.wishlist),
-        });
+        // Rebase onto the LATEST cellar, like the trash sweep and the orphan
+        // photo GC: `data` is the snapshot from BEFORE the IndexedDB writes, so
+        // saving it would revert anything the user did while they ran.
+        var _base = latestData();
+        var _nd = applyMigratedPhotoKeys(_base, _tasks.filter(function (tk) {
+          return _okKeys[tk.key] === true;
+        }));
+        if (_nd === _base) return; // every target row changed or vanished meanwhile
         save(_nd);
       });
     },
@@ -2002,6 +2033,9 @@ function App() {
   } = useTobaccoStore({
     data,
     save,
+    // See `latestDataRef` above: a mutation that can be the SECOND write in one
+    // handler must build on the freshest committed payload, not this render's.
+    latestData,
     nav,
     setSearch,
     fromWishRef,
@@ -2049,6 +2083,7 @@ function App() {
   } = useSessionStore({
     data,
     save,
+    latestData,
     nav,
     weightUnit,
     setSaveError,

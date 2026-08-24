@@ -369,6 +369,23 @@ describe("isWithinDays", () => {
     expect(isWithinDays(0, 7)).toBe(false);
     expect(isWithinDays(-1, 7)).toBe(false);
   });
+  // A FUTURE stamp used to read as "still within the window", for ever:
+  // `Date.now() - future` is NEGATIVE, and negative < days*DAY. A device
+  // whose clock was ahead when the value was written therefore kept the
+  // storage-full warning (7-day dismissal) and the "you have not backed up
+  // in 30 days" reminder suppressed until wall-clock caught up — silently.
+  // `EB.getDerivedStateFromError` already carries exactly this guard
+  // (`last <= Date.now()`) for exactly this reason; this was the site missed.
+  it("false for a FUTURE timestamp (clock skew must not suppress a warning)", () => {
+    expect(isWithinDays(Date.now() + 86400000, 7)).toBe(false);
+    expect(isWithinDays(Date.now() + 365 * 86400000, 30)).toBe(false);
+  });
+  // Non-vacuity for that guard: "now" and the ordinary recent past must
+  // still read as within, so the fix cannot be a blanket refusal.
+  it("still true at now and just-in-the-past (the guard is not a blanket refusal)", () => {
+    expect(isWithinDays(Date.now(), 7)).toBe(true);
+    expect(isWithinDays(Date.now() - 1000, 7)).toBe(true);
+  });
 });
 
 // ── toggleCollapseKey ──

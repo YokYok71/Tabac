@@ -382,6 +382,12 @@ export interface ImportConfirmState {
   // The backup's PREFERENCES, carried through the picker like the
   // API key and applied only if the user chooses REPLACE.
   settings?: any;
+  // Fired once the import is COMMITTED, in either mode, and never
+  // on cancel. It exists because the cloud-newer banner used to write its
+  // persistent "already seen this file" markers the moment the download
+  // parsed — so backing out of the picker silenced a genuinely-newer backup
+  // for ever. See `_executeCloudNewerRestore` in useGdriveSync.
+  onApplied?: (() => void) | undefined;
 }
 
 export function useImportConfirm({
@@ -470,6 +476,9 @@ export function useImportConfirm({
     options?: {
       autoApply?: "replace" | "merge";
       onMerged?: (summary: MergeSummary) => void;
+      /** Fired once the import is COMMITTED (either mode), never on cancel.
+       *  See `ImportConfirmState.onApplied`. */
+      onApplied?: () => void;
       /** Leave the Settings modal OPEN after an auto-applied
        *  import. Default false — the historical behaviour. See `_runImport`. */
       keepModalOpen?: boolean;
@@ -598,7 +607,7 @@ export function useImportConfirm({
           return;
         }
       }
-      _runImport(staged, imgData, source, options.autoApply, undefined, pendingApiKey, pendingApiKeyProvider, options.onMerged, pendingSettings, !!options.keepModalOpen);
+      _runImport(staged, imgData, source, options.autoApply, undefined, pendingApiKey, pendingApiKeyProvider, options.onMerged, pendingSettings, !!options.keepModalOpen, options.onApplied);
       return;
     }
     setImportConfirm({
@@ -610,6 +619,7 @@ export function useImportConfirm({
       apiKey: pendingApiKey,
       apiKeyProvider: pendingApiKeyProvider,
           settings: pendingSettings,
+      onApplied: (options && options.onApplied) || undefined,
     });
   }
 
@@ -739,6 +749,8 @@ export function useImportConfirm({
       importConfirm.apiKeyProvider,
       mode === "merge" ? _mergeRecapAlert : undefined,
       importConfirm.settings,
+      undefined,
+      importConfirm.onApplied,
     );
   }
 
@@ -757,6 +769,7 @@ export function useImportConfirm({
     onMerged?: (summary: MergeSummary) => void,
     settings?: any,
     keepModalOpen?: boolean,
+    onApplied?: () => void,
   ) {
     // Selective restore. When `selection` is provided
     // (a Set of "kind:id" strings — same encoding as the trash
@@ -1610,6 +1623,13 @@ export function useImportConfirm({
 
     save(next);
     if (mergeSummary && onMerged) onMerged(mergeSummary);
+    // The import is COMMITTED here — this is the earliest point at which a
+    // caller may record that it reconciled the file, and it must run before
+    // the settings-replace branch below reloads the page. Mode-blind on
+    // purpose: a merge puts the file's contents in the cellar just as a
+    // replace does. Guarded, because a throwing caller must not take the
+    // import down with it — the cellar is already saved.
+    if (onApplied) { try { onApplied(); } catch (_e) { /* caller's problem */ } }
 
     // Persist the imported API key ONLY here, at the
     // moment the import is actually applied — never at stage/selection time,

@@ -8,16 +8,28 @@ var useState = React.useState;
 export function useTobaccoStore({
   data,
   save,
+  latestData,
   nav,
   setSearch,
   fromWishRef,
 }: {
   data: any;
   save: (d: any) => void;
+  /** The FRESHEST committed cellar (App's `latestDataRef`), optional so every
+   *  existing caller and test keeps working. A mutation that can run as the
+   *  SECOND write inside one synchronous handler MUST build on this rather than
+   *  on the render's `data`: React has not re-rendered in between, so a payload
+   *  built from `data` silently overwrites the first write. See App.tsx. */
+  latestData?: () => any;
   nav: (v: string, opts?: { restoreScroll?: boolean }) => void;
   setSearch: (s: string) => void;
   fromWishRef: React.MutableRefObject<any>;
 }) {
+  // The base every mutation below builds on. Falls back to the render snapshot
+  // when App did not hand a ref down (tests, and any future caller).
+  function fresh(): any {
+    return latestData ? latestData() : data;
+  }
   var _f = useState(Object.assign({}, BT)),
     form = _f[0],
     setForm = _f[1];
@@ -50,6 +62,11 @@ export function useTobaccoStore({
     setCollapsedTobGroups = _ctg[1];
 
   function addTobacco(override?: any) {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     // Optional `override` lets callers (CatalogView one-tap
     // add) inject a fully-shaped tobacco entry without staging the
     // internal `form` state first. When given, we skip `setForm(BT)`
@@ -146,6 +163,11 @@ export function useTobaccoStore({
   }
 
   function updateTobacco() {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     // Mirror addTobacco's required-field guard. The
     // unsaved-changes "Enregistrer" button (useUnsavedFormGuard.onSave → submit)
     // calls this directly and NEVER re-checks canSave, so without this a user
@@ -187,6 +209,11 @@ export function useTobaccoStore({
   }
 
   function updateTobaccoTastingNotes(tobId: any, notes: string) {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     var nd = Object.assign({}, data, {
       tobaccos: (data.tobaccos || []).map(function (t: any) {
         if (String(t.id) !== String(tobId)) return t;
@@ -197,6 +224,11 @@ export function useTobaccoStore({
   }
 
   function deleteTobacco(id: any) {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     // Soft-delete. Stamps `deletedAt` so the row stays in
     // the array (and in Drive backups) but is filtered out of the
     // live ctx view. The Trash section in Settings lists deleted
@@ -230,6 +262,11 @@ export function useTobaccoStore({
   }
 
   function addLotToTobacco(tobId: any, lotOverride?: any, count?: any) {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     // `count` lets the user create several identical lots in ONE
     // save ("j'achète en une fois plusieurs lots"). Normalise the base once,
     // then clone it `n` times, each with its own monotonic id. Clamped to
@@ -290,6 +327,11 @@ export function useTobaccoStore({
   }
 
   function updateLotInTobacco(tobId: any, lotId: any, lotOverride?: any) {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     // Integrity fix: locate the lot by its stable `id`, NEVER by a
     // positional index. Views hold the trash-STRIPPED lots (liveData) while
     // `data.tobaccos[].lots` is the RAW trash-inclusive array — an index
@@ -363,6 +405,11 @@ export function useTobaccoStore({
   }
 
   function removeLot(tobId: any, lotId: any) {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     // Soft-delete. The lot stays inside `tobacco.lots` with
     // a `deletedAt` ISO stamp; the live ctx view strips it, the Trash
     // section in Settings surfaces it for 30 days. Sessions referencing
@@ -396,6 +443,11 @@ export function useTobaccoStore({
   }
 
   function changeLotStatus(tobId: any, lotId: any, ns: any) {
+    // Build on the FRESHEST committed cellar, not this render's snapshot
+    // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
+    // whole function, so every read below uses the fresh base — a partial
+    // conversion is exactly how a second mutation in one handler loses the first.
+    var data = fresh();
     var tobs = data.tobaccos.map(function (t: any) {
       if (t.id !== tobId) return t;
       // Match by stable id, not positional index (see updateLotInTobacco).
