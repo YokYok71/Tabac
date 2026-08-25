@@ -36,7 +36,9 @@
     "lbl_in_stock",
     "lbl_deleted",
     "lbl_updated",
-    "tasting_autoend_notice"
+    "tasting_autoend_notice",
+    "err_drive_expired",
+    "err_dropbox_expired"
   ],
   "identical": {
     "abbr_force": [

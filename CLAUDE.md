@@ -486,6 +486,65 @@ npm run theme:contrast # OPT-IN contrast check across the SIX palettes (brass/st
                     #   the full matrix would cost 6× the runtime for identical numbers. Language-dependent
                     #   failures are LAYOUT failures and belong to i18n:layout, whose axis IS derived from
                     #   LANGUAGES. `THEME_CONTRAST_LANG` overrides it to eyeball one screen.
+                    #   **THE TWO CHECKERS SHARE A SCREEN LIST AND NOT THE CODE THAT READS IT —
+                    #   THREE TIMES, AND THE THIRD IS WHAT FORCED A MECHANISM.** Each time an axis
+                    #   was added to `i18n-layout.cjs` and never read by `theme-contrast.cjs`, and
+                    #   each time the symptom is the same and misleading: the screen reports
+                    #   UNREACHABLE, which reads as a navigation problem rather than as a seed that
+                    #   never arrived. (1) The CATALOGUE seed — recorded on the script's own header
+                    #   at the time. (2) `markerText`: a screen is reached by finding a dictionary
+                    #   value unique to it, and `list_more` is « Afficher la suite ({n}) », whose
+                    #   `{n}` the app interpolates, so the RAW value appears nowhere on the page;
+                    #   the helper exists for exactly that (truncate at the first `{`, with a length
+                    #   guard) and this script read `dict[scr.expect]` straight. (3) The `bigList`
+                    #   CELLAR swap: `inv-long` exists to render the progressive-list footer, which
+                    #   needs ~98 rows against the shared seed's 18 — `bigListCellar` was exported
+                    #   and **`setCellar` was not**, i.e. half a seed step, so the payload could be
+                    #   built and never written. **Fixing (2) alone left the six failures standing
+                    #   verbatim, which is what identified (3)**: the marker was now right and the
+                    #   footer still was not there. So `inv-long` — the screen added precisely so
+                    #   the footer would finally be rendered by something — had its contrast
+                    #   measured by nothing in all six palettes, from the day it landed.
+                    #   **The export comment in `i18n-layout.cjs` already stated the rule («  if you
+                    #   add a seed step, export it and wire the other consumer in the same commit »)
+                    #   and claimed `i18nLayoutHarness.test.ts` asserts both — IT ASSERTED NEITHER**;
+                    #   the claim is corrected in place rather than deleted, because a guarantee
+                    #   announced and absent is the failure worth recording. The mechanism is now
+                    #   DERIVED rather than hand-listed: the test takes the union of keys across
+                    #   `SCREENS`, subtracts the four navigation/identity fields (`name`, `dock`,
+                    #   `expect`, `go`), and requires every remaining key to be read as `scr.<axis>`
+                    #   by BOTH scripts — so a fourth axis is covered without anyone remembering to
+                    #   add it. Probed: dropping the `bigList` wiring names the axis and the file.
+                    #   `theme-contrast`'s init script also needed the layout harness's
+                    #   `__harness-cellar-pinned` guard, without which the reload a swap needs
+                    #   overwrites the swapped cellar immediately — the same trap, already
+                    #   documented one file over. **When you add a field to a screen entry, it is a
+                    #   contract with every consumer of the list, not a private note to one.**
+                    #   **AND REACHING THE SCREEN EXPOSED A SECOND DEFECT THE FIRST ONE HAD BEEN
+                    #   HIDING: the check was measuring text MID-ANIMATION.** With `inv-long`
+                    #   finally rendered, it reported **443 unreadable combinations**, all on that
+                    #   one screen — and the numbers refuted the reading before any theory did: the
+                    #   SAME string over the SAME two colours measured **4.23:1, 2.28:1 and 1.51:1**
+                    #   in three different rows. Identical colours cannot give different ratios;
+                    #   only an ancestor OPACITY can, and the measurer folds ancestor opacity into
+                    #   the foreground. That opacity is `useEnter`: every card fades in over a
+                    #   460 ms CSS transition with a per-row delay capped at `ENTER_MAX_DELAY_MS`
+                    #   (700), so the tail settles ~1160 ms after mount while the loop waits 700 ms
+                    #   — invisible on an 18-row list and total on a 98-row one, where the whole
+                    #   tail is still at or near opacity 0. **A palette verdict of 443 failures that
+                    #   is really a timing bug is the worst possible output for a checker**: it is
+                    #   loud, specific, and would have sent someone retuning tokens that are fine.
+                    #   The fix is a CONDITION and not a longer sleep — the lesson the `help`
+                    #   screen's fixed 1500 ms wait had already flaked on: `settle(page)` polls
+                    #   until no **CSSTransition** is running. Filtering to CSSTransition is
+                    #   load-bearing rather than tidy: the app runs INFINITE WAAPI animations (the
+                    #   Spinner, the dock's brass indicator), so « no running animation » is never
+                    #   true and a naive wait would burn its full budget on every screen. BOUNDED,
+                    #   so a transition that never ends shortens the wait instead of hanging the
+                    #   run (the `drainScheduler` trade). **Wired into BOTH checkers**, which is the
+                    #   rule this same build wrote: `useEnter` animates `translateY` as well as
+                    #   opacity, so a row measured mid-fade is measured mid-MOVE, and the layout
+                    #   check has the same exposure through a different property.
 npm run prune       # knip — dead exports / files / dependencies (a CI-style gate; ~2s)
 npm run release:data # scripts/data-only-release.cjs — bump APP_BUILD and write a version.json
                     #   carrying `data_only: true`, so the running app applies the release

@@ -14,14 +14,22 @@
  * Unlike the layout warnings, a finding here is a real defect: unreadable text
  * is unreadable, not merely taller.
  *
- * It reuses the layout harness's screens, localStorage seed, CATALOGUE seed and
- * dictionary lookup (scripts/i18n-layout.cjs exports all four), so the two
- * checks cannot drift apart on how they reach a screen. That sentence was FALSE
- * for a while and the failure is worth knowing: the catalogue seed was added to
- * the layout harness and not exported, so this check reached the catalogue
- * screens with no catalogue loaded and reported them unreachable — under a
- * header asserting the two could not diverge. Reuse EVERY seed component, and
- * if you add one, wire both consumers in the same commit.
+ * It reuses the layout harness's screens, localStorage seed, CATALOGUE seed,
+ * CELLAR swap, marker resolution and dictionary lookup (scripts/i18n-layout.cjs
+ * exports all of them), so the two checks cannot drift apart on how they reach a
+ * screen. That sentence was FALSE THREE TIMES, and the count is the point: the
+ * catalogue seed was added to the layout harness and not exported, so this check
+ * reached the catalogue screens with no catalogue and reported them unreachable;
+ * then `markerText` was added there and read raw here, so `inv-long` reported
+ * unreachable; then the `bigList` cellar swap was added there and never read
+ * here, so `inv-long` reported unreachable AGAIN, this time for the seed rather
+ * than the marker. Every time, under a header asserting the two could not
+ * diverge, and every time the symptom reads as a NAVIGATION problem rather than
+ * as a seed that never arrived. Reuse EVERY seed component, and if you add one,
+ * wire both consumers in the same commit — `i18nLayoutHarness.test.ts` now
+ * derives the axis list from the screen entries themselves and asserts both
+ * scripts read each one, so a fourth axis is covered without anyone adding it
+ * to a list by hand.
  * One language is enough — contrast does not depend on the words.
  *
  *   npm run build
@@ -240,7 +248,15 @@ async function main() {
       const ctx = await browser.newContext({ viewport: { width: WIDTH, height: 840 } });
       const page = await ctx.newPage();
       await page.addInitScript(([d, l, seed, th, md]) => {
-        localStorage.setItem("pipe-cellar-v6", d);
+        // THE GUARD IS NOT DECORATION — the same one the layout harness carries,
+        // for the same reason. This script runs before EVERY page load in the
+        // context, so without it the reload a per-screen cellar swap needs would
+        // immediately overwrite the swapped cellar, and the screen reports as
+        // unreachable — which reads as a navigation problem rather than as a
+        // seed that never arrived. `H.setCellar` sets the flag.
+        if (localStorage.getItem("__harness-cellar-pinned") !== "1") {
+          localStorage.setItem("pipe-cellar-v6", d);
+        }
         localStorage.setItem("cave-lang", l);
         localStorage.setItem("cave-theme", th);
         localStorage.setItem("cave-theme-mode", md);
@@ -258,6 +274,13 @@ async function main() {
 
       for (const scr of H.SCREENS) {
         await H.setCatalogue(page, scr.noCatalogue ? "" : H.CATALOGUE_CSV);
+        // The OTHER per-screen seed axis. `inv-long` exists to render the
+        // progressive-list footer, which needs a cellar of ~98 rows; the shared
+        // one holds 18, so without this the footer never paints and the screen
+        // reported unreachable in all six palettes. Unconditional here — unlike
+        // the layout harness, this loop re-navigates on every screen anyway, so
+        // it needs no `prevBigList` bookkeeping to put the ordinary cellar back.
+        await H.setCellar(page, scr.bigList ? H.bigListCellar() : H.DATA, !!scr.bigList);
         await page.goto(URL, { waitUntil: "networkidle" });
         await page.waitForTimeout(1000);
         if (scr.dock !== null) {
@@ -269,11 +292,25 @@ async function main() {
           try { await scr.go(page, dict, LANG); await page.waitForTimeout(1200); }
           catch { failures.push(`${theme}/${mode}/${scr.name}: could not be reached`); continue; }
         }
+        // A CONDITION, not a longer sleep. Text measured mid-fade carries the
+        // entry animation's ancestor opacity, and this check folds that into the
+        // foreground — see `settle`. It matters most on a long list, where the
+        // stagger's tail outlives every fixed wait above.
+        await H.settle(page);
         // Same arrival proof as the layout check — a screen that never opened
         // would report the contrast of a page already covered.
         if (scr.expect) {
-          const marker = dict[scr.expect];
-          if (!marker) die(`i18n key "${scr.expect}" missing from ${LANG}.ts`);
+          const raw = dict[scr.expect];
+          if (!raw) die(`i18n key "${scr.expect}" missing from ${LANG}.ts`);
+          // Through the SHARED `markerText`, not the raw dictionary value.
+          // A marker carrying a placeholder — `list_more` is
+          // « Afficher la suite ({n}) » — never appears verbatim on screen, so
+          // the raw value made `inv-long` report as UNREACHABLE in all six
+          // palettes: that screen's contrast was measured by nothing. The
+          // layout harness had already hit this and fixed it in `markerText`;
+          // this consumer of the same screen list never got the fix. The
+          // sibling-miss, and the reason the helper is exported.
+          const marker = H.markerText(raw, scr.expect);
           if (!(await page.getByText(marker, { exact: false }).count())) {
             failures.push(`${theme}/${mode}/${scr.name}: could not be reached (no "${marker}")`);
             continue;

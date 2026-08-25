@@ -482,3 +482,117 @@ describe("the language axis is derived, not copied", () => {
       .not.toMatch(/I18N_LAYOUT_LANGS[^)]*"(?:[a-z]{2,3},){2}/);
   });
 });
+
+// ── LES DEUX CONSOMMATEURS DE LA LISTE D'ÉCRANS DOIVENT LIRE LES MARQUEURS
+//    DE LA MÊME FAÇON ────────────────────────────────────────────────────────
+//
+// `theme:contrast` consomme `H.SCREENS`, donc ajouter un écran ici l'ajoute
+// là-bas — mais il lisait `dict[scr.expect]` BRUT là où le harnais passe par
+// `markerText`. Un marqueur portant un placeholder (`list_more` vaut
+// « Afficher la suite ({n}) ») n'apparaît jamais verbatim à l'écran : les six
+// palettes rapportaient `inv-long` INJOIGNABLE, donc le contraste de cet écran
+// n'était mesuré par rien. Le manque-au-voisin — le correctif existait dans le
+// helper, exporté, et l'autre consommateur ne l'utilisait pas.
+describe("harnais partagé : la résolution des marqueurs", () => {
+  const H = require("../../scripts/i18n-layout.cjs");
+
+  it("markerText coupe au premier placeholder", () => {
+    // La parenthèse ouvrante survit — et c'est correct : le bouton rend
+    // « Afficher la suite (19940) », donc « Afficher la suite ( » en est bien
+    // un sous-texte. Ce qui compte est que le `{n}` littéral disparaisse.
+    expect(H.markerText("Afficher la suite ({n})", "list_more")).toBe("Afficher la suite (");
+    expect(H.markerText("Afficher la suite ({n})", "list_more")).not.toContain("{");
+    expect(H.markerText("Sans placeholder", "x")).toBe("Sans placeholder");
+  });
+
+  it("un marqueur qui COMMENCE par un placeholder est refusé, pas tronqué à vide", () => {
+    // Sinon il ne resterait rien de distinctif à chercher et l'écran passerait
+    // pour atteint quoi qu'il arrive — la passe à vide que tout ce mécanisme
+    // de marqueurs existe pour empêcher.
+    expect(() => H.markerText("{n} fiches", "k")).toThrow();
+  });
+
+  it("theme-contrast passe par le helper et non par la valeur brute", () => {
+    const src = require("node:fs")
+      .readFileSync("scripts/theme-contrast.cjs", "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+    expect(src, "theme:contrast résout un marqueur sans passer par markerText")
+      .toMatch(/H\.markerText\(/);
+    expect(src, "un marqueur est encore lu brut dans le dictionnaire")
+      .not.toMatch(/const marker = dict\[scr\.expect\]/);
+  });
+
+  // UN CHAMP DE LA LISTE D'ÉCRANS EST UN CONTRAT AVEC CHAQUE CONSOMMATEUR.
+  //
+  // Trois fois de suite, un axe a été ajouté ici et jamais lu là-bas : le
+  // catalogue (`noCatalogue`), la résolution des marqueurs, puis la grande cave
+  // (`bigList`). À chaque fois l'écran se rapportait INJOIGNABLE — ce qui se lit
+  // comme un problème de navigation, pas comme une graine qui n'est jamais
+  // arrivée. Et le commentaire d'export de `i18n-layout.cjs` affirmait déjà
+  // « i18nLayoutHarness.test.ts asserts both » alors que RIEN ne vérifiait le
+  // câblage : correction consignée ici plutôt que supprimée, parce que c'est
+  // une garantie annoncée qui n'existait pas.
+  //
+  // La règle est donc DÉRIVÉE des entrées elles-mêmes et non d'une liste tenue
+  // à la main : tout champ qui n'est ni l'identité ni la navigation change la
+  // GRAINE, donc les deux vérificateurs doivent le lire. Un quatrième axe est
+  // couvert d'office.
+  it("chaque axe de graine de la liste d'écrans est lu par les DEUX vérificateurs", () => {
+    const NAV = new Set(["name", "dock", "expect", "go"]);
+    const axes = new Set<string>();
+    for (const s of H.SCREENS as any[]) {
+      for (const k of Object.keys(s)) if (!NAV.has(k)) axes.add(k);
+    }
+    expect(axes.size, "aucun axe de graine trouvé — la dérivation est cassée")
+      .toBeGreaterThan(0);
+    const fs = require("node:fs");
+    const strip = (p: string) => fs.readFileSync(p, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+    const sources = {
+      "i18n-layout.cjs": strip("scripts/i18n-layout.cjs"),
+      "theme-contrast.cjs": strip("scripts/theme-contrast.cjs"),
+    };
+    for (const axis of axes) {
+      for (const [file, src] of Object.entries(sources)) {
+        expect(src.indexOf("scr." + axis),
+          file + " ne lit jamais `scr." + axis + "` — cet écran y mesurera " +
+          "l'état par défaut, ou se rapportera injoignable").toBeGreaterThan(-1);
+      }
+    }
+  });
+
+  it("les deux vérificateurs attendent la fin de l'animation d'entrée", () => {
+    // `useEnter` fait apparaître chaque carte en fondu (opacité 0 → 1, 460 ms,
+    // délai par ligne plafonné à 700 ms). Mesurer pendant le fondu donne un
+    // contraste faux — 443 combinaisons « illisibles » sur `inv-long`, avec la
+    // MÊME chaîne sur les MÊMES deux couleurs à 4,23:1, 2,28:1 et 1,51:1 selon
+    // la ligne. Le harnais de mise en page y est exposé aussi : `useEnter`
+    // anime également un translateY, donc une ligne mesurée en plein fondu est
+    // mesurée en plein DÉPLACEMENT.
+    const fs = require("node:fs");
+    const strip = (p: string) => fs.readFileSync(p, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+    expect(strip("scripts/theme-contrast.cjs"),
+      "theme-contrast mesure sans attendre que l'animation d'entrée soit finie")
+      .toMatch(/H\.settle\(page\)/);
+    expect(strip("scripts/i18n-layout.cjs"),
+      "i18n-layout mesure sans attendre que l'animation d'entrée soit finie")
+      .toMatch(/await settle\(page\)/);
+    // Et la garde qui rend l'attente sûre : elle est BORNÉE, sinon une
+    // transition qui ne finit jamais bloquerait la campagne au lieu de la
+    // raccourcir.
+    expect(strip("scripts/i18n-layout.cjs"),
+      "l'attente n'est plus bornée").toMatch(/budgetMs\s*=\s*\d+/);
+  });
+
+  it("au moins un écran porte un marqueur à placeholder — le cas n'est pas théorique", () => {
+    const withPlaceholder = H.SCREENS.filter((s: any) => {
+      if (!s.expect) return false;
+      const v = H.readDict("fr")[s.expect];
+      return typeof v === "string" && v.indexOf("{") >= 0;
+    });
+    expect(withPlaceholder.length,
+      "aucun écran ne teste ce chemin — le cas ci-dessus est devenu vacant")
+      .toBeGreaterThan(0);
+  });
+});

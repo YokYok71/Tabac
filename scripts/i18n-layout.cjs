@@ -359,6 +359,39 @@ function bigListCellar() {
 /** Swap the cellar for the screen about to run. Needs a RELOAD: the app reads
  *  localStorage once at boot, so writing it under a live page changes nothing
  *  — the same reason the catalogue swap re-navigates. */
+/**
+ * WAIT FOR THE ENTRY ANIMATION, NEVER SLEEP THROUGH IT.
+ *
+ * Every card fades in through `useEnter` — `opacity: entered ? 1 : 0` over a
+ * 460 ms CSS transition, with a per-row delay capped at ENTER_MAX_DELAY_MS
+ * (700), so the tail settles ~1160 ms after mount. The fixed 700 ms wait after
+ * a dock click is short of that, and on a LONG list the whole tail is still
+ * mid-fade.
+ *
+ * That is invisible to the layout check — a row at opacity 0 still has its
+ * geometry — and catastrophic for the contrast one, which folds ancestor
+ * opacity into the foreground: `theme:contrast` reported 443 unreadable
+ * combinations on `inv-long`, with the SAME string over the SAME two colours
+ * measuring 4.23:1, 2.28:1 and 1.51:1 in three different rows. Identical
+ * colours cannot give different ratios; only an opacity can, which is what
+ * identified the animation rather than the palette.
+ *
+ * It filters to CSSTransition ON PURPOSE. The app runs INFINITE WAAPI
+ * animations (the Spinner, the dock's brass indicator), so "no running
+ * animation" is never true and a naive wait would always burn its full budget.
+ * `useEnter` is a CSS transition; those are not.
+ *
+ * BOUNDED: a transition that never ends shortens the wait instead of hanging
+ * the run — the same trade `drainScheduler` makes.
+ */
+async function settle(page, budgetMs = 2500) {
+  await page.waitForFunction(() => {
+    const anims = document.getAnimations ? document.getAnimations() : [];
+    return !anims.some((a) =>
+      a.playState === "running" && a.constructor && a.constructor.name === "CSSTransition");
+  }, undefined, { timeout: budgetMs }).catch(() => {});
+}
+
 async function setCellar(page, payload, pinned) {
   await page.evaluate(([json, pin]) => {
     localStorage.setItem("pipe-cellar-v6", json);
@@ -1078,6 +1111,11 @@ async function main() {
             continue;
           }
         }
+        // Same condition as the contrast check, and it earns its place here too:
+        // `useEnter` animates translateY as well as opacity, so a row measured
+        // mid-fade is measured mid-MOVE — its box has not reached its final
+        // position. Cheap when nothing is running.
+        await settle(page);
         // A dense screen that never opened would measure a page we already
         // covered — a silent pass. Every navigated screen proves it arrived.
         if (scr.expect) {
@@ -1158,10 +1196,22 @@ async function main() {
 // being able to reach the catalogue screens while its own header asserted the
 // two could not drift. If you add a seed step, export it and wire the other
 // consumer in the same commit; `i18nLayoutHarness.test.ts` asserts both.
+//
+// THAT LAST CLAUSE WAS FALSE WHEN IT WAS WRITTEN, and it is corrected here
+// rather than deleted: nothing asserted the wiring, so the very next seed step
+// (`bigList`) was exported by halves and `theme-contrast` reused the `inv-long`
+// screen it could never reach — reported as unreachable in all six palettes,
+// which reads as a navigation problem. It is true NOW: that test derives the
+// axis list from the SCREENS entries themselves and requires both scripts to
+// read each `scr.<axis>`, so a fourth axis needs no one to remember it.
 module.exports = {
   SCREENS, DATA, SEED_KEYS, LANGS, SCALES, WIDTHS, readDict,
-  BIG_LIST_ROWS, bigListCellar,
-  markerText,
+  // `bigListCellar` BUILDS the payload and `setCellar` WRITES it with the pin
+  // flag; exporting only the first is exporting half a seed step, which is how
+  // `theme-contrast` came to reuse the `inv-long` screen without ever being
+  // able to reach it. Both, or neither.
+  BIG_LIST_ROWS, bigListCellar, setCellar,
+  markerText, settle,
   setCatalogue, CATALOGUE_CSV,
 };
 
