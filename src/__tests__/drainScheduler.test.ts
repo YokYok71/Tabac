@@ -242,7 +242,23 @@ describe("drainSchedulerQueue", () => {
       const realWindow = g["window"];
       try {
         delete g["window"];
-        await new Promise<void>((r) => { setTimeout(r, 2); });
+        // BOUNDED WAIT ON THE CONDITION, never a fixed delay — and the reason is
+        // a flake this file produced. It waited 2 ms; under CPU contention (the
+        // suite running beside a build on a 4 vCPU box) the event loop had not
+        // reached the queued immediate before `finally` put the window BACK, so
+        // the slice ran into a live environment, was not suppressed, and the
+        // case failed with `expected N to be N+1` — reporting "the guard let it
+        // through" when the guard had simply never been given the chance.
+        // Observed once, reproduced nowhere in isolation (5/5 green alone).
+        //
+        // The ASSERTION below is unchanged, so this is no weaker as a probe:
+        // with the guard removed the slice runs into a dead environment and
+        // throws the reported `ReferenceError` instead, which no wait can turn
+        // green. The bound only stops a slow machine failing for being slow.
+        const deadline = Date.now() + 500;
+        while (suppressedAfterTeardown() === before && Date.now() < deadline) {
+          await new Promise<void>((r) => { setTimeout(r, 2); });
+        }
       } finally {
         g["window"] = realWindow;
       }
