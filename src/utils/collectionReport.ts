@@ -45,6 +45,17 @@ export interface CollectionReportLabels {
   colType: string;
   colValue: string;
   items: string;       // "articles" / "items"
+  /** Le pluriel. `items` était concaténé tel quel derrière le compte, donc une
+   *  section d'un seul élément lisait « 1 articles » — dans cinq langues sur
+   *  six, l'anglais étant seul à s'en tirer par hasard. Le module reste neutre :
+   *  il reçoit les deux formes et choisit, comme `plural()` le fait partout
+   *  ailleurs (les six langues livrées sont à deux formes). */
+  itemsOne: string;
+  /** Le libellé du SOUS-TOTAL, distinct du total général. Les trois lignes de
+   *  sous-total portaient `totalValue`, si bien que le document affichait
+   *  QUATRE fois « Valeur d'achat totale » devant quatre nombres différents —
+   *  dont trois qui ne sont pas un total. */
+  subtotal: string;
   disclaimer: string;
 }
 
@@ -75,6 +86,14 @@ export interface CollectionReportOpts {
    *  caller wants shown. Defaults to identity, so an existing caller is
    *  byte-for-byte unchanged. */
   formatNumber?: NumFmt | undefined;
+  /** Le code de langue du document, posé sur `<html lang>`. Il n'y en avait
+   *  aucun : un lecteur d'écran annonçait un rapport français avec la
+   *  prononciation par défaut du système, et un moteur de recherche ou un outil
+   *  de traduction n'avait rien à lire. VALIDÉ ici plutôt que fait confiance —
+   *  la leçon de `public/reset.html`, qui écrivait `lang="constructor"` depuis
+   *  un `cave-lang` corrompu : tout ce qui n'est pas deux ou trois lettres est
+   *  ignoré, et l'attribut est alors simplement absent. */
+  lang?: string | undefined;
 }
 
 /** Which enum table a cell value belongs to (the caller owns the maps). */
@@ -225,10 +244,20 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
       return "<td class=\"n\">" + esc(v) + "</td>";
     }).join("");
     return (
-      "<h2>" + esc(heading) + " <span class=\"count\">" + count + " " + esc(L.items) + "</span></h2>" +
-      "<table><thead><tr>" + ths + "</tr></thead><tbody>" + rows +
-      "<tr class=\"subtotal\"><td colspan=\"" + (headerCells.length - 1 - extra.length) + "\">" + esc(L.totalValue) +
-      "</td>" + extraCells + "<td class=\"n\">" + esc(money(subtotal, sym, fn)) + "</td></tr></tbody></table>"
+      "<h2>" + esc(heading) + " <span class=\"count\">" + count + " " +
+      esc(count === 1 ? L.itemsOne : L.items) + "</span></h2>" +
+      // Le tableau défile DANS son conteneur. Mesuré à 390 px : le document
+      // débordait de 79 px et la colonne « Valeur » du tableau tabacs était
+      // visible à 0 % — sur le document qu'on ouvre depuis son téléphone, la
+      // colonne qui porte la raison d'être du rapport. À 360 px « En pot »
+      // disparaissait avec elle. Sept colonnes dont trois insécables ne
+      // rentrent pas dans 326 px et ne le pourront jamais : ce qu'il faut
+      // n'est pas de les rétrécir mais de les rendre ATTEIGNABLES.
+      // `overflow:visible` à l'impression, où la page fait 794 px et où un
+      // conteneur de défilement couperait ce que l'écran, lui, laisse joindre.
+      "<div class=\"tw\"><table><thead><tr>" + ths + "</tr></thead><tbody>" + rows +
+      "<tr class=\"subtotal\"><td colspan=\"" + (headerCells.length - 1 - extra.length) + "\">" + esc(L.subtotal) +
+      "</td>" + extraCells + "<td class=\"n\">" + esc(money(subtotal, sym, fn)) + "</td></tr></tbody></table></div>"
     );
   }
 
@@ -241,7 +270,8 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
     ".meta{color:#666;font-size:13px;margin:0 0 24px}" +
     "h2{font-size:18px;margin:28px 0 8px;border-bottom:2px solid #c9a24b;padding-bottom:4px}" +
     ".count{font-size:13px;color:#888;font-weight:400}" +
-    "table{width:100%;border-collapse:collapse;font-size:13px;margin:0 0 8px}" +
+    ".tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 8px}" +
+    "table{width:100%;border-collapse:collapse;font-size:13px;margin:0}" +
     "th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #e5e5e5}" +
     "th{background:#f6f2e8;font-weight:600}" +
     "td.n,th.n{text-align:right;white-space:nowrap}" +
@@ -252,7 +282,10 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
     ".summary .box .v{font-size:20px;font-weight:700;margin-top:2px}" +
     ".grand{border-color:#c9a24b;background:#fbf7ee}" +
     ".disclaimer{margin-top:28px;font-size:11px;color:#999;border-top:1px solid #eee;padding-top:12px}" +
-    "@media print{body{padding:0}h2{page-break-after:avoid}tr{page-break-inside:avoid}}";
+    // La gouttière de 32 px coûtait 64 px sur les 390 d'un téléphone, soit un
+    // sixième de l'écran perdu sur un document tout en tableaux.
+    "@media(max-width:600px){body{padding:16px}}" +
+    "@media print{body{padding:0}.tw{overflow:visible}h2{page-break-after:avoid}tr{page-break-inside:avoid}}";
 
   var summary =
     "<div class=\"summary\">" +
@@ -262,8 +295,12 @@ export function buildCollectionReport(data: any, opts: CollectionReportOpts): st
     "<div class=\"box grand\"><div class=\"k\">" + esc(L.totalValue) + "</div><div class=\"v\">" + esc(money(grand, sym, fn)) + "</div></div>" +
     "</div>";
 
+  // Voir `opts.lang` : validé, jamais recopié tel quel.
+  var langAttr = /^[a-z]{2,3}$/i.test(String(opts.lang || ""))
+    ? " lang=\"" + esc(String(opts.lang)) + "\"" : "";
+
   return (
-    "<!doctype html><html><head><meta charset=\"utf-8\">" +
+    "<!doctype html><html" + langAttr + "><head><meta charset=\"utf-8\">" +
     "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
     "<title>" + esc(L.title) + "</title><style>" + style + "</style></head><body><div class=\"wrap\">" +
     "<h1>" + esc(L.title) + "</h1>" +

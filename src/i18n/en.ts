@@ -150,6 +150,8 @@ export var EN = {
   report_col_lots:"Lots",
   report_col_value:"Value",
   report_items:"items",
+  report_items_one:"item",
+  report_subtotal:"Subtotal",
   report_disclaimer:"Values based on the recorded purchase prices. Document generated locally by My Tobacco Cellar.",
   btn_import_file:"Import file (.json)",
   btn_gdrive_save:"Save to Drive",

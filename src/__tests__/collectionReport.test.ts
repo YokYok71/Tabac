@@ -21,6 +21,8 @@ const labels = {
   colType: "Type",
   colValue: "Valeur",
   items: "articles",
+  itemsOne: "article",
+  subtotal: "Sous-total",
   disclaimer: "Valeurs basées sur les prix d'achat saisis.",
 };
 
@@ -280,5 +282,103 @@ describe("buildCollectionReport — the caller owns the decimal separator", () =
     const html = buildCollectionReport(data, opts);
     expect(html).toContain("40.50 €");
     expect(html).toContain("12.5 g");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LE DOCUMENT REMIS À UN TIERS — quatre défauts, et le premier est une garantie
+// qui se vérifiait sur un chemin que la production ne prend jamais.
+//
+// `money()` porte une garde 1e21 avec un commentaire promettant « above it the
+// digits are written out in full ». Vraie dans ce fichier, annulée dans l'app :
+// la chaîne repart dans `formatNumber`, qui est `fmtNum`, qui la RE-PARSE. Le
+// bloc ci-dessus est exactement l'endroit où ça s'est joué — il pilote un
+// formateur JOUET (`replace(".", ",")`), pas celui de l'application. MESURÉ sur
+// le document réellement produit : « 1e+24 » TROIS fois, la ligne, le
+// sous-total tabacs et le total général.
+//
+// La règle qui en sort : **une garantie doit être pilotée par le collaborateur
+// que la production injecte, pas par le défaut du module.**
+describe("le rapport tel que l'APPLICATION le produit", () => {
+  const big = "1000000000000000000000000";
+  const data = {
+    tobaccos: [{ brand: "A", name: "Alpha", category: "Virginia",
+      lots: [{ price: big, weightG: "50", status: "cellar" }] }],
+    pipes: [], accessories: [],
+  };
+
+  it("aucune notation exponentielle avec le VRAI formateur de l'app", async () => {
+    // Importé ici, pas en tête : le module sous test est délibérément neutre et
+    // n'a pas le droit de connaître `utils.ts`. C'est le TEST qui joue le rôle
+    // de l'appelant.
+    const { fmtNum } = await import("../utils.ts");
+    const html = buildCollectionReport(data, {
+      ...opts, formatNumber: (v: string) => fmtNum(v, "fr"),
+    });
+    expect(html).not.toMatch(/\de\+\d/i);
+    // Les chiffres en entier, séparateur du lecteur, dans les trois emplacements
+    // (ligne, sous-total, total général).
+    expect((html.match(/1000000000000000000000000,00 €/g) || []).length).toBe(3);
+  });
+
+  it("… et le formateur par défaut ne suffit PAS à le prouver (non-vacuité)", async () => {
+    // Sonde permanente : sans formateur le module est correct depuis toujours,
+    // donc un cas écrit sur le défaut aurait été vert avant comme après. C'est
+    // ce qui rend le cas précédent non redondant.
+    const html = buildCollectionReport(data, opts);
+    expect(html).toContain("1000000000000000000000000.00 €");
+  });
+});
+
+describe("le rapport se lit sur un téléphone et s'annonce", () => {
+  const data = {
+    tobaccos: [{ brand: "A", name: "Alpha", category: "Virginia",
+      lots: [{ price: "10", weightG: "50", status: "cellar" }] }],
+    pipes: [{ brand: "B", name: "Beta", shape: "Billiard", price: "20" }],
+    accessories: [],
+  };
+
+  it("chaque tableau défile DANS son conteneur, jamais la page", () => {
+    // MESURÉ dans Chromium avant correctif : le document débordait de 79 px à
+    // 390 et de 109 px à 360, et la colonne « Valeur » du tableau tabacs était
+    // visible à 0 % — sur un document dont c'est la raison d'être. Après : 0 px
+    // de débordement, et la colonne atteinte à 100 % en faisant glisser le
+    // tableau. jsdom ne met rien en page, donc on verrouille la DÉCLARATION.
+    const html = buildCollectionReport(data, opts);
+    expect((html.match(/<div class="tw"><table>/g) || []).length).toBe(2);
+    expect(html).toContain(".tw{overflow-x:auto");
+    // …et à l'impression le conteneur s'efface : la page fait 794 px, le
+    // tableau y rentre, et un conteneur de défilement COUPERAIT ce que l'écran
+    // laisse justement joindre.
+    expect(html).toMatch(/@media print\{[\s\S]*?\.tw\{overflow:visible\}/);
+  });
+
+  it("porte un attribut lang, et refuse une valeur qui n'en est pas une", () => {
+    expect(buildCollectionReport(data, { ...opts, lang: "de" }))
+      .toContain("<html lang=\"de\">");
+    // La leçon de `public/reset.html`, qui écrivait `lang="constructor"` depuis
+    // un `cave-lang` corrompu : on valide, on ne recopie pas.
+    for (const bad of ["constructor", "__proto__", "", "fr-CH-x-evil", "<script>"]) {
+      const h = buildCollectionReport(data, { ...opts, lang: bad });
+      expect(h, bad).toContain("<!doctype html><html><head>");
+    }
+  });
+
+  it("un seul élément ne lit pas « 1 articles »", () => {
+    // Court-circuitait `plural()` dans cinq langues sur six ; l'anglais s'en
+    // tirait par hasard. Les deux formes arrivent traduites, le module choisit.
+    const html = buildCollectionReport(data, opts);
+    expect((html.match(/1 article</g) || []).length).toBe(2);
+    expect(html).not.toContain("1 articles");
+  });
+
+  it("un sous-total ne s'appelle pas « Valeur d'achat totale »", () => {
+    // Le document affichait QUATRE fois le même libellé devant quatre nombres
+    // différents, dont trois ne sont pas un total.
+    const html = buildCollectionReport(data, opts);
+    expect((html.match(/Sous-total/g) || []).length).toBe(2);
+    // L'apostrophe est échappée par `esc` — le document est du HTML, pas de la
+    // prose, et une assertion sur la forme non échappée passerait à zéro.
+    expect((html.match(/Valeur d&#39;achat totale/g) || []).length).toBe(1);
   });
 });

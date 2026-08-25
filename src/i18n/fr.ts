@@ -150,6 +150,8 @@ export var FR = {
   report_col_lots:"Lots",
   report_col_value:"Valeur",
   report_items:"articles",
+  report_items_one:"article",
+  report_subtotal:"Sous-total",
   report_disclaimer:"Valeurs basées sur les prix d'achat saisis. Document généré localement par Ma Cave à Tabac.",
   btn_import_file:"Importer fichier (.json)",
   btn_gdrive_save:"Sauvegarder Drive",

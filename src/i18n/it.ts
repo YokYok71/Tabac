@@ -150,6 +150,8 @@ export var IT = {
   report_col_lots:"Lotti",
   report_col_value:"Valore",
   report_items:"articoli",
+  report_items_one:"articolo",
+  report_subtotal:"Subtotale",
   report_disclaimer:"Valori basati sui prezzi d'acquisto registrati. Documento generato localmente da La Mia Cantina del Tabacco.",
   btn_import_file:"Importa file (.json)",
   btn_gdrive_save:"Salva su Drive",

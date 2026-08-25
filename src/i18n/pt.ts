@@ -157,6 +157,8 @@ export var PT = {
   report_col_lots:"Lotes",
   report_col_value:"Valor",
   report_items:"artigos",
+  report_items_one:"artigo",
+  report_subtotal:"Subtotal",
   report_disclaimer:"Valores baseados nos preços de compra registados. Documento gerado localmente por A Minha Adega de Tabaco.",
   btn_import_file:"Importar ficheiro (.json)",
   btn_gdrive_save:"Guardar no Drive",

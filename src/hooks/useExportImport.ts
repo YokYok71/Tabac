@@ -625,6 +625,8 @@ export function useExportImport({
       colType: t ? t("lbl_type") : "Type",
       colValue: t ? t("report_col_value") : "Valeur",
       items: t ? t("report_items") : "articles",
+      itemsOne: t ? t("report_items_one") : "article",
+      subtotal: t ? t("report_subtotal") : "Sous-total",
       disclaimer: t ? t("report_disclaimer") : "Valeurs basées sur les prix d'achat saisis. Document généré localement par Ma Cave à Tabac.",
     };
     var html = buildCollectionReport(data, {
@@ -643,6 +645,10 @@ export function useExportImport({
       // `collectionReport.ts` language-neutral (its design premise) instead of
       // dragging the i18n machinery into a string-only module.
       formatNumber: function (v: string) { return fmtNum(v, lang); },
+      // `<html lang>` : le document n'en portait aucun. Validé dans le module,
+      // jamais recopié tel quel — un `cave-lang` corrompu écrivait déjà
+      // `lang="constructor"` sur `public/reset.html`.
+      lang: lang,
     });
     dlFile(html, "cave-tabac-rapport-" + compact + ".html", "text/html;charset=utf-8")
       .then(function (ok: boolean) { if (ok && markExported) markExported(); });

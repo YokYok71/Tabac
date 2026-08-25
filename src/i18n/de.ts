@@ -150,6 +150,8 @@ export var DE = {
   report_col_lots:"Lose",
   report_col_value:"Wert",
   report_items:"Artikel",
+  report_items_one:"Artikel",
+  report_subtotal:"Zwischensumme",
   report_disclaimer:"Werte basierend auf den erfassten Kaufpreisen. Dokument lokal von Mein Tabakkeller erstellt.",
   btn_import_file:"Datei importieren (.json)",
   btn_gdrive_save:"In Drive sichern",

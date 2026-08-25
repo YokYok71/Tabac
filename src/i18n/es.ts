@@ -150,6 +150,8 @@ export var ES = {
   report_col_lots:"Lotes",
   report_col_value:"Valor",
   report_items:"artículos",
+  report_items_one:"artículo",
+  report_subtotal:"Subtotal",
   report_disclaimer:"Valores basados en los precios de compra registrados. Documento generado localmente por Mi Bodega de Tabaco.",
   btn_import_file:"Importar archivo (.json)",
   btn_gdrive_save:"Guardar en Drive",

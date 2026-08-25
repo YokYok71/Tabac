@@ -397,6 +397,34 @@ export function fmtNum(v: any, lang?: string): string {
       out = Number(n).toFixed(dotGroup.length);
     }
   }
+  // NOTATION EXPONENTIELLE — jamais un affichage voulu, nulle part.
+  // `Number#toString` et `toFixed` basculent en exponentiel à 1e21, si bien
+  // qu'un prix collé ressortait « 1e+24 » : dans l'app, et — mesuré — TROIS
+  // fois dans le rapport de collection (la ligne, le sous-total, le total
+  // général), c'est-à-dire dans un document remis à un tiers.
+  //
+  // LA LEÇON EST SUR L'ENDROIT DU CORRECTIF, PAS SUR LE SYMPTÔME.
+  // `collectionReport.money()` portait DÉJÀ une garde 1e21 avec un commentaire
+  // promettant « above it the digits are written out in full » — vraie, et
+  // annulée une ligne plus loin : elle rend sa chaîne à `formatNumber`, qui est
+  // CE `fmtNum`, qui la re-parse. Son test ne pouvait pas le voir parce qu'il
+  // n'injecte pas de formateur et retombe sur l'identité par défaut, donc la
+  // garantie était vérifiée sur un chemin que la production ne prend jamais.
+  // Corriger `money()` seul aurait laissé la fuite ouverte partout ailleurs :
+  // c'est ICI que la chaîne redevient un nombre.
+  //
+  // La SOURCE est la vérité quand elle en est une : si elle n'a pas d'exposant
+  // et que le résultat en a un, on la rend telle quelle — ce qui préserve au
+  // passage la précision tapée (« …000,00 » garde ses deux décimales). Quand la
+  // source en a un — un NOMBRE calculé, dont `String()` donne déjà « 1e+24 », ou
+  // un « 1e24 » tapé à la main — il n'y a rien à quoi retomber, donc on déplie.
+  // Aucune valeur ordinaire ne passe par cette branche : sous 1e21 les deux
+  // notations sont identiques par construction.
+  if (/[eE]/.test(String(out))) {
+    out = /[eE]/.test(normalized)
+      ? Number(n).toLocaleString("en-US", { useGrouping: false, maximumFractionDigits: 4 })
+      : normalized;
+  }
   return lang === "en" ? out : String(out).replace(".", ",");
 }
 
