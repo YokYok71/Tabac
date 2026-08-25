@@ -782,3 +782,128 @@ describe("SessionFormView — accounting-off weight handling", () => {
     expect(zeroed).toBe(true);
   });
 });
+
+// LE BOUTON ENREGISTRER N'ÉTAIT JAMAIS TAPÉ — ce fichier ne contenait AUCUNE
+// occurrence d'`addSession` ni d'`updateSession`.
+//
+// Une campagne de mutation sur les vues l'a mis en évidence : `SessionFormView`
+// a rendu 0 mise à mort sur 10. Les cas existants rendent la vue, vérifient des
+// pré-remplissages et des états `aria-disabled`, et n'exercent jamais l'écriture
+// — d'où douze survivantes sur les trois formulaires, dont l'inversion
+// ajout/édition, qui fait qu'éditer CRÉE un doublon et qu'ajouter ÉCRASE.
+//
+// Ce bloc tape le bouton.
+describe("SessionFormView — le chemin d'écriture", () => {
+  const dataWith = (tobs: any[]) => ({
+    tobaccos: tobs, pipes: [{ id: "P1", brand: "Vondel", name: "Corvane", status: "active" }],
+    sessions: [], accessories: [], wishlist: [],
+  });
+  const ready = { date: "2026-06-01", tobaccoId: "T1", pipeId: "P1", lotId: "L1", weightG: "2.5", duration: "40", rating: 4, notes: "" };
+
+  const renderForm = (over: any) => renderWithCtx(<CuratorSessionFormView />, {
+    view: "addJ",
+    sessForm: ready,
+    data: dataWith([tobWithJar]),
+    accountingEnabled: true,
+    ...over,
+  } as any);
+
+  it("Ajouter appelle addSession, jamais updateSession", () => {
+    const add = vi.fn(); const upd = vi.fn();
+    const { getByText } = renderForm({ view: "addJ", editSessId: null, addSession: add, updateSession: upd });
+    fireEvent.click(getByText("btn_add"));
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(upd).not.toHaveBeenCalled();
+  });
+
+  it("Enregistrer appelle updateSession, jamais addSession", () => {
+    // L'inversion des deux est la survivante la plus coûteuse des trois
+    // formulaires : en édition elle mint un nouvel `id` ET un nouvel `uid`,
+    // donc la séance existe en double et son grammage est déduit une seconde
+    // fois du lot.
+    const add = vi.fn(); const upd = vi.fn();
+    const { getByText } = renderForm({ view: "editJ", editSessId: "S1", addSession: add, updateSession: upd });
+    fireEvent.click(getByText("btn_save"));
+    expect(upd).toHaveBeenCalledTimes(1);
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  // CHANGER DE TABAC ET LE LOT — un constat d'agent que j'ai VÉRIFIÉ et qui ne
+  // tient pas, ce qui vaut d'être écrit ici.
+  //
+  // Le rapport de mutation présentait la suppression de `lotId: ""` dans le
+  // patch comme une dérive de stock permanente et silencieuse : le lot du tabac
+  // PRÉCÉDENT survivrait, la séance serait orpheline, les grammes ne sortiraient
+  // d'aucune boîte. La conséquence est juste — c'est ce que produirait un
+  // `lotId` étranger — mais l'état ne s'atteint pas.
+  //
+  // La couche absorbante est celle que CLAUDE.md documente déjà : `tobOptions`
+  // n'inscrit un tabac que s'il a un lot UTILISABLE (ou, en édition, s'il est
+  // celui déjà choisi), et `pickSessionLot` choisit précisément parmi ces
+  // lots-là. Donc tout tabac qu'on peut ATTEINDRE dans la liste se voit
+  // réattribuer un lot à lui dans la même passe, et la remise à zéro initiale
+  // est écrasée avant d'avoir servi. C'est exactement la garantie « par
+  // construction » pour laquelle `pickSessionLot` a été extrait.
+  //
+  // Il reste UNE différence observable, et c'est elle qui est épinglée : le
+  // choix VIDE, où la branche `if (v)` ne s'exécute pas. Sans la remise à zéro,
+  // le formulaire porterait un lot sans tabac. Le dégât reste borné —
+  // `canSave` exige un tabac — mais l'état est incohérent et la ligne le ferme.
+  it("choisir « aucun tabac » remet aussi le lot à zéro", () => {
+    const setForm = vi.fn();
+    const { container } = renderForm({ setSessForm: setForm });
+    const select = container.querySelector("select") as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "" } });
+    const calls = setForm.mock.calls.map((c) => c[0]).filter((p: any) => p && p.tobaccoId === "");
+    expect(calls.length, "le choix vide n'a rien écrit").toBeGreaterThan(0);
+    expect(calls[0]).toMatchObject({ tobaccoId: "", lotId: "" });
+  });
+
+  it("changer de tabac réattribue un lot DU NOUVEAU tabac", () => {
+    // La vraie garantie, celle qui empêche la dérive décrite plus haut : le lot
+    // retenu appartient au tabac qu'on vient de choisir, jamais au précédent.
+    const setForm = vi.fn();
+    const other = {
+      id: "T9", brand: "Aldwych", name: "Rivière Dorée",
+      lots: [{ id: "L9", status: "jar", weightG: "30", dateOpened: "2025-02-01" }],
+    };
+    const { container } = renderForm({
+      data: dataWith([tobWithJar, other]), setSessForm: setForm,
+    });
+    const select = container.querySelector("select") as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "T9" } });
+    const withTob = setForm.mock.calls.map((c) => c[0]).filter((p: any) => p && p.tobaccoId === "T9");
+    expect(withTob.length, "le changement de tabac n'a rien écrit").toBe(1);
+    expect(withTob[0]).toMatchObject({ tobaccoId: "T9", lotId: "L9" });
+    // Et surtout : jamais le lot de l'ancien.
+    expect(withTob[0].lotId).not.toBe("L1");
+  });
+
+  it("comptabilité activée, un poids nul interdit l'enregistrement", () => {
+    // Le commentaire du garde nomme `pipeId` et le poids positif ; aucun cas
+    // ne faisait varier ni l'un ni l'autre seul. Une séance à 0 g enregistrée
+    // comptabilité activée ne fait bouger aucun stock.
+    const add = vi.fn();
+    const { getByText } = renderForm({ sessForm: { ...ready, weightG: "0" }, addSession: add });
+    fireEvent.click(getByText("btn_add"));
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it("comptabilité désactivée, le même poids nul l'autorise", () => {
+    // Non-vacuité : en mode hors comptabilité le poids est forcé à « 0 » et le
+    // champ est caché, donc bloquer là-dessus enfermerait l'utilisateur.
+    const add = vi.fn();
+    const { getByText } = renderForm({
+      sessForm: { ...ready, weightG: "0" }, accountingEnabled: false, addSession: add,
+    });
+    fireEvent.click(getByText("btn_add"));
+    expect(add).toHaveBeenCalledTimes(1);
+  });
+
+  it("sans pipe, l'enregistrement est refusé", () => {
+    const add = vi.fn();
+    const { getByText } = renderForm({ sessForm: { ...ready, pipeId: "" }, addSession: add });
+    fireEvent.click(getByText("btn_add"));
+    expect(add).not.toHaveBeenCalled();
+  });
+});

@@ -252,3 +252,39 @@ describe("PipeFormView — extra photo persistence guard", () => {
     expect(next.photos).toEqual(["local-photo-123"]);
   });
 });
+
+// Même trou que dans les deux autres formulaires : aucune occurrence d'`addPipe`
+// ni d'`updatePipe` dans ce fichier, donc l'écriture n'était jamais exercée.
+// L'inversion ajout/édition passe sans rougir nulle part, et pour une pipe elle
+// emporte en plus le carnet d'entretien et les photos supplémentaires, que
+// `addPipe` recopie sous une nouvelle identité.
+describe("PipeFormView — le chemin d'écriture", () => {
+  const ready = { ...emptyPipe, brand: "Østergaard", name: "Marte Rusticated" };
+  const renderForm = (over: any) => renderWithCtx(<CuratorPipeFormView />, {
+    view: "addP", pipeForm: ready, data: { tobaccos: [], pipes: [], sessions: [], accessories: [], wishlist: [] },
+    ...over,
+  } as any);
+
+  it("Ajouter appelle addPipe, jamais updatePipe", () => {
+    const add = vi.fn(); const upd = vi.fn();
+    const { getByText } = renderForm({ view: "addP", editPipeId: null, addPipe: add, updatePipe: upd });
+    fireEvent.click(getByText("btn_add"));
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(upd).not.toHaveBeenCalled();
+  });
+
+  it("Enregistrer appelle updatePipe, jamais addPipe", () => {
+    const add = vi.fn(); const upd = vi.fn();
+    const { getByText } = renderForm({ view: "editP", editPipeId: "P1", pipeForm: { ...ready, id: "P1" }, addPipe: add, updatePipe: upd });
+    fireEvent.click(getByText("btn_save"));
+    expect(upd).toHaveBeenCalledTimes(1);
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it("sans marque ni nom, rien n'est écrit", () => {
+    const add = vi.fn();
+    const { getByText } = renderForm({ pipeForm: emptyPipe, addPipe: add });
+    fireEvent.click(getByText("btn_add"));
+    expect(add).not.toHaveBeenCalled();
+  });
+});

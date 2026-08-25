@@ -447,3 +447,57 @@ describe("PipesDetailView — hero photo is keyboard-operable", () => {
     expect(hero!.getAttribute("role"), "no photo → not a button").toBeNull();
   });
 });
+
+// LA MODALE D'ENTRETIEN DOIT SE SIGNALER, ET L'ASSERTION QUI PRÉTENDAIT LE
+// GARANTIR ÉTAIT CREUSE.
+//
+// `maintForm` est un état LOCAL de cette vue, qu'App ne peut pas voir, donc la
+// modale se déclare elle-même via `ctx.setMaintFormOpen` — et c'est ce qui la
+// fait entrer dans `deferAutoUpdate`, le seul rempart entre une saisie en cours
+// et un rechargement. Une release « data-only » s'applique en silence au
+// prochain passage en arrière-plan : sans ce signal, une note d'entretien à
+// moitié écrite disparaît sans que rien ne l'ait annoncé.
+//
+// `deferAutoUpdate.test.ts` verrouillait ça par `expect(PIPES).toContain(
+// "setMaintFormOpen")` — une recherche de chaîne sur tout le fichier. La chaîne
+// survit dans la déclaration (`const setMaintFormOpen = ctx.setMaintFormOpen`)
+// et dans le nettoyage, si bien que SONDÉ, supprimer l'appel qui SIGNALE
+// l'ouverture laisse les 17 cas verts. Seul le nettoyage était réellement
+// couvert (par une regex, celle-là non creuse).
+//
+// Ce bloc pilote donc le VRAI composant : ouvrir, c'est signaler `true` ;
+// quitter la fiche, c'est signaler `false` — sinon la modale bloquerait toutes
+// les mises à jour pour le reste de la session, ce qui est le défaut inverse et
+// tout aussi silencieux.
+describe("PipesDetailView — la modale d'entretien se déclare", () => {
+  const ctxFor = (setMaintFormOpen: (v: boolean) => void) => ({
+    view: "pipes",
+    pipeDet: pipe,
+    data: { pipes: [pipe], tobaccos: [], sessions: [], accessories: [], wishlist: [] },
+    setMaintFormOpen,
+  });
+
+  it("l'ouvrir signale true", () => {
+    const spy = vi.fn();
+    const { getByText } = renderWithCtx(<CuratorPipesDetailView />, ctxFor(spy) as any);
+    // Au montage la vue signale déjà l'état FERMÉ ; c'est l'appel `true` qui
+    // porte la garantie.
+    expect(spy).toHaveBeenCalledWith(false);
+    spy.mockClear();
+    fireEvent.click(getByText("maint_add"));
+    expect(spy).toHaveBeenCalledWith(true);
+  });
+
+  it("démonter la vue le remet à false", () => {
+    // Rien ne remet `maintForm` à zéro en quittant la fiche — l'invariant
+    // interdit à `nav()` de toucher à l'état des formulaires — donc sans ce
+    // nettoyage la modale resterait « ouverte » aux yeux d'App alors qu'elle a
+    // disparu de l'écran, et bloquerait chaque mise à jour, invisiblement.
+    const spy = vi.fn();
+    const { getByText, unmount } = renderWithCtx(<CuratorPipesDetailView />, ctxFor(spy) as any);
+    fireEvent.click(getByText("maint_add"));
+    spy.mockClear();
+    unmount();
+    expect(spy).toHaveBeenCalledWith(false);
+  });
+});

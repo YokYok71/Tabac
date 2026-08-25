@@ -574,3 +574,47 @@ describe("TobaccoFormView — catalogue lock", () => {
     expect(next.catalogueLock).toBe(true);
   });
 });
+
+// LE BOUTON ENREGISTRER N'ÉTAIT JAMAIS TAPÉ — ce fichier ne contenait aucune
+// occurrence d'`addTobacco` ni d'`updateTobacco`. Même trou dans les deux autres
+// formulaires, et c'est ce qui explique douze des quarante-cinq mutations
+// survivantes d'une campagne sur les vues.
+//
+// Ce que ça laissait passer se lit en une ligne : `(isEdit ? updateTobacco :
+// addTobacco)()` inversé. Éditer une fiche CRÉERAIT alors un doublon — nouvel
+// `id`, nouvel `uid`, donc une seconde identité de fusion inter-appareils — et
+// ajouter ÉCRASERAIT la fiche ouverte. Aucun invariant ne le voit : les deux
+// résultats sont des données parfaitement valides.
+describe("TobaccoFormView — le chemin d'écriture", () => {
+  const ready = { ...emptyForm, brand: "Halvorsen", name: "Foxtrot Reserve" };
+  const renderForm = (over: any) => renderWithCtx(<CuratorTobaccoFormView />, {
+    view: "addT", form: ready, data: { tobaccos: [], pipes: [], sessions: [], accessories: [], wishlist: [] },
+    ...over,
+  } as any);
+
+  it("Ajouter appelle addTobacco, jamais updateTobacco", () => {
+    const add = vi.fn(); const upd = vi.fn();
+    const { getByText } = renderForm({ view: "addT", editId: null, addTobacco: add, updateTobacco: upd });
+    fireEvent.click(getByText("btn_add"));
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(upd).not.toHaveBeenCalled();
+  });
+
+  it("Enregistrer appelle updateTobacco, jamais addTobacco", () => {
+    const add = vi.fn(); const upd = vi.fn();
+    const { getByText } = renderForm({ view: "editT", editId: "T1", form: { ...ready, id: "T1" }, addTobacco: add, updateTobacco: upd });
+    fireEvent.click(getByText("btn_save"));
+    expect(upd).toHaveBeenCalledTimes(1);
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it("sans marque ni nom, rien n'est écrit", () => {
+    // Le garde `canSave` : l'identité est ce sur quoi la fusion inter-appareils
+    // s'appuie (`dupKey` est `brand|name`), donc une fiche sans identité n'est
+    // pas rattrapable après coup.
+    const add = vi.fn();
+    const { getByText } = renderForm({ form: emptyForm, addTobacco: add });
+    fireEvent.click(getByText("btn_add"));
+    expect(add).not.toHaveBeenCalled();
+  });
+});

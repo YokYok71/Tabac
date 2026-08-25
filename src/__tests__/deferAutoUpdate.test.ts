@@ -93,7 +93,17 @@ describe("deferAutoUpdate covers every surface holding unsaved input", () => {
     // as completely as anything else.
     expect(DEFER).toContain("maintFormOpen");
     const PIPES = readFileSync("src/views/curator/PipesDetailView.tsx", "utf8");
-    expect(PIPES).toContain("setMaintFormOpen");
+    // CETTE ASSERTION ÉTAIT CREUSE, ET C'EST ELLE QUI PRÉTENDAIT GARANTIR LE
+    // SIGNAL. Elle cherchait `setMaintFormOpen` n'importe où dans le fichier —
+    // or la chaîne survit dans la déclaration (`const setMaintFormOpen =
+    // ctx.setMaintFormOpen`) ET dans le nettoyage ci-dessous, si bien que
+    // SONDÉ, supprimer l'appel qui signale l'OUVERTURE laissait les 17 cas
+    // verts. Elle exige maintenant l'appel avec son argument, ce qui est
+    // strictement plus fort. **Mais ce n'est pas ici que le signal est
+    // garanti** : le bloc « la modale d'entretien se déclare » de
+    // `PipesDetailView.test.tsx` pilote le vrai composant et rougit sur cette
+    // mutation. Ce fichier verrouille le CÂBLAGE, l'autre le COMPORTEMENT.
+    expect(PIPES).toContain("setMaintFormOpen(maintFormIsOpen)");
     // …and it must CLEAR on unmount, or leaving the fiche with the modal open
     // would block every future update for the rest of the session.
     expect(PIPES).toMatch(/return function \(\) \{[^}]*setMaintFormOpen\(false\)/);

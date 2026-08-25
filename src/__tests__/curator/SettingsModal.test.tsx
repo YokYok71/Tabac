@@ -1556,3 +1556,66 @@ describe("SettingsModal — the CSV import panel", () => {
     expect(clearCsvIssues).toHaveBeenCalled();
   });
 });
+
+// « EFFACER TOUTES LES DONNÉES » N'ÉTAIT ASSERTÉ PAR AUCUN TEST DE VUE.
+//
+// Les seules occurrences de `resetAll` dans toute la suite sont dans trois
+// tests de HOOK (`resetWipesCredentials`, `useExportImport`,
+// `resetAllDisarmsAutoSave`) : la FONCTION est couverte sous toutes les
+// coutures — elle efface la cave, les photos, les identifiants cloud, les clés
+// API — et son APPEL ne l'était pas. C'est la forme « the wiring is what rots »
+// que ce dépôt a déjà payée sur `chooseAutoSaveTarget` et sur
+// `reDeductRestoredSessions` : un assistant testé derrière un câblage muet.
+//
+// Le miroir compte autant que l'endroit : sans ce cas, n'importe quel bouton
+// anodin de cette modale pouvait être recâblé sur `resetAll` sans rien rougir.
+//
+// PAS DE `if (btn)` ici. Le fichier en contient déjà un — la forme creuse n°1
+// documentée dans CLAUDE.md, qui transforme « le contrôle a disparu » en
+// succès — et ce serait le pire endroit pour en ajouter un second : sur le seul
+// bouton irréversible de l'application, « je n'ai pas trouvé le bouton » doit
+// être un échec bruyant.
+describe("SettingsModal — le bouton d'effacement total", () => {
+  const renderData = (over: any) => renderWithCtx(<CuratorSettingsModal />, {
+    importModal: true,
+    settingsTab: "data",
+    modalOpenTs: { current: 0 },
+    data: { tobaccos: [], pipes: [], accessories: [], sessions: [], wishlist: [] },
+    tkGet: () => null,
+    ...over,
+  } as any);
+
+  const findReset = (container: HTMLElement): HTMLElement => {
+    const all = Array.from(container.querySelectorAll("[role='button']")) as HTMLElement[];
+    const hits = all.filter((b) => /btn_reset_all_data|Effacer toutes les données/i.test(b.textContent || ""));
+    expect(hits.length, "le bouton d'effacement total est introuvable").toBe(1);
+    return hits[0]!;
+  };
+
+  it("le taper appelle resetAll", () => {
+    const resetAll = vi.fn();
+    const { container } = renderData({ resetAll });
+    fireEvent.click(findReset(container));
+    expect(resetAll).toHaveBeenCalledTimes(1);
+  });
+
+  it("aucun AUTRE bouton de l'onglet n'appelle resetAll", () => {
+    // Le miroir. Si un contrôle voisin était recâblé dessus, le compte
+    // deviendrait supérieur à un et personne ne le verrait — et la cave part
+    // sans qu'aucune corbeille ne la rattrape.
+    const resetAll = vi.fn();
+    const { container } = renderData({ resetAll });
+    const target = findReset(container);
+    const others = (Array.from(container.querySelectorAll("[role='button']")) as HTMLElement[])
+      .filter((b) => b !== target && !b.contains(target) && !target.contains(b));
+    // Trois, mesuré : sous ce contexte minimal la plupart des contrôles de
+    // l'onglet sont conditionnés à un état que le cas ne fournit pas (un
+    // catalogue chargé, un cloud connecté). Le plancher est bas et volontaire —
+    // épingler le compte exact reviendrait à verrouiller un détail qui n'est le
+    // sujet de personne, alors que ce qui compte est qu'au moins un voisin soit
+    // réellement éprouvé.
+    expect(others.length, "aucun autre bouton à éprouver").toBeGreaterThanOrEqual(3);
+    for (const b of others) fireEvent.click(b);
+    expect(resetAll).not.toHaveBeenCalled();
+  });
+});
