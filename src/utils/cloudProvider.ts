@@ -196,18 +196,29 @@ function dbxError(status: number, summary: string): WireResponse {
   });
 }
 
-function dbxRpc(token: string, endpoint: string, arg: any): Promise<Response> {
-  return fetchWithTimeout(
-    "https://api.dropboxapi.com/2/" + endpoint,
-    {
+function dbxRpc(
+  token: string, endpoint: string, arg: any, retries?: number,
+): Promise<Response> {
+  // `retries` HONOURED, and it was in the interface all along.
+  // `CloudProvider.list`'s option is documented "Number of network retries
+  // (fetchRetry); 0 = single attempt", Drive reads it — and this side went
+  // straight to `fetchWithTimeout`, so the four callers that ask for two
+  // attempts (manual save, restore listing, and BOTH directions of the
+  // catalogue stream) had no net at all on Dropbox: one dropped packet lost
+  // the whole operation. Optional, so omitting it keeps the single attempt
+  // every other Dropbox call has always made.
+  var url = "https://api.dropboxapi.com/2/" + endpoint;
+  var init = {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(arg),
-    },
-  );
+  };
+  return (retries && retries > 0)
+    ? fetchRetry(url, init, retries)
+    : fetchWithTimeout(url, init);
 }
 
 function dbxParse(r: Response): Promise<{ status: number; ok: boolean; body: any }> {
@@ -270,7 +281,7 @@ export var dropboxProvider: CloudProvider = {
       path: "",
       recursive: false,
       limit: 500,
-    })
+    }, opts.retries)
       .then(dbxParse)
       .then(function (res) {
         if (!res.ok) {

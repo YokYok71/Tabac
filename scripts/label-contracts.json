@@ -809,7 +809,7 @@
         "public/privacy.html — \"Dropbox\" paragraph: the two api./content.dropboxapi.com transfer hosts (all languages)"
       ],
       "why": "These are the five wire operations that actually move a backup to Dropbox. The policy names both hosts and says the payload can be encrypted before it leaves; a new endpoint or a changed host must be disclosed.",
-      "fingerprint": "6a169f14c12d7d8e"
+      "fingerprint": "711a5b1016ae5c34"
     },
     {
       "id": "ai-model-catalogue",

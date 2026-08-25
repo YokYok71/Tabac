@@ -322,6 +322,70 @@ export var CLOUD_CHECK_PENDING_KEY = "cave-cloud-check-pending";
 /** A resume marker is only honoured while fresh — a stale one must never act. */
 export var PENDING_RESUME_MAX_MS = 120000;
 
+/**
+ * QUEL BOUTON A LANCÉ LA REDIRECTION « list » — une décision, deux dispatchers.
+ *
+ * Quatre boutons peuvent émettre une redirection OAuth sous l'action `list` :
+ * « Voir mes sauvegardes », le diagnostic multi-appareils, « Vérifier les
+ * sauvegardes cloud » et la SUPPRESSION d'une sauvegarde. L'action seule ne
+ * peut pas les distinguer, donc chacun des trois non-défauts laisse un marqueur
+ * one-shot que le retour relit.
+ *
+ * Le dispatcher Google lisait les trois ; le dispatcher Dropbox faisait
+ * `if (ac === "list") runSyncDiagnostic()` et n'en lisait aucun — alors que
+ * `gdriveDeleteBackupById` écrit son marqueur SANS regarder le fournisseur
+ * (il passe par `getCloudToken("list")`, qui redirige des deux côtés quand il
+ * n'y a pas de jeton). Donc sur Dropbox une suppression que l'utilisateur
+ * venait de confirmer ne se produisait pas : le fichier restait dans le cloud,
+ * le panneau se réaffichait avec la ligne intacte, et rien ne le disait.
+ *
+ * La règle était écrite deux fois et la seconde copie n'a pas reçu le
+ * correctif — la forme la plus fréquente de ce dépôt. Une seule décision
+ * désormais, pour qu'un troisième fournisseur ne puisse pas rouvrir le trou.
+ *
+ * L'ORDRE EST PORTANT : la suppression d'abord, parce que c'est la seule qui
+ * MUTE — un décalage d'une milliseconde ne doit jamais laisser un chemin de
+ * lecture l'avaler. Chaque marqueur est LU avant d'être effacé (l'invariant
+ * que la règle ESLint `no-storage-read-after-remove` existe pour protéger), et
+ * un marqueur périmé n'agit pas. Comme le code d'origine, on retourne dès le
+ * premier marqueur frais SANS effacer les suivants : une seule redirection est
+ * en vol à la fois, et la fraîcheur borne le reste.
+ */
+export type ListResume =
+  | { kind: "delete"; id: string }
+  | { kind: "check" }
+  | { kind: "diag" };
+export function consumeListResume(nowMs: number): ListResume {
+  var delPend: string | null = null;
+  try {
+    delPend = lsGet(BACKUP_DELETE_PENDING_KEY);
+    if (delPend) lsRemove(BACKUP_DELETE_PENDING_KEY);
+  } catch (_e) {}
+  var delJob = delPend ? safeJsonParse<any>(delPend, null) : null;
+  if (
+    delJob && typeof delJob === "object" &&
+    typeof delJob.id === "string" && delJob.id &&
+    nowMs - (Number(delJob.ts) || 0) < PENDING_RESUME_MAX_MS
+  ) {
+    return { kind: "delete", id: delJob.id };
+  }
+  var checkPend: string | null = null;
+  try {
+    checkPend = lsGet(CLOUD_CHECK_PENDING_KEY);
+    if (checkPend) lsRemove(CLOUD_CHECK_PENDING_KEY);
+  } catch (_e) {}
+  if (checkPend && nowMs - (parseInt(checkPend, 10) || 0) < PENDING_RESUME_MAX_MS) {
+    return { kind: "check" };
+  }
+  var diagPend: string | null = null;
+  try {
+    diagPend = lsGet("cave-sync-diag-pending");
+    if (diagPend) lsRemove("cave-sync-diag-pending");
+  } catch (_e) {}
+  void diagPend; // le diagnostic EST le défaut : le marqueur n'est lu que pour être consommé
+  return { kind: "diag" };
+}
+
 var autosaveAttemptSeq = 0;
 export function nextAutosaveAttempt(): number { autosaveAttemptSeq += 1; return autosaveAttemptSeq; }
 export function currentAutosaveAttempt(): number { return autosaveAttemptSeq; }
@@ -1003,6 +1067,31 @@ export function useGdriveSync({
     setSyncDiag(null);
     setSyncDiagErr(null);
   }
+  /**
+   * Exécute la décision de `consumeListResume`. L'ORDRE et la FRAÎCHETÉ sont
+   * dans la fonction pure ; ici il ne reste que l'exécution, identique pour les
+   * deux fournisseurs. `preTk` n'existe que côté Google, où le jeton vient
+   * d'être capturé dans le fragment ; côté Dropbox le hook d'authentification
+   * l'a déjà mis en cache.
+   */
+  function resumeListAction(job: ListResume, preTk?: string) {
+    if (job.kind === "delete") {
+      // L'utilisateur a tapé 🗑 et CONFIRMÉ avant la redirection : reprendre,
+      // c'est honorer une intention explicite — bornée à un seul id de fichier
+      // et à la fraîcheur du marqueur.
+      setGdriveStatus(t("st_connecting"));
+      gdriveDeleteBackupById(job.id)
+        .then(function () { setGdriveStatus(null); })
+        .catch(function (e: any) {
+          setGdriveStatus(t("err_prefix") + ": " + String((e && e.message) || e).substring(0, 150));
+          scheduleStatusClear(4000);
+        });
+      return;
+    }
+    if (job.kind === "check") { checkCloudNewerNow(preTk); return; }
+    runSyncDiagnostic(preTk);
+  }
+
   function runSyncDiagnostic(preTk?: string) {
     setSyncDiagBusy(true);
     setSyncDiagErr(null);
@@ -1466,48 +1555,10 @@ export function useGdriveSync({
         // `no-storage-read-after-remove` rule exists for), and the DELETE is
         // checked first: it is the only one that mutates, so a stale-by-a-
         // millisecond ordering must never let a read path swallow it.
-        var delPend: string | null = null;
-        try {
-          delPend = lsGet(BACKUP_DELETE_PENDING_KEY);
-          if (delPend) lsRemove(BACKUP_DELETE_PENDING_KEY);
-        } catch (_e) {}
-        var delJob = delPend ? safeJsonParse<any>(delPend, null) : null;
-        if (delJob && delJob.id && Date.now() - (delJob.ts || 0) < PENDING_RESUME_MAX_MS) {
-          // The user tapped 🗑 and confirmed BEFORE the redirect, so resuming is
-          // honouring an explicit intent — bounded by a single file id and by
-          // freshness. This used to arrive under `ac === "restore"` and opened
-          // the destructive restore picker instead.
-          setGdriveStatus(t("st_connecting"));
-          gdriveDeleteBackupById(String(delJob.id))
-            .then(function () { setGdriveStatus(null); })
-            .catch(function (e: any) {
-              setGdriveStatus(t("err_prefix") + ": " + String((e && e.message) || e).substring(0, 150));
-              scheduleStatusClear(4000);
-            });
-          return;
-        }
-        var checkPend: string | null = null;
-        try {
-          checkPend = lsGet(CLOUD_CHECK_PENDING_KEY);
-          if (checkPend) lsRemove(CLOUD_CHECK_PENDING_KEY);
-        } catch (_e) {}
-        if (checkPend && Date.now() - (parseInt(checkPend, 10) || 0) < PENDING_RESUME_MAX_MS) {
-          checkCloudNewerNow(tk);
-          return;
-        }
-        var diagPend: string | null = null;
-        try {
-          diagPend = lsGet("cave-sync-diag-pending");
-          if (diagPend) lsRemove("cave-sync-diag-pending");
-        } catch (_e) {}
-        if (diagPend && Date.now() - (parseInt(diagPend, 10) || 0) < PENDING_RESUME_MAX_MS) {
-          runSyncDiagnostic(tk);
-          return;
-        }
         // The "list" action had two possible panels behind it and now has
         // one: "Voir mes sauvegardes" and the multi-device diagnostic were
         // merged, so every resumption of this action lands on the same view.
-        runSyncDiagnostic(tk);
+        resumeListAction(consumeListResume(Date.now()), tk);
         return;
       }
       // Banner-driven restore-by-id. The user tapped
@@ -1594,7 +1645,12 @@ export function useGdriveSync({
         return;
       }
       if (ac === "list") {
-        runSyncDiagnostic();
+        // The Dropbox side read NO marker and went straight to the
+        // diagnostic, so a deletion the user had just confirmed silently did
+        // not happen — `gdriveDeleteBackupById` writes its marker without
+        // looking at the provider. Same decision as Google now; no preToken,
+        // the auth hook has already cached one.
+        resumeListAction(consumeListResume(Date.now()));
         return;
       }
       // Banner-driven restore-by-id (Dropbox parity with

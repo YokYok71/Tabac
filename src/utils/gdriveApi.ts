@@ -189,7 +189,7 @@ export function pickKeepAuto(autoFiles: any[], deviceId: string): string | null 
 // named) — never a guess.
 export function backupDeviceName(name: string): string {
   if (!name) return "";
-  var m = String(name).match(/-t\d+-p\d+-w\d+-a\d+-j\d+-([a-z0-9]+)\.json$/);
+  var m = String(name).match(/-t\d+-p\d+-w\d+-a\d+-j\d+-([a-z0-9]+)(?: \(\d+\))?\.json$/);
   return m && m[1] ? m[1] : "";
 }
 
@@ -201,7 +201,16 @@ export function parseBackupCounts(name: string): null | {
   // Tolerate an optional trailing device-name slug (`-<a-z0-9…>`)
   // between the `-jN` counts and `.json` (see makeBackupName). `-j(\d+)` still
   // stops at the first non-digit, so the counts parse is unchanged.
-  var m = String(name).match(/-t(\d+)-p(\d+)-w(\d+)-a(\d+)-j(\d+)(?:-[a-z0-9]+)?\.json$/);
+  //
+  // AND an optional ` (N)` after it, which is DROPBOX renaming the file.
+  // `dbxUpload` sends `autorename: true` so a double-tap on Save survives a
+  // same-second name collision — and the file then arrives as `… (1).json`,
+  // exactly where both regexes anchored `\.json$`. So the backup that
+  // autorename had just rescued was the one the picker could not read: no
+  // counts line, no device name in the sync panel. The tolerance is
+  // deliberately NARROW (a literal space, parens, digits only) — a wider one
+  // would let a forged name pass for a backup.
+  var m = String(name).match(/-t(\d+)-p(\d+)-w(\d+)-a(\d+)-j(\d+)(?:-[a-z0-9]+)?(?: \(\d+\))?\.json$/);
   if (!m) return null;
   // Cap each count at 1M. A forged filename like
   // `cave-tabac-t99999999999999999999-p0-…` would otherwise round
