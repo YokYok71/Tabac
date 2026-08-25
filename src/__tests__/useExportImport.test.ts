@@ -333,6 +333,69 @@ describe("doDownloadCsvTemplate", () => {
   // documents: download the template, fill it, import it. This drives the REAL
   // shipped template through the REAL parser and the REAL invariants, because
   // asserting the header list would have passed the day the parser regressed.
+  // LE MODÈLE N'EST PAS LA FORME D'EN-TÊTE DE L'EXPORT, ET NE DOIT PAS L'ÊTRE.
+  //
+  // Son commentaire promettait « la même forme d'en-tête que l'export, donc ça
+  // fait l'aller-retour » : l'export a 28 colonnes, le modèle 24. Diff complet
+  // des cinq écarts — et la nuance est tout le sujet, parce que TROIS sont
+  // corrects et qu'un balayage pressé les « compléterait » par erreur.
+  //
+  //   · `Composition`  → LE manque. Le lecteur la lit (`composition` → `blend`)
+  //                      et sans elle aucune voie CSV ne permet de renseigner
+  //                      la composition. AJOUTÉE.
+  //   · `Age`          → colonne CALCULÉE, sans aucun mappage dans
+  //                      `HEADER_ALIASES` (le commentaire y est explicite).
+  //   · `Image URL`    → le lecteur force `imageUrl: ""` — la colonne serait un
+  //                      champ sans effet.
+  //   · `Statut origine` → déduit par `migrateData`, purement informatif.
+  //   · `Éliminé`      → « jeté sans l'avoir fumé » : hors sujet sur un modèle
+  //                      qui sert à SAISIR une cave.
+  //
+  // Ce cas épingle les deux moitiés : la présence de `Composition`, et
+  // l'ABSENCE délibérée des quatre autres.
+  it("porte Composition, et pas les colonnes calculées ou déduites", () => {
+    let text = "";
+    const RealBlob = globalThis.Blob;
+    (globalThis as any).Blob = class extends RealBlob {
+      constructor(parts: any[], o: any) { super(parts, o); text = String(parts[0]); }
+    };
+    const props = makeProps({ currencySymbol: "€", weightUnit: "g" });
+    const { result } = renderHook(() => useExportImport(props as any));
+    act(() => { result.current.doDownloadCsvTemplate(); });
+    (globalThis as any).Blob = RealBlob;
+
+    const unq = (s: string) => String(s).replace(/^"|"$/g, "").replace(/""/g, '"');
+    const head = text.trim().split("\r\n")[0]!.split(";").map(unq);
+    expect(head.length, "en-tête illisible (non-vacuité)").toBeGreaterThan(15);
+
+    expect(head, "sans elle, aucune voie CSV ne renseigne la composition")
+      .toContain("Composition");
+    for (const absent of ["Age", "Image URL", "Statut origine", "Éliminé"]) {
+      expect(head, "« " + absent + " » ne se remplit pas à la main — voir le bloc ci-dessus")
+        .not.toContain(absent);
+    }
+  });
+
+  it("la colonne Composition arrive REMPLIE dans le tabac importé", () => {
+    // La présence de l'en-tête ne suffit pas : il faut que le lecteur la relie
+    // bien à `blend`. Sans ça la colonne serait décorative, ce qui est le
+    // défaut d'origine sous une autre forme.
+    let text = "";
+    const RealBlob = globalThis.Blob;
+    (globalThis as any).Blob = class extends RealBlob {
+      constructor(parts: any[], o: any) { super(parts, o); text = String(parts[0]); }
+    };
+    const props = makeProps({ currencySymbol: "€", weightUnit: "g" });
+    const { result } = renderHook(() => useExportImport(props as any));
+    act(() => { result.current.doDownloadCsvTemplate(); });
+    (globalThis as any).Blob = RealBlob;
+
+    const parsed = parseTobaccoCsv(text, { todayIso: "2026-07-30" });
+    expect(parsed.tobaccos.length).toBe(1);
+    expect(String(parsed.tobaccos[0]!.blend).length,
+      "la colonne est là mais n'atteint pas `blend`").toBeGreaterThan(0);
+  });
+
   it("round-trips through the parser with ZERO invariant violations", () => {
     let text = "";
     // jsdom Blobs expose no synchronous text(), so the payload is captured from
@@ -383,10 +446,24 @@ describe("doDownloadCsvTemplate", () => {
     // is about WHOSE blend they describe and not about an empty template.
     // csvEsc quotes cells, so unwrap before comparing.
     const unq = (s: string) => String(s).replace(/^"|"$/g, "").replace(/""/g, '"');
-    const rows = text.trim().split("\r\n").slice(1).map((r) => r.split(";").map(unq));
+    const all = text.trim().split("\r\n").map((r) => r.split(";").map(unq));
+    const head = all[0]!;
+    const rows = all.slice(1);
     expect(rows.length).toBe(2);
-    expect(rows[0]![4]).toBe("3");   // Force
-    expect(rows[0]![7]).toBe("4");   // Note (a personal judgement)
+    // LES COLONNES SONT LUES PAR NOM, PLUS PAR POSITION. Cette assertion
+    // portait `rows[0][4]` et `rows[0][7]`, et l'ajout de « Composition » en
+    // quatrième position a tout décalé d'un cran — elle a rougi, et elle avait
+    // raison de rougir, mais pour un motif qui n'est pas son sujet : elle
+    // vérifie À QUI on attribue une note, pas où se trouve la colonne. Un index
+    // en dur dans un modèle dont les colonnes peuvent bouger est précisément la
+    // fragilité qui vient de se manifester.
+    const col = (name: string) => {
+      const i = head.indexOf(name);
+      expect(i, "colonne « " + name + " » absente du modèle").toBeGreaterThan(-1);
+      return i;
+    };
+    expect(rows[0]![col("Force")]).toBe("3");
+    expect(rows[0]![col("Note")]).toBe("4");   // un jugement personnel
 
     // The identity columns must not name a real product.
     const REAL = /peterson|university flake|solani|capstan|cornell|pease|gawith|esoterica|dunhill|orlik|sutliff|rattray|mac ?baren|nightcap|wessex|penzance|stonehaven|escudo|haunted bookshop/i;

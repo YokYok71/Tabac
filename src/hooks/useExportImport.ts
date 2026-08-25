@@ -654,12 +654,36 @@ export function useExportImport({
       .then(function (ok: boolean) { if (ok && markExported) markExported(); });
   }
 
-  // Download a ready-to-fill CSV template (same header shape the
-  // export uses, so it round-trips). Unit/currency headers follow the user's
-  // prefs; the parser strips the "(…)" units so any unit round-trips anyway.
+  // Le modèle CSV prêt à remplir.
+  //
+  // SON COMMENTAIRE PROMETTAIT « la même forme d'en-tête que l'export, donc ça
+  // fait l'aller-retour » — et l'export a VINGT-HUIT colonnes contre
+  // vingt-quatre ici. Diff complet des cinq écarts, parce que la nuance est
+  // tout le sujet : TROIS sont corrects et un seul était un manque.
+  //
+  //   · `Age` — colonne CALCULÉE à l'export, et `HEADER_ALIASES` n'a
+  //     délibérément aucun mappage pour elle. La demander à l'utilisateur
+  //     serait lui faire calculer ce que l'app dérive.
+  //   · `Image URL` — le lecteur force `imageUrl: ""` (l'app n'a plus que des
+  //     photos locales), donc la colonne serait un champ sans effet.
+  //   · `Statut origine` — déduit par `migrateData` et purement informatif ;
+  //     le demander serait demander de deviner.
+  //   · `Éliminé` — lu par le lecteur, mais c'est le drapeau « jeté sans
+  //     l'avoir fumé » : hors sujet sur un modèle qui sert à SAISIR une cave.
+  //   · `Composition` — LE manque. Le lecteur la lit (`composition` → `blend`),
+  //     l'export l'écrit, et sans elle aucune voie CSV ne permet de renseigner
+  //     la composition d'un mélange. Ajoutée.
+  //
+  // Donc ce n'est PAS la forme d'en-tête de l'export, et ça ne doit pas
+  // l'être : c'est le sous-ensemble qu'un humain peut remplir. Le commentaire
+  // est corrigé plutôt que supprimé — une promesse fausse en dit plus sur ce
+  // qui a dérivé qu'une absence de commentaire.
+  //
+  // Les unités et la devise des en-têtes suivent les préférences ; le lecteur
+  // retire les « (…) », donc n'importe quelle unité fait l'aller-retour.
   function doDownloadCsvTemplate() {
     var headers = [
-      "Marque", "Nom", "Categorie", "Coupe", "Force", "Room Note", "Gout", "Note",
+      "Marque", "Nom", "Categorie", "Composition", "Coupe", "Force", "Room Note", "Gout", "Note",
       "A reprendre", "Age max cave (ans)", "Statut", "Poids (" + weightUnit + ")",
       "Poids initial (" + weightUnit + ")", "Date achat", "Date production",
       // The two lifecycle columns. This template's own comment says
@@ -688,11 +712,11 @@ export function useExportImport({
     // still has to be demonstrated. The retailer is real and stays — a seller
     // is neither an attribute of the blend nor anyone's research, and it is the
     // clearest way to show what the "Site vendeur" column wants.
-    var ex1 = ["Halvorsen", "Duskfall", "Virginia/Burley", "Flake", "3", "2", "3", "4",
+    var ex1 = ["Halvorsen", "Duskfall", "Virginia/Burley", "Virginia, Burley", "Flake", "3", "2", "3", "4",
       "Oui", "12", "Pot", "40", "50", "2024-03-15", "2022", "2025-06-01", "", "14.90", "smokingpipes.com",
       "www.smokingpipes.com", "A12", "Armoire A",
       "Exemple : votre description du blend.", "Exemple : vos notes de degustation."];
-    var ex2 = ["Halvorsen", "Duskfall", "Virginia/Burley", "Flake", "3", "2", "3", "4",
+    var ex2 = ["Halvorsen", "Duskfall", "Virginia/Burley", "Virginia, Burley", "Flake", "3", "2", "3", "4",
       "Oui", "12", "Cave", "100", "100", "2025-01-10", "2024", "", "", "15.50", "", "",
       "A13", "Armoire A", "", ""];
     var lines = [headers, ex1, ex2].map(function (row) {
