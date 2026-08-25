@@ -780,4 +780,35 @@ describe("cloud-newer banner: the dismiss is the bigger target", () => {
     expect(restore!.nextElementSibling, "no gutter between them").not.toBe(dismiss);
     expect((restore!.nextElementSibling as HTMLElement).getAttribute("aria-hidden")).toBe("true");
   });
+
+  // LA GÉOMÉTRIE ÉTAIT VERROUILLÉE, LA CIBLE NE L'ÉTAIT PAS.
+  //
+  // Tout le raisonnement au-dessus — le × au moins aussi gros que « Restaurer »,
+  // une gouttière entre les deux — protège contre un doigt qui rate. Il ne dit
+  // rien de ce que chaque bouton APPELLE. Recâbler le × sur
+  // `restoreCloudNewerBackup` ne rougissait nulle part : le geste destiné à
+  // faire disparaître la bannière remplacerait alors la cave entière par la
+  // sauvegarde distante, en un tap, sans confirmation.
+  //
+  // Les deux sens comptent. Un « Restaurer » recâblé sur le rejet serait un
+  // bouton mort plutôt qu'un désastre, mais c'est le même défaut vu de l'autre
+  // côté, et un seul des deux cas laisserait la moitié du couple libre.
+  it("le × REJETTE, et Restaurer RESTAURE", () => {
+    const dismissCloudNewerBackup = vi.fn();
+    const restoreCloudNewerBackup = vi.fn();
+    const { container } = renderWithCtx(<CuratorCloudNewerBanner />, {
+      view: "inv", cloudNewerBackup: cloudNewer2, t: (k: string) => k,
+      dismissCloudNewerBackup, restoreCloudNewerBackup,
+    });
+    const [restore, dismiss] = Array.from(container.querySelectorAll("button")) as HTMLElement[];
+
+    fireEvent.click(dismiss!);
+    expect(dismissCloudNewerBackup).toHaveBeenCalledTimes(1);
+    expect(restoreCloudNewerBackup, "le × a remplacé la cave").not.toHaveBeenCalled();
+
+    dismissCloudNewerBackup.mockClear();
+    fireEvent.click(restore!);
+    expect(restoreCloudNewerBackup).toHaveBeenCalledTimes(1);
+    expect(dismissCloudNewerBackup).not.toHaveBeenCalled();
+  });
 });

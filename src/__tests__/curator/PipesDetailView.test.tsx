@@ -501,3 +501,96 @@ describe("PipesDetailView — la modale d'entretien se déclare", () => {
     expect(spy).toHaveBeenCalledWith(false);
   });
 });
+
+// LE CARNET D'ENTRETIEN — deux survivantes de mutation, et la seconde porte la
+// seule suppression DURE de l'application.
+//
+// `maintenanceUndo.test.tsx` éprouve le câblage du contexte
+// (`removeMaintenance` est bien la variante enveloppée d'annulation) et jamais
+// l'ARGUMENT que le bouton lui passe. Or une entrée d'entretien n'a ni
+// `deletedAt` ni corbeille : effacer la mauvaise, c'est perdre ses notes libres
+// définitivement, avec un toast d'annulation qui restaurera… la mauvaise cave.
+//
+// L'inversion `addMaintenance`/`updateMaintenance` a la même forme que celle
+// des trois formulaires : corriger une entrée la DOUBLERAIT, ce qui fausse en
+// prime le compteur de rappel — le carnet compte les nettoyages depuis le
+// dernier, donc deux entrées pour un seul nettoyage remettent le compteur à
+// zéro deux fois.
+describe("PipesDetailView — le carnet d'entretien écrit au bon endroit", () => {
+  // TOUJOURS CHERCHER DANS LA MODALE, JAMAIS DANS LA PAGE. Deux boutons
+  // portent `aria-label="btn_delete"` ici : celui de la PIPE, dans la barre du
+  // haut, et celui de l'entrée d'entretien. Une recherche globale prend le
+  // premier — donc un cas qui croit éprouver la suppression d'une entrée
+  // éprouve en fait la suppression de la pipe, et reste vert pour la mauvaise
+  // raison. Même leçon que celle déjà consignée pour `CompareModal` : en
+  // pilotant une modale, on se scope à `role="dialog"` ou on mesure la page
+  // qui est derrière.
+  const inDialog = (getByRole: any, pick: (b: HTMLElement) => boolean): HTMLElement => {
+    const dlg = getByRole("dialog") as HTMLElement;
+    const hits = (Array.from(dlg.querySelectorAll("[role='button'], button")) as HTMLElement[]).filter(pick);
+    expect(hits.length, "contrôle introuvable dans la modale").toBeGreaterThan(0);
+    return hits[0]!;
+  };
+
+  const entry = { id: "M1", date: "2026-05-02", kind: "full", tasks: ["swab"], notes: "Alcool et sel" };
+  const pipeWithLog = { ...pipe, maintenance: [entry] };
+
+  // Le carnet est groupé par année puis par mois, et TOUT est replié par
+  // défaut (`collapsedMaint?.[key] !== false`). Les lignes ne sont donc pas
+  // dans le DOM tant qu'on n'a pas déplié : la graine ouvre les groupes,
+  // sinon le test « ne trouve pas la ligne » et ce n'est pas ce qu'il mesure.
+  const openGroups = { "y:2026": false, "m:2026-05": false, "m:2026-06": false };
+
+  const openLog = (over: any) => renderWithCtx(<CuratorPipesDetailView />, {
+    view: "pipes",
+    pipeDet: pipeWithLog,
+    data: { pipes: [pipeWithLog], tobaccos: [], sessions: [], accessories: [], wishlist: [] },
+    setMaintFormOpen: () => {},
+    collapsedMaint: openGroups,
+    ...over,
+  } as any);
+
+  it("corriger une entrée appelle updateMaintenance, jamais addMaintenance", () => {
+    const add = vi.fn(); const upd = vi.fn();
+    const { getByText, getByRole } = openLog({ addMaintenance: add, updateMaintenance: upd });
+    // Ouvrir l'entrée existante par ses NOTES, et non par sa date : le format
+    // de date dépend d'un réglage utilisateur (`dateFormat`), donc l'y accrocher
+    // ferait rougir ce cas au prochain changement de préférence — un détail qui
+    // n'est pas son sujet. Le clic remonte jusqu'au bouton de la ligne.
+    fireEvent.click(getByText("Alcool et sel"));
+    fireEvent.click(inDialog(getByRole, (b) => (b.textContent || "").includes("btn_save")));
+    expect(upd).toHaveBeenCalledTimes(1);
+    // L'identité de la cible compte autant que le choix de la fonction.
+    expect(upd.mock.calls[0]![0]).toBe(pipe.id);
+    expect(upd.mock.calls[0]![1]).toBe("M1");
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it("ajouter une entrée appelle addMaintenance, jamais updateMaintenance", () => {
+    const add = vi.fn(); const upd = vi.fn();
+    const { getByText, getByRole } = openLog({ addMaintenance: add, updateMaintenance: upd });
+    fireEvent.click(getByText("maint_add"));
+    fireEvent.click(inDialog(getByRole, (b) => (b.textContent || "").includes("btn_add")));
+    expect(add).toHaveBeenCalledTimes(1);
+    expect(add.mock.calls[0]![0]).toBe(pipe.id);
+    expect(upd).not.toHaveBeenCalled();
+  });
+
+  it("supprimer vise l'entrée OUVERTE, pas une autre", () => {
+    // Deux entrées, et on ouvre la SECONDE : avec une seule, une cible erronée
+    // serait indistinguable de la bonne — c'est la forme de mutant équivalent
+    // qui fait croire à une couverture qu'on n'a pas.
+    const second = { id: "M2", date: "2026-06-11", kind: "light", tasks: [], notes: "Deuxième passage" };
+    const twoEntries = { ...pipe, maintenance: [entry, second] };
+    const rm = vi.fn();
+    const { getByText, getByRole } = renderWithCtx(<CuratorPipesDetailView />, {
+      view: "pipes", pipeDet: twoEntries,
+      data: { pipes: [twoEntries], tobaccos: [], sessions: [], accessories: [], wishlist: [] },
+      setMaintFormOpen: () => {}, removeMaintenance: rm, collapsedMaint: openGroups,
+    } as any);
+    fireEvent.click(getByText("Deuxième passage"));
+    fireEvent.click(inDialog(getByRole, (b) => b.getAttribute("aria-label") === "btn_delete"));
+    expect(rm).toHaveBeenCalledTimes(1);
+    expect(rm.mock.calls[0]![1]).toBe("M2");
+  });
+});

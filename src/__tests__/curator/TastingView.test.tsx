@@ -328,3 +328,60 @@ describe("TastingView — opening the tobacco / pipe from a running session", ()
     expect(rowWith(container, /Pesse Canoe/)).toBeFalsy();
   });
 });
+
+// ALLUMER SANS LOT RÉSOLUBLE — la survivante dont CLAUDE.md documente la
+// correction avec un commentaire de douze lignes, et que rien ne verrouillait.
+//
+// `canIgnite` exige que le lot RÉSOLVE, pas seulement que `lotId` soit non
+// vide : une dégustation persiste dans `cave-tasting-active` et survit aux
+// relancements, donc un `lotId` gardé d'une mise en place abandonnée peut
+// pointer vers un lot terminé ou supprimé depuis. Ce que coûte l'oubli est
+// écrit à côté : la dégustation s'allume en pointant vers rien, et 95 min plus
+// tard la clôture automatique DÉTRUIT la séance — `_persistSession` refuse un
+// poids positif sans lot résoluble, et le chemin auto vide l'état quoi qu'il
+// arrive. Une dégustation entière perdue, sous une phrase de succès.
+//
+// Retirer `&& !!selectedLot` était donc à un coup d'éditeur de rouvrir le
+// défaut sans rien rougir.
+describe("TastingView — l'allumage exige un lot qui EXISTE", () => {
+  const tob = {
+    id: 7, name: "Duskfall", brand: "Brackwater",
+    lots: [{ id: "L1", status: "jar", weightG: "50", dateOpened: "2026-01-04" }],
+  };
+  const pipeRow = { id: 3, brand: "Vondel", name: "Corvane", status: "active" };
+
+  const setup = (lotId: string) => ({
+    view: "tasting",
+    tasting: { stage: "setup", tobaccoId: "7", pipeId: "3", weightG: "2.5", lotId },
+    data: { tobaccos: [tob], pipes: [pipeRow], accessories: [], sessions: [], wishlist: [] },
+    accountingEnabled: true,
+  });
+
+  it("un lotId périmé n'allume pas", () => {
+    // « L9 » n'existe dans aucun lot : c'est exactement l'état qu'une mise en
+    // place persistée peut porter après la disparition du lot.
+    const tastingIgnite = vi.fn();
+    const { getByText } = renderWithCtx(<CuratorTastingView />, { ...setup("L9"), tastingIgnite } as any);
+    fireEvent.click(getByText("tasting_ignite"));
+    expect(tastingIgnite).not.toHaveBeenCalled();
+  });
+
+  it("le même contexte avec un lot RÉSOLUBLE allume", () => {
+    // Non-vacuité : sans ce cas, une garde qui refuserait TOUT passerait.
+    const tastingIgnite = vi.fn();
+    const { getByText } = renderWithCtx(<CuratorTastingView />, { ...setup("L1"), tastingIgnite } as any);
+    fireEvent.click(getByText("tasting_ignite"));
+    expect(tastingIgnite).toHaveBeenCalledTimes(1);
+  });
+
+  it("hors comptabilité, le lot périmé n'empêche plus rien", () => {
+    // La garde est conditionnée à la comptabilité : en mode hors comptabilité
+    // aucun gramme n'est déduit, donc exiger un lot enfermerait l'utilisateur.
+    const tastingIgnite = vi.fn();
+    const { getByText } = renderWithCtx(<CuratorTastingView />, {
+      ...setup("L9"), accountingEnabled: false, tastingIgnite,
+    } as any);
+    fireEvent.click(getByText("tasting_ignite"));
+    expect(tastingIgnite).toHaveBeenCalledTimes(1);
+  });
+});

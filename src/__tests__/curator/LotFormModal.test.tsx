@@ -322,3 +322,96 @@ describe("LotFormModal — storage location", () => {
     expect(locInput).toBeTruthy();
   });
 });
+
+// DEUX SURVIVANTES DE MUTATION, dont une qui viole un invariant à CHAQUE
+// création de lot et une qui double le stock au lieu de le supprimer.
+//
+// (1) LE MIROIR `weightG ← weightInitial`. À la création, le champ « poids
+// actuel » est caché : seul le poids INITIAL est demandé, et le solde doit être
+// mis à la même valeur. Le garde aval ne rattrape PAS — `addLotToTobacco` ne
+// recopie que `if (!base.weightG && base.weightInitial)`, or `BL.weightG` vaut
+// « 50 », donc toujours vrai. Sans le miroir, tout nouveau lot naît avec un
+// poids déclaré et un solde de 50 g : violation `lot-balance` immédiate à
+// chaque création, plus un stock inventé.
+//
+// (2) LE BOUTON SUPPRIMER. Ce fichier ne passait JAMAIS de prop `onDelete` —
+// vingt-huit mentions d'`onSave`/`onDuplicate`, zéro d'`onDelete` — donc le
+// recâbler sur `onDuplicate` ne rougissait nulle part. L'utilisateur croit
+// supprimer un lot et double son stock.
+describe("LotFormModal — les deux boutons du bas et le miroir du poids", () => {
+  const openAdd = (onSave: any) => renderWithCtx(
+    <CuratorLotFormModal open={true} data={{ tobacco: tob1 }} onClose={() => {}} onSave={onSave} />,
+    { data: { tobaccos: [tob1], pipes: [], accessories: [], sessions: [], wishlist: [] } },
+  );
+
+  it("à la création, le poids initial saisi devient AUSSI le solde", () => {
+    const onSave = vi.fn();
+    const { container, getAllByRole } = openAdd(onSave);
+    // Le champ « poids initial » est le seul champ de poids rendu en création
+    // (celui du solde est caché), donc il est identifiable sans s'accrocher à
+    // un libellé.
+    // `TextField` rend un `type="text"` avec `inputMode`, pas un
+    // `type="number"` — on s'accroche donc au `step`, qui lui est bien posé.
+    // Le champ de quantité porte `step="1"`, il ne peut pas être confondu.
+    const weight = container.querySelector('input[step="0.1"]') as HTMLInputElement;
+    expect(weight, "champ de poids introuvable").toBeTruthy();
+    fireEvent.change(weight, { target: { value: "42" } });
+    fireEvent.click(getAllByRole("button").find((b) => (b.textContent || "").includes("btn_add"))!);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const lot = onSave.mock.calls[0]![0];
+    expect(lot.weightInitial).toBe("42");
+    expect(lot.weightG, "le solde ne suit pas le poids initial").toBe("42");
+  });
+
+  it("en édition, le poids initial ne touche PLUS au solde", () => {
+    // Le miroir est réservé à la création : en édition les deux champs sont
+    // visibles et distincts, et corriger le poids d'origine ne doit pas
+    // réécrire un solde que des séances ont déjà entamé.
+    const onSave = vi.fn();
+    const lot = tob1.lots[0];
+    const { container, getAllByRole } = renderWithCtx(
+      <CuratorLotFormModal open={true} data={{ tobacco: tob1, lot, idx: 0 }}
+        onClose={() => {}} onSave={onSave} />,
+      { data: { tobaccos: [tob1], pipes: [], accessories: [], sessions: [], wishlist: [] } },
+    );
+    const weights = Array.from(container.querySelectorAll('input[step="0.1"]')) as HTMLInputElement[];
+    expect(weights.length, "les deux champs de poids doivent être visibles").toBeGreaterThanOrEqual(2);
+    fireEvent.change(weights[0]!, { target: { value: "80" } });
+    fireEvent.click(getAllByRole("button").find((b) => (b.textContent || "").includes("btn_save"))!);
+    expect(onSave.mock.calls[0]![0].weightG).toBe("50");
+  });
+
+  it("Supprimer appelle onDelete, jamais onDuplicate", () => {
+    const onDelete = vi.fn(); const onDuplicate = vi.fn();
+    const { getByRole } = renderWithCtx(
+      <CuratorLotFormModal open={true} data={{ tobacco: tob1, lot: tob1.lots[0], idx: 0 }}
+        onClose={() => {}} onSave={() => {}} onDelete={onDelete} onDuplicate={onDuplicate} />,
+      { data: { tobaccos: [tob1], pipes: [], accessories: [], sessions: [], wishlist: [] } },
+    );
+    const dlg = getByRole("dialog") as HTMLElement;
+    const del = (Array.from(dlg.querySelectorAll("[role='button'], button")) as HTMLElement[])
+      .find((b) => b.getAttribute("aria-label") === "aria_delete_lot");
+    expect(del, "le bouton Supprimer est introuvable").toBeTruthy();
+    fireEvent.click(del!);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDuplicate).not.toHaveBeenCalled();
+  });
+
+  it("Dupliquer appelle onDuplicate, jamais onDelete", () => {
+    // Le miroir : les deux boutons sont voisins dans la même barre du bas, et
+    // c'est précisément l'adjacence qui rend l'échange indolore à écrire.
+    const onDelete = vi.fn(); const onDuplicate = vi.fn();
+    const { getByRole } = renderWithCtx(
+      <CuratorLotFormModal open={true} data={{ tobacco: tob1, lot: tob1.lots[0], idx: 0 }}
+        onClose={() => {}} onSave={() => {}} onDelete={onDelete} onDuplicate={onDuplicate} />,
+      { data: { tobaccos: [tob1], pipes: [], accessories: [], sessions: [], wishlist: [] } },
+    );
+    const dlg = getByRole("dialog") as HTMLElement;
+    const dup = (Array.from(dlg.querySelectorAll("[role='button'], button")) as HTMLElement[])
+      .find((b) => /lot_duplicate|aria_duplicate/.test((b.textContent || "") + (b.getAttribute("aria-label") || "")));
+    expect(dup, "le bouton Dupliquer est introuvable").toBeTruthy();
+    fireEvent.click(dup!);
+    expect(onDuplicate).toHaveBeenCalledTimes(1);
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+});
