@@ -26,7 +26,20 @@ export function DbSyncDiff({
   // property access the rule can recognise.
   xl?: (v: string, m: readonly string[]) => string;
 }) {
-  const FIELD_LABELS: Record<string, string> = {
+  // NULL-PROTOTYPE, et ce n'est pas de la coquetterie : sur un littéral plein,
+  // `FIELD_LABELS["__proto__"]` rend `Object.prototype` — TRUTHY — donc le
+  // repli `|| t("lbl_field")` ne se déclenche jamais et un OBJET part vers
+  // React, qui jette « Objects are not valid as a React child » et fait tomber
+  // toute la fiche dans la frontière d'erreur. C'est la classe déjà consignée
+  // pour `xl()` et `catColor()`, par une porte que personne n'avait regardée.
+  //
+  // Latent aujourd'hui — `d.field` vient d'une liste fixe dans `useDbSync`, pas
+  // de données utilisateur — mais la carte juste en dessous est déjà
+  // null-prototype pour cette raison exacte, et une seule des deux protégée est
+  // une invitation à se tromper. `no-dynamic-index-plain-map` ne peut pas le
+  // voir : la règle est limitée à la portée MODULE, ce que le cas `ghosting.ts`
+  // avait déjà montré insuffisant.
+  const FIELD_LABELS: Record<string, string> = Object.assign(Object.create(null), {
     name: t ? t("f_name") : "Nom",
     brand: t ? t("f_brand") : "Marque",
     category: t ? t("lbl_type") : "Type",
@@ -37,7 +50,7 @@ export function DbSyncDiff({
     taste: t ? t("lbl_taste") : "Goût",
     agingMax: t ? t("lbl_aging_max") : "Âge max cave (ans)",
     description: t ? t("lbl_desc") : "Description",
-  };
+  });
   // Which diff fields hold an enum value, and against which English map.
   const ENUM_MAPS: Record<string, readonly string[]> =
     Object.assign(Object.create(null), { category: CATS_EN, cut: CUTS_EN });
