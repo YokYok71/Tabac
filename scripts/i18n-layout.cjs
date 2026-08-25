@@ -25,15 +25,20 @@
  *   npm run i18n:layout                  # add -- --shots to also write PNGs
  *   npm run i18n:layout -- --langs pt    # one language while iterating
  *
- * TWO RUN MODES — pick deliberately, the difference is ~6 minutes:
+ * TWO RUN MODES — pick deliberately:
  *
  *   PRE-RELEASE (the default): the whole matrix — EVERY language in the
  *   LANGUAGES registry (not a literal list: see registryLangs) × every screen ×
- *   2 text sizes × 2 widths. Six languages over 36 screens is ~864 renders and
- *   well over an hour, so run it before a release, not on every commit.
+ *   2 text sizes × 2 widths. Six languages over 36 screens is 864 renders.
+ *   It FANS OUT, one process per language over one shared preview server
+ *   (`parallelRun.cjs`): MEASURED at ~10 min, against the ~55 it took in
+ *   series. That is the difference between a check run before a release and one
+ *   that competes with an hour of waiting — which is how an opt-in check stops
+ *   being run at all.
  *
  *   ITERATION: one combination, ~45 s — while fixing something the full matrix
- *   just reported. Flags or the equivalent env vars:
+ *   just reported. Narrowing to a single language also means a single process,
+ *   with no fan-out at all. Flags or the equivalent env vars:
  *     npm run i18n:layout -- --langs de --scales l --widths 360
  *     I18N_LAYOUT_LANGS=de I18N_LAYOUT_SCALES=l I18N_LAYOUT_WIDTHS=360 \
  *       npm run i18n:layout
@@ -87,7 +92,7 @@
 
 "use strict";
 
-const { spawn } = require("node:child_process");
+const PAR = require("./parallelRun.cjs");
 const path = require("node:path");
 const fs = require("node:fs");
 
@@ -986,6 +991,17 @@ async function main() {
   if (!fs.existsSync(path.join(ROOT, "dist/index.html"))) {
     die("dist/ not built — run `npm run build` first (the check measures the real bundle).");
   }
+  // ONE SHARD PER LANGUAGE, and the language is the right axis rather than the
+  // scale or the width: a shard carries its own browser and its own dictionary
+  // read, and the languages are what a translation change actually touches, so
+  // `-- --langs de` narrows to a single process with no fan-out at all. Returns
+  // false when this process IS a shard (or there is only one), and never returns
+  // otherwise — it exits with the worst shard's code.
+  if (await PAR.maybeFanOut({
+    label: "i18n:layout", script: "i18n-layout.cjs",
+    envVar: "I18N_LAYOUT_LANGS", shards: LANGS,
+    portVar: "I18N_LAYOUT_PORT", port: PORT, url: URL,
+  })) return;
   let chromium;
   try {
     ({ chromium } = require("playwright-core"));
@@ -1015,19 +1031,11 @@ async function main() {
   }
   if (!exe) die("no Chromium found — set CHROME_PATH, or run `npx playwright install chromium`.");
 
-  const server = spawn("npx", ["vite", "preview", "--port", String(PORT), "--strictPort"], {
-    cwd: ROOT, stdio: "ignore", detached: false,
-  });
-  const stop = () => { try { server.kill(); } catch { /* already gone */ } };
-  process.on("exit", stop);
-
-  // Wait for the preview server.
-  let up = false;
-  for (let i = 0; i < 40 && !up; i++) {
-    await new Promise((r) => setTimeout(r, 250));
-    try { up = (await fetch(URL)).ok; } catch { /* not listening yet */ }
-  }
-  if (!up) { stop(); die(`preview server never came up on ${URL}`); }
+  // Adopts a server already listening — which is how N shards share ONE
+  // preview, and how a `npm run preview` you already have open is reused.
+  const pre = await PAR.startPreview(PORT, URL);
+  const stop = pre.stop;
+  if (pre.failed) die(`preview server never came up on ${URL}`);
 
   if (SHOTS && !fs.existsSync(SHOT_DIR)) fs.mkdirSync(SHOT_DIR, { recursive: true });
 

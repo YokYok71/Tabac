@@ -137,6 +137,35 @@ describe("CuratorHomeViewV2", () => {
   // occurrences of a shared label — with seven identical pipes a cap of five
   // still satisfies a "contains maint_never" assertion.
   const MAINT_NAMES = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf"];
+
+  /**
+   * The maintenance section's text, NOT the whole page's.
+   *
+   * WHY THIS EXISTS, measured rather than assumed. The cap assertion below used
+   * to read the whole container, and it FAILED FOR HALF OF EVERY DAY: the
+   * « Ce soir ? » hero names a paired pipe («  home_pair_with Halvorsen
+   * Foxtrot »), that pipe is chosen by `suggestRestedPipe` on a 12-hour
+   * rotation bucket, and all seven fixtures are equally rested — so which one
+   * it names depends on the clock. Pinned with `vi.setSystemTime` on identical
+   * code: PASSES at 11:30 UTC, FAILS at 23:30 UTC.
+   *
+   * The lesson is not about the clock, it is the one this repo keeps paying
+   * for one screen over: a negative assertion on the WHOLE page is answered by
+   * every sibling feature, so it stops testing what it names. The positive
+   * direction has the mirror flaw — `toContain("Alpha")` would pass on a broken
+   * section the moment the hero happened to pair Alpha — so both are scoped.
+   *
+   * Scoped by SLICING at the section heading rather than by a `data-` hook:
+   * `MaintRow` renders a `PressCard`, which destructures a fixed prop list and
+   * would not forward one, and wrapping it in a marked `<div>` would change a
+   * flex item on a screen the layout matrix has just certified.
+   */
+  const maintText = (container: HTMLElement) => {
+    const all = container.textContent || "";
+    const i = all.indexOf("maint_due");
+    expect(i, "the « À entretenir » section is not on the page at all").toBeGreaterThan(-1);
+    return all.slice(i);
+  };
   const overduePipes = () => MAINT_NAMES.map((n, i) => ({
     id: i + 1, brand: "Halvorsen", name: n, shape: "Calabash",
     rating: 4, status: "active", maintenance: [],
@@ -153,11 +182,12 @@ describe("CuratorHomeViewV2", () => {
     const { container } = renderWith({
       ...baseCtx, data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
     });
+    const section = maintText(container);
     MAINT_NAMES.slice(0, 5).forEach((n) => {
-      expect(container.textContent, `« ${n} » is within the cap`).toContain(n);
+      expect(section, `« ${n} » is within the cap`).toContain(n);
     });
     MAINT_NAMES.slice(5).forEach((n) => {
-      expect(container.textContent, `« ${n} » is beyond the cap and must not be on the Home`).not.toContain(n);
+      expect(section, `« ${n} » is beyond the cap and must not be in the section`).not.toContain(n);
     });
     expect(container.textContent, "the cap must announce what it hides").toContain("maint_see_all_n");
     const btn = Array.from(container.querySelectorAll("[role=button]"))
@@ -210,7 +240,9 @@ describe("CuratorHomeViewV2", () => {
     const { container } = renderWith({
       ...baseCtx, data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
     });
-    expect(container.textContent).toContain("Alpha");
+    // Scoped for the mirror reason: on the whole page this would pass the
+    // moment the hero happened to pair Alpha, whether or not the section works.
+    expect(maintText(container)).toContain("Alpha");
     expect(container.textContent, "three of three — nothing is held back").not.toContain("maint_see_all_n");
   });
 

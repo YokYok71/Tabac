@@ -36,6 +36,11 @@
  *   npm i --no-save playwright-core
  *   npm run theme:contrast
  *
+ * It FANS OUT, one process per palette over one shared preview server
+ * (`parallelRun.cjs`) — MEASURED at ~2 min against the ~45 it took in series.
+ * Narrowing to one palette (THEME_CONTRAST_THEMES / _MODES) runs a single
+ * process with no fan-out.
+ *
  * WHAT IT MEASURES. For every visible text element: its computed colour against
  * the first opaque background colour above it, with ancestor opacity folded in,
  * as a WCAG 2.1 contrast ratio. Large text (≥ 24 px, or ≥ 18.66 px bold) is held
@@ -65,7 +70,7 @@
 
 "use strict";
 
-const { spawn } = require("node:child_process");
+const PAR = require("./parallelRun.cjs");
 const path = require("node:path");
 const fs = require("node:fs");
 
@@ -84,8 +89,15 @@ const URL = `http://localhost:${PORT}/`;
 // screen in another language.
 const LANG = process.env.THEME_CONTRAST_LANG || "fr";
 const WIDTH = Number(process.env.THEME_CONTRAST_WIDTH || 390);
-const THEMES = (process.env.THEME_CONTRAST_THEMES || "brass,steel,english").split(",");
-const MODES = (process.env.THEME_CONTRAST_MODES || "dark,light").split(",");
+// A SHARD carries its palette as one `theme/mode` value and it WINS over the two
+// axis vars — it is set by the fan-out, so treating it as one more input that
+// could be overridden would give the same axis two sources (see the note in
+// `parallelRun.cjs` about not forwarding argv for exactly that reason).
+const PALETTE = (process.env.THEME_CONTRAST_PALETTE || "").split("/");
+const THEMES = PALETTE[0] ? [PALETTE[0]]
+  : (process.env.THEME_CONTRAST_THEMES || "brass,steel,english").split(",");
+const MODES = PALETTE[1] ? [PALETTE[1]]
+  : (process.env.THEME_CONTRAST_MODES || "dark,light").split(",");
 /** Below this, normal-size text is unreadable — a failure, not a near-miss. */
 const FAIL_BELOW = Number(process.env.THEME_CONTRAST_FAIL_BELOW || 3);
 
@@ -208,6 +220,16 @@ async function main() {
   if (!fs.existsSync(path.join(ROOT, "dist/index.html"))) {
     die("dist/ not built — run `npm run build` first.");
   }
+  // ONE SHARD PER PALETTE — the unit this check reports in, so a failing shard
+  // names « steel/light » rather than an index. The two axes are folded into one
+  // shard value and split back apart below, because fanning out on the themes
+  // alone would leave each shard doing both modes and halve the gain.
+  if (await PAR.maybeFanOut({
+    label: "theme:contrast", script: "theme-contrast.cjs",
+    envVar: "THEME_CONTRAST_PALETTE",
+    shards: THEMES.flatMap((t) => MODES.map((m) => `${t}/${m}`)),
+    portVar: "THEME_CONTRAST_PORT", port: PORT, url: URL,
+  })) return;
   let chromium;
   try { ({ chromium } = require("playwright-core")); }
   catch {
@@ -227,16 +249,10 @@ async function main() {
   }
   if (!exe) die("no Chromium found — set CHROME_PATH or run `npx playwright install chromium`.");
 
-  const server = spawn("npx", ["vite", "preview", "--port", String(PORT), "--strictPort"],
-    { cwd: ROOT, stdio: "ignore" });
-  const stop = () => { try { server.kill(); } catch { /* already gone */ } };
-  process.on("exit", stop);
-  let up = false;
-  for (let i = 0; i < 40 && !up; i++) {
-    await new Promise((r) => setTimeout(r, 250));
-    try { up = (await fetch(URL)).ok; } catch { /* not listening yet */ }
-  }
-  if (!up) { stop(); die(`preview server never came up on ${URL}`); }
+  // Adopts a server already listening — how N shards share ONE preview.
+  const pre = await PAR.startPreview(PORT, URL);
+  const stop = pre.stop;
+  if (pre.failed) die(`preview server never came up on ${URL}`);
 
   const dict = H.readDict(LANG);
   const browser = await chromium.launch({ executablePath: exe });
