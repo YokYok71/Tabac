@@ -20,6 +20,13 @@ import { resolve } from "node:path";
 const ROOT = resolve(__dirname, "../..");
 const deploy = readFileSync(resolve(ROOT, ".github/workflows/deploy.yml"), "utf8");
 const checks = readFileSync(resolve(ROOT, ".github/workflows/checks.yml"), "utf8");
+// Les deux campagnes navigateur ont DÉMÉNAGÉ de `checks.yml` vers leur propre
+// fichier. Ce n'est pas un rangement : `paths:` est un filtre de WORKFLOW et
+// non de job, donc les séparer est ce qui permet de ne les lancer que quand un
+// fichier peut réellement changer un pixel. Voir `browserPathFilter.test.ts`,
+// qui garde ce filtre — la liste de chemins est écrite à la main, c'est-à-dire
+// la classe de liste figée que ce dépôt a trouvée six fois.
+const browser = readFileSync(resolve(ROOT, ".github/workflows/browser.yml"), "utf8");
 
 const UPLOAD = "upload-pages-artifact";
 
@@ -124,12 +131,33 @@ describe("deploy.yml — the gates gate the deploy", () => {
   // câblage, parce que c'est LUI qui pourrit : la campagne peut rester
   // parfaite pendant qu'un déclencheur disparaît, et un tableau de bord vert
   // ne dit rien de ce qui n'a pas tourné.
+  // RENVERSEMENT CONSIGNÉ : ce bloc exigeait le job `browser` DANS
+  // `checks.yml`, et il est maintenant dans `browser.yml`. Ce qu'il garde n'a
+  // pas changé d'un iota — la campagne complète, le build avant elle, le
+  // navigateur installé, chaque campagne rapportant même si l'autre a échoué,
+  // les deux déclencheurs, et la place hors de `deploy.yml` — seule la LECTURE
+  // a suivi le fichier. L'assertion « le job est parti de checks.yml » est
+  // inversée plutôt que supprimée, pour qu'un retour en arrière se signale.
   describe("the two browser checks run in CI", () => {
-    const jobIdx = checks.indexOf("\n  browser:");
-    const job = jobIdx < 0 ? "" : checks.slice(jobIdx);
+    const jobIdx = browser.indexOf("\n  browser:");
+    const job = jobIdx < 0 ? "" : browser.slice(jobIdx);
 
     it("the job exists (non-vacuity — every assertion below reads it)", () => {
-      expect(jobIdx, "the `browser` job is gone from checks.yml").toBeGreaterThan(-1);
+      expect(jobIdx, "the `browser` job is gone from browser.yml").toBeGreaterThan(-1);
+    });
+
+    it("et il n'est PLUS dans checks.yml, qui redevient la voie rapide", () => {
+      // Le laisser aux deux endroits doublerait chaque exécution et ferait de
+      // la voie rapide un job de quinze minutes.
+      expect(checks).not.toContain("\n  browser:");
+      // COMMENTAIRES BLANCHIS D'ABORD. Ma première version cherchait
+      // `npm run build` dans le fichier brut et rougissait sur l'en-tête
+      // HISTORIQUE, qui cite cette commande pour expliquer ce que deploy.yml
+      // faisait autrefois — une garde qui lit de la prose comme de la donnée
+      // produit une absurdité confiante, et le correctif s'applique alors au
+      // code juste. C'est la cinquième fois que ce dépôt le note.
+      const code = checks.replace(/^\s*#[^\n]*$/gm, "");
+      expect(code, "la voie rapide s'est remise à construire").not.toContain("npm run build");
     });
 
     it("runs BOTH campaigns, in full", () => {
@@ -164,8 +192,8 @@ describe("deploy.yml — the gates gate the deploy", () => {
       // The convention here is to push straight to main, so a
       // pull-request-only browser gate would fire almost never — which is the
       // state this job exists to end. Both triggers, or it is decoration.
-      expect(checks).toMatch(/^\s*push:\s*$/m);
-      expect(checks).toMatch(/^\s*pull_request:\s*$/m);
+      expect(browser).toMatch(/^\s*push:\s*$/m);
+      expect(browser).toMatch(/^\s*pull_request:\s*$/m);
     });
 
     it("stays OUT of the deploy path, and that is a decision", () => {
@@ -177,15 +205,12 @@ describe("deploy.yml — the gates gate the deploy", () => {
       expect(deploy).not.toContain("npm run theme:contrast");
     });
 
-    it("is its OWN job, so it never delays the fast lane", () => {
-      // Appended to `checks` it would put a 15-minute build-and-browser run in
-      // front of gates that answer in seconds.
-      const fast = checks.indexOf("\n  checks:");
-      expect(fast).toBeGreaterThan(-1);
-      expect(fast, "the browser steps were folded into the fast job")
-        .toBeLessThan(jobIdx);
-      expect(checks.slice(fast, jobIdx),
-        "the fast job now builds — it does not need to").not.toContain("npm run build");
+    it("la voie rapide existe toujours et reste rapide", () => {
+      // Le point de la séparation : les portes qui répondent en secondes ne
+      // doivent jamais attendre derrière une campagne de treize minutes.
+      expect(checks).toContain("\n  checks:");
+      expect(checks).toContain("npm run typecheck");
+      expect(checks).toContain("npm run lint");
     });
   });
 });

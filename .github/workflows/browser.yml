@@ -1,0 +1,133 @@
+name: Browser checks
+
+# ── LES DEUX CAMPAGNES NAVIGATEUR, DANS LEUR PROPRE FICHIER ────────────────────
+#
+# Elles vivaient dans `checks.yml`, en second job, et tournaient à CHAQUE push.
+# MESURÉ sur les vingt derniers commits : quatre ne peuvent rien changer au
+# rendu — des commits purement tests ou documentation — et sur ceux-là le job
+# rendait 864 écrans pour prouver que rien n'avait bougé. Un contrôle vert à
+# 100 % sur des exécutions où il ne peut structurellement rien trouver apprend
+# à ne plus le lire : la même érosion qu'un contrôle rouge en permanence, dans
+# l'autre sens, et ce dépôt a déjà payé les deux.
+#
+# UN FICHIER SÉPARÉ PARCE QUE `paths:` EST AU NIVEAU DU WORKFLOW, pas du job.
+# Le filtrer sans séparer aurait demandé une action tierce pour comparer les
+# fichiers modifiés — une dépendance de plus pour un aiguillage que GitHub sait
+# faire nativement.
+#
+# HONNÊTETÉ SUR L'ÉCONOMIE : elle est de 4 exécutions sur 20, pas davantage. Un
+# premier comptage avait annoncé 12, sur une liste de chemins choisie à la main
+# et trop étroite d'un facteur trois — elle ne retenait que les vues, les
+# composants, l'i18n et le thème. La bonne question n'est pas « est-ce une
+# vue ? » mais « cela peut-il changer un pixel rendu ? », et la réponse est bien
+# plus large : un hook le peut (`gdriveStatus` s'affiche dans Réglages, qui est
+# un écran de la matrice), `public/help.html` EST un écran, et une montée de
+# bundler change l'artefact mesuré.
+#
+# LA LISTE CI-DESSOUS EST UNE LISTE À LA MAIN, c'est-à-dire exactement la classe
+# de liste figée que ce dépôt a trouvée six fois. Elle n'est donc pas laissée à
+# la relecture : `browserPathFilter.test.ts` parcourt les fichiers SUIVIS et
+# exige que chacun soit soit couvert par un motif, soit inscrit dans une courte
+# liste d'exemptions portant sa raison. Un septième répertoire de premier niveau
+# fait rougir la suite au lieu de sortir silencieusement de la couverture.
+on:
+  push:
+    branches: [main]
+    paths: &browser_paths
+      # Tout `src/`, sauf les tests : un utilitaire, un hook ou une constante
+      # peuvent tous finir à l'écran, et découper plus fin reviendrait à parier
+      # sur ce qui ne rend pas.
+      - "src/**"
+      - "!src/__tests__/**"
+      # La coquille HTML et tout ce que `public/` sert : le guide et la
+      # politique sont rendus par des écrans de la matrice, l'icône et le
+      # manifeste changent l'application installée.
+      - "index.html"
+      - "public/**"
+      # L'artefact mesuré est `dist/`, donc ce qui le construit compte.
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.js"
+      # Les vérificateurs eux-mêmes : une campagne élargie doit être exercée
+      # par la campagne, sans quoi elle part non éprouvée — la forme « le
+      # câblage est ce qui pourrit », une fois de plus.
+      - "scripts/i18n-layout.cjs"
+      - "scripts/theme-contrast.cjs"
+      - "scripts/parallelRun.cjs"
+      - "scripts/distFreshness.cjs"
+      - ".github/workflows/browser.yml"
+  pull_request:
+    paths: *browser_paths
+  # Le rattrapage manuel : quand on veut la matrice complète sur un commit que
+  # le filtre a ignoré, ou simplement avant une release.
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions: {}
+
+concurrency:
+  group: browser-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # `i18n:layout` et `theme:contrast` rendent l'application construite dans un
+  # vrai Chromium et sont les seules vérifications qui voient un libellé coupé,
+  # un conteneur devenu glissable ou un couple de couleurs illisible. Elles
+  # étaient optionnelles pour une seule raison : ~55 min et ~45 min, donc
+  # quelques passages par an, à la main.
+  #
+  # Le fan-out — un processus par langue, un par palette, sur un serveur
+  # d'aperçu partagé — les ramène à ~10 min et ~3 min. Ce coureur est 4 vCPU /
+  # 16 Go, la forme de la machine d'où viennent ces chiffres, donc la matrice
+  # COMPLÈTE tient dans un job, sans rétrécissement et sans couverture à
+  # défendre.
+  #
+  # POURQUOI PAS DANS `deploy.yml`, où une porte peut vraiment retenir
+  # l'artefact. C'est la place plus forte, et elle a été pesée : elle ajouterait
+  # ~15 min à CHAQUE déploiement, en permanence, pour une classe visible, sans
+  # risque pour les données et repoussable en quelques minutes — contrairement
+  # aux quatre portes qui y sont, où passer outre signifie livrer une erreur de
+  # type ou un build non testé. Si une régression de mise en page atteint un
+  # jour les utilisateurs sur main, la déplacer et payer les 15 min.
+  browser:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - run: npm ci
+
+      # Les deux vérifications mesurent `dist/` et REFUSENT un `dist/` plus
+      # vieux que `src/` (voir scripts/distFreshness.cjs), donc le build est
+      # une condition préalable et non un confort.
+      - name: Build
+        run: npm run build
+
+      # Playwright reste hors de package.json : un navigateur coûterait à
+      # chaque installation pour une vérification qui ne tourne pas à chaque
+      # commit. `--no-save` garde ça vrai tout en donnant à la CI ce qu'il lui
+      # faut.
+      - name: Install playwright-core + Chromium
+        run: |
+          npm i --no-save playwright-core
+          npx playwright-core install --with-deps chromium
+
+      # Les deux tournent même si la première échoue, pour qu'un seul push
+      # rapporte les deux classes. Le contraste d'abord : c'est la moins chère,
+      # donc une régression de palette sort en ~3 min au lieu d'attendre
+      # derrière la matrice de mise en page.
+      - name: Contrast — 6 palettes × 36 screens
+        if: ${{ !cancelled() }}
+        run: npm run theme:contrast
+
+      - name: Layout — 6 languages × 36 screens × 2 text sizes × 2 widths
+        if: ${{ !cancelled() }}
+        run: npm run i18n:layout
