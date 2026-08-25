@@ -422,7 +422,14 @@ export function CuratorUndoToast() {
     : "";
   const undo = t ? t("btn_undo") : "Annuler";
   return (
-    <div style={{
+    // CE TOAST EST LE SEUL FILET D'UNE SUPPRESSION SANS CONFIRMATION, et il
+    // n'était annoncé nulle part. Tout ce qui s'efface dans cette app part sans
+    // question — c'est un choix, adossé au toast de 8 s et à la corbeille de 30
+    // jours — donc un lecteur d'écran qui ne l'entend pas n'a AUCUN signal que
+    // quelque chose vient de disparaître, ni que la marche arrière existe.
+    // `polite` : l'utilisateur vient d'agir délibérément, il attend un retour,
+    // il n'a pas besoin qu'on lui coupe la parole.
+    <div role="status" aria-live="polite" style={{
       position: "fixed", bottom: BOTTOM_TOAST_OFFSET,
       left: "50%", transform: "translateX(-50%)",
       zIndex: 500,
@@ -480,7 +487,7 @@ export function CuratorJustUpdatedToast() {
   const { justUpdated } = ctx;
   if (!justUpdated || pickBottomToast(ctx) !== "justUpdated") return null;
   return (
-    <div style={{
+    <div role="status" aria-live="polite" style={{
       position: "fixed", bottom: BOTTOM_TOAST_OFFSET, left: "50%", transform: "translateX(-50%)",
       zIndex: 500,
       background: C.sage, color: C.bg,
@@ -548,7 +555,7 @@ export function CuratorLangDetectedToast() {
     if (setImportModal) setImportModal(true);
   };
   return (
-    <div style={{
+    <div role="status" aria-live="polite" style={{
       position: "fixed", bottom: BOTTOM_TOAST_OFFSET, left: "50%", transform: "translateX(-50%)",
       zIndex: 500, maxWidth: "calc(100vw - 32px)",
       background: CARD_BG, color: C.tx,
@@ -878,6 +885,13 @@ export function CuratorCloudNewerBanner() {
   return (
     <div
       data-top-banner=""
+      // `status`/`polite` et non `alert` : ce n'est pas un échec, c'est une
+      // OFFRE — et `alert` est assertif, donc il couperait la parole au lecteur
+      // d'écran pour annoncer quelque chose que l'utilisateur n'a pas demandé.
+      // Les trois bannières d'erreur du haut portent `alert`, le rappel de
+      // sauvegarde `status` ; celle-ci ne portait RIEN, seule des cinq.
+      role="status"
+      aria-live="polite"
       style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 489,
         background: C.brass, color: C.bg,

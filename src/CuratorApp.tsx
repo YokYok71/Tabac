@@ -142,7 +142,20 @@ export function CuratorApp() {
         display: "flex", justifyContent: "center",
         fontFamily: F.body, color: C.tx,
       }}>
-        <div style={{
+        {/* `<main>`, ET C'ÉTAIT LE SEUL REPÈRE MANQUANT DE TOUTE L'APP.
+            Un balayage l'a confirmé : `BottomDock` porte un `<nav>` et il n'y
+            avait RIEN d'autre — donc un lecteur d'écran n'offrait aucun saut
+            « aller au contenu » et la seule façon d'atteindre la page était de
+            traverser la barre du haut à chaque fois.
+
+            La colonne ENTIÈRE plutôt que le seul bloc des vues : les modales
+            qu'elle contient sont toutes `role="dialog"` + `aria-modal`, ce qui
+            fait ignorer le reste du document tant qu'elles sont ouvertes, donc
+            la question ne se pose pas pour elles. Et `<main>` n'a aucun style
+            propre qui diffère d'un `<div>` — la mise en page ne bouge pas d'un
+            pixel, ce qui compte sur une colonne dont les invariants de
+            positionnement ont été gagnés à la main. */}
+        <main style={{
           // The column caps at 760 (was 600) so tablets /
           // large screens (iPad, desktop) use more horizontal space. Phones
           // are narrower than 600 anyway, so raising the cap is a strict
@@ -284,7 +297,7 @@ export function CuratorApp() {
               </div>
             </div>
           )}
-        </div>
+        </main>
       </div>
 
       {/* Side overlays that float over the viewport */}

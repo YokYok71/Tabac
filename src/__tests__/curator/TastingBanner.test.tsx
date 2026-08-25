@@ -299,3 +299,73 @@ describe("TastingBanner — onHeight reporting", () => {
     expect(last).toBeGreaterThanOrEqual(0);
   });
 });
+
+// LA BANNIÈRE « EN COURS » EST UN RACCOURCI, ET AU CLAVIER ELLE N'EN ÉTAIT PAS
+// UN.
+//
+// Elle s'affiche sur les cinq vues où la dégustation n'est pas à l'écran et se
+// présente comme le chemin pour y revenir. C'était un `<div onClick>` sans
+// `role`, sans `tabIndex`, sans gestionnaire clavier — et, vérifié, SANS AUCUN
+// descendant focalisable : la branche ne contient qu'une icône, un libellé et
+// un chrono. Le détour par l'Accueil restait praticable, donc ce n'était pas
+// une impasse ; c'était un contrôle qui promet un chemin court et ne l'offre
+// qu'à la souris.
+//
+// Ce qui est verrouillé ici, c'est la PROPRIÉTÉ, pas la balise : « le raccourci
+// est actionnable au clavier ». Un futur passage qui reviendrait à un `<div>`
+// avec `role`/`tabIndex`/`onKeyDown` corrects passerait — et ce serait juste.
+describe("TastingBanner — le raccourci est joignable au clavier", () => {
+  const ctxFor = (resume: () => void) => ({
+    view: "journal",
+    tasting: runningTasting,
+    tastingElapsedMs: () => 60_000,
+    tastingOvertimePrompt: () => false,
+    tastingResume: resume,
+  });
+
+  it("la bannière en cours est un contrôle, pas un div cliquable", () => {
+    const { getByRole } = renderWithCtx(<CuratorTastingBanner />, ctxFor(() => {}) as any);
+    // `getByRole` échoue de lui-même si rien ne porte le rôle bouton.
+    expect(getByRole("button")).toBeTruthy();
+  });
+
+  it("Entrée l'active", () => {
+    const resume = vi.fn();
+    const { getByRole } = renderWithCtx(<CuratorTastingBanner />, ctxFor(resume) as any);
+    const el = getByRole("button") as HTMLElement;
+    el.focus();
+    expect(document.activeElement).toBe(el);
+    // Un `<button>` natif transforme Entrée et Espace en clic ; jsdom ne le
+    // simule pas, donc on active comme le navigateur le ferait à l'arrivée du
+    // clavier. Ce que le cas garantit est l'ENCHAÎNEMENT : focalisable, puis
+    // activable — un `<div>` nu échoue dès la ligne au-dessus.
+    el.click();
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("son nom accessible porte l'état ET le chrono", () => {
+    // Pas d'`aria-label` sur le conteneur : il REMPLACERAIT tout le sous-arbre,
+    // donc on entendrait « Reprendre » au lieu de « Séance en cours 01:00 » —
+    // c'est-à-dire qu'on perdrait la seule information que la bannière apporte.
+    const { getByRole } = renderWithCtx(<CuratorTastingBanner />, ctxFor(() => {}) as any);
+    const name = (getByRole("button") as HTMLElement).textContent || "";
+    expect(name).toContain("tasting_in_progress");
+    expect(name).toMatch(/\d\d:\d\d/);
+  });
+
+  it("la branche DÉPASSEMENT garde ses deux vrais boutons", () => {
+    // Non-vacuité dans l'autre sens : cette branche-là était déjà correcte, et
+    // un correctif trop large qui l'aurait convertie en un seul bouton lui
+    // ferait perdre le choix « Continuer » / « Terminer ».
+    const { getAllByRole } = renderWithCtx(<CuratorTastingBanner />, {
+      view: "journal",
+      tasting: runningTasting,
+      tastingElapsedMs: () => 95 * 60_000,
+      tastingOvertimePrompt: () => true,
+      tastingOvertimeRemainingMs: () => 60_000,
+      tastingPostponeOvertime: () => {},
+      tastingEnd: () => {},
+    } as any);
+    expect(getAllByRole("button").length).toBe(2);
+  });
+});

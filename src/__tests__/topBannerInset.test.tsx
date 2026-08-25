@@ -49,7 +49,21 @@ describe("every top:0 banner is measurable", () => {
   });
 
   it("puts the attribute on a fixed top:0 root, not just anywhere", () => {
-    const re = /data-top-banner=""\s*\n\s*style=\{\{\s*\n\s*position: "fixed", top: 0/g;
+    // LA PREMIÈRE VERSION EXIGEAIT L'ADJACENCE — `data-top-banner=""` suivi
+    // IMMÉDIATEMENT de `style={{ position: "fixed"` — et elle a rougi le jour où
+    // `cloudNewer` a reçu son `role="status"` / `aria-live="polite"`, glissés
+    // entre les deux. La propriété qu'elle NOMME (« sur une racine fixe top:0,
+    // pas n'importe où ») n'était pas violée une seconde : le marqueur et le
+    // style restaient sur le même élément. Ce que l'assertion lisait vraiment,
+    // c'était l'ORDRE D'ÉCRITURE DES ATTRIBUTS, qui n'est le sujet de personne —
+    // et une garde trop stricte fait réécrire du code juste pour lui plaire,
+    // ici en repoussant un attribut d'accessibilité pour satisfaire un test.
+    //
+    // Elle tolère maintenant d'autres attributs entre les deux, en interdisant
+    // ce qui ferait vraiment changer d'élément : une balise ouvrante `<`, une
+    // fermeture `>` ou un enfant `{`. Le marqueur et le `position: "fixed",
+    // top: 0` restent donc dans la MÊME liste d'attributs.
+    const re = /data-top-banner=""[^<>{]*style=\{\{\s*\n\s*position: "fixed", top: 0/g;
     expect((overlays.match(re) || []).length).toBe(TOP_BANNER_ORDER.length);
   });
 });

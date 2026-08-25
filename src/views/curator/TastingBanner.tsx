@@ -48,7 +48,16 @@ export function CuratorTastingBanner({ onHeight, topInset }: { onHeight?: (h: nu
   // banner's own safe-area top padding: the view's TopBar re-provides the
   // notch clearance, so subtracting it avoids a double safe-area gap. When
   // the banner is hidden (returns null below) we report 0.
-  const rootRef = useRef<HTMLDivElement | null>(null);
+  // `HTMLElement` et non `HTMLDivElement` : les deux branches ne rendent pas la
+  // même balise — la bannière DÉPASSEMENT est un `<div>` (elle contient déjà
+  // ses deux boutons), celle EN COURS est elle-même un `<button>`. La ref ne
+  // sert qu'à mesurer la hauteur, donc l'ancêtre commun suffit.
+  const rootRef = useRef<HTMLElement | null>(null);
+  // Une ref de RAPPEL, parce que `Ref<T>` est invariant en TypeScript : un
+  // `RefObject<HTMLElement>` ne s'assigne ni à `Ref<HTMLDivElement>` ni à
+  // `Ref<HTMLButtonElement>`. Une fonction qui ACCEPTE le type large convient
+  // aux deux, et rien n'est élargi au-delà de ce que la mesure demande.
+  const setRoot = (el: HTMLElement | null) => { rootRef.current = el; };
   const running = !!tasting && tasting.stage === "running";
   const onTastingView = view === "tasting";
   const overtimeNow = running && tastingOvertimePrompt ? tastingOvertimePrompt() : false;
@@ -84,7 +93,7 @@ export function CuratorTastingBanner({ onHeight, topInset }: { onHeight?: (h: nu
   if (overtime) {
     const remaining = tastingOvertimeRemainingMs ? tastingOvertimeRemainingMs() : 0;
     return (
-      <div ref={rootRef} style={{
+      <div ref={setRoot} style={{
         position: "fixed", top: topOffset, left: 0, right: 0, zIndex: 2001,
         background: `linear-gradient(135deg, ${C.oxblood}, ${alpha(C.oxblood, "dd")})`,
         color: C.ctaInk, fontFamily: F.body,
@@ -119,9 +128,34 @@ export function CuratorTastingBanner({ onHeight, topInset }: { onHeight?: (h: nu
   // Hide regular in-progress banner while on the dedicated tasting screen
   if (view === "tasting") return null;
 
+  // UN VRAI <button>, ET C'EST LE FOND DU CORRECTIF.
+  //
+  // C'était un `<div onClick>` sans `role`, sans `tabIndex`, sans gestionnaire
+  // clavier, et — vérifié — SANS AUCUN DESCENDANT FOCALISABLE : la branche
+  // « en cours » ne contient qu'une icône, un libellé et un chrono. Elle
+  // s'affiche sur les cinq vues où la dégustation n'est pas à l'écran (tabacs,
+  // pipes, accessoires, journal, stats), en se présentant comme le RACCOURCI
+  // pour y revenir — et au clavier ce raccourci n'existait pas. Le détour
+  // restait possible (Accueil, puis son propre appel à l'action), donc ce
+  // n'était pas une impasse ; c'était un contrôle qui promet un chemin court
+  // et ne l'offre qu'à la souris.
+  //
+  // `<button>` plutôt que `role="button"` + `tabIndex` + `onKeyDown` : Entrée
+  // ET Espace viennent avec, l'anneau de focus aussi, et il n'y a rien à
+  // synchroniser. La branche DÉPASSEMENT au-dessus portait déjà deux vrais
+  // boutons, donc pas d'imbrication interactive ici. Les valeurs par défaut du
+  // navigateur (bordure, fond, police, alignement) sont écrasées explicitement
+  // pour que le rendu reste identique au pixel.
   return (
-    <div
-      ref={rootRef}
+    <button
+      type="button"
+      ref={setRoot}
+      // PAS d'`aria-label` — et c'est délibéré. Un libellé posé sur le
+      // conteneur REMPLACE tout son sous-arbre dans le nom accessible : on
+      // entendrait « Reprendre, bouton » à la place de « Séance en cours
+      // 12:34 », c'est-à-dire qu'on perdrait l'état et le chrono, qui sont la
+      // seule chose que cette bannière apporte. Son contenu EST son nom, et
+      // « bouton » vient du rôle.
       onClick={() => {
         if (tastingResume) tastingResume();
         else if (nav) nav("tasting");
@@ -129,6 +163,8 @@ export function CuratorTastingBanner({ onHeight, topInset }: { onHeight?: (h: nu
       style={{
         position: "fixed",
         top: topOffset, left: 0, right: 0, zIndex: 180,
+        border: "none", margin: 0, textAlign: "left", font: "inherit",
+        width: "100%",
         background: paused
           ? `linear-gradient(135deg, ${C.tx2}, ${C.tx3})`
           : `linear-gradient(135deg, ${C.oxblood}, ${C.ember})`,
@@ -178,6 +214,6 @@ export function CuratorTastingBanner({ onHeight, topInset }: { onHeight?: (h: nu
         </div>
       </div>
       <Ico name="chevron" size={18} sw={2.2} />
-    </div>
+    </button>
   );
 }
