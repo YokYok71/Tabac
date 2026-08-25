@@ -2342,6 +2342,10 @@ function App() {
     setDrivePassphrase,
     requestDrivePassphrase,
     cloudProviderId,
+    // Le seul canal par lequel l'auto-save silencieux peut dire qu'il a
+    // cessé de fonctionner. Sans ce câblage la fonction existe et ne
+    // parle à personne — la moitié qui pourrit.
+    setSaveWarn,
   });
   // Export-reminder probe (placed after useGdriveSync so the
   // `lastAutoSaveTs` destructured above is in scope at the deps array).

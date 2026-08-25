@@ -244,6 +244,66 @@ export function recordAutosaveDiag(stage: string, detail?: string): void {
   );
 }
 
+/**
+ * REFUS CONSÉCUTIFS DE L'AUTO-SAVE — le compteur qui rompt le silence.
+ *
+ * `recordAutosaveDiag` juste au-dessus dit ce qui s'est passé, mais SEULEMENT
+ * dans une ligne de Réglages → Données que l'utilisateur doit aller chercher.
+ * MESURÉ en pilotant le vrai hook à travers quatre tentatives refusées faute
+ * de place, sur les DEUX fournisseurs (Drive 403 `storageQuotaExceeded`,
+ * Dropbox 507 `insufficient_space`) : `gdriveStatus` reste `null`,
+ * `setSaveError` et `setSaveWarn` ne sont appelés aucune fois. La cave cesse
+ * d'atteindre le cloud et l'application ne dit rien, indéfiniment.
+ *
+ * La bannière « session expirée » ne peut pas prendre le relais : elle exige
+ * un jeton EXPIRÉ, et un refus de quota garde le jeton valide — c'est le
+ * correctif du build 53 lui-même. Côté Dropbox elle rend `null` sans
+ * condition, donc là le silence est total quelle qu'en soit la cause.
+ *
+ * POURQUOI UN COMPTEUR ET NON UNE ALERTE AU PREMIER ÉCHEC : absorber un raté
+ * passager est exactement le travail d'un filet continu et non surveillé —
+ * c'est la raison d'être de ce chemin silencieux, et crier au premier 500
+ * apprendrait à l'utilisateur à ignorer le message. Ce qui mérite d'être dit
+ * est qu'il ne s'agit PLUS d'un raté : trois refus d'affilée veulent dire que
+ * l'auto-save a cessé de fonctionner et qu'attendre n'y changera rien.
+ *
+ * PERSISTÉ, parce qu'un auto-save cassé l'est d'un lancement à l'autre : un
+ * compteur en mémoire repartirait de zéro à chaque ouverture et n'atteindrait
+ * jamais le seuil sur un appareil qu'on ouvre deux minutes.
+ *
+ * PAR FOURNISSEUR, comme `cave-autosave-ts-*` : changer de destination ne doit
+ * pas hériter du compteur de l'autre, sinon le premier échec de la nouvelle
+ * destination lèverait immédiatement une alerte qu'elle n'a pas méritée.
+ *
+ * CE QUI N'EST PAS COMPTÉ, et c'est la moitié qui évite d'empiler deux
+ * bannières ambre : les échecs d'AUTHENTIFICATION. Ils ont déjà leur surface
+ * (la bannière « session Drive expirée ») et leur ré-essai silencieux, donc
+ * les compter ici dirait deux fois la même chose à deux endroits de l'écran —
+ * exactement la classe que `bannerStack.ts` existe pour fermer. Le
+ * rafraîchissement Dropbox échoué (`dropbox-token-failed`) EST compté, lui,
+ * parce que Dropbox n'a aucune bannière d'authentification.
+ * Jamais dans les sauvegardes.
+ */
+export var AUTOSAVE_FAIL_ALERT = 3;
+export function autosaveFailKey(isDbx: boolean): string {
+  return "cave-autosave-fails-" + (isDbx ? "dropbox" : "gdrive");
+}
+export function readAutosaveFailures(isDbx: boolean): number {
+  var n = parseInt(lsGet(autosaveFailKey(isDbx)) || "0", 10);
+  return n > 0 ? n : 0;
+}
+export function bumpAutosaveFailures(isDbx: boolean): number {
+  var n = readAutosaveFailures(isDbx) + 1;
+  // Borné : la valeur ne sert qu'à comparer à un seuil, la laisser croître
+  // sans fin sur un appareil hors ligne depuis des mois n'apporte rien.
+  if (n > 999) n = 999;
+  lsSet(autosaveFailKey(isDbx), String(n));
+  return n;
+}
+export function clearAutosaveFailures(isDbx: boolean): void {
+  lsRemove(autosaveFailKey(isDbx));
+}
+
 // Monotonic auto-save attempt counter. Each
 // gdriveSaveQuiet bumps it at "saving-start" and captures the value; the
 // DETACHED cleanup sweep (the lock is released before the sweep
@@ -392,6 +452,7 @@ export function useGdriveSync({
   setDrivePassphrase,
   requestDrivePassphrase,
   cloudProviderId,
+  setSaveWarn,
 }: {
   data: any;
   // App's cold-start loading flag. `data`
@@ -424,6 +485,13 @@ export function useGdriveSync({
   drivePassphrase?: string | null;
   setDrivePassphrase?: (pw: string | null) => void;
   requestDrivePassphrase?: (mode: "setup" | "unlock") => Promise<string | null>;
+  // Le canal ambre partagé d'App.tsx. Le chemin d'auto-save est
+  // silencieux par construction, donc c'est la SEULE façon pour lui de dire
+  // qu'il a cessé de fonctionner — et uniquement après plusieurs refus
+  // d'affilée (voir AUTOSAVE_FAIL_ALERT). Optionnel : sans lui le hook se
+  // comporte exactement comme avant, ce qui est ce que doit faire un appelant
+  // qui ne câble pas la bannière.
+  setSaveWarn?: ((m: string | null) => void) | undefined;
   // Active backup destination — "gdrive" (default) or
   // "dropbox". Owned by App.tsx (cave-cloud-provider localStorage).
   cloudProviderId?: "gdrive" | "dropbox";
@@ -543,6 +611,8 @@ export function useGdriveSync({
   }
 
   var quietSaveInProgressRef = useRef(false);
+  // « L'alerte de refus répété a déjà été levée pour la série en cours. »
+  var autosaveAlertRef = useRef(false);
 
   // ── Provider routing ───────────────────────────────────────────────
   // Dropbox auth is composed unconditionally (hook-order rule) but only
@@ -2081,6 +2151,36 @@ export function useGdriveSync({
     } catch (_e) { /* storage blocked — proceed without the lock */ }
     var _saveAttempt = nextAutosaveAttempt();
     recordAutosaveDiag("saving-start", isDbx ? "dropbox" : "drive");
+    // Un échec est NOTÉ une fois par tentative : `_noted` évite qu'une erreur
+    // déjà classée (une liste refusée, relancée pour terminer le pipeline) soit
+    // recomptée par le `.catch` terminal, qui est aussi le seul filet d'un
+    // rejet réseau — et qui, avant, avalait ce rejet sans laisser AUCUNE trace.
+    var _noted = false;
+    function noteFailure(stage: string, detail: string, counts: boolean) {
+      if (_noted) return;
+      _noted = true;
+      recordAutosaveDiag(stage, detail);
+      if (!counts) return;
+      var n = bumpAutosaveFailures(isDbx);
+      if (n < AUTOSAVE_FAIL_ALERT || autosaveAlertRef.current) return;
+      // UNE fois par série : redire à chaque tentative une alerte que
+      // l'utilisateur vient de fermer serait du harcèlement. Le drapeau est
+      // remis à zéro par un succès — et il vit dans un ref, donc un nouveau
+      // lancement le réarme : une session neuve, toujours cassée, mérite
+      // qu'on le dise une fois.
+      autosaveAlertRef.current = true;
+      if (setSaveWarn) setSaveWarn(t("cloud_autosave_failing"));
+    }
+    // Le filet terminal. `fetch` REJETTE sur une coupure réseau, un DNS mort
+    // ou le délai de garde — et ces trois `.catch` ne faisaient que relâcher
+    // le verrou, donc un auto-save qui n'atteignait jamais le serveur ne
+    // laissait pas même une ligne de diagnostic. `_noted` fait que l'erreur
+    // déjà classée plus haut (une liste refusée, relancée pour terminer le
+    // pipeline) n'est pas comptée deux fois.
+    function _quietFailed(e: any) {
+      noteFailure("network-error", String((e && (e as any).message) || e || "").slice(0, 60), true);
+      releaseQuietLock();
+    }
     function releaseQuietLock() {
       try {
         // Review fix (concern #5): only release if THIS attempt still owns the
@@ -2108,7 +2208,7 @@ export function useGdriveSync({
         // token, network, revoked app). This is THE common reason an
         // auto-save silently never happens — record it so Settings shows
         // "jeton Dropbox indisponible" instead of nothing.
-        recordAutosaveDiag("dropbox-token-failed", String((e && e.message) || e || "").slice(0, 80));
+        noteFailure("dropbox-token-failed", String((e && e.message) || e || "").slice(0, 80), true);
       });
       return;
     }
@@ -2236,6 +2336,10 @@ export function useGdriveSync({
         lsSet("cave-autosave-ts-" + (isDbx ? "dropbox" : "gdrive"), String(ts));
         // Record that the last save on this provider was AUTO.
         lsSet("cave-last-save-type-" + (isDbx ? "dropbox" : "gdrive"), "auto");
+        // Une sauvegarde qui aboutit remet la série à zéro ET réarme
+        // l'alerte : si le cloud recasse plus tard, il faudra le redire.
+        clearAutosaveFailures(isDbx);
+        autosaveAlertRef.current = false;
         // The uploaded body is `rawSnap`, frozen
         // at the start of this quiet save. An edit may have landed DURING the
         // upload (a save(S2) while S1 was in flight, whose own quiet save hit
@@ -2337,7 +2441,7 @@ export function useGdriveSync({
               sweepOwnAutoFiles(autoFilesForCleanup, f.id || null);
               return;
             } else if (f && f.error && (isAuthRefusal(f.error))) {
-              recordAutosaveDiag("upload-auth-error", "POST " + f.error.code);
+              noteFailure("upload-auth-error", "POST " + f.error.code, false);
               cloudTokenInvalidate();
               // Silent in-place retry on Android/desktop
               // (gated to one attempt). On iOS the no-token branch can't
@@ -2348,7 +2452,7 @@ export function useGdriveSync({
                 setTimeout(function () { gdriveSaveQuiet(true); }, 100);
               }
             } else if (f && f.error) {
-              recordAutosaveDiag("upload-error", "POST " + (f.error.code || "") + " " + String(f.error.message || "").slice(0, 60));
+              noteFailure("upload-error", "POST " + (f.error.code || "") + " " + String(f.error.message || "").slice(0, 60), true);
             }
           });
       }
@@ -2393,7 +2497,7 @@ export function useGdriveSync({
               return postNew(autoFilesForCleanup);
             }
             if (f && f.error && (isAuthRefusal(f.error))) {
-              recordAutosaveDiag("upload-auth-error", "PATCH " + f.error.code);
+              noteFailure("upload-auth-error", "PATCH " + f.error.code, false);
               cloudTokenInvalidate();
               // See postNew 401 branch above.
               if (!_retried && (isDbx || !IS_IOS_STANDALONE)) {
@@ -2401,7 +2505,7 @@ export function useGdriveSync({
                 setTimeout(function () { gdriveSaveQuiet(true); }, 100);
               }
             } else if (f && f.error && f.error.code !== 404 && f.error.code !== 400) {
-              recordAutosaveDiag("upload-error", "PATCH " + (f.error.code || "") + " " + String(f.error.message || "").slice(0, 60));
+              noteFailure("upload-error", "PATCH " + (f.error.code || "") + " " + String(f.error.message || "").slice(0, 60), true);
             }
           });
       }
@@ -2418,7 +2522,7 @@ export function useGdriveSync({
         .then(function (list: any) {
           if (list && list.error) {
             if (isAuthRefusal(list.error)) {
-              recordAutosaveDiag("list-auth-error", String(list.error.code));
+              noteFailure("list-auth-error", String(list.error.code), false);
               cloudTokenInvalidate();
               // Silent in-place retry on Android/desktop.
               // The throw below still propagates so the .catch terminates
@@ -2429,7 +2533,7 @@ export function useGdriveSync({
                 setTimeout(function () { gdriveSaveQuiet(true); }, 100);
               }
             } else {
-              recordAutosaveDiag("list-error", String(list.error.code || "") + " " + String(list.error.message || "").slice(0, 60));
+              noteFailure("list-error", String(list.error.code || "") + " " + String(list.error.message || "").slice(0, 60), true);
             }
             throw list.error;
           }
@@ -2452,9 +2556,9 @@ export function useGdriveSync({
           return postNew(autoFiles);
         })
         .then(function () { releaseQuietLock(); })
-        .catch(function () { releaseQuietLock(); });
-      }).catch(function () { releaseQuietLock(); });
-    }).catch(function () { releaseQuietLock(); });
+        .catch(_quietFailed);
+      }).catch(_quietFailed);
+    }).catch(_quietFailed);
   }
 
   function doGdriveConfirm() {

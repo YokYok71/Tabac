@@ -1079,6 +1079,7 @@ export var PT = {
   eb_retry_btn:"Limpar a cache e recarregar",
   eb_unreachable:"O site está inacessível: não foi eliminado nada. Volte a ligar-se e tente novamente.",
   err_cloud_full:"A sua destinação na nuvem já não tem espaço. Liberte espaço e tente novamente.",
+  cloud_autosave_failing:"A cópia automática na nuvem falha há várias tentativas. A sua cave permanece neste dispositivo. Toque para ver porquê.",
   err_cloud_rate:"A sua destinação na nuvem está a recusar escritas temporariamente. Tente novamente dentro de alguns minutos.",
   diag_toast_count:"{n} anomalias de coerência detetadas.",
   diag_toast_hint:"Abra Definições → Diagnóstico para as inspecionar.",

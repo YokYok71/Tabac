@@ -116,7 +116,12 @@ import { translate } from "../i18n.ts";
 
 describe("un refus NON authentifié garde le jeton et dit ce qui ne va pas", () => {
   const t = (k: string) => translate("fr", k);
-  const props = () => ({
+  // `cloudProviderId` est un PROP, pas une clé de stockage : écrire
+  // `cave-cloud-provider` ici ne route rien (c'est App.tsx qui lit la clé et
+  // passe le prop). Le poser explicitement est ce qui rend le cas Dropbox
+  // réellement Dropbox — sans ça il mesurait Drive en croyant l'inverse.
+  const props = (provider?: "gdrive" | "dropbox") => ({
+    cloudProviderId: provider || "gdrive",
     data: { tobaccos: [], pipes: [], accessories: [], sessions: [], wishlist: [] },
     t, lang: "fr", setSaveError: _vi.fn(), setSaveWarn: _vi.fn(),
     stageImport: _vi.fn(), pendingSync: false, setPendingSync: _vi.fn(),
@@ -126,7 +131,6 @@ describe("un refus NON authentifié garde le jeton et dit ce qui ne va pas", () 
 
   _beforeEach(() => {
     localStorage.clear(); sessionStorage.clear();
-    localStorage.setItem("cave-cloud-provider", "gdrive");
     localStorage.setItem("gdrive-tk", JSON.stringify({ t: "tok", x: Date.now() + 3600e3 }));
   });
 
@@ -170,6 +174,68 @@ describe("un refus NON authentifié garde le jeton et dit ce qui ne va pas", () 
       }
     }
   });
+
+  // DROPBOX EST L'AUTRE MOITIÉ, et elle avait été laissée au classifieur seul.
+  // Les quatre cas ci-dessus épinglent tous `cave-cloud-provider: "gdrive"`,
+  // donc le comportement bout-en-bout côté Dropbox n'était vérifié par rien —
+  // exactement la forme d'écart que ce fichier existe pour fermer (une
+  // fonction pure testée, son APPEL couvert par personne). Le chemin est
+  // pourtant DIFFÉRENT : `dropboxProvider` lit `r.text()` puis JSON.parse là
+  // où Drive lit `r.json()`, et il normalise en recyclant le statut HTTP dans
+  // `error.code`, si bien qu'un 507 ne ressemble à aucun code Drive.
+  async function dbxSave(status: number, summary: string) {
+    localStorage.setItem("dropbox-tk", JSON.stringify({ t: "dtok", x: Date.now() + 3600e3 }));
+    localStorage.setItem("dropbox-rt", "refresh");
+    (globalThis as any).fetch = _vi.fn().mockImplementation((url: any) => {
+      if (String(url).indexOf("list_folder") >= 0) {
+        return Promise.resolve({ ok: true, status: 200,
+          text: async () => JSON.stringify({ entries: [] }) });
+      }
+      return Promise.resolve({ ok: false, status: status,
+        text: async () => JSON.stringify({ error_summary: summary }) });
+    });
+    const { result } = renderHook(() => useGdriveSync(props("dropbox") as any));
+    act(() => { (result.current as any).gdriveSave("dtok"); });
+    await waitFor(() => expect(String((result.current as any).gdriveStatus))
+      .toMatch(/Erreur/i), { timeout: 6000 }).catch(() => {});
+    return result;
+  }
+
+  it("Dropbox plein : le jeton SURVIT et l'écran nomme le stockage", async () => {
+    const r = await dbxSave(507, "path/insufficient_space/...");
+    expect(localStorage.getItem("dropbox-tk"),
+      "un jeton Dropbox valide a été jeté pour un disque plein").not.toBeNull();
+    expect(localStorage.getItem("dropbox-rt"),
+      "le jeton de rafraîchissement a été jeté — la reconnexion silencieuse est morte").not.toBeNull();
+    const st = String((r.current as any).gdriveStatus);
+    // Comparé à la VALEUR du dictionnaire, pas à un mot : une reformulation
+    // du message reste vraie, un mauvais message ne l'est pas.
+    expect(st, "l'écran ne dit pas que le stockage est plein : « " + st + " »")
+      .toContain(t("err_cloud_full"));
+    expect(st, "la prose anglaise du fournisseur est passée telle quelle")
+      .not.toMatch(/insufficient_space/i);
+  }, 30000);
+
+  it("Dropbox écrit trop vite : rate, jeton gardé, message traduit", async () => {
+    // `dbxUpload` réessaie UNE fois sur un 429 avec 600 ms d'attente, donc ce
+    // cas traverse aussi ce réessai ; ce qui est épinglé ici est ce que voit
+    // l'utilisateur une fois le réessai épuisé.
+    const r = await dbxSave(429, "too_many_write_operations/...");
+    expect(localStorage.getItem("dropbox-tk"),
+      "un jeton valide a été jeté pour une limitation de débit").not.toBeNull();
+    const st = String((r.current as any).gdriveStatus);
+    expect(st, "l'écran ne dit pas que l'écriture est trop fréquente : « " + st + " »")
+      .toContain(t("err_cloud_rate"));
+    expect(st).not.toMatch(/too_many_write_operations/i);
+  }, 30000);
+
+  it("Dropbox, 401 véritable : le jeton est jeté, comme avant", async () => {
+    // Le contrepoids côté Dropbox : sans lui, une garde qui refuserait TOUT
+    // reclassement passerait les deux cas ci-dessus en cassant la
+    // ré-authentification.
+    await dbxSave(401, "invalid_access_token/...");
+    await waitFor(() => expect(localStorage.getItem("dropbox-tk")).toBeNull(), { timeout: 6000 });
+  }, 30000);
 
   it("les huit sites de refus passent par isAuthRefusal, pas par le code brut", async () => {
     // Source-level : ce qui pourrit est un site qui retombe sur `code === 403`.

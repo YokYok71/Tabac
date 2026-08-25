@@ -1072,6 +1072,7 @@ export var FR = {
   eb_retry_btn:"Vider le cache et recharger",
   eb_unreachable:"Le site est injoignable : rien n'a été supprimé. Reconnectez-vous, puis réessayez.",
   err_cloud_full:"Espace de stockage plein chez votre destination cloud. Libérez de la place, puis réessayez.",
+  cloud_autosave_failing:"La sauvegarde cloud automatique échoue depuis plusieurs tentatives. Votre cave reste sur cet appareil. Touchez pour voir pourquoi.",
   err_cloud_rate:"Votre destination cloud refuse temporairement les écritures. Réessayez dans quelques minutes.",
   diag_toast_count:"{n} anomalies de cohérence détectées.",
   diag_toast_hint:"Ouvre Paramètres → Diagnostic pour les inspecter.",
