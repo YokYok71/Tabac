@@ -93,6 +93,7 @@
 "use strict";
 
 const PAR = require("./parallelRun.cjs");
+const FRESH = require("./distFreshness.cjs");
 const path = require("node:path");
 const fs = require("node:fs");
 
@@ -395,6 +396,29 @@ async function settle(page, budgetMs = 2500) {
     return !anims.some((a) =>
       a.playState === "running" && a.constructor && a.constructor.name === "CSSTransition");
   }, undefined, { timeout: budgetMs }).catch(() => {});
+}
+
+/**
+ * WAIT FOR THE MARKER, don't sleep and hope.
+ *
+ * Every screen proves it arrived by finding a string unique to it, and until
+ * now that proof was taken immediately after a FIXED wait. That works for a
+ * React-only screen and is a timing assumption for the one screen whose arrival
+ * depends on the network: `help` fetches a ~74 KB document at runtime and then
+ * source-slices it per section, gated by a 1500 ms sleep. Observed once as
+ * `steel/light/help: could not be reached` in a single palette of a six-palette
+ * run — a screen reported unreachable for the machine's load rather than for
+ * anything about the app, which is the most misleading output this harness can
+ * produce (it reads as a navigation defect).
+ *
+ * BOUNDED, and the bound is the whole safety: a marker that never appears costs
+ * `budgetMs` and then fails exactly as it does today. Nothing is weakened — a
+ * screen that genuinely does not open is still a loud failure.
+ */
+async function awaitMarker(page, marker, budgetMs = 4000) {
+  await page.getByText(marker, { exact: false }).first()
+    .waitFor({ state: "attached", timeout: budgetMs })
+    .catch(() => { /* absent — the caller's count() reports it */ });
 }
 
 async function setCellar(page, payload, pinned) {
@@ -988,9 +1012,16 @@ function measure() {
 }
 
 async function main() {
-  if (!fs.existsSync(path.join(ROOT, "dist/index.html"))) {
+  const INDEX = path.join(ROOT, "dist/index.html");
+  if (!fs.existsSync(INDEX)) {
     die("dist/ not built — run `npm run build` first (the check measures the real bundle).");
   }
+  // Existence is not enough: this measures the BUILT app, so a `dist/` older
+  // than `src/` gives a confident verdict on the previous bundle — and being
+  // green is exactly what stops anyone noticing the subject moved. `size:check`
+  // learned this first; the rule is shared now (see distFreshness.cjs).
+  const staleSrc = FRESH.staleSources(path.join(ROOT, "src"), INDEX);
+  if (staleSrc.length) die(FRESH.staleMessage(staleSrc, ROOT));
   // ONE SHARD PER LANGUAGE, and the language is the right axis rather than the
   // scale or the width: a shard carries its own browser and its own dictionary
   // read, and the languages are what a translation change actually touches, so
@@ -1128,6 +1159,7 @@ async function main() {
         // covered — a silent pass. Every navigated screen proves it arrived.
         if (scr.expect) {
           const marker = markerText(label(dict, scr.expect, lang), scr.expect);
+          await awaitMarker(page, marker);
           const seen = await page.getByText(marker, { exact: false }).count();
           if (!seen) {
             unreached.push(`${width}px/${scale}/${lang}/${scr.name} (no "${marker}")`);
@@ -1219,7 +1251,7 @@ module.exports = {
   // `theme-contrast` came to reuse the `inv-long` screen without ever being
   // able to reach it. Both, or neither.
   BIG_LIST_ROWS, bigListCellar, setCellar,
-  markerText, settle,
+  markerText, settle, awaitMarker,
   setCatalogue, CATALOGUE_CSV,
 };
 

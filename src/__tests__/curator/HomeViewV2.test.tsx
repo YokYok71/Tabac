@@ -195,6 +195,38 @@ describe("CuratorHomeViewV2", () => {
     expect(btn, "expected a way through to the rest").toBeTruthy();
   });
 
+  it("the cap holds at BOTH ends of the rotation clock", () => {
+    // The measurement above is a one-off; this makes it an assertion. The case
+    // it guards is the one that actually shipped broken: the section's content
+    // must not depend on which 12-hour bucket `suggestRestedPipe` is in, and
+    // the only way to know is to render in both.
+    //
+    // The clock is faked INSIDE the test on purpose — the fixtures here are
+    // built by `overduePipes()` / `overdueSessions()` at call time, so nothing
+    // was computed against the real clock at module load. A probe that fakes
+    // time AFTER a module-level fixture was built manufactures a mismatch
+    // rather than revealing one, which is exactly what happened while chasing
+    // this: `recentDate()` in `baseCtx` is evaluated at import, so a
+    // `beforeEach` clock made the calendar case fail for the probe's own
+    // reason. Same shape as the `monotonicId` reset in the convergence suite.
+    const seen: string[][] = [];
+    for (const iso of ["2026-08-25T01:00:00Z", "2026-08-25T13:00:00Z"]) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(iso));
+      const pipes = overduePipes();
+      const { container, unmount } = renderWith({
+        ...baseCtx, data: { ...baseCtx.data, pipes, sessions: overdueSessions(pipes) },
+      });
+      const section = maintText(container);
+      seen.push(MAINT_NAMES.filter((n) => section.includes(n)));
+      unmount();
+      vi.useRealTimers();
+    }
+    expect(seen[0], "the section named a different set of pipes in the other 12h bucket")
+      .toEqual(seen[1]);
+    expect(seen[0]!.length, "the cap is not five rows").toBe(5);
+  });
+
   it("the button names the TOTAL still to clean, not the remainder", () => {
     // REVERSED on the user's instruction, and the reversal is recorded here
     // rather than by rewriting the case as if it had always said this. The

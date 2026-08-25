@@ -18,6 +18,7 @@
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
+const FRESH = require("./distFreshness.cjs");
 
 const DIST = path.join(__dirname, "..", "dist");
 const ASSETS = path.join(DIST, "assets");
@@ -56,35 +57,13 @@ function main() {
   }
 
   // Existence used to be the ONLY precondition, so running this after
-  // editing a source file reported a confident OK for the PREVIOUS build — a
-  // developer following the local checklist after adding a heavy import got a
-  // green size:check and met the regression only post-merge, in Lighthouse.
-  // CI is unaffected (lighthouse.yml always builds first); this is for humans.
-  try {
-    const builtAt = fs.statSync(INDEX_HTML).mtimeMs;
-    const stale = [];
-    const walk = (dir) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, e.name);
-        // Tests never enter the bundle, so they cannot make it stale.
-        if (e.isDirectory()) { if (e.name !== "__tests__") walk(full); continue; }
-        if (fs.statSync(full).mtimeMs > builtAt) stale.push(full);
-      }
-    };
-    walk(SRC);
-    if (stale.length) {
-      console.error(`check-bundle-size: dist/ is STALE — ${stale.length} file(s) under src/ are newer than the build.`);
-      console.error(`  e.g. ${stale.slice(0, 3).map((f) => path.relative(REPO, f)).join(", ")}`);
-      console.error("  Run `npm run build` first, or this measures the previous bundle.");
-      process.exit(1);
-    }
-  } catch (e) {
-    // Only a real filesystem failure may be tolerated. A ReferenceError/TypeError
-    // here means the guard itself is broken — and a guard that silently no-ops
-    // reads as "verified" while verifying nothing (it did exactly that on its
-    // first run: an undefined ROOT threw, this catch swallowed it, and the check
-    // reported OK on a stale bundle).
-    if (e instanceof ReferenceError || e instanceof TypeError) throw e;
+  // editing a source file reported a confident OK for the PREVIOUS build.
+  // The rule now lives in one place — the two browser checks measure `dist/`
+  // too and never had it; see `distFreshness.cjs` for the history.
+  const stale = FRESH.staleSources(SRC, INDEX_HTML);
+  if (stale.length) {
+    console.error("check-bundle-size: " + FRESH.staleMessage(stale, REPO));
+    process.exit(1);
   }
 
   const html = fs.readFileSync(INDEX_HTML, "utf8");

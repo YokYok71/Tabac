@@ -71,6 +71,7 @@
 "use strict";
 
 const PAR = require("./parallelRun.cjs");
+const FRESH = require("./distFreshness.cjs");
 const path = require("node:path");
 const fs = require("node:fs");
 
@@ -217,9 +218,14 @@ function measureContrast() {
 }
 
 async function main() {
-  if (!fs.existsSync(path.join(ROOT, "dist/index.html"))) {
+  const INDEX = path.join(ROOT, "dist/index.html");
+  if (!fs.existsSync(INDEX)) {
     die("dist/ not built — run `npm run build` first.");
   }
+  // Same rule as size:check and the layout harness — see distFreshness.cjs.
+  // Two full campaigns here once measured an hour-old bundle, green throughout.
+  const staleSrc = FRESH.staleSources(path.join(ROOT, "src"), INDEX);
+  if (staleSrc.length) die(FRESH.staleMessage(staleSrc, ROOT));
   // ONE SHARD PER PALETTE — the unit this check reports in, so a failing shard
   // names « steel/light » rather than an index. The two axes are folded into one
   // shard value and split back apart below, because fanning out on the themes
@@ -327,6 +333,7 @@ async function main() {
           // this consumer of the same screen list never got the fix. The
           // sibling-miss, and the reason the helper is exported.
           const marker = H.markerText(raw, scr.expect);
+          await H.awaitMarker(page, marker);
           if (!(await page.getByText(marker, { exact: false }).count())) {
             failures.push(`${theme}/${mode}/${scr.name}: could not be reached (no "${marker}")`);
             continue;
