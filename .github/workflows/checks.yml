@@ -19,7 +19,14 @@ name: Checks
 # This runs on pull_request too, not just push, so the gate fires BEFORE merge
 # rather than after deploy. Deliberately separate from deploy.yml: a lint or
 # typecheck failure should not cancel a Pages deploy already in flight, and
-# these three are fast (~2 s each) and need no build.
+# the `checks` job below is fast (~2 s per gate) and needs no build.
+#
+# TWO JOBS, and the split is the whole point of the second one. `checks` is the
+# fast lane — no build, seconds per gate, so feedback is immediate. `browser`
+# builds and drives a real Chromium for the two checks that were opt-in and
+# therefore hardly ever run; it is ~15 min and must not sit in front of the
+# fast lane, so it runs beside it. See its own header for why it is here rather
+# than in deploy.yml.
 on:
   push:
     branches: [main]
@@ -89,3 +96,71 @@ jobs:
           # bumped yet. Every other gate in doc:check still runs.
           DOC_CHECK_SKIP_BUMP: "1"
         run: npm run doc:check
+
+  # ── The two BROWSER checks, which were opt-in and therefore hardly run ──────
+  #
+  # `i18n:layout` and `theme:contrast` render the built app in a real Chromium
+  # and are the only checks that see a clipped label, a draggable scroller or an
+  # unreadable colour pair. They were opt-in for one reason and one only: they
+  # cost ~55 min and ~45 min, so they ran a few times a year, by hand, before a
+  # release. That is the state this repo names « a check nobody runs is
+  # documentation, not a check ».
+  #
+  # They now fan out one process per language / per palette over a shared
+  # preview server, MEASURED at ~10 min and ~3 min. This runner is 4 vCPU /
+  # 16 GB — the same shape as the machine those figures come from — so the
+  # FULL matrix fits in a job, with no narrowing and no claim to defend.
+  #
+  # A SEPARATE JOB, not more steps on `checks`: these need a build and are ten
+  # times slower, so appending them would delay the two-minute feedback that
+  # job exists to give. In parallel, they cost nothing extra.
+  #
+  # WHY NOT IN deploy.yml, where a gate can actually hold the artifact back.
+  # That is the stronger place and it was weighed rather than skipped: it would
+  # add ~15 min to EVERY deploy, permanently, for a class that is recoverable
+  # (a clipped German label is visible, harmless to data, and re-pushable in
+  # minutes) — unlike the four gates that do sit there, where shipping past
+  # them means shipping a type error or an untested build. If this ever catches
+  # a layout regression that reached users on main, move it and pay the 15 min.
+  #
+  # It runs on PUSH as well as on pull_request, deliberately: the convention
+  # here is to push straight to main, so a pull-request-only browser gate would
+  # fire almost never — which is the very state this job is written to end.
+  browser:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - run: npm ci
+
+      # Both checks measure `dist/`, and both REFUSE a `dist/` older than
+      # `src/` (see scripts/distFreshness.cjs), so the build is a precondition
+      # rather than a convenience.
+      - name: Build
+        run: npm run build
+
+      # Playwright stays out of package.json on purpose — a browser would cost
+      # every install for a check that does not run on every commit. `--no-save`
+      # keeps that true while giving CI what it needs.
+      - name: Install playwright-core + Chromium
+        run: |
+          npm i --no-save playwright-core
+          npx playwright-core install --with-deps chromium
+
+      # Both run even if the first fails, so one push reports both classes.
+      # Contrast first: it is the cheaper of the two, so a palette regression
+      # surfaces in ~3 min rather than behind the layout matrix.
+      - name: Contrast — 6 palettes × 36 screens
+        if: ${{ !cancelled() }}
+        run: npm run theme:contrast
+
+      - name: Layout — 6 languages × 36 screens × 2 text sizes × 2 widths
+        if: ${{ !cancelled() }}
+        run: npm run i18n:layout

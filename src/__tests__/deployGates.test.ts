@@ -109,4 +109,83 @@ describe("deploy.yml — the gates gate the deploy", () => {
       expect(deploy).toMatch(/- name: Build \(Vite\)[^\n]*\n\s+id: build\n/);
     });
   });
+
+  // ── Les deux vérifications NAVIGATEUR sont enfin lancées quelque part ──────
+  //
+  // Elles voient ce qu'aucune autre porte ne voit — une étiquette rognée, un
+  // conteneur qui glisse latéralement, une paire de couleurs illisible — et
+  // elles étaient opt-in parce qu'elles coûtaient ~55 min et ~45 min. Elles
+  // tournaient donc quelques fois par an, à la main : l'état que ce dépôt
+  // nomme « une porte que personne ne lance est de la documentation ».
+  //
+  // Ce qui a changé est mesuré : le fan-out (un processus par langue, un par
+  // palette, sur un serveur d'aperçu partagé) les ramène à ~10 min et ~3 min
+  // sur une machine 4 vCPU — la forme d'`ubuntu-latest`. Ce bloc épingle le
+  // câblage, parce que c'est LUI qui pourrit : la campagne peut rester
+  // parfaite pendant qu'un déclencheur disparaît, et un tableau de bord vert
+  // ne dit rien de ce qui n'a pas tourné.
+  describe("the two browser checks run in CI", () => {
+    const jobIdx = checks.indexOf("\n  browser:");
+    const job = jobIdx < 0 ? "" : checks.slice(jobIdx);
+
+    it("the job exists (non-vacuity — every assertion below reads it)", () => {
+      expect(jobIdx, "the `browser` job is gone from checks.yml").toBeGreaterThan(-1);
+    });
+
+    it("runs BOTH campaigns, in full", () => {
+      // Narrowing an axis is legitimate while iterating and is exactly what
+      // must not become the CI default: a run over `--langs de` reports green
+      // having measured one language of six, and reads as full coverage.
+      expect(job).toContain("npm run theme:contrast");
+      expect(job).toContain("npm run i18n:layout");
+      expect(job, "an axis is narrowed — CI would report on a slice")
+        .not.toMatch(/--langs|--scales|--widths|THEME_CONTRAST_THEMES|THEME_CONTRAST_MODES/);
+    });
+
+    it("builds first — both checks REFUSE a stale dist/", () => {
+      const build = job.indexOf("npm run build");
+      expect(build, "no build step").toBeGreaterThan(-1);
+      expect(build).toBeLessThan(job.indexOf("npm run theme:contrast"));
+    });
+
+    it("installs the browser, which is deliberately not a dependency", () => {
+      expect(job).toContain("npm i --no-save playwright-core");
+      expect(job, "the checks skip the headless shell, so chromium is required")
+        .toMatch(/playwright-core install[^\n]*chromium/);
+    });
+
+    it("each campaign reports even when the other failed", () => {
+      const after = job.slice(job.indexOf("Contrast"));
+      expect((after.match(/!cancelled\(\)/g) || []).length,
+        "one failing campaign hides the other").toBeGreaterThanOrEqual(2);
+    });
+
+    it("fires on PUSH as well as on pull_request", () => {
+      // The convention here is to push straight to main, so a
+      // pull-request-only browser gate would fire almost never — which is the
+      // state this job exists to end. Both triggers, or it is decoration.
+      expect(checks).toMatch(/^\s*push:\s*$/m);
+      expect(checks).toMatch(/^\s*pull_request:\s*$/m);
+    });
+
+    it("stays OUT of the deploy path, and that is a decision", () => {
+      // deploy.yml is where a gate can hold the artifact back, and this one is
+      // deliberately not there: ~15 min on EVERY deploy, permanently, for a
+      // class that is visible and re-pushable — unlike a type error. If a
+      // layout regression ever reaches users on main, move it and pay it.
+      expect(deploy).not.toContain("npm run i18n:layout");
+      expect(deploy).not.toContain("npm run theme:contrast");
+    });
+
+    it("is its OWN job, so it never delays the fast lane", () => {
+      // Appended to `checks` it would put a 15-minute build-and-browser run in
+      // front of gates that answer in seconds.
+      const fast = checks.indexOf("\n  checks:");
+      expect(fast).toBeGreaterThan(-1);
+      expect(fast, "the browser steps were folded into the fast job")
+        .toBeLessThan(jobIdx);
+      expect(checks.slice(fast, jobIdx),
+        "the fast job now builds — it does not need to").not.toContain("npm run build");
+    });
+  });
 });
