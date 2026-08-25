@@ -615,10 +615,30 @@ export function cloudRefusalKind(err: any): CloudRefusal {
   var msg = String((err as any).message || "").toLowerCase();
 
   // Dropbox : `dropboxProvider` normalise en `{code: <statut HTTP>, message:
-  // "Dropbox: " + error_summary}`, donc le marqueur est dans le MESSAGE. On ne
-  // l'accepte QUE sur les statuts que Dropbox utilise pour ça — sinon un
-  // message quelconque contenant le mot serait lu comme un quota.
-  if (code === 507 && msg.indexOf("insufficient_space") >= 0) return "quota";
+  // "Dropbox: " + error_summary}`, donc le marqueur est dans le MESSAGE.
+  //
+  // LE STATUT EST 409, ET LE 507 D'ORIGINE ÉTAIT UNE SUPPOSITION. La chaîne
+  // `path/insufficient_space/...` venait de l'API réelle ; le statut avait été
+  // deviné. L'API v2 documente que TOUTE erreur spécifique à un point d'accès
+  // rend 409 — Dropbox l'a choisi précisément parce qu'il n'a pas de sens
+  // défini dans la spec HTTP, si bien que proxies et bibliothèques clientes le
+  // relaient intact. Sous 409, l'écran affichait donc la prose anglaise brute
+  // au lieu du remède traduit, sur le seul refus où le remède compte.
+  //
+  // DONC LE MARQUEUR PORTE LA DÉCISION, PAS LE STATUT : 409 est aussi celui de
+  // `path/conflict`, `path/not_found` et de tout le reste, et un 409 sans
+  // marqueur reconnu doit rester `other`. C'est cette garde qui rend
+  // l'élargissement sûr. 507 est gardé — le retirer changerait le comportement
+  // sur un cas que rien ici ne peut mesurer contre l'API vivante, et un
+  // `error_summary` qui dit `insufficient_space` dit exactement cela.
+  //
+  // `too_many_write_operations` sous 409 est le même oubli, et le dépôt le
+  // savait déjà : le commentaire de `dropboxProvider.remove` énumère « 429 …
+  // ou 409 (sous le tag lock_conflict) », que le classifieur ne voyait pas.
+  if (code === 409 || code === 507) {
+    if (msg.indexOf("insufficient_space") >= 0) return "quota";
+    if (msg.indexOf("too_many_write_operations") >= 0) return "rate";
+  }
   if (code === 429) return "rate";
 
   var reasons: string[] = [];

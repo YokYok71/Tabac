@@ -278,6 +278,8 @@ export var FR = {
   st_connecting:"Connexion...",
   err_prefix:"Erreur",
   err_drive_expired:"session Drive expirée",
+  err_dropbox_expired:"session Dropbox expirée",
+  err_cloud_unreachable:"Destination cloud injoignable. Vérifiez votre connexion, puis réessayez.",
   st_saving:"Sauvegarde...",
   st_downloading:"Téléchargement...",
   st_zipping:"ZIP...",

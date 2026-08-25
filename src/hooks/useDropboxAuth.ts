@@ -45,12 +45,36 @@ export function dbxAuthClear(): void {
   try { localStorage.removeItem("dropbox-rt"); } catch {}
 }
 
+/**
+ * « L'APPEL A ÉCHOUÉ » N'EST PAS « VOTRE AUTORISATION EST MORTE ».
+ *
+ * `fetch` rejette sur une coupure, un DNS mort ou le délai de garde de 20 s,
+ * et un 5xx à corps non-JSON fait rejeter `r.json()`. Ces rejets remontaient
+ * jusqu'à `getToken`, indiscernables d'un grant absent ou révoqué — et
+ * `getToken` répondait à tout par une redirection vers dropbox.com. Une panne
+ * passagère éjectait donc l'utilisateur hors de son application ; hors ligne,
+ * dropbox.com échoue aussi, et sur une PWA installée il faut fermer et
+ * rouvrir. `gdriveGetToken` ne peut pas faire ça : il ne fait AUCUN appel
+ * réseau avant de décider.
+ *
+ * Le marqueur est posé ici, au seul endroit qui sait que le rejet vient du
+ * transport et non du contenu de la réponse.
+ */
+export var NETWORK_FAILURE = "__cloudNetworkFailure__";
+function markNetwork(e: any): any {
+  var err = e instanceof Error ? e : new Error(String(e || "network"));
+  (err as any)[NETWORK_FAILURE] = true;
+  return err;
+}
 function tokenEndpoint(body: URLSearchParams): Promise<any> {
   return fetchWithTimeout("https://api.dropboxapi.com/oauth2/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
-  }).then(function (r) { return r.json(); });
+  }).then(
+    function (r) { return r.json().catch(function (e: any) { throw markNetwork(e); }); },
+    function (e: any) { throw markNetwork(e); },
+  );
 }
 
 function cacheAccessToken(resp: any): string | null {
@@ -112,7 +136,14 @@ export function useDropboxAuth({
   // The redirect leg never resolves locally (navigation) — the mount
   // effect picks the return up, same dance as the iOS Drive flow.
   function getToken(action: string): Promise<string> {
-    return getTokenSilent().catch(function () {
+    return getTokenSilent().catch(function (e: any) {
+      // Une panne de TRANSPORT ne justifie pas de quitter l'application : on
+      // le dit et on reste. Seules « pas de grant » et « grant révoqué »
+      // méritent la redirection — dans les deux cas il n'y a effectivement
+      // plus d'autorisation à renouveler en silence.
+      if (e && (e as any)[NETWORK_FAILURE]) {
+        throw new Error(t ? t("err_cloud_unreachable") : "Destination cloud injoignable. Vérifiez votre connexion, puis réessayez.");
+      }
       var st = pkceGenerateVerifier();      // CSRF state
       var verifier = pkceGenerateVerifier(); // PKCE verifier (separate value)
       return pkceChallengeS256(verifier).then(function (challenge) {

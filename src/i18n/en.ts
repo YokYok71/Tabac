@@ -278,6 +278,8 @@ export var EN = {
   st_connecting:"Connecting...",
   err_prefix:"Error",
   err_drive_expired:"Drive session expired",
+  err_dropbox_expired:"Dropbox session expired",
+  err_cloud_unreachable:"Cloud destination unreachable. Check your connection, then try again.",
   st_saving:"Saving...",
   st_downloading:"Downloading...",
   st_zipping:"ZIP...",

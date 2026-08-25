@@ -278,6 +278,8 @@ export var DE = {
   st_connecting:"Verbinde...",
   err_prefix:"Fehler",
   err_drive_expired:"Drive-Sitzung abgelaufen",
+  err_dropbox_expired:"Dropbox-Sitzung abgelaufen",
+  err_cloud_unreachable:"Cloud-Ziel nicht erreichbar. Prüfe deine Verbindung und versuche es erneut.",
   st_saving:"Speichere...",
   st_downloading:"Lade herunter...",
   st_zipping:"ZIP...",

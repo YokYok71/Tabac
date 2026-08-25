@@ -941,7 +941,19 @@ export function useGdriveSync({
     var tokenPromise: Promise<string | null>;
     var cached = preTk || getCachedCloudToken();
     if (cached) tokenPromise = Promise.resolve(cached);
-    else if (isDbx) tokenPromise = dbx.getTokenSilent().catch(function () { return null; });
+    else if (isDbx) {
+      // Dropbox ESCALADE lui aussi. Il s'arrêtait à `getTokenSilent`, donc
+      // avec un jeton de rafraîchissement mort ce bouton devenait un
+      // cul-de-sac — pour toute réponse un message nommant le mauvais
+      // service. Escalader n'est sans danger que depuis deux correctifs : le
+      // dispatcher lit maintenant les marqueurs one-shot, donc le retour route
+      // vers CE bouton et non vers le panneau des sauvegardes ; et une panne
+      // RÉSEAU ne redirige plus, donc une coupure passagère ne peut plus
+      // éjecter l'utilisateur vers dropbox.com.
+      lsSet(CLOUD_CHECK_PENDING_KEY, String(Date.now()));
+      tokenPromise = dbx.getTokenSilent()
+        .catch(function () { return dbx.getToken("list"); }) as Promise<string | null>;
+    }
     else {
       // On iOS standalone this REDIRECTS and the promise never
       // settles. The dispatcher can only route on the OAuth action, and "list"
@@ -955,7 +967,7 @@ export function useGdriveSync({
     tokenPromise
       .then(function (tk) {
         lsRemove(CLOUD_CHECK_PENDING_KEY);
-        if (!tk) throw new Error(t("err_drive_expired"));
+        if (!tk) throw new Error(cloudExpiredMessage());
         // The dismissed markers are cleared HERE, not before the
         // token fetch. They used to be wiped first, so an iOS redirect that
         // never came back (or a failed token) left the user with no markers AND
@@ -1068,6 +1080,25 @@ export function useGdriveSync({
     setSyncDiagErr(null);
   }
   /**
+   * « SESSION DRIVE EXPIRÉE » CHEZ UN UTILISATEUR DROPBOX.
+   *
+   * Quatre sites jetaient `err_drive_expired` en dur, et les QUATRE sont
+   * atteignables sur Dropbox : la vérification cloud, le diagnostic, la
+   * restauration depuis la bannière, et le téléchargement différé du
+   * sélecteur. Le message nommait donc le mauvais service, dans les six
+   * langues — invisible à la parité i18n (la clé existe et est traduite) comme
+   * aux contrats d'étiquettes, qui comparent le guide au dictionnaire et non
+   * le dictionnaire au fournisseur actif.
+   *
+   * Un helper plutôt qu'un ternaire répété : ce qui pourrit est le NOMBRE de
+   * copies, et quatre copies dont aucune ne regardait le fournisseur, c'est
+   * exactement la forme que ce dépôt paie le plus souvent.
+   */
+  function cloudExpiredMessage(): string {
+    return t(isDbx ? "err_dropbox_expired" : "err_drive_expired");
+  }
+
+  /**
    * Exécute la décision de `consumeListResume`. L'ORDRE et la FRAÎCHETÉ sont
    * dans la fonction pure ; ici il ne reste que l'exécution, identique pour les
    * deux fournisseurs. `preTk` n'existe que côté Google, où le jeton vient
@@ -1105,9 +1136,18 @@ export function useGdriveSync({
       if (cached) tokenPromise = Promise.resolve(cached);
       // `.catch`, not `.then` — a rejection here surfaced the
       // raw English "no refresh token" as « Erreur : no refresh token » in
-      // every UI language. Falling to null gives the translated
-      // `err_drive_expired` below, which is also the actionable message.
-      else if (isDbx) tokenPromise = dbx.getTokenSilent().catch(function () { return null; });
+      // every UI language.
+      //
+      // Et le repli ne rend plus `null` : il ESCALADE, comme Drive. Rendre
+      // null menait au message d'expiration, qui nommait Drive à un
+      // utilisateur Dropbox et ne proposait aucune sortie. Voir la note
+      // jumelle dans `checkCloudNewerNow` pour les deux correctifs qui rendent
+      // l'escalade sûre.
+      else if (isDbx) {
+        lsSet("cave-sync-diag-pending", String(Date.now()));
+        tokenPromise = dbx.getTokenSilent()
+          .catch(function () { return dbx.getToken("list"); }) as Promise<string | null>;
+      }
       else {
         // Drive without a cached token → interactive. On iOS standalone this
         // REDIRECTS (the page navigates away, so the promise below never
@@ -1124,7 +1164,7 @@ export function useGdriveSync({
         // Popup / cached path completed inline — consume the flag so a later
         // "View my backups" return isn't mis-routed to the diagnostic.
         lsRemove("cave-sync-diag-pending");
-        if (!tk) throw new Error(t("err_drive_expired"));
+        if (!tk) throw new Error(cloudExpiredMessage());
         return cloud.list(tk, { fields: SYNC_DIAG_FIELDS, orderBy: "modifiedTime+desc" });
       })
       .then(function (r: any) { return r.json(); })
@@ -1328,7 +1368,7 @@ export function useGdriveSync({
         // On iOS, this branch never runs — the page redirected before
         // the Promise could resolve, and the dispatcher takes over on
         // return. On desktop popup the Promise resolves cleanly.
-        if (!tk) throw new Error(t("err_drive_expired"));
+        if (!tk) throw new Error(cloudExpiredMessage());
         try {
           lsRemove("cave-cloud-newer-pending-id");
           lsRemove("cave-cloud-newer-pending-ack");
@@ -2630,7 +2670,7 @@ export function useGdriveSync({
       setGdriveStatus(t("st_downloading"));
       var tk = getCachedCloudToken();
       if (!tk) {
-        setGdriveStatus(t("err_prefix") + ": " + t("err_drive_expired"));
+        setGdriveStatus(t("err_prefix") + ": " + cloudExpiredMessage());
         scheduleStatusClear(4000);
         return;
       }

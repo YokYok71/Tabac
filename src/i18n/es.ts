@@ -278,6 +278,8 @@ export var ES = {
   st_connecting:"Conectando...",
   err_prefix:"Error",
   err_drive_expired:"sesión de Drive caducada",
+  err_dropbox_expired:"sesión de Dropbox caducada",
+  err_cloud_unreachable:"Destino en la nube inaccesible. Comprueba tu conexión y vuelve a intentarlo.",
   st_saving:"Guardando...",
   st_downloading:"Descargando...",
   st_zipping:"ZIP...",

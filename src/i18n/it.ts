@@ -278,6 +278,8 @@ export var IT = {
   st_connecting:"Connessione...",
   err_prefix:"Errore",
   err_drive_expired:"sessione Drive scaduta",
+  err_dropbox_expired:"sessione Dropbox scaduta",
+  err_cloud_unreachable:"Destinazione cloud irraggiungibile. Controlla la connessione, poi riprova.",
   st_saving:"Salvataggio...",
   st_downloading:"Download...",
   st_zipping:"ZIP...",

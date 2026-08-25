@@ -285,6 +285,8 @@ export var PT = {
   st_connecting:"A ligar...",
   err_prefix:"Erro",
   err_drive_expired:"sessão do Drive expirada",
+  err_dropbox_expired:"sessão do Dropbox expirada",
+  err_cloud_unreachable:"Destino na nuvem inacessível. Verifique a sua ligação e tente novamente.",
   st_saving:"A guardar...",
   st_downloading:"A descarregar...",
   st_zipping:"ZIP...",
