@@ -292,7 +292,7 @@ async function main() {
       // navigation that will observe it. `page.evaluate` needs a document, so
       // land on the app once before the loop.
       await page.goto(URL, { waitUntil: "networkidle" });
-      await page.waitForTimeout(600);
+      await H.awaitBoot(page);
 
       for (const scr of H.SCREENS) {
         await H.setCatalogue(page, scr.noCatalogue ? "" : H.CATALOGUE_CSV);
@@ -304,15 +304,31 @@ async function main() {
         // it needs no `prevBigList` bookkeeping to put the ordinary cellar back.
         await H.setCellar(page, scr.bigList ? H.bigListCellar() : H.DATA, !!scr.bigList);
         await page.goto(URL, { waitUntil: "networkidle" });
-        await page.waitForTimeout(1000);
+        await H.awaitBoot(page);
         if (scr.dock !== null) {
           const btns = await page.locator("nav button, [role=navigation] button").all();
           if (btns.length > scr.dock) await btns[scr.dock].click({ force: true }).catch(() => {});
-          await page.waitForTimeout(700);
+          // Voir `awaitPaint` : seuls les six écrans du dock n'ont pas de
+          // marqueur, et ce sont les seuls à en avoir besoin.
+          if (!scr.expect) await H.awaitPaint(page);
         }
         if (scr.go) {
-          try { await scr.go(page, dict, LANG); await page.waitForTimeout(1200); }
+          // Pas de sommeil : tout écran portant un `go` porte un `expect`, donc
+          // l'attente du marqueur ci-dessous EST la condition.
+          try { await scr.go(page, dict, LANG); }
           catch { failures.push(`${theme}/${mode}/${scr.name}: could not be reached`); continue; }
+        }
+        // LE MARQUEUR D'ABORD, PUIS `settle` — même ordre que la mise en page,
+        // et c'est lui qui rend sûre la suppression des sommeils. `awaitMarker`
+        // attend l'ATTACHEMENT, donc il rend la main pendant que la transition
+        // d'entrée tourne encore ; `settle` attend ensuite qu'elle finisse.
+        // Dans l'autre sens, `settle` ne verrait rien tourner (l'écran n'est pas
+        // monté) et rendrait aussitôt : on mesurerait en pleine animation, ce
+        // qui pour CE vérificateur veut dire mesurer l'opacité de l'ancêtre
+        // comme si c'était la couleur du texte.
+        if (scr.expect) {
+          const rawM = dict[scr.expect];
+          if (rawM) await H.awaitMarker(page, H.markerText(rawM, scr.expect));
         }
         // A CONDITION, not a longer sleep. Text measured mid-fade carries the
         // entry animation's ancestor opacity, and this check folds that into the

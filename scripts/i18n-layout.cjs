@@ -421,6 +421,58 @@ async function awaitMarker(page, marker, budgetMs = 4000) {
     .catch(() => { /* absent — the caller's count() reports it */ });
 }
 
+/**
+ * WAIT FOR THE APP TO HAVE BOOTED, don't sleep and hope — the same rule as
+ * `awaitMarker`, applied to the OTHER half of the navigation.
+ *
+ * MEASURED, and the number is why this exists: one language shard ran in
+ * **9 min 44 of wall clock for 20 s of user CPU** — about 5 % utilisation. The
+ * campaign was not computing, it was WAITING, and the waiting was fixed
+ * `waitForTimeout` calls: ~1000 ms after each reload, 700 after the dock click,
+ * 1200 after a screen's own navigation. At 144 screen-visits per language that
+ * is roughly **418 s of sleep out of 584** — 72 % of the run.
+ *
+ * The sleeps were redundant rather than load-bearing: `settle` + `awaitMarker`
+ * already ran right after them and already wait on the real conditions. What was
+ * missing was a condition for the one thing they did not cover — that the app
+ * has MOUNTED before we click its dock. The dock is the last thing to appear,
+ * so its presence is that condition.
+ *
+ * BOUNDED, like its two siblings: a boot that never completes costs `budgetMs`
+ * and then the existing marker check reports the screen unreachable exactly as
+ * before. Nothing is weakened — this only stops a fast machine paying for a slow
+ * one.
+ */
+async function awaitBoot(page, budgetMs = 6000) {
+  await page.locator("nav button, [role=navigation] button").first()
+    .waitFor({ state: "attached", timeout: budgetMs })
+    .catch(() => { /* the marker check below is what reports it */ });
+}
+
+/**
+ * WAIT FOR THE NEW SCREEN TO START PAINTING — the one navigation with no
+ * marker to wait on.
+ *
+ * The six screens with no `expect` are the six DOCK pages, reached by a click
+ * and nothing else (asserted: no screen carries a `go` without an `expect`).
+ * For them `settle` alone is not enough, and the reason is subtle: `settle`
+ * waits for no CSSTransition to be RUNNING, so called before the new view has
+ * mounted it sees nothing running and returns instantly — we would measure the
+ * page mid-mount. This waits for the entering transition to have STARTED, and
+ * `settle` then waits for it to end.
+ *
+ * BOUNDED and short: a view that animates nothing costs the budget and is then
+ * measured exactly as before. That is the worst case, and it is still a third
+ * of the 700 ms this replaced.
+ */
+async function awaitPaint(page, budgetMs = 500) {
+  await page.waitForFunction(() => {
+    const anims = document.getAnimations ? document.getAnimations() : [];
+    return anims.some((a) =>
+      a.playState === "running" && a.constructor && a.constructor.name === "CSSTransition");
+  }, undefined, { timeout: budgetMs }).catch(() => { /* nothing animates here */ });
+}
+
 async function setCellar(page, payload, pinned) {
   await page.evaluate(([json, pin]) => {
     localStorage.setItem("pipe-cellar-v6", json);
@@ -865,9 +917,27 @@ const SCREENS = [
     name: "settings-" + tab, dock: 0, expect,
     async go(page, dict, lang) {
       await page.getByLabel(label(dict, "btn_settings", lang), { exact: false }).first().click({ force: true });
-      await page.waitForTimeout(800);
-      const l = page.getByText(label(dict, "tab_" + tab, lang), { exact: true }).first();
-      if (await l.count()) await l.click({ force: true });
+      // The tab strip is what we are about to click, so ITS presence is the
+      // condition — not 800 ms of hoping the modal has opened.
+      const strip = page.getByText(label(dict, "tab_" + tab, lang), { exact: true }).first();
+      await strip.waitFor({ state: "attached", timeout: 4000 }).catch(() => {});
+      if (await strip.count()) await strip.click({ force: true });
+      if (tab === "data") {
+        // THE ONE PIECE OF CONTENT ON THIS MATRIX THAT ARRIVES ON THE APP'S OWN
+        // TIMER, and dropping the fixed sleeps is what exposed it: the
+        // launch-time multi-device check is 4.5 s DEFERRED in `useGdriveSync`,
+        // and its diagnostic line only renders once that check has recorded an
+        // outcome. The ~2.9 s of sleeps per screen used to reach it by
+        // accident, and without them the contrast run measured 129 → **128**
+        // text elements here — one element quietly unmeasured, which is the
+        // silent coverage loss this harness exists to prevent.
+        //
+        // MEASURED, not guessed: the element was found by dumping every
+        // measured string on this screen in both versions and diffing.
+        // Waiting for it costs up to ~4.5 s on ONE screen of 36, and only
+        // because the app genuinely takes that long to show it.
+        await awaitMarker(page, label(dict, "settings_cloudcheck_diag_label", lang), 6000);
+      }
     },
   })),
 ];
@@ -1099,7 +1169,7 @@ async function main() {
         }
       }, [JSON.stringify(DATA), lang, scale, SEED_KEYS]);
       await page.goto(URL, { waitUntil: "networkidle" });
-      await page.waitForTimeout(900);
+      await awaitBoot(page);
 
       let prevNoCatalogue = false;
       let prevBigList = false;
@@ -1116,7 +1186,7 @@ async function main() {
         // then load() from localStorage), and a shorter wait clicked before the
         // dock existed — which looked exactly like "navigation drifted".
         await page.goto(URL, { waitUntil: "networkidle" });
-        await page.waitForTimeout(1000);
+        await awaitBoot(page);
         // The catalogue lives in IndexedDB, which survives the reload above —
         // so set it for THIS screen before navigating, and let the next screen
         // set it back. (Same page, one context per language/scale/width.)
@@ -1125,7 +1195,7 @@ async function main() {
           // The app reads the store once per boot and caches it in module
           // memory, so a change needs a fresh JS context to be observed.
           await page.goto(URL, { waitUntil: "networkidle" });
-          await page.waitForTimeout(1000);
+          await awaitBoot(page);
         }
         prevNoCatalogue = !!scr.noCatalogue;
         // Same shape as the catalogue swap above, and for the same reason: the
@@ -1133,18 +1203,25 @@ async function main() {
         if (scr.bigList || prevBigList) {
           await setCellar(page, scr.bigList ? bigListCellar() : DATA, !!scr.bigList);
           await page.goto(URL, { waitUntil: "networkidle" });
-          await page.waitForTimeout(1000);
+          await awaitBoot(page);
         }
         prevBigList = !!scr.bigList;
         if (scr.dock !== null) {
           const btns = await page.locator("nav button, [role=navigation] button").all();
           if (btns.length > scr.dock) await btns[scr.dock].click({ force: true }).catch(() => {});
-          await page.waitForTimeout(700);
+          // MEASURED: every screen carrying its own `go` also carries an
+          // `expect`, and the six that carry neither ARE the dock pages — so a
+          // dock click is the only navigation with no marker to wait on. Those
+          // six get `awaitPaint`; everything else is covered by the marker
+          // below, and the 700 ms that used to sit here is gone.
+          if (!scr.expect) await awaitPaint(page);
         }
         if (scr.go) {
           try {
             await scr.go(page, dict, lang);
-            await page.waitForTimeout(1200);
+            // No sleep: `scr.go` always has an `expect` (asserted by the
+            // harness test), so the marker wait below IS the condition this
+            // 1200 ms was standing in for.
           } catch (e) {
             unreached.push(`${width}px/${scale}/${lang}/${scr.name} (${String(e && e.message || e).split("\n")[0].slice(0, 90)})`);
             continue;
@@ -1154,12 +1231,24 @@ async function main() {
         // `useEnter` animates translateY as well as opacity, so a row measured
         // mid-fade is measured mid-MOVE — its box has not reached its final
         // position. Cheap when nothing is running.
+        // THE MARKER FIRST, THEN `settle` — the order matters and it is what
+        // makes the dropped sleeps safe. `awaitMarker` waits for ATTACHED, so
+        // it returns while the entering transition is still running; `settle`
+        // then waits for that transition to end. Called the other way round,
+        // `settle` would see nothing running yet (the new screen has not
+        // mounted) and return instantly, and we would measure mid-animation.
+        if (scr.expect) {
+          const marker = markerText(label(dict, scr.expect, lang), scr.expect);
+          await awaitMarker(page, marker);
+        }
+        // `useEnter` animates translateY as well as opacity, so a row measured
+        // mid-fade is measured mid-MOVE — its box has not reached its final
+        // position. Cheap when nothing is running.
         await settle(page);
         // A dense screen that never opened would measure a page we already
         // covered — a silent pass. Every navigated screen proves it arrived.
         if (scr.expect) {
           const marker = markerText(label(dict, scr.expect, lang), scr.expect);
-          await awaitMarker(page, marker);
           const seen = await page.getByText(marker, { exact: false }).count();
           if (!seen) {
             unreached.push(`${width}px/${scale}/${lang}/${scr.name} (no "${marker}")`);
@@ -1251,7 +1340,12 @@ module.exports = {
   // `theme-contrast` came to reuse the `inv-long` screen without ever being
   // able to reach it. Both, or neither.
   BIG_LIST_ROWS, bigListCellar, setCellar,
-  markerText, settle, awaitMarker,
+  // `settle` / `awaitMarker` / `awaitBoot` / `awaitPaint` vont ENSEMBLE :
+  // ce sont les quatre conditions qui ont remplacé les sommeils fixes, et
+  // `theme-contrast` parcourt la même liste d'écrans avec la même
+  // navigation. N'en exporter qu'une partie, c'est le manque-au-voisin que
+  // ce fichier a déjà payé sur `setCellar` et sur `markerText`.
+  markerText, settle, awaitMarker, awaitBoot, awaitPaint,
   setCatalogue, CATALOGUE_CSV,
 };
 

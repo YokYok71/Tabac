@@ -249,6 +249,12 @@ export default tseslint.config(
         // there even though the file itself is Node.
         document: "readonly", localStorage: "readonly", window: "readonly",
         getComputedStyle: "readonly",
+        // `awaitQuiet` observes the page's own mutations to know when its
+        // CONTENT has finished arriving — the condition that replaced the
+        // fixed sleeps. Same reason as the line above: the body runs in the
+        // page. `clearTimeout` is listed beside `setTimeout`, which was
+        // already here.
+        MutationObserver: "readonly", clearTimeout: "readonly",
       },
     },
     rules: {
