@@ -235,6 +235,83 @@ describe("les deux tables couvrent le registre, sans trou", () => {
   });
 });
 
+describe("le MODÈLE se remplit et se ré-importe dans chaque langue", () => {
+  // Le parcours réel de l'utilisateur non francophone, et la raison d'être de
+  // tout ceci : on télécharge le modèle PARCE QU'ON NE SAIT PAS quelles
+  // colonnes écrire. Le vérifier sur l'export seul laisserait la porte
+  // d'entrée — la seule que personne ne relit avant de s'en servir — couverte
+  // par rien.
+  function templateCsv(lang: string): string {
+    let text = "";
+    const RealBlob = (globalThis as any).Blob;
+    (globalThis as any).Blob = class extends RealBlob {
+      constructor(parts: any[], o: any) { super(parts, o); text = String(parts[0]); }
+    };
+    (globalThis as any).URL.createObjectURL = vi.fn().mockReturnValue("blob:fake");
+    const { result } = renderHook(() =>
+      useExportImport({
+        data: { ...INIT }, save: vi.fn(),
+        withPhotos: vi.fn().mockImplementation((d: any) => Promise.resolve(d)),
+        nav: vi.fn(), t: (k: string) => k, excludeApiKey: false, apiKey: "",
+        weightUnit: "g", lengthUnit: "mm", currencySymbol: "€", dateFormat: "fr",
+        ageLabel: () => "", stageImport: vi.fn(), lang,
+      } as any),
+    );
+    result.current.doDownloadCsvTemplate();
+    (globalThis as any).Blob = RealBlob;
+    return text;
+  }
+
+  for (const { code } of LANGUAGES) {
+    it(`${code} : le modèle téléchargé s'importe tel quel`, () => {
+      const r = parseTobaccoCsv(templateCsv(code));
+      // Deux lignes d'exemple pour UN mélange, donc deux lots.
+      expect(r.tobaccos.length, `${code} : le modèle doit produire un mélange`).toBe(1);
+      expect(r.tobaccos[0]!.lots.length, `${code} : ses deux lots d'exemple`).toBe(2);
+      // Les deux statuts d'exemple, dans l'ordre — c'est ce que le modèle
+      // DÉMONTRE au lecteur : le mot que l'app attend dans sa langue.
+      expect(r.tobaccos[0]!.lots.map((l: any) => l.status)).toEqual(["jar", "cellar"]);
+      expect(r.tobaccos[0]!.rebuy, `${code} : le « oui » d'exemple`).toBe(true);
+      expect(r.badStatus, `${code} : rien à signaler sur notre propre modèle`).toBe(0);
+      expect(r.skipped, `${code} : aucune ligne perdue`).toBe(0);
+    });
+  }
+
+  it("et son en-tête est bien celui de la langue demandée", () => {
+    // Contre-cas : sans lui, un modèle resté français passerait les six cas
+    // ci-dessus sans faillir, puisque le lecteur comprend le français.
+    for (const { code } of LANGUAGES) {
+      const head = templateCsv(code).split(/\r?\n/)[0]!;
+      expect(head, `${code} : la colonne marque`).toContain(csvHeader("brand", code));
+      if (code !== "fr") {
+        expect(head, `${code} ne doit pas rendre l'en-tête français`)
+          .not.toContain(CSV_COLUMNS["brand"]!["fr"]!);
+      }
+    }
+  });
+
+  it("et ses VALEURS d'exemple aussi — c'est ce que le modèle démontre", () => {
+    // DEUXIÈME fois que la même sonde reste verte pour la même raison :
+    // remettre « Pot » et « Oui » en dur dans les lignes d'exemple ne
+    // rougissait rien, le lecteur comprenant le français. Or le modèle existe
+    // pour MONTRER à un lecteur le mot que l'app attend dans SA langue — un
+    // modèle qui montre le mot français ne remplit pas son office même si le
+    // fichier s'importe. La couche absorbante est, encore, le lecteur.
+    for (const { code } of LANGUAGES) {
+      const rows = templateCsv(code).split(/\r?\n/).slice(1);
+      const cells = rows.join(";").split(";").map((c) => c.replace(/^"|"$/g, ""));
+      for (const key of ["jar", "cellar", "yes"] as const) {
+        expect(cells, `${code} : le modèle doit montrer « ${csvValue(key, code)} »`)
+          .toContain(csvValue(key, code));
+        if (code === "fr") continue;
+        const fr = CSV_VALUES[key]!["fr"]!;
+        if (fr === csvValue(key, code)) continue;
+        expect(cells, `${code} ne doit pas montrer le mot français « ${fr} »`).not.toContain(fr);
+      }
+    }
+  });
+});
+
 describe("un code inconnu retombe sur la forme CANONIQUE", () => {
   it("csvLang rend « fr » et non « en » pour une langue que l'app n'écrit pas", () => {
     // Le repli est le FRANÇAIS ici, à l'inverse du reste de l'app. Ce module

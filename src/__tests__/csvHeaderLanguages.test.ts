@@ -9,28 +9,37 @@
 // obtenait le même message. L'app documentait, en cinq langues, un contrat
 // qu'elle n'honorait pas.
 //
-// L'ÉCRIVAIN reste français et doit le rester : un fichier exporté sous une
-// langue doit se ré-importer sous une autre, et cela ne tient que tant qu'il
-// existe UNE forme d'en-tête canonique. Ce qui n'a jamais été vrai est l'autre
-// moitié — que le LECTEUR doive l'être aussi.
+// L'ÉCRIVAIN était français, et ces lignes disaient qu'il devait le rester : un
+// fichier exporté sous une langue doit se ré-importer sous une autre, et cela
+// ne tenait que tant qu'il existait UNE forme d'en-tête canonique. La prémisse
+// est morte au commit suivant, quand le lecteur a appris les six langues —
+// l'écrivain les écrit désormais tous (`CSV_COLUMNS`). La phrase est corrigée
+// plutôt que supprimée : ce qui a changé est sa RAISON, pas un avis.
+//
+// L'ORDRE, lui, reste la garantie : le LECTEUR d'abord, l'écrivain ensuite.
+// Un ancien build lisant un fichier neuf ne trouve alors ni marque ni nom et
+// échoue BRUYAMMENT, au lieu d'atteindre la colonne Statut où l'échec serait
+// silencieux.
 //
 // Ces cas lient la promesse au comportement : pour chaque langue, les mots que
 // le message nomme sont ceux qu'on donne au lecteur.
 
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { parseTobaccoCsv, CSV_DELIM } from "../utils/csvImport.ts";
+import { parseTobaccoCsv, CSV_DELIM, csvHeader } from "../utils/csvImport.ts";
 import { LANGUAGES } from "../i18n/languages.ts";
 
-/** Les deux colonnes obligatoires, telles que chaque langue les nomme. */
-const IDENTITY: Record<string, [string, string]> = Object.assign(Object.create(null), {
-  fr: ["Marque", "Nom"],
-  en: ["Brand", "Name"],
-  es: ["Marca", "Nombre"],
-  de: ["Marke", "Name"],
-  it: ["Marca", "Nome"],
-  pt: ["Marca", "Nome"],
-});
+/** Les deux colonnes obligatoires, telles que chaque langue les nomme —
+ *  DÉRIVÉES de la table que l'écrivain utilise, jamais réécrites. Elles étaient
+ *  recopiées ici tant que l'écrivain était français et n'en avait pas ; depuis
+ *  qu'il en a une, une copie serait une deuxième source de vérité, c'est-à-dire
+ *  exactement la panne que `CSV_DELIM` puis `CSV_COLUMNS` ont fermée. */
+const IDENTITY: Record<string, [string, string]> = Object.assign(
+  Object.create(null),
+  Object.fromEntries(
+    LANGUAGES.map((l) => [l.code, [csvHeader("brand", l.code), csvHeader("name", l.code)]]),
+  ),
+);
 
 /** Le mot que l'app affiche pour un lot OUVERT, par langue (`lot_jar`). */
 const JAR: Record<string, string> = Object.assign(Object.create(null), {
