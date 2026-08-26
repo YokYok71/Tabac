@@ -486,3 +486,74 @@ describe("HomeViewV2 — the accord chip is not nested in the hero card", () => 
     expect(crossOpenDetail.mock.calls[0]![0]).toMatchObject({ view: "pipes", kind: "pipe" });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// L'appel à l'action de la zone « Agir » porte DEUX actions opposées sur un
+// seul contrôle, choisies par `tastingRunning` — et la branche « reprendre »
+// n'était assertée par rien. Sa neutralisation fait tomber le tap sur
+// `tastingStart({...vide})`, qui ÉCRASE la dégustation en cours par une mise
+// en place vierge : le chrono, le tabac, la pipe et le lot choisis
+// disparaissent, sur le bouton dont le libellé dit « ▶ Reprendre la séance ».
+// Rien ne rougissait, parce que le bouton existe, qu'il est nommé, et qu'il
+// appelle quelque chose.
+//
+// `tastingRunning` couvre AUSSI l'étape `setup`, et c'est délibéré : c'est le
+// même prédicat que `deferAutoUpdate`, précisément pour qu'une mise en place
+// abandonnée reste joignable et donc annulable (voir la note sur la
+// dégustation zombie qui bloquait toute mise à jour).
+describe("HomeViewV2 — l'appel à l'action de la dégustation", () => {
+  function ctaOf(container: HTMLElement) {
+    return Array.from(container.querySelectorAll("[role=button], button"))
+      .find(b => /tasting_resume_home|tasting_title/.test(b.textContent || ""));
+  }
+
+  it("aucune dégustation : le tap en DÉMARRE une", () => {
+    const ctx = {
+      ...baseCtx, tasting: null,
+      tastingStart: vi.fn(), tastingResume: vi.fn(), nav: vi.fn(),
+      sessDefaultWeight: "3",
+    };
+    const { container } = renderWith(ctx);
+    const cta = ctaOf(container as HTMLElement);
+    expect(cta, "la zone Agir doit porter son appel à l'action").toBeTruthy();
+    fireEvent.click(cta!);
+    expect(ctx.tastingStart).toHaveBeenCalledTimes(1);
+    expect(ctx.tastingResume).not.toHaveBeenCalled();
+    expect(ctx.nav).toHaveBeenCalledWith("tasting");
+  });
+
+  for (const stage of ["running", "setup"]) {
+    it(`dégustation en « ${stage} » : le tap REPREND, il ne redémarre pas`, () => {
+      const ctx = {
+        ...baseCtx,
+        tasting: { stage, tobaccoId: 1, pipeId: 1, lotId: "L1", weightG: "3" },
+        tastingStart: vi.fn(), tastingResume: vi.fn(), nav: vi.fn(),
+        sessDefaultWeight: "3",
+      };
+      const { container } = renderWith(ctx);
+      const cta = ctaOf(container as HTMLElement);
+      expect(cta).toBeTruthy();
+      fireEvent.click(cta!);
+      expect(ctx.tastingResume).toHaveBeenCalledTimes(1);
+      expect(ctx.tastingStart,
+        "redémarrer écraserait le chrono et les choix en cours").not.toHaveBeenCalled();
+      expect(ctx.nav).toHaveBeenCalledWith("tasting");
+    });
+  }
+
+  // La tuile « envies » ouvre une SOUS-ÉTAT de l'inventaire, pas une fiche :
+  // `crossOpenDetail` a une branche `kind: "wishlist"` qui pose le filtre au
+  // lieu d'ouvrir un détail. Passer un autre `kind` laisse la tuile
+  // fonctionnelle en apparence et atterrit sur la liste des tabacs.
+  it("la tuile « envies » ouvre la liste d'envies, pas une fiche", () => {
+    const crossOpenDetail = vi.fn();
+    const ctx = { ...baseCtx, crossOpenDetail, stats: { ...baseCtx.stats, wish: 4 } };
+    const { container } = renderWith(ctx);
+    const tile = Array.from(container.querySelectorAll("[role=button], button"))
+      .find(b => (b.textContent || "").includes("lbl_wishes"));
+    expect(tile, "la tuile envies doit être rendue").toBeTruthy();
+    fireEvent.click(tile!);
+    expect(crossOpenDetail).toHaveBeenCalledTimes(1);
+    expect(crossOpenDetail.mock.calls[0]![0]).toMatchObject({ view: "inv", kind: "wishlist" });
+  });
+});

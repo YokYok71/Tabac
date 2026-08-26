@@ -385,3 +385,132 @@ describe("TastingView — l'allumage exige un lot qui EXISTE", () => {
     expect(tastingIgnite).toHaveBeenCalledTimes(1);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Les deux gardes de l'allumage, et le couple pause / reprise.
+//
+// `canIgnite` est la SEULE chose entre un tap et une séance en cours. Sondé,
+// deux de ses trois termes passaient au vert : sans la pipe, on démarre une
+// dégustation qui n'en a pas (le journal affichera « — » à sa place, pour
+// toujours) ; sans le poids, comptabilité ACTIVE, on enregistre un bol à 0 g
+// et le lot n'est jamais débité — la cave cesse de compter, silencieusement.
+// Le troisième terme (le lot doit RÉSOUDRE, pas seulement porter un id) était
+// déjà gardé, et c'est lui qui rendait les deux autres invisibles : un fixture
+// qui échoue toujours sur le même terme n'exerce jamais les autres.
+//
+// Et le bouton pause/reprise porte les DEUX actions sur un seul contrôle,
+// choisies par `paused`. Les inverser ne casse rien de visible dans une suite :
+// le bouton existe, il est nommé, il appelle quelque chose. Il fait
+// simplement l'inverse de son libellé — et sur un chrono, mettre en pause en
+// croyant reprendre fausse la durée enregistrée.
+describe("TastingView — allumer, et le couple pause/reprise", () => {
+  const tob = {
+    id: 7, name: "Duskfall", brand: "Brackwater", category: "Anglais", cut: "Ribbon",
+    lots: [{ id: "L1", status: "jar", weightG: "50", originalStatus: "jar" }],
+  };
+  const pipe = { id: 3, name: "Foxtrot", brand: "Halvorsen", status: "active" };
+
+  function setup(over: Record<string, any> = {}) {
+    const ctx: Record<string, any> = {
+      view: "tasting",
+      accountingEnabled: true,
+      tastingIgnite: vi.fn(),
+      tastingSetupUpdate: vi.fn(),
+      tastingCancel: vi.fn(),
+      weightUnit: "g",
+      data: { tobaccos: [tob], pipes: [pipe], accessories: [], sessions: [], wishlist: [] },
+      tasting: { stage: "setup", tobaccoId: 7, pipeId: 3, lotId: "L1", weightG: "2.5" },
+      ...over,
+    };
+    return { ctx, ...renderWithCtx(<CuratorTastingView />, ctx) };
+  }
+
+  function igniteBtn(container: HTMLElement) {
+    return Array.from(container.querySelectorAll("[role=button], button"))
+      .find(b => /tasting_ignite|allumer/i.test(
+        b.getAttribute("aria-label") || b.textContent || ""));
+  }
+
+  it("tout est choisi : le bouton est ACTIF et allume", () => {
+    const { ctx, container } = setup();
+    const btn = igniteBtn(container as HTMLElement);
+    expect(btn, "le bouton d'allumage doit être rendu").toBeTruthy();
+    expect(btn!.getAttribute("aria-disabled")).not.toBe("true");
+    fireEvent.click(btn!);
+    expect(ctx.tastingIgnite).toHaveBeenCalledTimes(1);
+  });
+
+  it("sans PIPE, on n'allume pas", () => {
+    const { ctx, container } = setup({
+      tasting: { stage: "setup", tobaccoId: 7, pipeId: "", lotId: "L1", weightG: "2.5" },
+    });
+    const btn = igniteBtn(container as HTMLElement);
+    expect(btn!.getAttribute("aria-disabled"),
+      "un contrôle indisponible doit l'ANNONCER, pas seulement le paraître").toBe("true");
+    fireEvent.click(btn!);
+    expect(ctx.tastingIgnite).not.toHaveBeenCalled();
+  });
+
+  it("comptabilité ACTIVE et poids à zéro : on n'allume pas non plus", () => {
+    const { ctx, container } = setup({
+      tasting: { stage: "setup", tobaccoId: 7, pipeId: 3, lotId: "L1", weightG: "0" },
+    });
+    const btn = igniteBtn(container as HTMLElement);
+    expect(btn!.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(btn!);
+    expect(ctx.tastingIgnite).not.toHaveBeenCalled();
+  });
+
+  it("comptabilité DÉSACTIVÉE, le poids ne bloque plus — la moitié qui doit rester", () => {
+    // Contre-cas : sans lui, exiger le poids inconditionnellement passerait le
+    // cas ci-dessus et rendrait l'écran inutilisable comptabilité coupée.
+    const { ctx, container } = setup({
+      accountingEnabled: false,
+      tasting: { stage: "setup", tobaccoId: 7, pipeId: 3, lotId: "L1", weightG: "0" },
+    });
+    const btn = igniteBtn(container as HTMLElement);
+    expect(btn!.getAttribute("aria-disabled")).not.toBe("true");
+    fireEvent.click(btn!);
+    expect(ctx.tastingIgnite).toHaveBeenCalledTimes(1);
+  });
+
+  function runningCtx(paused: boolean) {
+    const ctx: Record<string, any> = {
+      view: "tasting",
+      accountingEnabled: true,
+      weightUnit: "g",
+      data: { tobaccos: [tob], pipes: [pipe], accessories: [], sessions: [], wishlist: [] },
+      tasting: {
+        stage: "running", tobaccoId: 7, pipeId: 3, lotId: "L1", weightG: "2.5",
+        startTs: 1_700_000_000_000, pausedAccumMs: 0,
+        ...(paused ? { pauseStartTs: 1_700_000_060_000 } : {}),
+      },
+      tastingPause: vi.fn(),
+      tastingUnpause: vi.fn(),
+      tastingEnd: vi.fn(),
+      tastingUpdate: vi.fn(),
+      tastingElapsedMs: () => 60_000,
+      tastingOvertimePrompt: () => false,
+      tastingOvertimeRemainingMs: () => 0,
+    };
+    return { ctx, ...renderWithCtx(<CuratorTastingView />, ctx) };
+  }
+
+  it("en marche, le bouton MET EN PAUSE", () => {
+    const { ctx, container } = runningCtx(false);
+    const btn = container.querySelector('[aria-label="aria_pause_tasting"]');
+    expect(btn, "en marche, le contrôle doit s'annoncer comme une pause").toBeTruthy();
+    fireEvent.click(btn as Element);
+    expect(ctx.tastingPause).toHaveBeenCalledTimes(1);
+    expect(ctx.tastingUnpause).not.toHaveBeenCalled();
+  });
+
+  it("en pause, le MÊME bouton reprend", () => {
+    const { ctx, container } = runningCtx(true);
+    const btn = container.querySelector('[aria-label="aria_resume_tasting"]');
+    expect(btn, "en pause, il doit s'annoncer comme une reprise").toBeTruthy();
+    fireEvent.click(btn as Element);
+    expect(ctx.tastingUnpause).toHaveBeenCalledTimes(1);
+    expect(ctx.tastingPause).not.toHaveBeenCalled();
+  });
+});

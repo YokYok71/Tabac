@@ -37,6 +37,7 @@ vi.mock("../utils/catalogueStore.ts", () => ({
 }));
 vi.mock("../utils/tobaccoDb.ts", () => ({ tobaccoDbInvalidate: vi.fn() }));
 
+import { tobaccoDbInvalidate } from "../utils/tobaccoDb";
 import { useUserCatalogue } from "../hooks/useUserCatalogue";
 import { parseCatalogueCsv, MAX_CATALOGUE_ISSUES } from "../utils/userCatalogue";
 
@@ -145,5 +146,71 @@ describe("the report must not outlive the catalogue it describes", () => {
     await waitFor(() => expect(result.current.catalogueMeta?.name).toBe("new.csv"));
     expect(result.current.catalogueAudit,
       "the old file's rows under the new file's name").toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Le cache de `tobaccoDb` est invalidé à CHAQUE changement — et les deux
+// appels étaient assertés par rien.
+//
+// `loadTobaccoDb` garde le catalogue en mémoire de module pour toute la
+// session : sans l'invalidation, l'app continue de répondre depuis le
+// PRÉCÉDENT catalogue jusqu'au prochain rechargement complet. L'utilisateur
+// charge son fichier, voit l'ancien contenu, et conclut que l'import n'a pas
+// marché. Au RETRAIT, c'est pire dans l'autre sens : le catalogue est effacé du
+// stockage et les recherches continuent de le servir, donc le bouton paraît
+// mort alors qu'il a bien supprimé.
+//
+// Sondé une porte à la fois : neutraliser l'un des deux appels laissait la
+// suite entièrement verte. Le mock du module en tête de fichier est déjà un
+// `vi.fn()`, donc il n'y avait qu'à le regarder.
+describe("le cache du catalogue est invalidé aux deux portes", () => {
+  function pickFile(text: string, name: string) {
+    const realCreate = document.createElement.bind(document);
+    return vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
+      const el: any = realCreate(tag as any);
+      if (tag === "input") {
+        el.click = () => {
+          Object.defineProperty(el, "files", { value: [new File([text], name, { type: "text/csv" })] });
+          if (el.onchange) el.onchange({} as any);
+        };
+      }
+      return el;
+    }) as any);
+  }
+
+  it("CHARGER un catalogue invalide le cache", async () => {
+    const inv = vi.mocked(tobaccoDbInvalidate);
+    inv.mockClear();
+    const { result } = mount();
+    const spy = pickFile(csv(row(), row({ blend_name: "Other" })), "new.csv");
+    await act(async () => { result.current.loadCatalogueFile(); });
+    spy.mockRestore();
+    await waitFor(() => expect(result.current.catalogueMeta?.name).toBe("new.csv"));
+    expect(inv, "sinon les recherches servent encore l'ancien fichier").toHaveBeenCalled();
+  });
+
+  it("RETIRER le catalogue invalide le cache aussi", async () => {
+    await seed(csv(row()));
+    const inv = vi.mocked(tobaccoDbInvalidate);
+    const { result } = mount();
+    await waitFor(() => expect(result.current.catalogueMeta).toBeTruthy());
+    inv.mockClear();
+    await act(async () => { result.current.clearCatalogue(); });
+    await waitFor(() => expect(result.current.catalogueMeta).toBeNull());
+    expect(inv, "un catalogue retiré doit cesser de répondre").toHaveBeenCalled();
+  });
+
+  it("un écran qui ne change RIEN n'invalide pas — la moitié qui doit rester", async () => {
+    // Contre-cas : invalider à chaque rendu viderait le cache en boucle et
+    // ferait repayer la lecture IndexedDB sur chaque surface du catalogue.
+    await seed(csv(row()));
+    const inv = vi.mocked(tobaccoDbInvalidate);
+    const { result } = mount();
+    await waitFor(() => expect(result.current.catalogueMeta).toBeTruthy());
+    inv.mockClear();
+    await act(async () => { result.current.auditCatalogue(); });
+    await waitFor(() => expect(result.current.catalogueAudit).toBeTruthy());
+    expect(inv).not.toHaveBeenCalled();
   });
 });
