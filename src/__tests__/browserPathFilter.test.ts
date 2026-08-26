@@ -42,8 +42,8 @@ function patterns(): string[] {
   const start = wf.indexOf("paths: &browser_paths");
   expect(start, "l'ancre `&browser_paths` a disparu du workflow").toBeGreaterThan(-1);
   const rest = wf.slice(start);
-  const end = rest.indexOf("\n  pull_request:");
-  expect(end, "la liste de motifs n'est pas suivie de pull_request").toBeGreaterThan(-1);
+  const end = rest.indexOf("\n  workflow_dispatch:");
+  expect(end, "la liste de motifs n'est pas suivie de workflow_dispatch").toBeGreaterThan(-1);
   return (rest.slice(0, end).match(/^\s*- "([^"]+)"/gm) || [])
     .map((l) => (l.match(/"([^"]+)"/) || [])[1]!)
     .filter(Boolean);
@@ -155,15 +155,26 @@ describe("le filtre par chemins des campagnes navigateur", () => {
       "le guide EST un écran de la matrice").toBe(true);
   });
 
-  it("le workflow garde ses deux déclencheurs et son rattrapage manuel", () => {
-    // La convention ici est de pousser directement sur main, donc un filtre
-    // limité aux pull requests ne se déclencherait presque jamais. Et
-    // `workflow_dispatch` est la sortie de secours quand on veut la matrice
-    // complète sur un commit que le filtre a ignoré.
-    expect(wf).toMatch(/^\s*push:\s*$/m);
+  it("ce workflow ne se déclenche PLUS sur push — c'est deploy.yml qui garde main", () => {
+    // RENVERSEMENT, consigné sur l'assertion plutôt que réécrit en silence.
+    // Ce cas exigeait `push:` en soutenant qu'« un filtre limité aux pull
+    // requests ne se déclencherait presque jamais, la convention étant de
+    // pousser directement sur main ». L'argument tenait, et il a été résolu
+    // par l'autre bout : sur main les campagnes tournent DANS `deploy.yml`, où
+    // elles retiennent l'artefact. Les garder ici aussi ferait tourner 864
+    // rendus deux fois pour un seul commit.
+    const code = wf.replace(/^\s*#[^\n]*$/gm, "");
+    expect(code, "le déclencheur push est revenu : les campagnes tourneraient en double sur main")
+      .not.toMatch(/^\s*push:\s*$/m);
     expect(wf).toMatch(/^\s*pull_request:\s*$/m);
     expect(wf).toMatch(/^\s*workflow_dispatch:\s*$/m);
-    // `pull_request` réutilise l'ANCRE : deux listes recopiées dériveraient.
-    expect(wf).toContain("paths: *browser_paths");
+  });
+
+  it("et deploy.yml porte bien les campagnes à la place", () => {
+    // Sans ce cas, le retrait ci-dessus vaudrait suppression de la couverture :
+    // vert en n'ayant plus rien qui mesure main.
+    const dep = readFileSync(".github/workflows/deploy.yml", "utf8");
+    expect(dep).toContain("npm run theme:contrast");
+    expect(dep).toContain("npm run i18n:layout");
   });
 });

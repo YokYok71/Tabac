@@ -135,6 +135,47 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
         run: npm run size:check
 
+      # ── LES CAMPAGNES NAVIGATEUR SONT DES PORTES DE DÉPLOIEMENT ────────────
+      #
+      # Elles vivaient dans leur propre workflow, en parallèle de celui-ci, donc
+      # elles ne pouvaient RIEN retenir : l'artefact partait, l'application
+      # arrivait sur le téléphone, et le verdict de mise en page et de contraste
+      # tombait ~9 min plus tard sur un build que l'utilisateur avait déjà. La
+      # même découverte que pour les quatre portes au-dessus, un cran plus loin :
+      # « une porte dans un workflow parallèle ne peut pas bloquer un
+      # déploiement ». Fenêtre signalée comme gênante, donc fermée.
+      #
+      # ELLES TOURNENT SANS CONDITION, et ce n'est pas un oubli du filtre par
+      # chemins. Le filtrer ici demanderait de diffèrer contre
+      # `github.event.before` — or `concurrency: cancel-in-progress` annule les
+      # runs intermédiaires, si bien que deux poussées rapprochées (une vue,
+      # puis de la documentation) laissent le run survivant ne voir que la
+      # seconde : la vue partirait NON MESURÉE, exactement ce que cette porte
+      # existe pour empêcher. Une porte avec un trou est pire qu'une porte
+      # lente. Le filtre garde toute sa valeur là où sa base est bien définie —
+      # `browser.yml`, sur les pull requests et en rattrapage manuel.
+      #
+      # SÉRIE ET NON PARALLÈLE, délibérément : les deux vérificateurs REFUSENT
+      # un `dist/` plus vieux que `src/` (scripts/distFreshness.cjs), donc les
+      # faire tourner dans un job séparé signifierait reconstruire. Ici elles
+      # réutilisent le `dist/` que l'étape Build vient de produire. Coût : le
+      # déploiement passe d'environ 4 min à environ 17.
+      #
+      # AVANT le téléversement, comme les quatre autres.
+      - name: Install playwright-core + Chromium
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
+        run: |
+          npm i --no-save playwright-core
+          npx playwright-core install --with-deps chromium
+
+      - name: Contrast — 6 palettes × 36 screens
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
+        run: npm run theme:contrast
+
+      - name: Layout — 6 languages × 36 screens × 2 text sizes × 2 widths
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
+        run: npm run i18n:layout
+
       - uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ env.ARTIFACT_PATH }}

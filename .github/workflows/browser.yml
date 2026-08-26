@@ -30,9 +30,26 @@ name: Browser checks
 # exige que chacun soit soit couvert par un motif, soit inscrit dans une courte
 # liste d'exemptions portant sa raison. Un septième répertoire de premier niveau
 # fait rougir la suite au lieu de sortir silencieusement de la couverture.
+#
+# LE DÉCLENCHEUR `push` A ÉTÉ RETIRÉ, et c'est un renversement assumé plutôt
+# qu'un allègement. Ce fichier a d'abord porté les campagnes sur `push` ET sur
+# `pull_request` en soutenant qu'« une porte limitée aux pull requests ne se
+# déclencherait presque jamais, puisque la convention ici est de pousser
+# directement sur main ». L'argument était juste et il a été résolu par
+# l'autre bout : sur main, les campagnes tournent désormais DANS `deploy.yml`,
+# où elles peuvent retenir l'artefact — ce qu'un workflow parallèle ne peut pas
+# faire. Les garder ici aussi ferait tourner 864 rendus deux fois pour un seul
+# commit.
+#
+# CE QUI RESTE ICI EST CE QUE `deploy.yml` NE COUVRE PAS : les pull requests,
+# où le filtre par chemins est sain parce que GitHub diffe contre la base de
+# fusion — une base bien définie, contrairement à `github.event.before` sur un
+# push, que `cancel-in-progress` peut rendre trompeuse (voir deploy.yml).
 on:
-  push:
-    branches: [main]
+  pull_request:
+    # L'ancre survit au retrait de `push` : elle est le repère NOMMÉ que
+    # `browserPathFilter.test.ts` va chercher pour lire la liste, et elle est
+    # déjà en place si un second déclencheur devait la réutiliser un jour.
     paths: &browser_paths
       # Tout `src/`, sauf les tests : un utilitaire, un hook ou une constante
       # peuvent tous finir à l'écran, et découper plus fin reviendrait à parier
@@ -56,8 +73,6 @@ on:
       - "scripts/parallelRun.cjs"
       - "scripts/distFreshness.cjs"
       - ".github/workflows/browser.yml"
-  pull_request:
-    paths: *browser_paths
   # Le rattrapage manuel : quand on veut la matrice complète sur un commit que
   # le filtre a ignoré, ou simplement avant une release.
   workflow_dispatch:

@@ -40,6 +40,12 @@ const GATES = [
   "npm run lint",
   "npm run prune",
   "npm run size:check",
+  // Les deux campagnes navigateur, entrées dans le chemin de déploiement pour
+  // fermer la fenêtre où le build était sur le téléphone sans avoir été
+  // mesuré. Elles sont des portes au même titre que les quatre au-dessus :
+  // elles doivent précéder le téléversement.
+  "npm run theme:contrast",
+  "npm run i18n:layout",
 ];
 // `npm run catalogue:check` was a sixth gate. It read the
 // catalogue the app shipped; the app ships none, so the script now REQUIRES a
@@ -117,6 +123,57 @@ describe("deploy.yml — the gates gate the deploy", () => {
     });
   });
 
+  // ── LES CAMPAGNES, CÔTÉ DÉPLOIEMENT ───────────────────────────────────────
+  //
+  // La boucle GATES ci-dessus vérifie qu'elles précèdent le téléversement. Ce
+  // bloc-ci vérifie qu'elles mesurent quelque chose de RÉEL une fois arrivées
+  // là — c'est le câblage qui pourrit, et une campagne rétrécie ou lancée sans
+  // navigateur rapporte vert en n'ayant rien vu.
+  describe("les campagnes navigateur dans deploy.yml", () => {
+    const from = deploy.indexOf("- name: Install playwright-core");
+    const zone = from < 0 ? "" : deploy.slice(from, deploy.indexOf(UPLOAD));
+
+    it("la zone est repérable (non-vacuité)", () => {
+      expect(from, "l'étape d'installation du navigateur a disparu").toBeGreaterThan(-1);
+    });
+
+    it("aucun axe n'est rétréci", () => {
+      // Rétrécir est légitime en itération et doit ne jamais devenir le
+      // défaut CI : un passage sur `--langs de` rapporte vert en ayant mesuré
+      // une langue sur six, et se lit comme une couverture complète.
+      expect(zone, "un axe est rétréci — la CI rapporterait sur une tranche")
+        .not.toMatch(/--langs|--scales|--widths|THEME_CONTRAST_THEMES|THEME_CONTRAST_MODES|THEME_CONTRAST_LANG/);
+    });
+
+    it("installe Chromium — les campagnes sautent le shell headless", () => {
+      expect(zone).toContain("npm i --no-save playwright-core");
+      expect(zone).toMatch(/playwright-core install[^\n]*chromium/);
+    });
+
+    it("réutilise le dist/ de l'étape Build, qui la précède", () => {
+      // Les deux vérificateurs REFUSENT un dist/ plus vieux que src/. Un job
+      // séparé devrait reconstruire ; ici l'ordre suffit, et c'est aussi
+      // pourquoi elles sont en SÉRIE et non en parallèle.
+      expect(deploy.indexOf("npm run build")).toBeLessThan(deploy.indexOf("npm run theme:contrast"));
+    });
+
+    it("chaque campagne rapporte même si l'autre a échoué", () => {
+      const after = zone.slice(zone.indexOf("- name: Contrast"));
+      expect((after.match(/!cancelled\(\)/g) || []).length,
+        "une campagne en échec masque l'autre").toBeGreaterThanOrEqual(2);
+    });
+
+    it("se tait quand le build a échoué, comme size:check", () => {
+      // Même raison exactement : sans dist/, la campagne imprimerait une
+      // erreur de fraîcheur en DERNIER dans le journal, donc la première chose
+      // que lit un humain — et un test rouge se diagnostiquerait en problème
+      // de navigateur.
+      const steps = zone.split(/\n {6}- name: /).slice(1);
+      expect(steps.length).toBeGreaterThanOrEqual(2);
+      steps.forEach((s) => expect(s).toContain("steps.build.outcome == 'success'"));
+    });
+  });
+
   // ── Les deux vérifications NAVIGATEUR sont enfin lancées quelque part ──────
   //
   // Elles voient ce qu'aucune autre porte ne voit — une étiquette rognée, un
@@ -188,21 +245,28 @@ describe("deploy.yml — the gates gate the deploy", () => {
         "one failing campaign hides the other").toBeGreaterThanOrEqual(2);
     });
 
-    it("fires on PUSH as well as on pull_request", () => {
-      // The convention here is to push straight to main, so a
-      // pull-request-only browser gate would fire almost never — which is the
-      // state this job exists to end. Both triggers, or it is decoration.
-      expect(browser).toMatch(/^\s*push:\s*$/m);
+    it("ne se déclenche PLUS sur push : ce fichier est la voie des pull requests", () => {
+      // RENVERSEMENT CONSIGNÉ. Ce cas exigeait `push:` — « la convention ici
+      // est de pousser directement sur main, donc une porte limitée aux pull
+      // requests ne se déclencherait presque jamais ». Vrai, et résolu par
+      // l'autre bout : sur main les campagnes sont dans `deploy.yml`. Les
+      // garder ici aussi ferait 864 rendus deux fois par commit.
+      const code = browser.replace(/^\s*#[^\n]*$/gm, "");
+      expect(code, "push est revenu : double exécution sur main")
+        .not.toMatch(/^\s*push:\s*$/m);
       expect(browser).toMatch(/^\s*pull_request:\s*$/m);
     });
 
-    it("stays OUT of the deploy path, and that is a decision", () => {
-      // deploy.yml is where a gate can hold the artifact back, and this one is
-      // deliberately not there: ~15 min on EVERY deploy, permanently, for a
-      // class that is visible and re-pushable — unlike a type error. If a
-      // layout regression ever reaches users on main, move it and pay it.
-      expect(deploy).not.toContain("npm run i18n:layout");
-      expect(deploy).not.toContain("npm run theme:contrast");
+    it("ENTRE dans le chemin de déploiement — la fenêtre non mesurée est fermée", () => {
+      // RENVERSEMENT CONSIGNÉ, et il était PRÉVU : ce cas exigeait l'absence
+      // des campagnes dans `deploy.yml`, sous un commentaire disant « si une
+      // régression de mise en page atteint un jour les utilisateurs sur main,
+      // la déplacer et payer les 15 min ». Ce n'est pas une régression qui a
+      // tranché mais l'utilisateur : hors du chemin de déploiement, les
+      // campagnes laissaient une fenêtre d'environ neuf minutes où le build
+      // était sur le téléphone sans avoir été mesuré. Le coût est payé.
+      expect(deploy).toContain("npm run theme:contrast");
+      expect(deploy).toContain("npm run i18n:layout");
     });
 
     it("la voie rapide existe toujours et reste rapide", () => {
