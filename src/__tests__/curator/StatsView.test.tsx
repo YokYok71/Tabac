@@ -290,3 +290,4 @@ describe("Stats calendar tap target", () => {
     expect(onCell).toHaveBeenCalled();
   });
 });
+

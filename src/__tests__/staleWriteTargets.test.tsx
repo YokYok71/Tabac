@@ -142,7 +142,17 @@ describe("an AI answer lands on the fiche that asked for it", () => {
   it("every one of the three writers checks it", () => {
     // Three setters (pipe / wish / tobacco); a guard on two of them is a fix
     // for two thirds of the doors.
-    const guards = src.match(/if \(f && f\.id !== targetId\) return f;/g) || [];
+    //
+    // THE GUARD WAS STRENGTHENED, NOT REPLACED, AND THIS CASE WENT RED FOR THE
+    // RIGHT REASON. It used to match `if (f && f.id !== targetId) return f;`
+    // exactly. The residual this file's own header discloses — two successive
+    // ADD forms both carry `undefined`, so the id cannot separate them — is now
+    // closed by a form-SESSION counter, so each writer tests both terms. The id
+    // half is still required here: dropping it would let an answer land on a
+    // DIFFERENT fiche opened within the same navigation session.
+    const guards = src.match(
+      /if \(f && \(f\.id !== targetId \|\| currentFormSession\(\) !== targetSession\)\) return f;/g,
+    ) || [];
     expect(guards).toHaveLength(3);
   });
 

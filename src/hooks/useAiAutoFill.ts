@@ -14,6 +14,7 @@ import {
 import { stripMarkupFromString } from "../utils.ts";
 import { lsGet, lsSet } from "../utils/appStorage.ts";
 import { safeJsonParse } from "../utils/safeJson.ts";
+import { currentFormSession } from "../utils/formSession.ts";
 import {
   tobaccoDbLookup,
   isTobaccoDbReady,
@@ -904,13 +905,20 @@ export function useAiAutoFill({
     // wrote A's data over B's row.
     //
     // The id is the identity (`nav()` may not reset it — that is the hard
-    // invariant — and the working copy carries it for an edit). RESIDUAL,
-    // disclosed: two successive ADD forms both have `undefined`, so they
-    // cannot be told apart this way. Guarding those on the typed brand+name
-    // was written and rejected — the scan→auto-fill chain builds its query
-    // from the SCAN result while the form still holds the previous value, so
-    // that rule would have dropped a result the user was waiting for.
+    // invariant — and the working copy carries it for an edit).
+    //
+    // THE RESIDUAL THAT USED TO BE DISCLOSED HERE IS CLOSED: two successive ADD
+    // forms both carry `undefined`, so the id alone could not tell them apart —
+    // open "new tobacco", tap Rechercher, back out, open "new tobacco" again,
+    // and the first answer landed in the second form. `currentFormSession()`
+    // separates them: `nav()` opens a new session, and so do the wishlist
+    // overlay's two openers (a layer, never a view, so `nav` never fires for
+    // it). See `utils/formSession.ts` for the two solutions that were written
+    // and REJECTED — falling back on brand+name (it would drop a result the
+    // scan chain is waiting for) and stamping a token into the working copy (the
+    // stores would persist it as a phantom field on the cellar).
     var targetId = type === "pipe" ? pipeForm.id : type === "wish" ? wishForm.id : form.id;
+    var targetSession = currentFormSession();
     setAiErr("");
     var jT =
       '{"name":"","brand":"","category":"Anglais|Aromatique|Balkan|Burley|Cavendish|Dark Fired|Écossais|Latakia|Oriental|Perique|Turkish|VaPer|Virginia|Virginia/Burley","blend":"varietes","cut":"Broken Flake|Coins|Crumble Cake|Cube Cut|Curly Cut|Flake|Loose Cut|Plug|Pressed|Ready Rubbed|Ribbon|Rope|Rough Cut|Shag|Sliced","force":1,"room_note":1,"taste":1,"aging_max_years":"","description":""}';
@@ -1115,7 +1123,9 @@ export function useAiAutoFill({
       setAiSource(aiProvider as any);
       if (type === "pipe") {
         setPipeForm(function (f: any) {
-          if (f && f.id !== targetId) return f;   // another fiche is open now
+          // `targetSession` couvre le cas que l'`id` ne peut pas voir :
+          // deux formulaires d'AJOUT successifs, tous deux `undefined`.
+          if (f && (f.id !== targetId || currentFormSession() !== targetSession)) return f;
 
           var validSh = normShape(info.shape || "") || f.shape;
           var lmm = parseFloat(info.length_mm);
@@ -1196,7 +1206,9 @@ export function useAiAutoFill({
         });
       } else if (type === "wish") {
         setWishForm(function (f: any) {
-          if (f && f.id !== targetId) return f;   // another fiche is open now
+          // `targetSession` couvre le cas que l'`id` ne peut pas voir :
+          // deux formulaires d'AJOUT successifs, tous deux `undefined`.
+          if (f && (f.id !== targetId || currentFormSession() !== targetSession)) return f;
 
           var fv = parseInt(info.force) || f.force || 0;
           var rn = parseInt(info.room_note) || f.roomNote || 0;
@@ -1216,7 +1228,9 @@ export function useAiAutoFill({
         });
       } else {
         setForm(function (f: any) {
-          if (f && f.id !== targetId) return f;   // another fiche is open now
+          // `targetSession` couvre le cas que l'`id` ne peut pas voir :
+          // deux formulaires d'AJOUT successifs, tous deux `undefined`.
+          if (f && (f.id !== targetId || currentFormSession() !== targetSession)) return f;
 
           var fv = parseInt(info.force) || f.force || 0;
           var rn = parseInt(info.room_note) || f.roomNote || 0;

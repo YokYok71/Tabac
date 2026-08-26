@@ -52,6 +52,7 @@ import { useAppUpdate } from "./hooks/useAppUpdate.ts";
 import { useBackNavigation } from "./hooks/useBackNavigation.ts";
 import { nextStackOnNav, decideBack, pushDrillOrigin, type NavLoc } from "./utils/navHistory.ts";
 import { hasOpenModal, closeTopModal, subscribeModalStack } from "./utils/modalStack.ts";
+import { bumpFormSession } from "./utils/formSession.ts";
 import { IS_IOS, IS_IOS_STANDALONE } from "./utils/platform.ts";
 import { appStorage, lsGet, lsSet, lsRemove } from "./utils/appStorage.ts";
 import { makeEncryptionVerifier } from "./utils/cryptoBackup.ts";
@@ -1370,6 +1371,21 @@ function App() {
   // deletion cannot quietly start losing photos.)
 
   function nav(v: string, opts?: { restoreScroll?: boolean }) {
+    // NAVIGUER OUVRE UNE NOUVELLE SESSION DE FORMULAIRE.
+    //
+    // Une réponse d'IA en vol se posait sur la copie de travail COURANTE ; la
+    // garde par `id` règle les fiches en édition et laisse un trou pour deux
+    // formulaires d'AJOUT successifs, qui portent tous deux `undefined`.
+    // `currentFormSession()` les distingue — voir `utils/formSession.ts` pour
+    // les deux solutions écartées.
+    //
+    // CE N'EST PAS DE L'ÉTAT DE FORMULAIRE : l'invariant dur interdit à `nav`
+    // de réinitialiser un `editXxxId` ou une copie de travail, et il n'y touche
+    // pas. Aucun nom de vue n'est listé ici, délibérément — une liste de vues
+    // est la forme qui pourrit, et « l'utilisateur a navigué » suffit : un
+    // incrément superflu ne fait que jeter une réponse en vol, ce qui est le
+    // côté prudent.
+    bumpFormSession();
     // Push the screen we're LEAVING onto the back-history stack —
     // UNLESS this nav() is itself a goBack restore (guarded) or a no-op to the
     // same view. captureLoc reads the live state BEFORE the resets below, so

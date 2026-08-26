@@ -24,6 +24,7 @@ import { computeShoppingList, shoppingCount, isLowStock } from "../../utils/shop
 import { compareByBrandThenName } from "../../utils/sortBrandName.ts";
 import { allTags } from "../../utils/tags.ts";
 import { FilterChipSimple } from "../../components/curator/FilterControls.tsx";
+import { bumpFormSession } from "../../utils/formSession.ts";
 import { Modal, ModalHeader } from "../../components/curator/Modal.tsx";
 import { ModalAction } from "../../components/curator/ModalAction.tsx";
 import { AromaPicker } from "../../components/curator/AromaPicker.tsx";
@@ -460,6 +461,12 @@ export function CuratorInventoryListView() {
     if (!BW || typeof setWishForm !== "function"
         || typeof setEditWishId !== "function"
         || typeof setShowWishForm !== "function") return;
+    // Le formulaire d'envie est un CALQUE, pas une vue : `nav()` ne s'exécute
+    // jamais pour lui, donc c'est ici qu'une nouvelle session de formulaire
+    // s'ouvre. Sans cela, deux « nouvelle envie » successives restent
+    // indistinguables pour la garde de l'IA — le trou exact que
+    // `utils/formSession.ts` ferme ailleurs.
+    bumpFormSession();
     setWishForm(Object.assign({}, BW));
     setEditWishId(null);
     // Snapshot scroll before opening the overlay: it is NOT a view change,
@@ -472,6 +479,11 @@ export function CuratorInventoryListView() {
     if (!BW || typeof setWishForm !== "function"
         || typeof setEditWishId !== "function"
         || typeof setShowWishForm !== "function") return;
+    // Même raison qu'à l'ouvreur d'ajout : le calque ne passe pas par `nav()`.
+    // L'`id` suffirait ici, mais les deux portes doivent se comporter
+    // pareil — c'est la règle « les deux portes ne peuvent pas diverger »
+    // écrite quelques lignes plus haut pour ce même formulaire.
+    bumpFormSession();
     setWishForm(Object.assign({}, BW, w));
     // Never dropped: without the id, `updateWish`'s .map() matches
     // nothing at save time and the edit is silently lost.
