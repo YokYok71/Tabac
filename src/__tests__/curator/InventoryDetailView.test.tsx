@@ -85,6 +85,14 @@ describe("InventoryDetailView — visibility", () => {
   });
 });
 
+// The assertions used to sit inside `if (trashBtn) { … }`, so a delete
+// control that vanished — a renamed key, a dropped handler (IconBtn renders a
+// non-interactive <div aria-hidden> with no accessible name when it has no
+// onClick) — turned into a PASS with zero assertions, on the only way to
+// remove a tobacco from the cellar. Same shape as the JournalView delete case
+// this file's sibling documents. Finding the button is a pre-condition now,
+// and the lookup keys on the exact `btn_delete` label rather than a word list
+// that also matched the trash INDICATOR beside it.
 describe("InventoryDetailView — delete", () => {
   // The trash button now calls deleteTobacco directly
   // (soft-delete → Trash + 8 s undo toast). No more confirm modal.
@@ -97,11 +105,10 @@ describe("InventoryDetailView — delete", () => {
       deleteTobacco,
     });
     const buttons = getAllByRole("button");
-    const trashBtn = buttons.find(b => /trash|btn_delete|Supprimer|Delete/i.test(b.getAttribute("aria-label") || ""));
-    if (trashBtn) {
-      fireEvent.click(trashBtn);
-      expect(deleteTobacco).toHaveBeenCalledWith("1");
-    }
+    const trashBtn = buttons.find(b => /^btn_delete$|^Supprimer$/.test(b.getAttribute("aria-label") || ""));
+    expect(trashBtn, "no delete control on the tobacco fiche").toBeTruthy();
+    fireEvent.click(trashBtn!);
+    expect(deleteTobacco).toHaveBeenCalledWith("1");
   });
 });
 

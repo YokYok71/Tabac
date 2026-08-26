@@ -40,6 +40,20 @@ describe("SettingsModal — visibility", () => {
   });
 });
 
+// ── THE THREE CLOUD BUTTONS WERE ASSERTED BEHIND `if (btn) { … }` ──────────
+//
+// Each case looked the button up, and wrapped BOTH the click and the
+// expectation in a conditional. When the control disappears — renamed key,
+// a provider branch that stops rendering it, or an `ActionBtn` that loses its
+// handler and therefore its `role="button"` (PressCard drops the role when
+// there is no onClick, so a rendered-but-ungated button is INVISIBLE to this
+// query) — the block simply does not run and the case passes with ZERO
+// assertions, while claiming to guard manual cloud save, restore and account
+// disconnect.
+//
+// Finding the control is a PRE-CONDITION now, not a branch. The lookup also
+// keys on the exact i18n key per provider rather than a loose word list: with
+// the key-returning mockT, /compte|account/ could match a neighbouring row.
 describe("SettingsModal — Drive buttons", () => {
   it("'Save to Drive' button calls gdriveSave", () => {
     const gdriveSave = vi.fn();
@@ -52,12 +66,11 @@ describe("SettingsModal — Drive buttons", () => {
     });
     const buttons = Array.from(container.querySelectorAll("[role='button']"));
     const saveBtn = buttons.find(b =>
-      /Sauvegarder Drive|Save to Drive|btn_gdrive_save/i.test(b.textContent || ""),
+      /btn_gdrive_save|btn_dropbox_save/.test(b.textContent || ""),
     );
-    if (saveBtn) {
-      fireEvent.click(saveBtn);
-      expect(gdriveSave).toHaveBeenCalled();
-    }
+    expect(saveBtn, "no manual cloud-save button in the Données tab").toBeTruthy();
+    fireEvent.click(saveBtn!);
+    expect(gdriveSave).toHaveBeenCalled();
   });
 
   it("'Restore Drive' button calls gdriveRestore", () => {
@@ -71,12 +84,11 @@ describe("SettingsModal — Drive buttons", () => {
     });
     const buttons = Array.from(container.querySelectorAll("[role='button']"));
     const restoreBtn = buttons.find(b =>
-      /Restaurer Drive|Restore Drive|btn_gdrive_restore/i.test(b.textContent || ""),
+      /btn_gdrive_restore|btn_dropbox_restore/.test(b.textContent || ""),
     );
-    if (restoreBtn) {
-      fireEvent.click(restoreBtn);
-      expect(gdriveRestore).toHaveBeenCalled();
-    }
+    expect(restoreBtn, "no cloud-restore button in the Données tab").toBeTruthy();
+    fireEvent.click(restoreBtn!);
+    expect(gdriveRestore).toHaveBeenCalled();
   });
 
   it("'Disconnect Google' calls tkClear", () => {
@@ -91,12 +103,11 @@ describe("SettingsModal — Drive buttons", () => {
     });
     const buttons = Array.from(container.querySelectorAll("[role='button']"));
     const disconnect = buttons.find(b =>
-      /compte|account|btn_gdrive_disconnect|disconnect|déconnecter/i.test(b.textContent || ""),
+      /btn_gdrive_disconnect/.test(b.textContent || ""),
     );
-    if (disconnect) {
-      fireEvent.click(disconnect);
-      expect(tkClear).toHaveBeenCalled();
-    }
+    expect(disconnect, "no Google account-disconnect button in the Données tab").toBeTruthy();
+    fireEvent.click(disconnect!);
+    expect(tkClear).toHaveBeenCalled();
   });
 });
 

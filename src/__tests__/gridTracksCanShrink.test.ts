@@ -93,33 +93,89 @@ describe("grid tracks can shrink", () => {
   });
 });
 
+/**
+ * Every JSX opening tag in `src`, as raw text from its `<` to the matching
+ * `>`. Brace depth is tracked so a `style={{ … }}` prop cannot end the tag
+ * early, and string literals are skipped so a `>` inside one cannot either.
+ *
+ * This exists so the scroller assertions below can ask about ONE ELEMENT
+ * instead of about a whole file — see the note on that block.
+ */
+function openingTags(src: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < src.length; i++) {
+    if (src[i] !== "<" || !/[A-Za-z]/.test(src[i + 1] || "")) continue;
+    let depth = 0;
+    let j = i + 1;
+    let ok = false;
+    for (; j < src.length; j++) {
+      const c = src[j]!;
+      if (c === '"' || c === "'" || c === "`") {
+        const q = c;
+        j++;
+        while (j < src.length && src[j] !== q) { if (src[j] === "\\") j++; j++; }
+        continue;
+      }
+      if (c === "{") depth++;
+      else if (c === "}") depth--;
+      else if (c === "<" && depth === 0) break;      // not an opening tag
+      else if (c === ">" && depth === 0) { ok = true; break; }
+    }
+    if (ok) { out.push(src.slice(i, j + 1)); i = j; }
+  }
+  return out;
+}
+
+const HSCROLL_DECL = /overflowX:\s*"(auto|scroll)"/;
+
 describe("the i18n:layout scroller gate knows which scrollers are deliberate", () => {
   // The gate fails on any element that can be dragged sideways unless it
   // carries `data-hscroll`. Presence is an ACKNOWLEDGEMENT, not a claim of
   // correctness — the same philosophy as the no-unscoped-lot-read ESLint rule.
-  // If one of these loses its marker the gate goes red, which is safe; what
-  // this locks is that the marker sits on the element that actually scrolls.
+  //
+  // THIS BLOCK USED TO PROMISE "the marker sits on the element that actually
+  // scrolls" AND CHECK NOTHING OF THE KIND: two independent `toContain` calls
+  // over the whole FILE, so moving `data-hscroll` onto any other element in
+  // the same file left it green while the real scroller went unacknowledged
+  // and the layout gate went red for a reason nobody could see here.
+  //
+  // The unit is the JSX OPENING TAG now: the marker and the `overflowX`
+  // declaration must belong to the same element, in both directions — a marker
+  // on a non-scrolling element acknowledges nothing either.
   const owners = [
-    ["components/curator/FilterControls.tsx", 'overflowX: "auto"'],
-    ["views/curator/StatsView.tsx", 'overflowX: "auto"'],
+    "components/curator/FilterControls.tsx",
+    "views/curator/StatsView.tsx",
   ] as const;
 
-  owners.forEach(([rel, decl]) => {
-    it(`${rel} marks its scroller`, () => {
-      const src = strip(readFileSync(resolve(ROOT, rel), "utf8"));
-      expect(src).toContain(decl);            // it really is a scroller
-      expect(src).toContain('data-hscroll');  // …and it says so
+  owners.forEach((rel) => {
+    it(`${rel} marks the element that actually scrolls`, () => {
+      const tags = openingTags(strip(readFileSync(resolve(ROOT, rel), "utf8")));
+      const marked = tags.filter((tg) => tg.includes("data-hscroll"));
+      expect(marked.length, "no element in this file carries data-hscroll").toBe(1);
+      expect(HSCROLL_DECL.test(marked[0]!),
+        "the marked element does not declare a horizontal scroller of its own").toBe(true);
     });
   });
 
+  it("finds the opening tags at all", () => {
+    // Non-vacuous: a scanner that stops returning tags makes every assertion
+    // in this block pass by examining nothing.
+    const n = sources(ROOT).reduce(
+      (a, f) => a + openingTags(strip(readFileSync(f, "utf8"))).length, 0);
+    expect(n).toBeGreaterThan(500);
+  });
+
   it("nothing else in the app declares a horizontal scroller", () => {
-    // A new one is not forbidden — it just has to be marked, which is exactly
-    // the conversation this assertion forces.
+    // A new one is not forbidden — it just has to be marked ON ITSELF, which
+    // is exactly the conversation this assertion forces.
     const found: string[] = [];
     for (const f of sources(ROOT)) {
-      const src = strip(readFileSync(f, "utf8"));
-      if (/overflowX:\s*"(auto|scroll)"/.test(src) && !src.includes("data-hscroll")) {
-        found.push(f.replace(ROOT, "src"));
+      for (const tg of openingTags(strip(readFileSync(f, "utf8")))) {
+        const scrolls = HSCROLL_DECL.test(tg);
+        const marked = tg.includes("data-hscroll");
+        if (scrolls !== marked) {
+          found.push(`${f.replace(ROOT, "src")}: ${scrolls ? "unmarked scroller" : "marker on a non-scroller"} — ${tg.slice(0, 80).replace(/\s+/g, " ")}`);
+        }
       }
     }
     expect(found).toEqual([]);

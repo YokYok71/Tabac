@@ -13,7 +13,6 @@ import { PressCard, Spinner } from "../../components/curator/primitives.tsx";
 import { Ico } from "../../components/curator/icons.tsx";
 import { Modal } from "../../components/curator/Modal.tsx";
 import { ModalAction } from "../../components/curator/ModalAction.tsx";
-import { getDiagnosticSnapshot } from "../../utils/diagnostic.ts";
 import { lsGet, lsSet, lsRemove } from "../../utils/appStorage.ts";
 
 // CuratorDelConfirmModal removed — every entity now
@@ -582,95 +581,25 @@ export function CuratorLangDetectedToast() {
   );
 }
 
-// ─── Diagnostic threshold toast ──────────────────────────────
-// Persisted invariant violations accumulate in localStorage. When the
-// counter crosses DIAGNOSTIC_TOAST_THRESHOLD, we surface a bottom-
-// banner inviting the user to open the Settings → Diagnostic panel.
-// Dismissed by tapping the close button; the dismissal lives in
-// sessionStorage so it stays gone for the rest of the tab session
-// but reappears on next launch if violations are still present.
+// ─── Diagnostic threshold toast — REMOVED (tombstone) ────────
+// A fixed bottom banner used to surface once the persisted
+// invariant-violation counter crossed a threshold, inviting the user to
+// open Settings → Diagnostic. It was pulled from the UI on the user's
+// judgement that it was noise, and then it STAYED in this file for many
+// builds as "dead but tested" code — exported, unmounted, and kept alive
+// only by its own unit tests, which is the shape `knip` cannot see (a test
+// file counts as a consumer, the same blind spot recorded for
+// `tobaccoHasTag` and `findParityGaps`). That arrangement is what is
+// removed here, not the decision: the component, its two constants
+// (`DIAGNOSTIC_TOAST_THRESHOLD` / `DIAGNOSTIC_TOAST_DISMISS_KEY`), its
+// `cave-diagnostic-toast-dismissed` sessionStorage flag and its five test
+// cases are gone, and with them the six-language `diag_toast_count` /
+// `diag_toast_hint` values, whose ONLY reader was this component — so a
+// translation nobody could ever see was being carried in every dictionary.
 //
-// Threshold dropped from 5 → 1. Rationale — any invariant
-// violation is a real data-integrity bug; waiting until five had
-// piled up meant the user could ship a corrupted backup before
-// realising. With the per-session dismissal already in place, one
-// violation now surfaces once per launch (max).
-export var DIAGNOSTIC_TOAST_THRESHOLD = 1;
-export var DIAGNOSTIC_TOAST_DISMISS_KEY = "cave-diagnostic-toast-dismissed";
-
-export function CuratorDiagnosticToast() {
-  const ctx = useAppCtx();
-  const { t, setImportModal, tasting } = ctx;
-  const [count, setCount] = useState<number>(() => getDiagnosticSnapshot().count);
-  const [dismissed, setDismissed] = useState<boolean>(() => {
-    try { return sessionStorage.getItem(DIAGNOSTIC_TOAST_DISMISS_KEY) === "1"; }
-    catch (_e) { return false; }
-  });
-  useEffect(() => {
-    const id = setInterval(() => {
-      setCount(getDiagnosticSnapshot().count);
-    }, 3000);
-    return () => clearInterval(id);
-  }, []);
-  if (dismissed) return null;
-  if (count < DIAGNOSTIC_TOAST_THRESHOLD) return null;
-  // Eclipsed by an active tasting (the top banner is enough; the
-  // diagnostic notice can wait).
-  if (tasting && tasting.stage === "running") return null;
-  function onDismiss() {
-    // eslint-disable-next-line tabac-local/no-raw-storage-write -- session-scoped flag (sessionStorage), already try-guarded
-    try { sessionStorage.setItem(DIAGNOSTIC_TOAST_DISMISS_KEY, "1"); } catch (_e) {}
-    setDismissed(true);
-  }
-  function onOpenSettings() {
-    if (setImportModal) setImportModal(true);
-    onDismiss();
-  }
-  return (
-    <div role="status" aria-live="polite" style={{
-      // Stacked above the Drive-expired banner when both are
-      // visible (drive at bottom 80, this one above).
-      position: "fixed", left: 12, right: 12, bottom: 150,
-      zIndex: 480,
-      background: alpha(C.oxblood, "ee"), color: C.ivory,
-      border: `1px solid ${C.oxbloodHi}`,
-      borderRadius: 10, padding: "10px 12px",
-      fontFamily: F.body, fontSize: fs(15), lineHeight: 1.4,
-      boxShadow: `0 6px 20px ${alpha(C.oxblood, "55")}`,
-      display: "flex", alignItems: "center", gap: 10,
-    }}>
-      <Ico name="more" size={18} sw={2} />
-      <div style={{ flex: 1 }}>
-        <strong>
-          {String(t ? t("diag_toast_count") : "{n} anomalies de cohérence détectées.").replace("{n}", String(count))}
-        </strong>
-        <div style={{ fontSize: fs(13.5), color: C.cream, marginTop: 2 }}>
-          {/* CuratorDiagnosticToast is dead-but-tested code (removed from
-            the global UI per CLAUDE.md). Kept routed via t()
-            for i18n consistency — the test asserts on key fragments. */}
-          {t ? t("diag_toast_hint") : "Ouvre Paramètres → Diagnostic pour les inspecter."}
-        </div>
-      </div>
-      <PressCard onClick={onOpenSettings} style={{
-        padding: "6px 10px", borderRadius: 8,
-        background: alpha(C.brass, "44"), color: C.brassHi,
-        border: `1px solid ${alpha(C.brass, "88")}`,
-        fontFamily: F.mono, fontSize: fs(12.5), fontWeight: 700,
-        letterSpacing: 1, textTransform: "uppercase",
-      }} ariaLabel={t ? t("aria_open_settings") : "Ouvrir Paramètres"}>
-        {t ? t("btn_open_short") : "Ouvrir"}
-      </PressCard>
-      <PressCard onClick={onDismiss} style={{
-        padding: "6px 8px", borderRadius: 8,
-        background: "transparent", color: C.cream,
-        border: `1px solid ${alpha(C.oxbloodHi, "55")}`,
-        fontFamily: F.mono, fontSize: fs(12.5),
-      }} ariaLabel={t ? t("aria_dismiss_overlay") : "Ignorer"}>
-        ×
-      </PressCard>
-    </div>
-  );
-}
+// Do NOT reintroduce the banner. Réglages → Diagnostic remains the
+// inspection surface: it shows the same counter plus the last 20
+// violations, and it is reached deliberately rather than pushed.
 
 // ─── Drive session expired banner ────────────────────────────
 // Surfaces a fixed bottom-of-screen banner when the user has Drive
@@ -1062,11 +991,10 @@ export function CuratorOverlays({ onTopBannerHeight }: { onTopBannerHeight?: (h:
       <CuratorLangDetectedToast />
       <CuratorImportRecapToast />
       <CuratorUndoToast />
-      {/* CuratorDiagnosticToast removed from the global
-          overlays — too noisy for the end user, and the underlying
-          tracking is still available in Settings → Diagnostic for
-          power-user inspection. The component itself stays in this
-          file (still exported for tests) but isn't mounted anywhere. */}
+      {/* The diagnostic threshold banner used to sit here. It was pulled
+          for being noise, then lived on as dead-but-tested code, and has
+          now been deleted outright — see the tombstone above. Settings →
+          Diagnostic is the inspection surface; do not re-add a banner. */}
       <CuratorDriveExpiredBanner />
       {/* Last, so the banners above are in the DOM when it measures. */}
       <TopBannerHeightProbe {...(onTopBannerHeight ? { onHeight: onTopBannerHeight } : {})} />

@@ -61,6 +61,19 @@ describe("PipesDetailView — visibility", () => {
   });
 });
 
+// The assertions used to sit inside `if (trash) { … }`, so a delete control
+// that vanished turned into a PASS with zero assertions — including the
+// `confirmSpy` half, which is the one asserting the trash replaced the confirm
+// prompt.
+//
+// TWO buttons of this view carry `aria-label="btn_delete"`: the PIPE's, in the
+// TopBar, and the maintenance entry's, inside MaintFormModal (which is a hard
+// delete, no trash, no undo). A global `getAllByRole` search takes whichever
+// comes first in the DOM, so with the fiche's own button gone the lookup would
+// silently RETARGET onto the maintenance delete — the retargeting failure the
+// TrashModal cases already paid for. The lookup is scoped to the TopBar and
+// asserts it matched EXACTLY ONE control, so neither direction can pass by
+// hitting the wrong button.
 describe("PipesDetailView — delete", () => {
   // The trash button now soft-deletes directly (Trash + undo).
   // No more window.confirm gate — the 30-day Trash + 8 s undo toast
@@ -68,19 +81,27 @@ describe("PipesDetailView — delete", () => {
   it("calls deletePipe immediately without a confirm prompt", () => {
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     const deletePipe = vi.fn();
-    const { getAllByRole } = renderWithCtx(<CuratorPipesDetailView />, {
+    const { container } = renderWithCtx(<CuratorPipesDetailView />, {
       view: "pipes",
       pipeDet: pipe,
       data: { pipes: [pipe], sessions: [], tobaccos: [], accessories: [], wishlist: [] },
       deletePipe,
     });
-    const buttons = getAllByRole("button");
-    const trash = buttons.find(b => /btn_delete|trash|Supprimer|Delete/i.test(b.getAttribute("aria-label") || ""));
-    if (trash) {
-      fireEvent.click(trash);
-      expect(confirmSpy).not.toHaveBeenCalled();
-      expect(deletePipe).toHaveBeenCalledWith("1");
-    }
+    const bar = container.querySelector("[data-topbar]");
+    expect(bar, "no TopBar on the pipe fiche").toBeTruthy();
+    // `button, [role=button]` because the two controls that can answer to
+    // `btn_delete` are NOT the same element: IconBtn renders a real <button>
+    // (implicit role), MaintFormModal's delete is a PressCard carrying
+    // role="button" as an attribute. Querying one of the two would silently
+    // stop seeing the other.
+    const trashes = Array.from(bar!.querySelectorAll("button, [role='button']")).filter(b =>
+      /^btn_delete$|^Supprimer$/.test(b.getAttribute("aria-label") || ""));
+    expect(trashes.length, "the pipe's own delete control is not exactly one TopBar button")
+      .toBe(1);
+    fireEvent.click(trashes[0]!);
+    expect(confirmSpy, "a confirm prompt returned — the trash is the safety net")
+      .not.toHaveBeenCalled();
+    expect(deletePipe).toHaveBeenCalledWith("1");
     confirmSpy.mockRestore();
   });
 });

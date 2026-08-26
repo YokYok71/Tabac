@@ -63,10 +63,12 @@ describe("Dropbox : le statut ne dit rien, le marqueur dit tout", () => {
       "un conflit de nom ferait jeter le jeton").toBe(false);
   });
 
-  it("le code prime toujours sur un message qui MENTIONNE un mot-clé", () => {
-    expect(cloudRefusalKind({ code: 401, message: "Dropbox: insufficient_space" })).toBe("auth");
-    expect(cloudRefusalKind({ code: 500, message: "too_many_write_operations" })).toBe("other");
-  });
+  // (« le code prime sur un message qui MENTIONNE un mot-clé » vivait ici avec
+  // un corps identique au mot près à celui de `cloudRefusal.test.ts`. Le cas
+  // survivant y est ; sondé, la même mutation — le marqueur décide sans que le
+  // statut le borne — rougit les deux. Le contre-cas du 409 SANS marqueur
+  // reconnu, juste au-dessus, reste ici : c'est lui qui rend l'élargissement
+  // sûr, et il n'a pas d'équivalent ailleurs.)
 });
 
 // ── (2) UNE COUPURE RÉSEAU N'EST PAS « RECONNECTEZ-VOUS » ────────────────────

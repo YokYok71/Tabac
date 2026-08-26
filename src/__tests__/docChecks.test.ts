@@ -1379,7 +1379,15 @@ describe("checkHelpEnumLabels (gate 23)", () => {
   const page = (fr: string, de: string) =>
     `<div id="sec-fr"><table>${fr}</table></div><div id="sec-de"><table>${de}</table></div>`;
 
-  it("passes when every value is named in its own language", () => {
+  it("passes when every value is named in its own language, and does NOT demand the French spelling in a translated block", () => {
+    // The sparse-map rule: a value absent from `_XX` is shown as-is, and one
+    // present must be looked for in its translated form only. Asking for
+    // "Lisse" in the German block was the bug in the first sweep I wrote —
+    // hence the second half of this name: the German block below carries
+    // "Glatt · Andere" and no French spelling at all, so a gate that regressed
+    // to the canonical label would fail here. (A separate case asserting
+    // exactly that lived below with a byte-identical body; probed, making
+    // `labels` fall back to the canonical value reddens this one too.)
     expect(D.checkHelpEnumLabels(page("Lisse · Autre", "Glatt · Andere"), ENUMS, MAPS)).toEqual([]);
   });
 
@@ -1397,13 +1405,6 @@ describe("checkHelpEnumLabels (gate 23)", () => {
     const out = D.checkHelpEnumLabels(page("Lisse · Autre", "Poliert · Andere"), ENUMS, MAPS);
     expect(out.length).toBe(1);
     expect(out[0]).toContain("Glatt");
-  });
-
-  it("does NOT demand the French spelling in a translated block", () => {
-    // The sparse-map rule: a value absent from `_XX` is shown as-is, and one
-    // present must be looked for in its translated form only. Asking for
-    // "Lisse" in the German block was the bug in the first sweep I wrote.
-    expect(D.checkHelpEnumLabels(page("Lisse · Autre", "Glatt · Andere"), ENUMS, MAPS)).toEqual([]);
   });
 
   it("refuses to pass vacuously on an unreadable enum or a block-less page", () => {

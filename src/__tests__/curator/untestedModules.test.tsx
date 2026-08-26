@@ -5,6 +5,13 @@
 // `StartupNoticeModal`, `DbSyncDiff` et `platform`. C'est une surface petite,
 // et c'est la bonne nouvelle ; ce qui compte est LEQUEL.
 //
+// Cet en-tête a NOMMÉ les quatre alors que le fichier n'en couvrait que deux,
+// `platform` étant explicitement excusé plus bas et `StartupNoticeModal` ni
+// couvert ni excusé — c'est-à-dire un en-tête promettant plus que son fichier,
+// la forme même que ce dépôt corrige ailleurs. Corrigé en AJOUTANT le cas
+// manquant plutôt qu'en affaiblissant la phrase : le modal est monté par
+// `CuratorApp` et porte une règle que son hook ne peut pas voir.
+//
 // `EncryptionPromptModal` garde la phrase de passe des sauvegardes cloud
 // chiffrées. Le dépôt le dit dans ses propres termes : « phrase de passe
 // oubliée = sauvegardes perdues. Il n'y a aucune récupération. » Les deux
@@ -18,14 +25,23 @@
 // L'asymétrie iOS/Android qu'elles portent est déjà épinglée ailleurs
 // (`iosPwaDockGuard`, la note de parité). Absence assumée, pas oubli.
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, fireEvent } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, fireEvent, act } from "@testing-library/react";
 import React from "react";
 import { AppCtx } from "../../AppContext.tsx";
 import { CuratorEncryptionPromptModal } from "../../views/curator/EncryptionPromptModal.tsx";
+import { CuratorStartupNoticeModal } from "../../views/curator/StartupNoticeModal.tsx";
 import { DbSyncDiff } from "../../components/curator/DbSyncDiff.tsx";
-import { CATS_EN, CUTS_EN } from "../../constants.ts";
+import { CATS_EN, CUTS_EN, WELCOME_KEY } from "../../constants.ts";
 import { translate } from "../../i18n.ts";
+import { useStartupNotice } from "../../hooks/useStartupNotice.ts";
+
+// Le hook est simulé DÉLIBÉRÉMENT : sa propre suite couvre le fetch et
+// l'analyse, et ce bloc-ci porte sur la décision du modal. Simuler ce qui est
+// déjà éprouvé ailleurs est ce qui rend le sujet du test net.
+vi.mock("../../hooks/useStartupNotice.ts", () => ({
+  useStartupNotice: vi.fn(() => ({ notice: null, dismiss: () => {} })),
+}));
 
 const t = (k: string) => translate("fr", k);
 
@@ -227,5 +243,70 @@ describe("DbSyncDiff traduit les énumérations et borne la prose", () => {
       xl: (v: string, m: any) => { seen.push(m === (CUTS_EN as any) ? "cuts" : "autre"); return v; },
     } as any));
     expect(seen).toContain("cuts");
+  });
+});
+
+// ── L'annonce de démarrage ───────────────────────────────────────────────────
+// `useStartupNotice` a ses propres cas (analyse du JSON, fraîcheur, langues) ;
+// ce que le HOOK ne peut pas voir est la règle que porte le MODAL — la
+// DÉFÉRENCE au modal de bienvenue. Le hook décide qu'un message est frais, le
+// modal décide s'il s'ouvre, et ce second choix est gardé par
+// `cave-curator-welcomed`. S'il lâche, un tout nouvel utilisateur reçoit deux
+// pop-ups empilées, c'est-à-dire exactement ce que le commentaire du fichier
+// annonce empêcher. Forme déjà payée ici plusieurs fois : c'est le CÂBLAGE qui
+// pourrit, pas l'aide qu'il appelle.
+describe("l'annonce de démarrage défère au modal de bienvenue", () => {
+  const notice = { id: "n1", tone: "info" as const, title: "Titre annonce", body: "Corps" };
+  let dismissed = 0;
+
+  beforeEach(() => {
+    dismissed = 0;
+    localStorage.removeItem(WELCOME_KEY);
+    vi.mocked(useStartupNotice).mockReturnValue({
+      notice, dismiss: () => { dismissed += 1; },
+    } as any);
+  });
+
+  // Le modal n'ouvre qu'à la frame SUIVANTE (`requestAnimationFrame`), donc on
+  // attend la FRAME et non un délai : ma première version dormait 0 ms et
+  // passait par intermittence — un cas qui réussit selon l'ordonnancement est
+  // la panne que ce dépôt nomme « a fix is a CONDITION, not a longer sleep ».
+  async function flushFrame() {
+    await act(async () => {
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    });
+  }
+
+  it("s'ouvre une fois la bienvenue acquittée", async () => {
+    localStorage.setItem(WELCOME_KEY, "1");
+    const { container } = withCtx(
+      React.createElement(CuratorStartupNoticeModal), { t, lang: "fr" },
+    );
+    await flushFrame();
+    expect(container.textContent).toContain("Titre annonce");
+  });
+
+  it("ne rend RIEN tant que la bienvenue n'est pas acquittée", async () => {
+    // Le drapeau est absent : premier lancement. Le message reste frais et
+    // ressortira au lancement suivant — il ne doit pas s'empiler maintenant.
+    const { container } = withCtx(
+      React.createElement(CuratorStartupNoticeModal), { t, lang: "fr" },
+    );
+    await flushFrame();
+    expect(container.textContent).not.toContain("Titre annonce");
+  });
+
+  it("la fermeture consomme l'annonce (sinon elle reviendrait à chaque lancement)", async () => {
+    localStorage.setItem(WELCOME_KEY, "1");
+    const { container } = withCtx(
+      React.createElement(CuratorStartupNoticeModal), { t, lang: "fr" },
+    );
+    await flushFrame();
+    const btn = Array.from(container.querySelectorAll("[role='button'], button"))
+      .find((e) => (e.textContent || "").trim() === t("welcome_got_it")) as HTMLElement;
+    // Pas de `if (btn)` : un bouton disparu doit ROUGIR, jamais passer.
+    expect(btn, "le bouton d'acquittement").toBeTruthy();
+    fireEvent.click(btn);
+    expect(dismissed).toBe(1);
   });
 });

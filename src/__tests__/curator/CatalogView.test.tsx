@@ -266,6 +266,21 @@ describe("CatalogView — add to wishlist / inventory from catalog", () => {
 // for a stronger reason than it used to. One case replaces both: the section
 // must be absent whatever the cellar contains, which is exactly the fixture
 // the OLD first case used to make it appear.
+//
+// THE TWO ASSERTIONS THIS CASE USED TO CARRY COULD NOT FAIL. `catalog_reco_title`
+// exists in NO dictionary and "Vous pourriez aimer" survives only inside a
+// comment in CatalogView.tsx — so the case pinned the SPELLING of a deleted
+// feature, and a recommendations section re-introduced under any other key
+// would have passed. They are kept below as documentation of the old name,
+// explicitly as the weak half; what carries the guarantee now is STRUCTURAL.
+//
+// The removed section printed six blend rows ABOVE the list. Two shapes lock
+// that out whatever it is called:
+//   · grouped-collapsed (the page's default state) renders NOT ONE blend row —
+//     every blend is behind its brand group header;
+//   · ungrouped, the page renders EXACTLY `totalShown` blend rows — the number
+//     the count line advertises — so extra rows cannot hide in the flat branch
+//     either.
 describe("CatalogView — the recommendations section is gone", () => {
   it("never renders a 'Vous pourriez aimer' section, even for a cellar that used to trigger it", async () => {
     await primeDb();
@@ -282,6 +297,37 @@ describe("CatalogView — the recommendations section is gone", () => {
     await waitFor(() => {
       expect(container.textContent || "").toMatch(/\d+\/\d+\s+(catalog_results|blends)/i);
     });
+
+    // Every blend NAME the loaded catalogue can print. A row is a
+    // `[role=button]` carrying one of them; a brand group HEADER carries the
+    // brand's display name and, being a sibling of the rows rather than their
+    // ancestor, never one of these.
+    const blendNames = Object.values(loadCatalogueFixture().blends)
+      .map((b: any) => String(b.name)).filter(Boolean);
+    expect(blendNames.length, "the fixture catalogue is empty").toBeGreaterThan(20);
+    const blendRows = () => Array.from(container.querySelectorAll('[role="button"]'))
+      .filter((el) => blendNames.some((n) => (el.textContent || "").includes(n)));
+
+    // (1) Default state — grouped, every group collapsed. Nothing may print a
+    // blend row here; the recommendations section did exactly that.
+    expect(blendRows().length,
+      "a blend row is rendered outside the collapsed brand groups").toBe(0);
+
+    // (2) Flat state — the rows are exactly the results the count line claims.
+    const ungroup = Array.from(container.querySelectorAll('[role="button"], button'))
+      .find((b) => /aria_group_by_brand/.test(b.getAttribute("aria-label") || ""));
+    expect(ungroup, "no group-by-brand toggle on the catalogue page").toBeTruthy();
+    fireEvent.click(ungroup!);
+    await waitFor(() => expect(blendRows().length).toBeGreaterThan(0));
+    const m = (container.textContent || "").match(/(\d+)\/(\d+)\s+(catalog_results|blends)/i);
+    expect(m).toBeTruthy();
+    expect(blendRows().length,
+      "the page renders more blend rows than the count line advertises")
+      .toBe(Number(m![1]));
+
+    // The weak half, kept only as a record of what the section used to be
+    // called. Neither string exists anywhere in production, so on its own this
+    // pair asserts nothing — see the note above.
     expect(container.textContent || "").not.toContain("catalog_reco_title");
     expect(container.textContent || "").not.toContain("Vous pourriez aimer");
   });

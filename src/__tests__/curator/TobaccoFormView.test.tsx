@@ -77,6 +77,16 @@ describe("TobaccoFormView — required-field gate", () => {
   });
 });
 
+// The assertions used to sit inside `if (cancel) { … }`, so the only case
+// pinning `nav("inv", { restoreScroll: true })` — the scroll-restoration
+// contract every store save-success path relies on — passed with zero
+// assertions whenever the control could not be found.
+//
+// And the FIRST of its two selectors never matched anything: `FormScreen`
+// renders `<IconBtn icon="close" ariaLabel={t("btn_cancel")} />`, so the
+// aria-label is `btn_cancel`, never `close`. Only the fallback was ever
+// doing the work — which is exactly the state in which a conditional
+// assertion goes unnoticed. One exact lookup now, as a pre-condition.
 describe("TobaccoFormView — Cancel", () => {
   it("Cancel button resets form + navigates to inv", () => {
     const setForm = vi.fn();
@@ -89,14 +99,12 @@ describe("TobaccoFormView — Cancel", () => {
       nav,
       BT,
     });
-    const cancel = container.querySelector("button[aria-label='close']") ||
-                   Array.from(container.querySelectorAll("button"))
-                     .find(b => /btn_close|btn_cancel|Annuler|Cancel/i.test(b.getAttribute("aria-label") || ""));
-    if (cancel) {
-      fireEvent.click(cancel);
-      expect(setForm).toHaveBeenCalled();
-      expect(nav).toHaveBeenCalledWith("inv", { restoreScroll: true });
-    }
+    const cancel = Array.from(container.querySelectorAll("button, [role='button']"))
+      .find(b => /^btn_cancel$|^Annuler$/.test(b.getAttribute("aria-label") || ""));
+    expect(cancel, "no cancel control on the tobacco form").toBeTruthy();
+    fireEvent.click(cancel!);
+    expect(setForm).toHaveBeenCalled();
+    expect(nav).toHaveBeenCalledWith("inv", { restoreScroll: true });
   });
 });
 

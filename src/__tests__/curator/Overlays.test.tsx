@@ -14,12 +14,8 @@ import {
   CuratorUpdatePill,
   CuratorUndoToast,
   CuratorExportReminderBanner,
-  CuratorDiagnosticToast,
   CuratorLangDetectedToast,
-  DIAGNOSTIC_TOAST_THRESHOLD,
-  DIAGNOSTIC_TOAST_DISMISS_KEY,
 } from "../../views/curator/Overlays";
-import { DIAGNOSTIC_KEY } from "../../utils/diagnostic";
 import { LANG, translate } from "../../i18n";
 
 describe("CuratorLangDetectedToast", () => {
@@ -626,69 +622,6 @@ describe("ExportReminderBanner", () => {
   });
 });
 
-
-// ── Diagnostic toast threshold ─────────────────────────────────
-// The threshold was 5 accumulated violations at first; it was
-// dropped to 1 so a single integrity issue surfaces immediately.
-// Per-session sessionStorage dismissal keeps it from spamming.
-
-describe("DiagnosticToast (threshold lowered to 1)", () => {
-  beforeEach(() => {
-    localStorage.removeItem(DIAGNOSTIC_KEY);
-    sessionStorage.removeItem(DIAGNOSTIC_TOAST_DISMISS_KEY);
-  });
-
-  it("threshold constant is 1 (not 5)", () => {
-    expect(DIAGNOSTIC_TOAST_THRESHOLD).toBe(1);
-  });
-
-  it("renders when the persisted counter shows 1 violation", () => {
-    localStorage.setItem(
-      DIAGNOSTIC_KEY,
-      JSON.stringify({ count: 1, firstSeen: "x", lastSeen: "x", recent: [] }),
-    );
-    const { container } = renderWithCtx(<CuratorDiagnosticToast />, {
-      lang: "fr",
-    });
-    expect(container.firstChild).toBeTruthy();
-    expect(container.textContent).toMatch(/1 anomal|diag_toast_count/i);
-  });
-
-  it("renders nothing when the counter is 0", () => {
-    localStorage.setItem(
-      DIAGNOSTIC_KEY,
-      JSON.stringify({ count: 0, firstSeen: "", lastSeen: "", recent: [] }),
-    );
-    const { container } = renderWithCtx(<CuratorDiagnosticToast />, {
-      lang: "fr",
-    });
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("renders nothing while a tasting is running (deferred to avoid stacking)", () => {
-    localStorage.setItem(
-      DIAGNOSTIC_KEY,
-      JSON.stringify({ count: 3, firstSeen: "x", lastSeen: "x", recent: [] }),
-    );
-    const { container } = renderWithCtx(<CuratorDiagnosticToast />, {
-      lang: "fr",
-      tasting: { stage: "running" },
-    });
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("renders nothing once the session has dismissed the toast", () => {
-    localStorage.setItem(
-      DIAGNOSTIC_KEY,
-      JSON.stringify({ count: 2, firstSeen: "x", lastSeen: "x", recent: [] }),
-    );
-    sessionStorage.setItem(DIAGNOSTIC_TOAST_DISMISS_KEY, "1");
-    const { container } = renderWithCtx(<CuratorDiagnosticToast />, {
-      lang: "fr",
-    });
-    expect(container.firstChild).toBeNull();
-  });
-});
 
 // The two banners that shared z-index 489 and the same
 // top:0 rectangle. Reported: "sur l'iPhone le fait de cliquer sur le message

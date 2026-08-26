@@ -148,12 +148,20 @@ describe("numeric contracts — sum mode (derived claims)", () => {
 });
 
 describe("numeric contracts — atLeast mode (floor claims)", () => {
-  // "over 1200 blends" stays true as the catalogue grows, but must break if
-  // the catalogue ever shrinks below what is advertised.
+  // A floor claim — "over N items" — stays true as the collection grows and
+  // must break the moment it shrinks below what is advertised. That is the one
+  // shape `exact` cannot express, which is why `mode: "atLeast"` and
+  // `sourceJson` are KEPT even though no live contract uses either today
+  // (see the note on `scripts/labelContracts.cjs`). The fixture used to name
+  // `src/data/db.json`, the bundled catalogue — a path deleted from the repo
+  // when the catalogue became the user's own file — so it read as coverage of
+  // something that no longer exists. Renamed to a neutral path, like the
+  // `src/t.ts` / `src/c.ts` fixtures elsewhere in this file; the mechanism
+  // under test is unchanged.
   const reg = {
     numeric: [{
       id: "catalog",
-      sourceJson: "src/data/db.json",
+      sourceJson: "src/j.json",
       jsonArrayPath: "blends",
       mode: "atLeast",
       docs: [{ file: "help.html", patterns: ["plus de (\\d+) blends"] }],
@@ -163,13 +171,13 @@ describe("numeric contracts — atLeast mode (floor claims)", () => {
 
   it("passes while the real count exceeds the advertised floor", () => {
     expect(LC.numericContractErrors(reg, reader({
-      "src/data/db.json": db(1222), "help.html": "plus de 1200 blends",
+      "src/j.json": db(1222), "help.html": "plus de 1200 blends",
     }))).toEqual([]);
   });
 
   it("FAILS when the catalogue shrinks below the advertised floor", () => {
     const errs = LC.numericContractErrors(reg, reader({
-      "src/data/db.json": db(800), "help.html": "plus de 1200 blends",
+      "src/j.json": db(800), "help.html": "plus de 1200 blends",
     }));
     expect(errs).toHaveLength(1);
     expect(errs[0]).toContain("advertises 1200");
@@ -178,14 +186,14 @@ describe("numeric contracts — atLeast mode (floor claims)", () => {
 
   it("FAILS when the claim's wording moved out from under the pattern", () => {
     const errs = LC.numericContractErrors(reg, reader({
-      "src/data/db.json": db(1222), "help.html": "environ 1200 mélanges",
+      "src/j.json": db(1222), "help.html": "environ 1200 mélanges",
     }));
     expect(errs[0]).toMatch(/no longer contains a claim matching/);
   });
 
   it("counts an object map as well as an array", () => {
     expect(LC.numericContractErrors(reg, reader({
-      "src/data/db.json": JSON.stringify({ blends: { a: 1, b: 2 } }),
+      "src/j.json": JSON.stringify({ blends: { a: 1, b: 2 } }),
       "help.html": "plus de 2 blends",
     }))).toEqual([]);
   });
@@ -198,7 +206,7 @@ describe("numeric contracts — atLeast mode (floor claims)", () => {
   // doc:check stayed green every time, because the French match came first.
   it("checks EVERY occurrence, not only the first", () => {
     const errs = LC.numericContractErrors(reg, reader({
-      "src/data/db.json": db(1400),
+      "src/j.json": db(1400),
       // first claim truthful, second overstated — the shape a six-language
       // doc takes when only one section was updated.
       "help.html": "plus de 1400 blends … et ailleurs plus de 9999 blends",
@@ -209,7 +217,7 @@ describe("numeric contracts — atLeast mode (floor claims)", () => {
 
   it("reports each overstatement separately", () => {
     const errs = LC.numericContractErrors(reg, reader({
-      "src/data/db.json": db(1400),
+      "src/j.json": db(1400),
       "help.html": "plus de 9998 blends … plus de 9999 blends",
     }));
     expect(errs).toHaveLength(2);
@@ -217,7 +225,7 @@ describe("numeric contracts — atLeast mode (floor claims)", () => {
 
   it("reports malformed JSON rather than treating it as an empty catalogue", () => {
     const errs = LC.numericContractErrors(reg, reader({
-      "src/data/db.json": "{not json", "help.html": "plus de 1200 blends",
+      "src/j.json": "{not json", "help.html": "plus de 1200 blends",
     }));
     expect(errs[0]).toMatch(/not valid JSON/);
   });

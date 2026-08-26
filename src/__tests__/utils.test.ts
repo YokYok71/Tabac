@@ -670,72 +670,12 @@ describe("accIsActive", () => {
 // ── migrateData() ─────────────────────────────────────────────────────────────
 
 describe("migrateData", () => {
-  it("adds missing accessories array", () => {
-    const d: any = { sessions: [] };
-    migrateData(d);
-    expect(Array.isArray(d.accessories)).toBe(true);
-  });
-
-  it("adds missing sessions array", () => {
-    const d: any = { accessories: [] };
-    migrateData(d);
-    expect(Array.isArray(d.sessions)).toBe(true);
-  });
-
-  it("preserves existing accessories and sessions", () => {
-    const d: any = { accessories: [{ id: 1 }], sessions: [{ id: 2 }] };
-    migrateData(d);
-    expect(d.accessories).toHaveLength(1);
-    expect(d.sessions).toHaveLength(1);
-  });
-
-  it("clamps ID counters to integers ≥ 1", () => {
-    const d: any = { nxT: 5, nxW: 3, nxP: 7, nxA: 2, nxJ: 9 };
-    migrateData(d);
-    expect(d.nxT).toBe(5);
-    expect(d.nxW).toBe(3);
-    expect(d.nxP).toBe(7);
-    expect(d.nxA).toBe(2);
-    expect(d.nxJ).toBe(9);
-  });
-
-  it("clamps zero counters to 1", () => {
-    const d: any = { nxT: 0, nxW: 0, nxP: 0, nxA: 0, nxJ: 0 };
-    migrateData(d);
-    expect(d.nxT).toBe(1);
-    expect(d.nxW).toBe(1);
-    expect(d.nxP).toBe(1);
-    expect(d.nxA).toBe(1);
-    expect(d.nxJ).toBe(1);
-  });
-
-  it("clamps negative counters to 1", () => {
-    const d: any = { nxT: -5, nxW: -1, nxP: -3, nxA: -2, nxJ: -10 };
-    migrateData(d);
-    expect(d.nxT).toBe(1);
-    expect(d.nxJ).toBe(1);
-  });
-
-  it("clamps string counters that parse to a number", () => {
-    const d: any = { nxT: "42", nxW: "0", nxP: "7", nxA: "-1", nxJ: "3" };
-    migrateData(d);
-    expect(d.nxT).toBe(42);
-    expect(d.nxW).toBe(1);
-    expect(d.nxP).toBe(7);
-    expect(d.nxA).toBe(1);
-    expect(d.nxJ).toBe(3);
-  });
-
-  it("clamps non-numeric string counters to 1", () => {
-    const d: any = { nxT: "abc", nxW: "", nxP: null, nxA: undefined, nxJ: {} };
-    migrateData(d);
-    expect(d.nxT).toBe(1);
-    expect(d.nxW).toBe(1);
-    expect(d.nxP).toBe(1);
-    expect(d.nxA).toBe(1);
-    expect(d.nxJ).toBe(1);
-  });
-
+  // The array-initialisation and counter-clamping cases that used to open this
+  // block live in migrateData.test.ts, which asserts the same rules more
+  // strictly (`toEqual([])` against `Array.isArray`, `toBe(existing)` against
+  // `toHaveLength(1)`). The three input values only this block carried —
+  // the string "-1", the empty string, and {} — were poured into that file's
+  // existing counter tables, so nothing stopped being exercised.
   it("returns the mutated object", () => {
     const d: any = {};
     const result = migrateData(d);

@@ -250,31 +250,11 @@ describe("BENDS", () => {
   it("has exactly 3 entries", () => {
     expect(BENDS).toHaveLength(3);
   });
-
-  it("maps all entries to English", () => {
-    (BENDS as readonly string[]).forEach((b) => {
-      expect(BENDS_EN[b]).toBeTruthy();
-    });
-  });
 });
 
 describe("BOWL_MATS", () => {
   it("contains Bruyère (most common bowl material)", () => {
     expect(BOWL_MATS).toContain("Bruyère");
-  });
-
-  it("maps all entries to English", () => {
-    (BOWL_MATS as readonly string[]).forEach((m) => {
-      expect(BOWL_MATS_EN[m]).toBeTruthy();
-    });
-  });
-});
-
-describe("STEM_MATS", () => {
-  it("maps all entries to English", () => {
-    (STEM_MATS as readonly string[]).forEach((m) => {
-      expect(STEM_MATS_EN[m]).toBeTruthy();
-    });
   });
 });
 
@@ -282,10 +262,25 @@ describe("ACC_TYPES", () => {
   it("contains Briquet (default accessory type)", () => {
     expect(ACC_TYPES).toContain("Briquet");
   });
+});
 
-  it("maps all entries to English", () => {
-    (ACC_TYPES as readonly string[]).forEach((a) => {
-      expect(ACC_TYPES_EN[a]).toBeTruthy();
+// The four enums whose `_EN` map must be TOTAL. Deliberately NOT the other
+// two: `FILTERS_EN` is SPARSE by design (9mm / 6mm / Balsa are universal and
+// carry no entry — see its own describe) and `CATS_EN` has the `Autre`
+// exception, so widening this loop to either would fail on a correct map.
+describe("total _EN enum maps", () => {
+  const totalMaps: [string, readonly string[], Record<string, string>][] = [
+    ["BENDS_EN", BENDS, BENDS_EN],
+    ["BOWL_MATS_EN", BOWL_MATS, BOWL_MATS_EN],
+    ["STEM_MATS_EN", STEM_MATS, STEM_MATS_EN],
+    ["ACC_TYPES_EN", ACC_TYPES, ACC_TYPES_EN],
+  ];
+  totalMaps.forEach(([name, enumArr, map]) => {
+    it(`${name} maps all entries to English`, () => {
+      // Non-vacuity: an empty enum would satisfy the forEach below silently.
+      expect(enumArr.length).toBeGreaterThan(0);
+      const untranslated = (enumArr as readonly string[]).filter((v) => !map[v]);
+      expect(untranslated).toEqual([]);
     });
   });
 });

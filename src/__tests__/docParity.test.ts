@@ -72,6 +72,13 @@ const VALUE_TOKENS: Record<string, string[]> = {
     "cdnjs.cloudflare.com",          // JSZip CDN
     "t-cellar.app",                  // canonical origin
   ],
+  // The changelog carries no language-neutral VALUE token — it is prose about
+  // past releases — but it needs the same two STRUCTURAL checks as the other
+  // two files, and it used to carry its own byte-identical copies of them.
+  // An empty token list folds it into the shared loop; its one genuinely
+  // changelog-specific rule (the Build-number set) stays in its own describe
+  // below. An entry here is what makes the loop cover the file at all.
+  "changelog.html": [],
 };
 
 describe("shipped doc pages — cross-language content parity", () => {
@@ -109,25 +116,14 @@ describe("shipped doc pages — cross-language content parity", () => {
     });
   }
 
-  describe("changelog.html", () => {
+  // The section-resolution and <h2>/<h3> parity cases that used to open this
+  // block were byte-identical to the shared loop's; changelog.html is in
+  // VALUE_TOKENS now, so the loop generates them. What stays here is the one
+  // rule that is only true of a changelog.
+  describe("changelog.html — build numbers", () => {
     const secs = sectionsOf(read("changelog.html"));
     const buildsOf = (html: string) =>
       [...html.matchAll(/Build (\d+)/g)].map((m) => Number(m[1])).sort((a, b) => a - b);
-
-    it("resolves all five language sections", () => {
-      for (const l of LANGS) {
-        expect(secs[l]!.length, `sec-${l} should be non-empty`).toBeGreaterThan(500);
-      }
-    });
-
-    it("carries the same number of <h2>/<h3> blocks in every language", () => {
-      const h2 = tagCount(secs.fr!, "h2");
-      const h3 = tagCount(secs.fr!, "h3");
-      for (const l of LANGS) {
-        expect(tagCount(secs[l]!, "h2"), `<h2> count in sec-${l}`).toBe(h2);
-        expect(tagCount(secs[l]!, "h3"), `<h3> count in sec-${l}`).toBe(h3);
-      }
-    });
 
     it("lists the exact same set of Build numbers in every language", () => {
       const ref = buildsOf(secs.fr!);

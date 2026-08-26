@@ -139,12 +139,29 @@ describe("no raw storage read on the render path", () => {
       if (EXEMPT.includes(f)) continue;
       const src = blankComments(readFileSync(f, "utf8"));
       const raw = src.match(/\b(?:local|session)Storage\s*\.\s*getItem\s*\(/g);
-      // A read wrapped in its own try/catch is safe; the sweep cannot see the
-      // wrapping, so the two `sessionStorage` reads in Overlays.tsx that ARE
-      // wrapped are listed by name rather than pattern-matched away.
-      if (raw && !(f === "src/views/curator/Overlays.tsx" && raw.length === 2)) {
-        hits.push(`${f} (${raw.length})`);
+      if (!raw) continue;
+      // A read wrapped in its own try/catch cannot throw, so it is safe; the
+      // sweep cannot see the wrapping, and `Overlays.tsx` is the one file that
+      // legitimately has some.
+      //
+      // L'EXEMPTION ÉTAIT ÉPINGLÉE SUR UN COMPTE (`raw.length === 2`), ET LE
+      // COMPTE N'EST PAS LA PROPRIÉTÉ. Supprimer un composant mort de ce
+      // fichier a fait tomber le nombre de lectures de 2 à 1, donc l'exemption
+      // a cessé de s'appliquer et la garde a signalé le fichier — alors que la
+      // suppression l'avait rendu strictement PLUS sûr. Un nombre magique ne
+      // dit pas ce qui rend une lecture acceptable ; ce qui la rend acceptable
+      // est le `try` autour. C'est cela qui est vérifié maintenant, lecture par
+      // lecture, donc en ajouter une non gardée rougit et en retirer une ne
+      // casse rien.
+      if (f === "src/views/curator/Overlays.tsx") {
+        const unwrapped = src
+          .split("\n")
+          .filter((l) => /\b(?:local|session)Storage\s*\.\s*getItem\s*\(/.test(l))
+          .filter((l) => !/\btry\s*\{[^}]*\b(?:local|session)Storage\s*\.\s*getItem/.test(l));
+        if (unwrapped.length) hits.push(`${f} (${unwrapped.length} non gardée(s))`);
+        continue;
       }
+      hits.push(`${f} (${raw.length})`);
     }
     expect(hits, "a raw storage read can throw on the render path").toEqual([]);
   });

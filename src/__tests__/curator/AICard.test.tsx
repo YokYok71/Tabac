@@ -36,7 +36,24 @@ describe("AICard", () => {
     expect(container.querySelector("[role='button']")).toBeTruthy();
   });
 
-  it("disables the button while aiLoad=true", () => {
+  // THE ONLY THING THIS CASE USED TO ASSERT WAS THE WORD "loading".
+  //
+  // It clicked inside `if (btn) { … }` with NOTHING in the block — the comment
+  // there literally said "even if it fires … we just verify the loading prop
+  // reaches the DOM" — and `aiAutoFill` was a `vi.fn()` nobody ever
+  // interrogated. So the case named "disables the button while aiLoad=true"
+  // asserted neither the disabling nor the not-calling: a second tap during a
+  // fill could have launched a second paid provider request and this stayed
+  // green.
+  //
+  // The `if` could never run either. While loading, AICard passes
+  // `onClick={undefined}`, and PressCard drops `role="button"` when it has
+  // neither a handler nor `ariaDisabled` — so `[role='button']` matched
+  // nothing and the block was dead code, not a guard.
+  //
+  // The busy card is found by the state it announces (`aria-busy`), tapped,
+  // and the absence of a call is asserted.
+  it("does not fire aiAutoFill while aiLoad=true, and says it is busy", () => {
     const aiAutoFill = vi.fn();
     const { container } = renderWithCtx(
       <AICard
@@ -49,13 +66,13 @@ describe("AICard", () => {
       />,
       {},
     );
-    // The card visually grays out while loading; tap shouldn't fire.
-    const btn = container.querySelector("[role='button']") as HTMLElement;
-    if (btn) {
-      fireEvent.click(btn);
-      // Even if it fires, the loading state prevents calling aiAutoFill.
-      // We just verify the loading prop reaches the DOM.
-    }
+    const busy = container.querySelector("[aria-busy='true']") as HTMLElement | null;
+    expect(busy, "the in-flight search control announces no busy state").toBeTruthy();
+    expect(busy!.textContent, "the busy control is not the search button")
+      .toMatch(/Loading|Chargement|loading/i);
+    fireEvent.click(busy!);
+    expect(aiAutoFill, "a tap during a fill in flight launched a second provider request")
+      .not.toHaveBeenCalled();
     expect(container.textContent).toMatch(/Loading|Chargement|loading/i);
   });
 

@@ -453,7 +453,7 @@ export function summariseCloudDevices(
     // user string can collide with.
     var key = dev != null ? "dev:" + dev
       : nm ? "nm:" + nm
-      : " " + (r.kind || "unknown");
+      : "\0" + (r.kind || "unknown");
     var e = by[key];
     if (!e) {
       e = by[key] = {

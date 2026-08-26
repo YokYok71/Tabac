@@ -69,7 +69,7 @@ describe("LotFormModal — visibility", () => {
 
 describe("LotFormModal — boxNumber prefill", () => {
   it("new lot: boxNumber pre-filled with max+1 across ALL tobaccos", () => {
-    const { container } = renderWithCtx(
+    const { getByLabelText } = renderWithCtx(
       <CuratorLotFormModal
         open={true}
         data={{ tobacco: tob1 }}
@@ -81,26 +81,22 @@ describe("LotFormModal — boxNumber prefill", () => {
       },
     );
     // Max existing boxNumber is 12 (from tob2), so new should be 13.
-    const inputs = container.querySelectorAll("input");
-    const boxNumberInput = Array.from(inputs).find(i =>
-      /N° de boîte|Box #|lbl_box_num/i.test(
-        (i.previousElementSibling?.textContent || "") +
-        " " +
-        (i.getAttribute("aria-label") || ""),
-      ),
-    ) as HTMLInputElement | undefined;
-    if (boxNumberInput) {
-      expect(boxNumberInput.value).toBe("13");
-    } else {
-      // Fallback: find the box-number value in any input
-      const has13 = Array.from(inputs).some(i => (i as HTMLInputElement).value === "13");
-      expect(has13).toBe(true);
-    }
+    //
+    // The lookup used to test a label pattern that could not match
+    // (`lbl_box_num`; the field's key is `lbl_box_optional`) and then fall
+    // back to "SOME input in the modal holds 13" — which the price, the
+    // weight or a year would satisfy just as well, in a case whose whole
+    // subject is WHICH field carries max+1. The field is addressed by its own
+    // label now; `TextField` renders a real <label htmlFor>, so the accessible
+    // name is the contract rather than DOM adjacency.
+    expect(getByLabelText(/lbl_box_optional/i), "no box-number field in the lot form")
+      .toBeTruthy();
+    expect((getByLabelText(/lbl_box_optional/i) as HTMLInputElement).value).toBe("13");
   });
 
   it("edit lot: form is pre-filled with the lot's existing values, not max+1", () => {
     const existingLot = tob1.lots[0];
-    const { container } = renderWithCtx(
+    const { getByLabelText } = renderWithCtx(
       <CuratorLotFormModal
         open={true}
         data={{ tobacco: tob1, lot: existingLot, idx: 0 }}
@@ -112,9 +108,10 @@ describe("LotFormModal — boxNumber prefill", () => {
       },
     );
     // Edit mode should keep boxNumber = "3" (existing value).
-    const inputs = container.querySelectorAll("input");
-    const has3 = Array.from(inputs).some(i => (i as HTMLInputElement).value === "3");
-    expect(has3).toBe(true);
+    // Same correction as its sibling above: "some input holds 3" is satisfied
+    // by any other field, and it is the box number that must NOT have been
+    // overwritten with max+1.
+    expect((getByLabelText(/lbl_box_optional/i) as HTMLInputElement).value).toBe("3");
   });
 });
 

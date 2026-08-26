@@ -39,17 +39,21 @@ describe("migrateData — counter clamping", () => {
   });
 
   it("converts string numeric counters to integers", () => {
-    const d = migrateData({ nxT: "5", nxW: "12", nxP: "3", nxA: "8", nxJ: "1" });
+    // nxA carries a NEGATIVE numeric string: it parses, so it takes the
+    // numeric branch, and the floor then has to bring it back to 1.
+    const d = migrateData({ nxT: "5", nxW: "12", nxP: "3", nxA: "-1", nxJ: "1" });
     expect(d.nxT).toBe(5);
     expect(d.nxW).toBe(12);
     expect(d.nxP).toBe(3);
-    expect(d.nxA).toBe(8);
+    expect(d.nxA).toBe(1);
     expect(d.nxJ).toBe(1);
   });
 
-  it("CRITICAL: non-numeric string counters are clamped to 1 (prevents string concatenation)", () => {
-    // Without clamping, data.nxT + 1 would give "abc1" instead of 2
-    const d = migrateData({ nxT: "abc", nxW: "xyz", nxP: "foo", nxA: "bar", nxJ: "baz" });
+  it("CRITICAL: non-numeric counters are clamped to 1 (prevents string concatenation)", () => {
+    // Without clamping, data.nxT + 1 would give "abc1" instead of 2.
+    // nxW is the EMPTY string and nxJ an OBJECT — neither is a garbage word,
+    // and both are shapes a hand-edited or forged payload really carries.
+    const d = migrateData({ nxT: "abc", nxW: "", nxP: "foo", nxA: "bar", nxJ: {} as any });
     expect(d.nxT).toBe(1);
     expect(d.nxW).toBe(1);
     expect(d.nxP).toBe(1);

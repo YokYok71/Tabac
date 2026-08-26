@@ -24,10 +24,31 @@
 // reintroduced the defect in different words.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act } from "@testing-library/react";
 import { renderWithCtx } from "../viewTestUtils";
 
+// THE WAIT USED TO BE `waitFor(() => expect(container.textContent).toBeTruthy())`,
+// which is true on the FIRST render: it claimed to wait for `dbReady` and
+// waited for the form to have any text at all. The three NEGATIVE cases below
+// therefore passed just as well if the catalogue load had not landed —
+// "hidden by the gate" and "hidden because the promise is still in flight"
+// were the same observation.
+//
+// `dbReady` has no DOM observable of its own in add mode (it only feeds the
+// `dbHinted` memo, i.e. the very thing under test), so the condition is taken
+// on the LOAD: the mocked `loadTobaccoDb` records when its promise has
+// SETTLED, the helper waits for that, then flushes so React has committed
+// `setDbReady(true)`. The positive cases in this file run through the same
+// helper and assert the offer IS shown, so they are the standing proof that
+// the wait is sufficient — a negative case here cannot pass by arriving early
+// without one of them going red.
+const db = vi.hoisted(() => ({ settled: 0 }));
+
 vi.mock("../../utils/tobaccoDb.ts", () => ({
-  loadTobaccoDb: () => Promise.resolve({ blends: {}, brands: {} }),
+  loadTobaccoDb: () => Promise.resolve({ blends: {}, brands: {} }).then((d) => {
+    db.settled++;
+    return d;
+  }),
   // A hit with fields the empty form lacks, so `catalogueCanFill` says yes.
   tobaccoDbLookupSync: () => ({
     brand: "Halvorsen", name: "Duskfall", category: "Anglais", cut: "Ready Rubbed",
@@ -50,23 +71,30 @@ const form = {
 
 const shown = (c: HTMLElement) => (c.textContent || "").includes("ai_db_hint");
 
+/** Wait until the catalogue load this render kicked off has SETTLED, then let
+ *  React commit the `setDbReady(true)` that rides on it. */
+async function awaitCatalogueLoad(before: number) {
+  await vi.waitFor(() => expect(db.settled).toBeGreaterThan(before));
+  await act(async () => { await Promise.resolve(); });
+}
+
 async function renderTob(over: Record<string, any>) {
+  const before = db.settled;
   const r = renderWithCtx(<CuratorTobaccoFormView />, {
     view: "addT", form, setForm: vi.fn(), data: { tobaccos: [], wishlist: [] },
     ...over,
   });
-  // dbReady flips in a .finally() on the mocked load — let it land.
-  await vi.waitFor(() => expect(r.container.textContent).toBeTruthy());
-  await new Promise((res) => setTimeout(res, 0));
+  await awaitCatalogueLoad(before);
   return r;
 }
 
 async function renderWish(over: Record<string, any>) {
+  const before = db.settled;
   const r = renderWithCtx(<CuratorWishFormView />, {
     showWishForm: true, editWishId: null, wishForm: form, setWishForm: vi.fn(),
     data: { tobaccos: [], wishlist: [] }, BW: {}, ...over,
   });
-  await new Promise((res) => setTimeout(res, 0));
+  await awaitCatalogueLoad(before);
   return r;
 }
 
