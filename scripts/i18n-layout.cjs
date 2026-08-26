@@ -389,12 +389,65 @@ function bigListCellar() {
  *
  * BOUNDED: a transition that never ends shortens the wait instead of hanging
  * the run — the same trade `drainScheduler` makes.
+ *
+ * …AND "NO RUNNING TRANSITION" IS NOT "FINISHED", WHICH IS THE HALF THIS CHECK
+ * WAS MISSING. `useEnter` does not delay a transition, it delays the STATE that
+ * starts one: `setTimeout(() => setEntered(true), delay)`, and the element sits
+ * at `opacity: 0` with no animation of ANY kind until that timer fires. So a
+ * row whose turn has not come yet is invisible to the rule above, and `settle`
+ * returns in the gap between one row's transition ending and the next row's
+ * timer firing.
+ *
+ * It reached the DEPLOY, which is where it was caught: `theme:contrast` failed
+ * on `brass/light` ALONE with 16 unreadable combinations, every one of them a
+ * lot row on `fiche-tobacco` and every one at EXACTLY 1:1 — and 1:1 between
+ * rgb(105,80,24) and rgb(242,236,219) is arithmetically impossible, so the
+ * number itself said "opacity 0" rather than "bad palette". One shard of six,
+ * on a contended runner, having passed locally an hour earlier: the signature
+ * of a race, not of a colour.
+ *
+ * TWO THINGS ARE FIXED HERE, AND I CANNOT TELL WHICH ONE CI HIT — said plainly
+ * rather than resolved by picking the tidier story.
+ *
+ * (a) THE CONDITION. Nothing that will be measured may still be WAITING to fade
+ * in. Keyed on elements whose INLINE style declares an opacity transition (what
+ * `useEnter` emits) and which sit at computed opacity 0, so it targets the
+ * pre-flip state and nothing else: a deliberately dimmed control is at 0.6 and
+ * passes, a `display:none` subtree is not rendered at all. The selector keeps
+ * the poll cheap — a few dozen nodes, not a `getComputedStyle` over the
+ * document.
+ *
+ * (b) THE BUDGET, 2500 → 6000 ms. The tail settles ~1160 ms after mount, so
+ * 2500 is barely 2× on an idle machine and thin on a runner that is slower AND
+ * running six shards at once. Expiring is not a soft failure here: it returns
+ * mid-animation, which is precisely the false verdict.
+ *
+ * WHAT I COULD NOT DEMONSTRATE, and it points at (b) rather than (a). The
+ * mechanism behind the 1:1 signature IS demonstrated — neutering this function
+ * reproduces 25 failures at exactly 1:1 on an idle machine, the identical
+ * shape CI reported. But instrumenting the REAL check to count pre-flip
+ * elements at the instant the OLD rule declared itself settled found **zero,
+ * across all 36 seeded screens**, so the gap in (a) never opened here. That
+ * makes a plain budget expiry the likelier trigger, and leaves (a) a real hole
+ * closed on its merits rather than a proven cause. Do not re-write this as
+ * "the stagger gap was the bug" — the measurement does not say that.
+ *
+ * Neither fix costs anything on the happy path: the wait ends the moment the
+ * condition holds, which is sooner than any fixed sleep.
  */
-async function settle(page, budgetMs = 2500) {
+async function settle(page, budgetMs = 6000) {
   await page.waitForFunction(() => {
     const anims = document.getAnimations ? document.getAnimations() : [];
-    return !anims.some((a) =>
-      a.playState === "running" && a.constructor && a.constructor.name === "CSSTransition");
+    if (anims.some((a) =>
+      a.playState === "running" && a.constructor && a.constructor.name === "CSSTransition")) {
+      return false;
+    }
+    const pending = document.querySelectorAll('[style*="opacity"]');
+    for (const el of pending) {
+      const cs = getComputedStyle(el);
+      if (parseFloat(cs.opacity) === 0 && /opacity/.test(cs.transitionProperty)) return false;
+    }
+    return true;
   }, undefined, { timeout: budgetMs }).catch(() => {});
 }
 

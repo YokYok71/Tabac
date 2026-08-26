@@ -407,6 +407,20 @@ async function main() {
     console.log(`\n${RED}theme:contrast FAILED — ${fail.length} unreadable combination(s):${OFF}`);
     for (const f of fail.slice(0, 25)) console.log("  ✗ " + f);
     if (fail.length > 25) console.log(`  ✗ …and ${fail.length - 25} more`);
+    // A RATIO OF EXACTLY 1:1 IS A DIAGNOSIS, NOT A COLOUR — say so, because the
+    // reader's next move otherwise is to retune tokens that are fine. Two
+    // different colours cannot give 1:1; only an effective opacity of 0 can,
+    // and this measurer folds ancestor opacity into the foreground. That is
+    // what a `useEnter` row looks like when it is sampled before its entry
+    // animation has run. It has happened once, on a contended CI runner, in
+    // one shard of six — see `settle` in the shared harness for the fix and
+    // for why "no running transition" was not the same as "finished".
+    if (fail.some((f) => / 1:1 /.test(f))) {
+      console.log(`\n${YEL}  NOTE: a 1:1 ratio between two DIFFERENT colours is arithmetically`);
+      console.log("  impossible — it means the text was sampled at effective opacity 0, i.e.");
+      console.log("  mid-entry-animation, not that the palette is wrong. Re-run; if it");
+      console.log("  persists, settle's budget is the thing to look at, not the tokens." + OFF);
+    }
     process.exit(1);
   }
   console.log(`\n${GRN}theme:contrast OK${OFF} — ${THEMES.length} theme(s) × ${MODES.length} mode(s) × ${H.SCREENS.length} screens: nothing below ${FAIL_BELOW}:1.`);

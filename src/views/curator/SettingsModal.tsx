@@ -1358,12 +1358,16 @@ export function CuratorSettingsModal() {
             {t ? t("sections_hint") : "Ces interrupteurs affichent ou masquent les sections correspondantes dans l'app (barre du bas + écran d'accueil)."}
           </div>
           {[
-            // The "stats" key used `t("nav_stats")` which
-            // resolves to the 📊 emoji (the dock icon glyph). In a
-            // settings list of textual toggles the emoji looked out
-            // of place — explicit label here, dock still uses the
-            // emoji. The other two keep their `nav_*` labels because
-            // they're already plain words ("Accessoires" / "Journal").
+            // The "stats" row uses `sec_stats` ("Statistiques"), not a `nav_*`
+            // label: in a settings list of textual toggles an emoji looks out
+            // of place, and the dock has its own `dock_<id>` labels anyway. The
+            // other two keep their `nav_*` keys because those are already plain
+            // words ("Accessoires" / "Journal").
+            //
+            // `nav_stats` — which held the 📊 glyph — was DELETED from the six
+            // dictionaries once it was clear this comment was its only
+            // remaining mention. It had read as used for a while purely because
+            // its name appeared in the prose above; do not re-add it.
             ["acc",     t ? t("nav_acc")     : "Accessoires"],
             ["journal", t ? t("nav_journal") : "Journal"],
             ["stats",   t ? t("sec_stats") : "Statistiques"],

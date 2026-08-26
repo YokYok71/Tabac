@@ -1146,11 +1146,90 @@ function findUndocumentedStorageKeys(keys, claudeMd) {
  *
  * Shared rather than copied: it was written for gate 15 and needed verbatim by
  * gate 9, and two copies of one rule is the drift this repo keeps paying for.
+ *
+ * IT USES THE REAL PARSER, AND THE HAND-ROLLED VERSION IT REPLACES IS WHY.
+ * That one was two regexes — blank `/*…*\/`, blank `//…` — and this repo's own
+ * allowlist had already written down what they cost: «  a naive stripper blanks
+ * a live `t("ai_scan_btn")` call in AICard.tsx … doing it properly needs a real
+ * tokeniser ». It was shipped anyway, and the note was exactly right. The
+ * mechanism is one attribute: `accept="image/*"` — a `/*` inside a STRING opens
+ * a block comment that runs to the next `*\/`, swallowing ~29 lines of live JSX
+ * with it. MEASURED over `src/`: six call sites vanished, five of them
+ * legitimately (the key really was only in prose) and one, `ai_scan_btn`, a
+ * real call.
+ *
+ * THE COST IS NOT THE WARN-ONLY GATE 11. Gate 9 — every key a source calls must
+ * exist in the reference dictionary — is an ERROR gate riding on the same
+ * extraction, so a swallowed region is a region where a mistyped key ships
+ * unchecked. A guard that silently stops looking is worse than no guard.
+ *
+ * TypeScript is already a devDependency (`tsc` is the canonical gate) and
+ * `doc-check.cjs` already hard-requires `jsdom`, so this adds no dependency and
+ * matches the script's existing shape: if the package is missing it FAILS
+ * rather than degrading, because the degradation is precisely the silent
+ * half-blindness above.
+ *
+ * Parsed as TSX unconditionally: MEASURED over all 434 files in `src/`, the
+ * single mode loses no call site, so the callers need not thread a filename
+ * through. VALIDATED against AST ground truth (a CallExpression cannot be in a
+ * comment) — ZERO live calls blanked, and every comment blanked in production
+ * source. RESIDUAL, stated rather than discovered later: a `t("…")` written
+ * inside a STRING LITERAL is still seen by the caller's regex. That is not a
+ * comment, it is only ever a test fixture asserting on source text, and
+ * `extractTKeys` excludes tests — closing it would mean extracting from the AST
+ * instead of from text, which the line-number-reporting callers cannot use.
  */
+let _tsLib;
+function tsLib() {
+  if (_tsLib === undefined) {
+    try {
+      _tsLib = require("typescript");
+    } catch {
+      _tsLib = null;
+    }
+  }
+  return _tsLib;
+}
+
+const _blankCache = new Map();
+
 function blankComments(source) {
-  return String(source || "")
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
+  const s = String(source || "");
+  if (!s) return s;
+  const hit = _blankCache.get(s);
+  if (hit !== undefined) return hit;
+
+  const ts = tsLib();
+  if (!ts) {
+    throw new Error(
+      "blankComments needs the `typescript` package (a devDependency). Run `npm ci`. " +
+        "It is NOT allowed to fall back to a regex: the naive stripper reads `/*` " +
+        "inside a string as a comment opener and silently blinds gate 9.",
+    );
+  }
+
+  const sf = ts.createSourceFile("x.tsx", s, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const out = s.split("");
+  const seen = new Set();
+  const blank = (r) => {
+    const k = r.pos + ":" + r.end;
+    if (seen.has(k)) return;
+    seen.add(k);
+    for (let i = r.pos; i < r.end; i++) if (out[i] !== "\n") out[i] = " ";
+  };
+  (function walk(n) {
+    const lead = ts.getLeadingCommentRanges(s, n.pos);
+    if (lead) lead.forEach(blank);
+    const trail = ts.getTrailingCommentRanges(s, n.end);
+    if (trail) trail.forEach(blank);
+    ts.forEachChild(n, walk);
+  })(sf);
+
+  const res = out.join("");
+  // Short-lived process; the cap is only so a pathological caller cannot grow
+  // this without bound.
+  if (_blankCache.size < 2000) _blankCache.set(s, res);
+  return res;
 }
 
 function extractTKeys(sources) {

@@ -567,6 +567,38 @@ npm run theme:contrast # OPT-IN contrast check across the SIX palettes (brass/st
                     #   rule this same build wrote: `useEnter` animates `translateY` as well as
                     #   opacity, so a row measured mid-fade is measured mid-MOVE, and the layout
                     #   check has the same exposure through a different property.
+                    #   **ET CETTE CONDITION S'EST RÉVÉLÉE INSUFFISANTE SUR LE CHEMIN DE
+                    #   DÉPLOIEMENT, ce qui est exactement là où elle devait l'être.**
+                    #   `theme:contrast` a échoué sur `brass/light` SEULE, avec 16 combinaisons
+                    #   illisibles, toutes des lignes de lot de `fiche-tobacco`, toutes à
+                    #   **exactement 1:1** — et 1:1 entre rgb(105,80,24) et rgb(242,236,219) est
+                    #   arithmétiquement impossible, donc le NOMBRE lui-même disait « opacité 0 »
+                    #   et non « palette fausse ». Un shard sur six, sur une machine chargée,
+                    #   après un passage local vert une heure plus tôt : la signature d'une
+                    #   course, pas d'une couleur. **DEUX correctifs, et je ne peux pas dire
+                    #   lequel a mordu — écrit tel quel plutôt que tranché en choisissant la
+                    #   version la plus présentable.** (a) « aucune transition en cours » n'est
+                    #   pas « terminé » : `useEnter` retarde l'ÉTAT (`setTimeout` puis
+                    #   `setEntered`), donc une ligne dont le tour n'est pas venu est à
+                    #   `opacity: 0` sans animation d'aucune sorte, invisible à la règle. La
+                    #   condition exige désormais qu'aucun élément portant une transition
+                    #   d'opacité EN STYLE INLINE ne soit à 0. (b) le budget passe de 2500 à
+                    #   6000 ms : la queue se pose ~1160 ms après le montage, donc 2500 est à
+                    #   peine 2× au repos et mince sur un runner plus lent faisant tourner six
+                    #   shards. **CE QUE JE N'AI PAS PU DÉMONTRER, et cela désigne (b) plutôt
+                    #   que (a)** : neutraliser `settle` reproduit 25 échecs à 1:1 au repos —
+                    #   donc le MÉCANISME est prouvé — mais instrumenter le VRAI vérificateur
+                    #   pour compter les éléments pré-bascule à l'instant où l'ANCIENNE règle se
+                    #   déclarait satisfaite a trouvé **zéro, sur les 36 écrans**. L'expiration
+                    #   du budget est donc la cause la plus probable, et (a) reste un trou réel
+                    #   fermé pour ses propres mérites, pas une cause établie. **Ne pas
+                    #   réécrire ceci en « le décalage du stagger était le bug » : la mesure ne
+                    #   le dit pas.** Même passe : un échec à 1:1 imprime désormais une NOTE
+                    #   disant ce que ce nombre signifie, parce que la panne suivante de cette
+                    #   famille enverra sinon quelqu'un retoucher des jetons qui vont bien.
+                    #   Campagnes complètes vertes après correction (contraste 6 palettes ×
+                    #   36 écrans, 2564 éléments par palette ; mise en page 864 rendus, canari
+                    #   inchangé à 85 lignes).
 npm run prune       # knip — dead exports / files / dependencies (a CI-style gate; ~2s)
 npm run release:data # scripts/data-only-release.cjs — bump APP_BUILD and write a version.json
                     #   carrying `data_only: true`, so the running app applies the release
@@ -1022,6 +1054,16 @@ All business logic extracted from `App.tsx` lives in `src/hooks/`. Each hook rec
 **CE QUI A RÉELLEMENT CHANGÉ** : les dix colonnes d'énumération de l'export (catégorie et coupe côté tabacs et envies, forme / courbure / filtre / matières / finition côté pipes, type et combustible côté accessoires) passent par `xlValue`, et `priority` cesse d'écrire le jeton interne `high`. **Les clés i18n y sont LITTÉRALES** (`t("prio_high")`, jamais `t("prio_" + v)`) — la règle du dépôt, et les deux autres surfaces qui affichent une priorité faisaient déjà ainsi.
 
 **LA PORTE 9 LISAIT LES COMMENTAIRES COMME DES DONNÉES, et le correctif est au niveau de la porte.** Un commentaire expliquant pourquoi le code n'utilise PAS une clé construite citait `t("prio_" + v)` ; la porte a exigé une entrée « prio_ » dans les six dictionnaires. C'est exactement ce que la porte 15 avait appris sur elle-même un build plus tôt — **une prose d'exemple n'est pas une donnée** — et la tentation était de reformuler un commentaire juste pour plaire à la garde, c'est-à-dire le mode d'échec que toute cette famille de portes existe pour éviter. `blankComments` est extrait et partagé par les portes 9, 11 et 15 (blanchiment préservant longueurs et lignes, puisque ces portes rapportent des numéros de ligne). Sondé dans les deux sens : un `t("…")` en commentaire est ignoré, tous les VRAIS appels survivent.
+
+**ET CE BLANCHIMENT A AVEUGLÉ LA PORTE 9 PENDANT UN BUILD, ALORS QUE CE DÉPÔT AVAIT DÉJÀ ÉCRIT LE DANGER, LE MÉCANISME ET LE REMÈDE.** Le commentaire `_dynamic_keys_comment` de `doc-check.allowlist.json` disait, mot pour mot : « *Not fixed by stripping comments in `extractTKeys`: MEASURED, a naive stripper blanks a live `t("ai_scan_btn")` call in AICard.tsx, and gate 9 … is an ERROR gate riding on the same extraction … Doing it properly needs a real tokeniser.* » La version à deux expressions régulières a été écrite quand même, et la note était exacte à la ligne près. **Le mécanisme tient dans un attribut : `accept="image/*"`** — le `/*` dans une CHAÎNE ouvre un commentaire de bloc qui court jusqu'au `*/` suivant, avalant ~29 lignes de JSX vivant. **La sonde négative écrite au build 70 ne pouvait pas le voir** : son contre-cas utilisait une URL, or l'ancienne garde `(^|[^:])//` tenait précisément grâce au « : » de l'URL — elle éprouvait le seul piège déjà couvert.
+
+**MESURÉ sur `src/` : six sites d'appel disparus, et le tri est l'essentiel.** CINQ étaient le correctif QUI FONCTIONNE — la clé n'existait vraiment que dans une prose (`nav_stats`, `lbl_deleted`, `unit_lot`, `unit_lots`, `prio_`) — et UN seul était un vrai appel, `ai_scan_btn`. **Ce que ça coûte n'est pas l'avertissement de la porte 11**, qui est consultatif : la porte 9 — une clé appelée doit exister dans le dictionnaire — est une porte d'ERREUR branchée sur la MÊME extraction, donc pendant un build cette région était une région où une clé mal tapée partait sans contrôle. *Une garde qui cesse silencieusement de regarder est pire qu'une absence de garde.*
+
+**LE CORRECTIF EST LE VRAI ANALYSEUR, celui que la note réclamait**, et il n'ajoute aucune dépendance : `typescript` est déjà une dépendance de développement (`tsc` est la porte canonique) et `doc-check.cjs` exige déjà `jsdom` en dur. `blankComments` blanchit les plages de commentaires que le PARSEUR attache comme trivia — donc contextuelles, ce qui compte en TSX où un `//` dans du texte JSX n'est pas un commentaire. **Le scanner brut a été essayé d'abord et REJETÉ sur mesure** : sans le parseur autour, le flux de jetons dérive sur le JSX et laisse passer de vrais commentaires (`nav_stats` et `lbl_deleted` survivaient). **Il échoue au lieu de se dégrader si le paquet manque**, parce que la dégradation EST la demi-cécité silencieuse ci-dessus.
+
+**VALIDÉ CONTRE UNE VÉRITÉ INDÉPENDANTE, ce qui est ce qui distingue cette passe de la précédente** : une `CallExpression` de l'AST ne peut pas être dans un commentaire, donc l'AST est l'oracle. Sur les 434 fichiers de `src/` : **zéro appel vivant blanchi, et tout commentaire de source de production blanchi**. Analysé en TSX inconditionnellement — mesuré, le mode unique ne perd aucun site, donc les appelants n'ont pas à faire circuler un nom de fichier. Coût : ~1 s pour l'arbre entier contre 14 ms, mémoïsé par source. **RÉSIDU ÉNONCÉ plutôt que découvert plus tard** : un `t("…")` écrit dans une CHAÎNE reste vu par l'expression régulière de l'appelant. Ce n'est pas un commentaire, c'est uniquement une fixture de test assertant sur du texte source, et `extractTKeys` exclut les tests ; le fermer voudrait dire extraire depuis l'AST plutôt que depuis le texte, ce que les appelants qui rapportent des NUMÉROS DE LIGNE ne peuvent pas utiliser. Sondé dans les deux sens : restaurer les deux expressions régulières rougit 2 cas, neutraliser le blanchiment en rougit 5 (dont un de la porte 15, qui tourne sur les vraies sources).
+
+**`nav_stats` ÉTAIT LA VRAIE TROUVAILLE, et elle n'a pu apparaître que le blanchiment réparé.** La clé portait le glyphe 📊 dans les six dictionnaires, n'était construite dynamiquement nulle part, et sa seule mention en production était le commentaire de `SettingsModal` expliquant pourquoi cette liste utilise `sec_stats` à la place (le dock a ses propres libellés `dock_<id>`). Elle se lisait comme utilisée uniquement parce que son NOM apparaissait dans cette prose — la même illusion que `lbl_deleted`, notée un an plus tôt dans l'allowlist. Supprimée des six dictionnaires et de l'allowlist des valeurs identiques ; le commentaire dit désormais qu'elle a été supprimée, pour que personne ne la remette. **La leçon générale : une garde réparée ne se juge pas au bruit qu'elle cesse de faire, mais à ce qu'elle se met enfin à voir.**
 
 **TROIS SONDES VERTES, TROIS COUCHES ABSORBANTES DIFFÉRENTES — c'est le motif à retenir.** (1) le LECTEUR, qui comprend le français en toutes langues, absorbait la non-traduction des valeurs ; (2) le FIXTURE, sans pipe ni accessoire, absorbait dix colonnes entières ; (3) le JARGON — les maps `_XX` sont SPARSES, donc `Billiard` n'a pas de traduction et son libellé ÉGALE la valeur canonique, si bien qu'une assertion écrite sur lui passe que `xlValue` soit appelé ou non. La troisième a sa garde : un cas exige que chaque valeur d'essai DIFFÈRE dans les cinq langues non françaises, sans quoi le bloc entier serait creux.
 

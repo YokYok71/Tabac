@@ -1160,6 +1160,37 @@ describe("the extracted doc gates", () => {
       expect(keys.sort()).toEqual(["a", "b"]);
     });
 
+    it("LE DÉFAUT VÉCU : `/*` dans une CHAÎNE n'ouvre pas un commentaire", () => {
+      // Reproduction fidèle d'AICard.tsx. La version à deux expressions
+      // régulières lisait le `/*` de `accept="image/*"` comme une ouverture de
+      // bloc, courant jusqu'au `*/` suivant — ici le commentaire JSX deux
+      // lignes plus bas — et avalait ~29 lignes de JSX vivant avec lui.
+      //
+      // CE QUE ÇA COÛTE n'est pas l'avertissement de la porte 11 : la porte 9
+      // (une clé appelée doit exister dans le dictionnaire) est une porte
+      // d'ERREUR branchée sur la MÊME extraction, donc une région avalée est
+      // une région où une clé mal tapée passe sans contrôle.
+      const src = [
+        '<input accept="image/*" />',
+        '{t ? t("ai_scan_btn") : "Scanner la boîte"}',
+        "{/* une vraie prose ici */}",
+        't("apres");',
+      ].join("\n");
+      expect(D.extractTKeys([src]).sort()).toEqual(["ai_scan_btn", "apres"]);
+    });
+
+    it("…et `//` dans une chaîne non plus, même sans les deux-points", () => {
+      // L'ancienne garde était `(^|[^:])//`, qui ne tenait que grâce au « : »
+      // d'une URL. Un chemin relatif n'en a pas.
+      expect(D.extractTKeys(['const p = "a//b"; t("apres");'])).toEqual(["apres"]);
+    });
+
+    it("un commentaire reste blanchi quand il SUIT du code sur la même ligne", () => {
+      // Le sens inverse du cas ci-dessus : corriger le faux négatif ne doit pas
+      // rouvrir le faux positif que tout ceci répare.
+      expect(D.extractTKeys(['t("vrai"); // et pas t("faux")'])).toEqual(["vrai"]);
+    });
+
     it("le blanchiment préserve longueurs et lignes", () => {
       // Porteur : les portes qui l'utilisent rapportent des NUMÉROS DE LIGNE.
       const src = 'a // x\n/* y\nz */\nb';

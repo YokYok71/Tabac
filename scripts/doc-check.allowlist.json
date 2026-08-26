@@ -30,7 +30,7 @@
     "upd_why_",
     "warn_storage_"
   ],
-  "_dynamic_keys_comment": "`lbl_deleted` / `lbl_updated` are the two verbs of the undo toast's overline, resolved through the UNDO_KIND table in Overlays.tsx (kind -> {kind, verb}) rather than called as literals. Listed here because `lbl_deleted` was passing gate 11 for the WRONG reason — `extractTKeys` matches inside COMMENTS, and the prose above that table quotes `t(\"lbl_deleted\")`, so the key looked used purely because its name appears in an explanation. Same shape as the traps recorded for doc:check gate 15 / gridTracksCanShrink / topBannerInset, one gate over. Not fixed by stripping comments in `extractTKeys`: MEASURED, a naive stripper blanks a live `t(\"ai_scan_btn\")` call in AICard.tsx, and gate 9 (a called key must exist in every dictionary) is an ERROR gate riding on the same extraction — weakening it to silence two warn-only lines is the wrong trade. Doing it properly needs a real tokeniser.",
+  "_dynamic_keys_comment": "`lbl_deleted` / `lbl_updated` are the two verbs of the undo toast's overline, resolved through the UNDO_KIND table in Overlays.tsx (kind -> {kind, verb}) rather than called as literals. Listed here because `lbl_deleted` was passing gate 11 for the WRONG reason — `extractTKeys` matches inside COMMENTS, and the prose above that table quotes `t(\"lbl_deleted\")`, so the key looked used purely because its name appears in an explanation. Same shape as the traps recorded for doc:check gate 15 / gridTracksCanShrink / topBannerInset, one gate over. FIXED, and the note it replaces was right about the danger and wrong about the remedy being out of reach. It used to end: «  Not fixed by stripping comments in `extractTKeys`: MEASURED, a naive stripper blanks a live t(\"ai_scan_btn\") call in AICard.tsx, and gate 9 … is an ERROR gate riding on the same extraction … Doing it properly needs a real tokeniser. » A later release stripped comments anyway with two regexes and reproduced that exact defect — `accept=\"image/*\"` opens a block comment that swallows ~29 lines of live JSX, so gate 9 stopped checking the keys in that region and nothing said so. `blankComments` uses the TypeScript parser now (already a devDependency, and `doc-check.cjs` already hard-requires `jsdom`), validated against AST ground truth over all 434 files in src/: zero live calls blanked, every production comment blanked. These two keys STAY listed — they are genuinely resolved through the UNDO_KIND table rather than called as literals, which is what this list is for; what changed is that they are no longer listed for the wrong reason.",
   "dynamicKeys": [
     "fam_other",
     "lbl_in_stock",
@@ -258,13 +258,6 @@
     ],
     "nav_journal": [
       "en"
-    ],
-    "nav_stats": [
-      "en",
-      "es",
-      "de",
-      "it",
-      "pt"
     ],
     "pipe_active_lbl": [
       "en"
