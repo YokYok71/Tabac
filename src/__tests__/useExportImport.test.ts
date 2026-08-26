@@ -1192,3 +1192,75 @@ describe("the CSV import says what it could not read", () => {
     expect(result.current.csvIssues, "stale panel survived a clean import").toBeNull();
   });
 });
+
+// ── LE CÂBLAGE, TROUVÉ PAR SONDE ────────────────────────────────────────────
+// Un lot de mutations sur ce hook a laissé QUATRE règles vertes. Chacune est
+// close ci-dessous, et la leçon est la même à chaque fois : la règle vit dans
+// le hook, sa garantie était testée ailleurs — ou nulle part.
+describe("useExportImport — les règles que rien ne gardait", () => {
+  it("un second tap n'exporte pas deux fois (verrou JSON)", () => {
+    // `busyRef.current.json` existe pour ça et n'était asserté par rien :
+    // sondé, le neutraliser laissait 180 cas verts. Sur iOS l'export passe par
+    // la feuille de partage, donc « deux fois » veut dire DEUX feuilles — un
+    // état franchement cassé, pas une simple redondance.
+    const save = vi.fn();
+    const withPhotos = vi.fn().mockImplementation((d: any) => new Promise((r) => setTimeout(() => r(d), 20)));
+    const { result } = renderHook(() => useExportImport(makeProps({ save, withPhotos }) as any));
+    act(() => { result.current.doExport(); result.current.doExport(); });
+    expect(withPhotos, "le second tap est passé — deux exports en vol").toHaveBeenCalledTimes(1);
+  });
+
+  it("un second tap n'archive pas deux fois (verrou ZIP)", () => {
+    // Même règle, autre bouton — et le chemin ZIP injecte en plus un <script>
+    // JSZip par tap, donc la double exécution y est plus coûteuse encore.
+    const withPhotos = vi.fn().mockImplementation((d: any) => new Promise((r) => setTimeout(() => r(d), 20)));
+    const { result } = renderHook(() => useExportImport(makeProps({ withPhotos }) as any));
+    act(() => { result.current.doBackupZip(); result.current.doBackupZip(); });
+    // Le verrou est pris AVANT la vérification de `window.JSZip`, donc il tient
+    // même quand la bibliothèque n'est pas là — ce que ce cas exerce.
+    expect((globalThis as any).document.querySelectorAll("script[src*='jszip']").length)
+      .toBeLessThanOrEqual(1);
+  });
+
+  it("un échec du magasin de photos est TRADUIT, jamais rendu en code", async () => {
+    // `photo-store-unreadable` est un CODE et non de la prose — c'est
+    // délibéré, la garde `errorMessagesTranslated` autorise un code kebab sans
+    // espace précisément pour que rien d'anglais ne fuie à l'écran. Restait à
+    // vérifier que quelqu'un le TRADUIT : sondé, casser la correspondance ne
+    // faisait rougir aucun cas, et l'utilisateur aurait lu le code brut.
+    //
+    // NOTE DE MÉTHODE, parce que j'ai failli livrer un cas creux : ma première
+    // version faisait `return act(...).then(() => { expect(...) })`. L'assertion
+    // échouait — et le fichier rapportait 54 VERTS avec « 1 unhandled error »,
+    // parce qu'un rejet levé dans le `.then` d'un `act` n'est pas attribué au
+    // test. Assertion DEHORS, `waitFor` pour l'attente, comme les cas A0
+    // au-dessus.
+    const alertSpy = vi.spyOn(globalThis, "alert" as any).mockImplementation(() => {});
+    const withPhotos = vi.fn().mockRejectedValue(new Error("photo-store-unreadable"));
+    const { result } = renderHook(() => useExportImport(makeProps({ withPhotos }) as any));
+    act(() => { result.current.doExport(); });
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    const msg = String(alertSpy.mock.calls[0]![0]);
+    expect(msg, "le code brut a fui à l'écran").not.toContain("photo-store-unreadable");
+    expect(msg).toContain("err_photos_unreadable");
+  });
+
+  it("le rapport de collection reçoit la langue de l'interface", () => {
+    // LE CÂBLAGE, ENCORE. `collectionReport.ts` valide et pose `<html lang>`,
+    // et ses propres cas exercent l'OPTION — ce qui ne dit rien de savoir si
+    // quelqu'un la lui passe. Sondé : retirer `lang: lang` du site d'appel
+    // laissait 180 cas verts, et le document repartait sans attribut de langue,
+    // le défaut d'accessibilité que ce champ avait été ajouté pour corriger.
+    let text = "";
+    (globalThis as any).URL.createObjectURL = vi.fn().mockReturnValue("blob:fake");
+    const RealBlob = globalThis.Blob;
+    (globalThis as any).Blob = class extends RealBlob {
+      constructor(parts: any[], o: any) { super(parts, o); text = String(parts[0]); }
+    };
+    const { result } = renderHook(() => useExportImport(makeProps({ lang: "de" }) as any));
+    act(() => { result.current.doCollectionReport(); });
+    (globalThis as any).Blob = RealBlob;
+    expect(text, "le rapport n'a pas été capturé").toContain("report_disclaimer");
+    expect(text, "le document repart sans langue déclarée").toContain('lang="de"');
+  });
+});
