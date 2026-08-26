@@ -120,6 +120,8 @@ export var IT = {
   csv_issues_cut:"{n} riga/righe con un taglio non riconosciuto — ricondotto a «{v}»",
   csv_issues_num:"{n} valore/i numerico/i illeggibile/i — lasciato/i vuoto/i",
   csv_issues_status:"{n} riga/righe con uno stato non riconosciuto — importate «in cantina»",
+csv_tpl_desc:"Esempio: la tua descrizione della miscela.",
+csv_tpl_notes:"Esempio: le tue note di degustazione.",
   csv_import_done:"{n} tabacco/i e {l} lotto/i importati (uniti).",
   csv_import_uptodate:"{m} tabacco(i) già presenti: nessun nuovo lotto aggiunto (la fusione CSV aggiunge solo lotti).",
   merge_recap_lots:"{l} nuovo(i) lotto(i) aggiunto(i) a {m} tabacco(i) già presenti.",

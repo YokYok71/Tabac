@@ -225,14 +225,22 @@ var HEADER_ALIASES: Record<string, string> = {
   "vendeur": "seller", "seller": "seller",
   "site vendeur": "sellerUrl", "url vendeur": "sellerUrl", "seller url": "sellerUrl", "site du vendeur": "sellerUrl",
   "image url": "imageUrl", "image": "imageUrl",
+  // Les quatre champs que l'élargissement avait laissés sans alias hors
+  // FR/EN. Trois PORTENT UNE DONNÉE, donc l'écrivain ne peut pas émettre
+  // leur en-tête localisé tant que le lecteur ne le connaît pas — c'est la
+  // moitié qui rend l'export localisé possible.
+  "nota de ambiente": "roomNote", "eliminado": "disposed", "estado origen": "originalStatus", "url de imagen": "imageUrl",  // es
+  "raumnote": "roomNote", "entsorgt": "disposed", "ursprungsstatus": "originalStatus", "bild-url": "imageUrl",  // de
+  "nota d'ambiente": "roomNote", "eliminato": "disposed", "stato originale": "originalStatus", "url immagine": "imageUrl",  // it
+  "estado de origem": "originalStatus", "url da imagem": "imageUrl",  // pt (« nota de ambiente » et « eliminado » sont déjà là, es/pt partagent le mot)
   // "age" (computed display column) intentionally has NO mapping — ignored.
 
   // ── the four other UI languages ────────────────────────────────────────
   //
-  // The WRITER stays French and must (see `buildCsvLines`): a file exported
-  // under one UI language has to re-import under another, and that only holds
-  // while there is ONE canonical header shape. What was never true is the other
-  // half — that the READER should be French too. Measured before this: the
+  // The WRITER was French and is no longer — see `CSV_COLUMNS` below for why,
+  // and note the order: the reader had to learn a language BEFORE the writer
+  // could emit it. That direction is not a detail, it is what keeps every file
+  // the app has ever produced readable. Measured before this: the
   // table knew FR + EN only, so a Spanish, German, Italian or Portuguese user
   // who translated the headers in their spreadsheet — the natural thing to do
   // with a template they cannot read — got `csv_import_empty`, whose message
@@ -288,6 +296,148 @@ var HEADER_ALIASES: Record<string, string> = {
   "numero caixa": "boxNumber", "localizacao": "storageLocation",
   "preco": "price", "site vendedor": "sellerUrl",
 };
+
+// ── ce que l'app ÉCRIT ────────────────────────────────────────────────────────
+//
+// L'en-tête d'un CSV produit par l'app, par champ et par langue. Elle vit ICI,
+// collée à `HEADER_ALIASES`, pour la raison exacte qui a fait naître
+// `CSV_DELIM` : l'écrivain et le lecteur doivent partager un fichier, sans quoi
+// ils dérivent. Chaque cellule de cette table DOIT se replier, via la table
+// ci-dessus, sur le champ qui la porte — c'est l'aller-retour, et
+// `csvExportLanguages.test.ts` le vérifie pour les six langues plutôt que de le
+// promettre.
+//
+// POURQUOI L'ÉCRIVAIN A CESSÉ D'ÊTRE FRANÇAIS, alors que ce fichier a longtemps
+// porté l'acquittement inverse. Sa raison était : « le lecteur compare les
+// en-têtes à une table d'alias FR+EN, donc localiser casserait silencieusement
+// la ré-importation d'un fichier exporté sous une autre langue ». Cette prémisse
+// a cessé d'être vraie quand le lecteur a appris les six langues — et un
+// commentaire qui invoque un mécanisme disparu est pire que pas de commentaire.
+//
+// CE QUI REND LE BASCULEMENT SÛR, et c'est une MESURE et non un espoir : le
+// danger n'était pas l'aller-retour dans la version courante (le lecteur
+// comprend tout) mais un ANCIEN build lisant un fichier neuf. Or l'élargissement
+// du lecteur fut purement additif : pour es/de/it/pt, AUCUN en-tête n'était
+// connu avant, donc un ancien build ne trouve ni marque ni nom et échoue
+// BRUYAMMENT sur `csv_import_empty`. Il n'atteint jamais la colonne Statut,
+// dont l'échec, lui, serait SILENCIEUX (repli en cave). L'en-tête masque donc
+// la valeur : c'est pour cela que les deux se localisent ENSEMBLE, jamais l'une
+// sans l'autre. fr et en étaient déjà compris de bout en bout.
+var CSV_COLUMNS: Record<string, Record<string, string>> = {
+  brand: { fr: "Marque", en: "Brand", es: "Marca", de: "Marke", it: "Marca", pt: "Marca" },
+  name: { fr: "Nom", en: "Name", es: "Nombre", de: "Name", it: "Nome", pt: "Nome" },
+  category: { fr: "Categorie", en: "Category", es: "Categoría", de: "Kategorie", it: "Categoria", pt: "Categoria" },
+  blend: { fr: "Composition", en: "Blend", es: "Composición", de: "Mischung", it: "Composizione", pt: "Composição" },
+  cut: { fr: "Coupe", en: "Cut", es: "Corte", de: "Schnitt", it: "Taglio", pt: "Corte" },
+  force: { fr: "Force", en: "Strength", es: "Fuerza", de: "Stärke", it: "Forza", pt: "Forca" },
+  roomNote: { fr: "Room Note", en: "Room Note", es: "Nota de ambiente", de: "Raumnote", it: "Nota d'ambiente", pt: "Nota de ambiente" },
+  taste: { fr: "Gout", en: "Taste", es: "Sabor", de: "Geschmack", it: "Gusto", pt: "Sabor" },
+  description: { fr: "Description", en: "Description", es: "Descripción", de: "Beschreibung", it: "Descrizione", pt: "Descrição" },
+  rating: { fr: "Note", en: "Rating", es: "Valoración", de: "Bewertung", it: "Voto", pt: "Classificação" },
+  rebuy: { fr: "A reprendre", en: "Rebuy", es: "Recomprar", de: "Nachkaufen", it: "Ricomprare", pt: "Recomprar" },
+  tastingNotes: { fr: "Notes degustation", en: "Tasting notes", es: "Notas de cata", de: "Verkostungsnotizen", it: "Note di degustazione", pt: "Notas de prova" },
+  agingMax: { fr: "Age max cave", en: "Aging max", es: "Envejecimiento", de: "Reifung", it: "Invecchiamento", pt: "Envelhecimento" },
+  status: { fr: "Statut", en: "Status", es: "Estado", de: "Status", it: "Stato", pt: "Estado" },
+  disposed: { fr: "Elimine", en: "Disposed", es: "Eliminado", de: "Entsorgt", it: "Eliminato", pt: "Eliminado" },
+  weightG: { fr: "Poids", en: "Weight", es: "Peso", de: "Gewicht", it: "Peso", pt: "Peso" },
+  weightInitial: { fr: "Poids initial", en: "Initial weight", es: "Peso inicial", de: "Anfangsgewicht", it: "Peso iniziale", pt: "Peso inicial" },
+  originalStatus: { fr: "Statut origine", en: "Original status", es: "Estado origen", de: "Ursprungsstatus", it: "Stato originale", pt: "Estado de origem" },
+  datePurchased: { fr: "Date achat", en: "Purchase date", es: "Fecha compra", de: "Kaufdatum", it: "Data acquisto", pt: "Data compra" },
+  dateProduction: { fr: "Date production", en: "Production date", es: "Fecha produccion", de: "Herstellungsdatum", it: "Data produzione", pt: "Data produção" },
+  dateOpened: { fr: "Date mise en pot", en: "Date opened", es: "Fecha apertura", de: "Öffnungsdatum", it: "Data apertura", pt: "Data abertura" },
+  dateFinished: { fr: "Date fin", en: "Finished date", es: "Fecha fin", de: "Enddatum", it: "Data fine", pt: "Data fim" },
+  boxNumber: { fr: "No boite", en: "Box number", es: "Núm. caja", de: "Dosennummer", it: "Numero scatola", pt: "Numero caixa" },
+  storageLocation: { fr: "Lieu de stockage", en: "Storage location", es: "Ubicación", de: "Lagerort", it: "Posizione", pt: "Localização" },
+  price: { fr: "Prix", en: "Price", es: "Precio", de: "Preis", it: "Prezzo", pt: "Preco" },
+  seller: { fr: "Vendeur", en: "Seller", es: "Vendedor", de: "Händler", it: "Venditore", pt: "Vendedor" },
+  sellerUrl: { fr: "Site vendeur", en: "Seller url", es: "Sitio vendedor", de: "Händler-Website", it: "Sito venditore", pt: "Site vendedor" },
+  imageUrl: { fr: "Image URL", en: "Image URL", es: "URL de imagen", de: "Bild-URL", it: "URL immagine", pt: "URL da imagem" },
+  age: { fr: "Age", en: "Age", es: "Edad", de: "Alter", it: "Età", pt: "Idade" },
+
+  // ── colonnes des QUATRE AUTRES BLOCS (pipes / envies / accessoires /
+  // séances). Elles sont d'AFFICHAGE PUR : `parseTobaccoCsv` s'arrête au
+  // premier marqueur `=== SECTION ===`, donc le lecteur ne les voit jamais et
+  // aucune contrainte de repliement ne pèse sur elles.
+  //
+  // Elles sont ici QUAND MÊME, et c'est le point : un export dont le bloc
+  // tabacs serait traduit et les quatre autres français serait un fichier
+  // MIXTE — c'est-à-dire pire qu'un fichier entièrement français. Traduire à
+  // moitié ne fait pas la moitié du bien ; cela fait un fichier incohérent.
+  pipeModel: { fr: "Modele", en: "Model", es: "Modelo", de: "Modell", it: "Modello", pt: "Modelo" },
+  shape: { fr: "Forme", en: "Shape", es: "Forma", de: "Form", it: "Forma", pt: "Forma" },
+  bend: { fr: "Courbure", en: "Bend", es: "Curvatura", de: "Biegung", it: "Curvatura", pt: "Curvatura" },
+  length: { fr: "Longueur", en: "Length", es: "Longitud", de: "Länge", it: "Lunghezza", pt: "Comprimento" },
+  filterType: { fr: "Filtre", en: "Filter", es: "Filtro", de: "Filter", it: "Filtro", pt: "Filtro" },
+  chamberDiameter: { fr: "Diam. foyer (mm)", en: "Chamber dia. (mm)", es: "Diam. cazoleta (mm)", de: "Brennkammer-Durchm. (mm)", it: "Diam. fornello (mm)", pt: "Diam. fornilho (mm)" },
+  chamberDepth: { fr: "Prof. foyer (mm)", en: "Chamber depth (mm)", es: "Prof. cazoleta (mm)", de: "Brennkammer-Tiefe (mm)", it: "Prof. fornello (mm)", pt: "Prof. fornilho (mm)" },
+  bowlMaterial: { fr: "Matiere bol", en: "Bowl material", es: "Material cazoleta", de: "Material Kopf", it: "Materiale fornello", pt: "Material do fornilho" },
+  stemMaterial: { fr: "Matiere bec", en: "Stem material", es: "Material boquilla", de: "Material Mundstück", it: "Materiale bocchino", pt: "Material da boquilha" },
+  finish: { fr: "Finition", en: "Finish", es: "Acabado", de: "Oberfläche", it: "Finitura", pt: "Acabamento" },
+  notes: { fr: "Remarque", en: "Notes", es: "Observaciones", de: "Anmerkung", it: "Osservazioni", pt: "Observações" },
+  priority: { fr: "Priorite", en: "Priority", es: "Prioridad", de: "Priorität", it: "Priorità", pt: "Prioridade" },
+  accType: { fr: "Type", en: "Type", es: "Tipo", de: "Typ", it: "Tipo", pt: "Tipo" },
+  fuel: { fr: "Carburant", en: "Fuel", es: "Combustible", de: "Brennstoff", it: "Combustibile", pt: "Combustível" },
+  sessDate: { fr: "Date", en: "Date", es: "Fecha", de: "Datum", it: "Data", pt: "Data" },
+  sessTime: { fr: "Heure", en: "Time", es: "Hora", de: "Uhrzeit", it: "Ora", pt: "Hora" },
+  sessTobacco: { fr: "Tabac", en: "Tobacco", es: "Tabaco", de: "Tabak", it: "Tabacco", pt: "Tabaco" },
+  sessPipe: { fr: "Pipe", en: "Pipe", es: "Pipa", de: "Pfeife", it: "Pipa", pt: "Cachimbo" },
+  duration: { fr: "Duree (min)", en: "Duration (min)", es: "Duración (min)", de: "Dauer (Min.)", it: "Durata (min)", pt: "Duração (min)" },
+  smoked: { fr: "Quantite fumee", en: "Amount smoked", es: "Cantidad fumada", de: "Gerauchte Menge", it: "Quantità fumata", pt: "Quantidade fumada" },
+  aromas: { fr: "Aromes", en: "Aromas", es: "Aromas", de: "Aromen", it: "Aromi", pt: "Aromas" },
+  place: { fr: "Lieu", en: "Place", es: "Lugar", de: "Ort", it: "Luogo", pt: "Local" },
+  city: { fr: "Commune", en: "City", es: "Municipio", de: "Gemeinde", it: "Comune", pt: "Localidade" },
+  country: { fr: "Pays", en: "Country", es: "País", de: "Land", it: "Paese", pt: "País" },
+  lat: { fr: "Latitude", en: "Latitude", es: "Latitud", de: "Breitengrad", it: "Latitudine", pt: "Latitude" },
+  lng: { fr: "Longitude", en: "Longitude", es: "Longitud", de: "Längengrad", it: "Longitudine", pt: "Longitude" },
+};
+
+/** Les valeurs que l'app écrit dans les colonnes fermées. Chacune doit être un
+ *  mot que `normStatus` / `parseRebuy` placent — même contrat, même test. */
+var CSV_VALUES: Record<string, Record<string, string>> = {
+  cellar:   { fr: "Cave", en: "Cellar", es: "Bodega", de: "Keller", it: "Cantina", pt: "Adega" },
+  jar:      { fr: "Pot", en: "Jar", es: "Tarro", de: "Glas", it: "Barattolo", pt: "Frasco" },
+  finished: { fr: "Termine", en: "Finished", es: "Acabado", de: "Aufgeraucht", it: "Finito", pt: "Terminado" },
+  yes:      { fr: "Oui", en: "Yes", es: "Sí", de: "Ja", it: "Si", pt: "Sim" },
+  no:       { fr: "Non", en: "No", es: "No", de: "Nein", it: "No", pt: "Não" },
+  // Statuts d'AFFICHAGE PUR (pipes, accessoires) : le lecteur ne lit jamais ces
+  // blocs, donc aucun `normStatus` ne les contraint. Les accessoires écrivaient
+  // le jeton interne brut (`active` / `retired`) dans toutes les langues —
+  // incohérent avant comme après, mais visible maintenant que l'en-tête voisin
+  // est traduit.
+  pipeActive:   { fr: "Active", en: "Active", es: "Activa", de: "Aktiv", it: "Attiva", pt: "Ativo" },
+  pipeFinished: { fr: "Finie", en: "Retired", es: "Retirada", de: "Ausgemustert", it: "Ritirata", pt: "Retirado" },
+  accActive:    { fr: "Actif", en: "Active", es: "Activo", de: "Aktiv", it: "Attivo", pt: "Ativo" },
+  accRetired:   { fr: "Retire", en: "Retired", es: "Retirado", de: "Ausgemustert", it: "Ritirato", pt: "Retirado" },
+};
+
+/** La langue d'écriture : celle demandée si l'app l'a, sinon le FRANÇAIS.
+ *  Le repli est le français et NON l'anglais, contrairement au reste de l'app :
+ *  ce module produit la forme CANONIQUE, celle que tout build a toujours sue
+ *  lire. Un code inconnu doit donc donner le fichier le plus universellement
+ *  ré-importable, pas le plus lisible. */
+export function csvLang(lang: any): string {
+  var l = String(lang || "");
+  return Object.prototype.hasOwnProperty.call(CSV_COLUMNS["brand"] || {}, l) ? l : "fr";
+}
+
+/** L'en-tête du champ `field` dans la langue d'écriture, `unit` suffixé quand
+ *  la colonne en porte une (poids, prix). */
+export function csvHeader(field: string, lang: any, unit?: string): string {
+  var row = Object.prototype.hasOwnProperty.call(CSV_COLUMNS, field) ? CSV_COLUMNS[field] : null;
+  var h = row ? row[csvLang(lang)] || row["fr"] || field : field;
+  return unit ? h + " (" + unit + ")" : String(h);
+}
+
+/** La valeur canonique `key` dans la langue d'écriture. */
+export function csvValue(key: string, lang: any): string {
+  var row = Object.prototype.hasOwnProperty.call(CSV_VALUES, key) ? CSV_VALUES[key] : null;
+  return row ? String(row[csvLang(lang)] || row["fr"]) : "";
+}
+
+/** Test-only : la table complète, pour que l'aller-retour se dérive au lieu de
+ *  se réécrire (une copie serait une deuxième source de vérité). */
+export var _CSV_COLUMNS_FOR_TESTS = CSV_COLUMNS;
+export var _CSV_VALUES_FOR_TESTS = CSV_VALUES;
 
 // ── value coercion ───────────────────────────────────────────────────────────
 
@@ -365,9 +515,14 @@ function parseRebuy(v: any): boolean | null {
   return null;
 }
 
+// « cette cellule dit-elle oui ? » — UNE règle, une implémentation. Elle en
+// avait deux : `parseRebuy` (tri-état, élargi aux six langues) et cette
+// fonction, restée FR/EN, qui sert la colonne « Éliminé ». Le motif que ce
+// dépôt paie en boucle : quand une règle existe sur deux chemins, c'est le
+// SECOND qui n'est pas testé. Depuis que l'app ÉCRIT « Sim » ou « Ja » dans
+// cette colonne, l'écart n'était plus théorique.
 function parseBool(v: any): boolean {
-  var f = fold(v);
-  return f === "oui" || f === "yes" || f === "y" || f === "true" || f === "1" || f === "o";
+  return parseRebuy(v) === true;
 }
 
 /**

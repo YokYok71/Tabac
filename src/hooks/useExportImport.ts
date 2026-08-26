@@ -6,7 +6,7 @@ import { daysSince, fmtDate, fmtNum, isTrashed, stripDeleted, isPlausibleBackup,
 import { sanitizeAromas, aromaLabelKey } from "../utils/aromas.ts";
 import { imgCache } from "../utils/imgCache.ts";
 import { buildCollectionReport } from "../utils/collectionReport.ts";
-import { parseTobaccoCsv, CSV_DELIM } from "../utils/csvImport.ts";
+import { parseTobaccoCsv, CSV_DELIM, csvHeader, csvValue } from "../utils/csvImport.ts";
 import { CATS_EN, SHAPES_EN, ACC_TYPES_EN } from "../constants.ts";
 
 var useState = React.useState;
@@ -236,48 +236,33 @@ export function useExportImport({
     return '"' + s + '"';
   }
 
-  // lang-axis-ok: the CSV is FRENCH by construction, in every UI language, and
-  // must stay that way. `parseTobaccoCsv` matches columns by header NAME against
-  // an FR+EN alias table, and the status cells it reads are Cave/Pot/Fini — so
-  // localising these headers would silently break re-import of a file exported
-  // under another UI language, which is the one thing a round-trip must survive.
-  // The two cells that DO localise (Arômes values, Age) are free text the parser
-  // never matches on. See CLAUDE.md, "what is deliberately NOT translated".
+  // L'export s'écrit dans la LANGUE ACTIVE, et l'acquittement qui tenait ici
+  // disait le contraire. Sa raison — « le lecteur compare les en-têtes à une
+  // table d'alias FR+EN » — a cessé d'être vraie quand le lecteur a appris les
+  // six langues ; elle est conservée dans `CSV_COLUMNS` (utils/csvImport.ts)
+  // avec la mesure qui rend le basculement sûr, plutôt que supprimée.
+  //
+  // Ni l'en-tête ni les valeurs ne sont écrits ici : `csvHeader` / `csvValue`
+  // vivent à côté de la table d'alias, pour que l'écrivain et le lecteur ne
+  // puissent pas diverger. La colonne Arômes reste du texte libre que le
+  // lecteur ne compare jamais.
   function buildCsvLines() {
     var sep = CSV_DELIM;
     var lines: string[] = [];
     lines.push(
-      [
-        "Marque",
-        "Nom",
-        "Categorie",
-        "Composition",
-        "Coupe",
-        "Force",
-        "Room Note",
-        "Gout",
-        "Description",
-        "Note",
-        "A reprendre",
-        "Notes degustation",
-        "Age max cave (ans)",
-        "Statut",
-        "Éliminé",
-        "Poids (" + weightUnit + ")",
-        "Poids initial (" + weightUnit + ")",
-        "Statut origine",
-        "Date achat",
-        "Date production",
-        "Date mise en pot",
-        "Date fin",
-        "No boite",
-        "Lieu de stockage",
-        "Prix (" + currencySymbol + ")",
-        "Vendeur",
-        "Site vendeur",
-        "Age",
-        "Image URL",
-      ]
+      ([
+        "brand", "name", "category", "blend", "cut", "force", "roomNote", "taste",
+        "description", "rating", "rebuy", "tastingNotes", "agingMax", "status",
+        "disposed", "weightG", "weightInitial", "originalStatus", "datePurchased",
+        "dateProduction", "dateOpened", "dateFinished", "boxNumber",
+        "storageLocation", "price", "seller", "sellerUrl", "age", "imageUrl",
+      ] as const).map(function (f) {
+        return csvHeader(
+          f,
+          lang,
+          f === "weightG" || f === "weightInitial" ? weightUnit : f === "price" ? currencySymbol : undefined,
+        );
+      })
         .map(csvEsc)
         .join(sep),
     );
@@ -295,15 +280,8 @@ export function useExportImport({
           l.dateProduction || l.datePurchased
             ? ageLabel(daysSince(l.dateProduction || l.datePurchased))
             : "";
-        var st =
-          l.status === "cellar"
-            ? "Cave"
-            : l.status === "jar"
-              ? "Pot"
-              : l.status === "finished"
-                ? "Termine"
-                : "";
-        var rb = tb.rebuy === true ? "Oui" : tb.rebuy === false ? "Non" : "";
+        var st = csvValue(String(l.status || ""), lang);
+        var rb = tb.rebuy === true ? csvValue("yes", lang) : tb.rebuy === false ? csvValue("no", lang) : "";
         lines.push(
           [
             tb.brand,
@@ -320,10 +298,10 @@ export function useExportImport({
             tb.tastingNotes || "",
             tb.agingMax || "",
             st,
-            l.disposed ? "Oui" : "",
+            l.disposed ? csvValue("yes", lang) : "",
             l.weightG || "",
             l.weightInitial || "",
-            l.originalStatus === "jar" ? "Pot" : l.originalStatus === "cellar" ? "Cave" : "",
+            csvValue(String(l.originalStatus || ""), lang),
             l.datePurchased ? fmtDate(l.datePurchased, dateFormat) : "",
             l.dateProduction ? fmtDate(l.dateProduction, dateFormat) : "",
             l.dateOpened ? fmtDate(l.dateOpened, dateFormat) : "",
@@ -348,34 +326,22 @@ export function useExportImport({
     lines.push("");
     lines.push(csvEsc("=== PIPES ==="));
     lines.push(
-      [
-        "Marque",
-        "Modele",
-        "Forme",
-        "Courbure",
-        // The unit column reflects the user's CURRENT
-        // global preference, not the unit the value was stored in
-        // (which is the same number, just display-only — see
-        // CLAUDE.md §16). Header annotation makes the ambiguity
-        // visible for downstream consumers.
-        "Longueur (" + lengthUnit + ")",
-        "Poids (" + weightUnit + ")",
-        "Filtre",
-        "Diam. foyer (mm)",
-        "Prof. foyer (mm)",
-        "Matiere bol",
-        "Matiere bec",
-        "Finition",
-        "Date achat",
-        "Date production",
-        "Prix (" + currencySymbol + ")",
-        "Vendeur",
-        "Note",
-        "Statut",
-        "Description",
-        "Remarque",
-        "Image URL",
-      ]
+      // The unit column reflects the user's CURRENT global preference, not the
+      // unit the value was stored in (which is the same number, just
+      // display-only — see CLAUDE.md §16). Header annotation makes the
+      // ambiguity visible for downstream consumers.
+      ([
+        "brand", "pipeModel", "shape", "bend", "length", "weightG", "filterType",
+        "chamberDiameter", "chamberDepth", "bowlMaterial", "stemMaterial", "finish",
+        "datePurchased", "dateProduction", "price", "seller", "rating", "status",
+        "description", "notes", "imageUrl",
+      ] as const).map(function (f) {
+        return csvHeader(
+          f,
+          lang,
+          f === "length" ? lengthUnit : f === "weightG" ? weightUnit : f === "price" ? currencySymbol : undefined,
+        );
+      })
         .map(csvEsc)
         .join(sep),
     );
@@ -401,7 +367,7 @@ export function useExportImport({
           p.price || "",
           p.seller || "",
           p.rating || "",
-          (p.status || "active") === "active" ? "Active" : "Finie",
+          csvValue((p.status || "active") === "active" ? "pipeActive" : "pipeFinished", lang),
           p.description || "",
           p.notes || "",
           p.imageUrl &&
@@ -417,22 +383,10 @@ export function useExportImport({
     lines.push("");
     lines.push(csvEsc("=== WISHLIST ==="));
     lines.push(
-      [
-        "Nom",
-        "Marque",
-        "Categorie",
-        "Composition",
-        "Coupe",
-        "Force",
-        "Room Note",
-        "Gout",
-        "Description",
-        "Age max cave (ans)",
-        "Note",
-        "Remarque",
-        "Priorite",
-        "Image URL",
-      ]
+      ([
+        "name", "brand", "category", "blend", "cut", "force", "roomNote", "taste",
+        "description", "agingMax", "tastingNotes", "notes", "priority", "imageUrl",
+      ] as const).map(function (f) { return csvHeader(f, lang); })
         .map(csvEsc)
         .join(sep),
     );
@@ -462,19 +416,12 @@ export function useExportImport({
     lines.push("");
     lines.push(csvEsc("=== ACCESSOIRES ==="));
     lines.push(
-      [
-        "Type",
-        "Marque",
-        "Nom",
-        "Carburant",
-        "Statut",
-        "Date achat",
-        "Prix (" + currencySymbol + ")",
-        "Vendeur",
-        "Note",
-        "Remarques",
-        "Image URL",
-      ]
+      ([
+        "accType", "brand", "name", "fuel", "status", "datePurchased", "price",
+        "seller", "rating", "notes", "imageUrl",
+      ] as const).map(function (f) {
+        return csvHeader(f, lang, f === "price" ? currencySymbol : undefined);
+      })
         .map(csvEsc)
         .join(sep),
     );
@@ -486,7 +433,7 @@ export function useExportImport({
           a.brand || "",
           a.name || "",
           a.fuel || "",
-          a.status || "",
+          a.status ? csvValue(a.status === "retired" ? "accRetired" : "accActive", lang) : "",
           // Accessory datePurchased is year-only — raw.
           a.datePurchased || "",
           a.price || "",
@@ -502,22 +449,12 @@ export function useExportImport({
     lines.push("");
     lines.push(csvEsc("=== SEANCES ==="));
     lines.push(
-      [
-        "Date",
-        "Heure",
-        "Tabac",
-        "Pipe",
-        "Durée (min)",
-        "Quantité fumée (" + weightUnit + ")",
-        "Note",
-        "Remarques",
-        "Arômes",
-        "Lieu",
-        "Commune",
-        "Pays",
-        "Latitude",
-        "Longitude",
-      ]
+      ([
+        "sessDate", "sessTime", "sessTobacco", "sessPipe", "duration", "smoked",
+        "rating", "notes", "aromas", "place", "city", "country", "lat", "lng",
+      ] as const).map(function (f) {
+        return csvHeader(f, lang, f === "smoked" ? weightUnit : undefined);
+      })
         .map(csvEsc)
         .join(sep),
     );
@@ -682,21 +619,33 @@ export function useExportImport({
   // Les unités et la devise des en-têtes suivent les préférences ; le lecteur
   // retire les « (…) », donc n'importe quelle unité fait l'aller-retour.
   function doDownloadCsvTemplate() {
-    var headers = [
-      "Marque", "Nom", "Categorie", "Composition", "Coupe", "Force", "Room Note", "Gout", "Note",
-      "A reprendre", "Age max cave (ans)", "Statut", "Poids (" + weightUnit + ")",
-      "Poids initial (" + weightUnit + ")", "Date achat", "Date production",
-      // The two lifecycle columns. This template's own comment says
-      // it uses "the same header shape the export uses" — and it did not: the
-      // export emits these two and the template omitted them, so its `Pot`
-      // example row imported without an opening date and tripped
-      // `jar-has-dateOpened` at the next save. The parser now back-fills as
-      // well (any hand-built CSV can do the same), but the template should
-      // demonstrate the column rather than rely on the repair.
-      "Date mise en pot", "Date fin",
-      "Prix (" + currencySymbol + ")", "Vendeur", "Site vendeur", "No boite", "Lieu de stockage",
-      "Description", "Notes degustation",
-    ];
+    // LE MODÈLE EST LE SEUL FICHIER QUE PERSONNE NE RELIT AVANT DE LE REMPLIR,
+    // donc c'est lui qui bute en premier sur une langue étrangère : on le
+    // télécharge précisément parce qu'on ne sait pas quelles colonnes écrire.
+    // Il s'écrit dans la langue active depuis la MÊME table que l'export, pour
+    // qu'un utilisateur qui remplit le modèle puis exporte ne reçoive pas son
+    // propre fichier dans une autre langue que celui qu'il vient de remplir.
+    //
+    // The two lifecycle columns. This template's own comment says
+    // it uses "the same header shape the export uses" — and it did not: the
+    // export emits these two and the template omitted them, so its `Pot`
+    // example row imported without an opening date and tripped
+    // `jar-has-dateOpened` at the next save. The parser now back-fills as
+    // well (any hand-built CSV can do the same), but the template should
+    // demonstrate the column rather than rely on the repair.
+    var FIELDS = [
+      "brand", "name", "category", "blend", "cut", "force", "roomNote", "taste", "rating",
+      "rebuy", "agingMax", "status", "weightG", "weightInitial", "datePurchased",
+      "dateProduction", "dateOpened", "dateFinished", "price", "seller", "sellerUrl",
+      "boxNumber", "storageLocation", "description", "tastingNotes",
+    ] as const;
+    var headers = FIELDS.map(function (f) {
+      return csvHeader(
+        f,
+        lang,
+        f === "weightG" || f === "weightInitial" ? weightUnit : f === "price" ? currencySymbol : undefined,
+      );
+    });
     // THE EXAMPLE BLEND IS INVENTED, AND MUST STAY INVENTED. This file is
     // DISTRIBUTED — every user downloads it from Réglages → Données — and it
     // used to ship a real blend carrying a full attribute set: category, cut,
@@ -712,12 +661,17 @@ export function useExportImport({
     // still has to be demonstrated. The retailer is real and stays — a seller
     // is neither an attribute of the blend nor anyone's research, and it is the
     // clearest way to show what the "Site vendeur" column wants.
+    // Les deux cellules de prose portent le mot « exemple » traduit ; les
+    // valeurs fermées (Statut, À reprendre) passent par la même table que
+    // l'export, donc le modèle DÉMONTRE au lecteur le mot que l'app attend
+    // dans sa langue au lieu de l'obliger à le deviner.
+    var exDesc = String(t ? t("csv_tpl_desc") : "Exemple : votre description du blend.");
+    var exNotes = String(t ? t("csv_tpl_notes") : "Exemple : vos notes de degustation.");
     var ex1 = ["Halvorsen", "Duskfall", "Virginia/Burley", "Virginia, Burley", "Flake", "3", "2", "3", "4",
-      "Oui", "12", "Pot", "40", "50", "2024-03-15", "2022", "2025-06-01", "", "14.90", "smokingpipes.com",
-      "www.smokingpipes.com", "A12", "Armoire A",
-      "Exemple : votre description du blend.", "Exemple : vos notes de degustation."];
+      csvValue("yes", lang), "12", csvValue("jar", lang), "40", "50", "2024-03-15", "2022", "2025-06-01", "",
+      "14.90", "smokingpipes.com", "www.smokingpipes.com", "A12", "Armoire A", exDesc, exNotes];
     var ex2 = ["Halvorsen", "Duskfall", "Virginia/Burley", "Virginia, Burley", "Flake", "3", "2", "3", "4",
-      "Oui", "12", "Cave", "100", "100", "2025-01-10", "2024", "", "", "15.50", "", "",
+      csvValue("yes", lang), "12", csvValue("cellar", lang), "100", "100", "2025-01-10", "2024", "", "", "15.50", "", "",
       "A13", "Armoire A", "", ""];
     var lines = [headers, ex1, ex2].map(function (row) {
       return row.map(csvEsc).join(CSV_DELIM);

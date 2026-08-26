@@ -120,6 +120,8 @@ export var EN = {
   csv_issues_cut:"{n} row(s) with an unrecognised cut — snapped to “{v}”",
   csv_issues_num:"{n} unreadable number(s) — left empty",
   csv_issues_status:"{n} row(s) with an unrecognised status — imported as “cellar”",
+csv_tpl_desc:"Example: your own description of the blend.",
+csv_tpl_notes:"Example: your own tasting notes.",
   csv_import_done:"{n} tobacco(s) and {l} lot(s) imported (merged).",
   csv_import_uptodate:"{m} tobacco(s) already present: no new lot added (CSV merge only adds lots).",
   merge_recap_lots:"{l} new lot(s) added to {m} tobacco(s) already present.",
