@@ -133,3 +133,51 @@ describe("parseHelpHtml", () => {
     expect(trash!.bodies.fr).toContain("Trash content");
   });
 });
+
+// ── LE REPLI DES SECTIONS EST UN ÉTAT PERSISTÉ, ET IL DOIT AGIR ─────────────
+// `collapsedHelpSections` vit dans `cave-help-sections` et son défaut (clé
+// absente) est DÉPLIÉ. Sondé : forcer `collapsed` à false laissait 1053 cas
+// verts — le guide fait ~74 Ko de prose dense, donc tout déplier en
+// permanence rend la page inutilisable au défilement, et le réglage que
+// l'utilisateur a posé n'a plus aucun effet visible.
+//
+// La recherche force l'ouverture des sections qui correspondent (pour voir le
+// résultat en contexte) ; sans requête, un repli doit rester un repli.
+describe("CuratorHelpView — le repli des sections agit", () => {
+  const HTML = `
+    <html><body>
+      <div id="sec-fr">
+        <h2 id="fr-concepts">1. Concepts de base</h2>
+        <p>CORPS-CONCEPTS-FR</p>
+        <h2 id="fr-cycle">2. Cycle de vie</h2>
+        <p>CORPS-CYCLE-FR</p>
+      </div>
+    </body></html>`;
+
+  async function renderLoaded(collapsed: Record<string, boolean>) {
+    const realFetch = globalThis.fetch;
+    (globalThis as any).fetch = () => Promise.resolve({ ok: true, text: () => Promise.resolve(HTML) });
+    const r = renderWith({ ...baseCtx, collapsedHelpSections: collapsed });
+    // Laisse la promesse du fetch et le rendu qui suit se poser.
+    await new Promise((res) => setTimeout(res, 0));
+    await new Promise((res) => setTimeout(res, 0));
+    (globalThis as any).fetch = realFetch;
+    return r;
+  }
+
+  it("une section repliée ne rend PAS son corps", async () => {
+    const { container } = await renderLoaded({ concepts: true });
+    // Non-vacuité : le document a bien été chargé et parsé, sinon l'absence
+    // du corps ne prouverait rien.
+    expect(container.textContent, "le guide n'a pas été chargé").toContain("Concepts de base");
+    expect(container.textContent, "une section repliée affiche quand même son corps")
+      .not.toContain("CORPS-CONCEPTS-FR");
+  });
+
+  it("une section dépliée rend son corps", async () => {
+    // Le contre-sens : sans lui, une vue qui ne rendrait JAMAIS de corps
+    // satisferait l'assertion ci-dessus.
+    const { container } = await renderLoaded({});
+    expect(container.textContent).toContain("CORPS-CONCEPTS-FR");
+  });
+});

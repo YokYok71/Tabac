@@ -310,3 +310,40 @@ describe("PipesListView — la puce d'entretien", () => {
       .not.toMatch(/maint_due|entretenir/i);
   });
 });
+
+// ── L'ÉTAT VIDE DOIT SAVOIR QU'UN FILTRE NARROWE ────────────────────────────
+// `pipesFiltered` décide entre les DEUX états vides : « aucun résultat pour ces
+// filtres » + Réinitialiser, ou « aucune pipe » + Ajouter. Les EXCLUSIONS de ce
+// prédicat sont assertées ailleurs (`showFinishedPipes` élargit, donc le
+// réinitialiser retirerait des lignes que l'utilisateur venait de demander) —
+// les INCLUSIONS ne l'étaient pas : sondé, retirer `pTagFilter` du prédicat
+// laissait 1053 cas verts.
+//
+// La conséquence est celle que ce dépôt a déjà documentée pour les trois
+// listes : l'utilisateur qui filtre par collection jusqu'à zéro lit la phrase
+// du PREMIER LANCEMENT et se voit offrir un bouton qui crée une pipe ne
+// correspondant pas au filtre — sans rien à l'écran disant qu'un filtre est
+// actif.
+describe("PipesListView — état vide : filtré ou vraiment vide", () => {
+  const base = {
+    view: "pipes", pipeDet: null, filteredPipes: [],
+    data: { pipes: [{ id: "1", brand: "Halvorsen", name: "Foxtrot", status: "active", tags: ["voyage"] }],
+            tobaccos: [], accessories: [], sessions: [], wishlist: [] },
+  };
+
+  it("un filtre COLLECTION qui ne rend rien propose de réinitialiser", () => {
+    const { container } = renderWithCtx(<CuratorPipesListView />, { ...base, pTagFilter: "voyage" });
+    expect(container.textContent, "l'état « premier lancement » s'affiche alors qu'un filtre est actif")
+      .toMatch(/list_no_match|Aucun résultat/);
+    expect(container.textContent).toMatch(/btn_reset_filters|Réinitialiser/);
+  });
+
+  it("sans filtre, c'est bien l'état « aucune pipe » avec l'ajout", () => {
+    // Le contre-sens : sans ce cas, un prédicat toujours-vrai passerait pour
+    // correct et le premier lancement offrirait « Réinitialiser » à un
+    // utilisateur qui n'a filtré sur rien.
+    const { container } = renderWithCtx(<CuratorPipesListView />, { ...base, pTagFilter: "" });
+    expect(container.textContent).toMatch(/no_pipes|Aucune pipe/);
+    expect(container.textContent).toMatch(/btn_add_pipe|Ajouter une pipe/);
+  });
+});
