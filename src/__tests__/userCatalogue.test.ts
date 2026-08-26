@@ -18,7 +18,8 @@
 
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
-import { parseCatalogueCsv, buildCatalogueTemplateCsv, CATALOGUE_COLUMNS, CATALOGUE_TEMPLATE_DELIM } from "../utils/userCatalogue.ts";
+import { parseCatalogueCsv, buildCatalogueTemplateCsv, CATALOGUE_COLUMNS } from "../utils/userCatalogue.ts";
+import { CSV_DELIM } from "../utils/csvImport.ts";
 import { CATS, CUTS } from "../constants.ts";
 import { FAMILY_AGING_MAX } from "../utils.ts";
 
@@ -238,7 +239,7 @@ describe("the template", () => {
     // au-dessus de `buildCatalogueTemplateCsv`. Les COLONNES et leur ordre sont
     // inchangés, ce que cette assertion continue de garder.
     expect(buildCatalogueTemplateCsv().split("\n")[0])
-      .toBe(CATALOGUE_COLUMNS.join(CATALOGUE_TEMPLATE_DELIM));
+      .toBe(CATALOGUE_COLUMNS.join(CSV_DELIM));
   });
 
   it("emploie le MÊME séparateur que le modèle de la cave", () => {
@@ -247,7 +248,7 @@ describe("the template", () => {
     // dans une locale à virgule décimale — cinq des six langues — un tableur
     // ouvre un fichier à virgules en UNE colonne, et un modèle sert justement
     // à être ouvert dans un tableur.
-    expect(CATALOGUE_TEMPLATE_DELIM).toBe(";");
+    expect(CSV_DELIM).toBe(";");
     const head = buildCatalogueTemplateCsv().split("\n")[0]!;
     expect(head.includes(";"), "le modèle n'est plus en points-virgules").toBe(true);
   });

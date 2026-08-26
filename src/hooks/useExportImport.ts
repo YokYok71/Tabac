@@ -6,7 +6,7 @@ import { daysSince, fmtDate, fmtNum, isTrashed, stripDeleted, isPlausibleBackup,
 import { sanitizeAromas, aromaLabelKey } from "../utils/aromas.ts";
 import { imgCache } from "../utils/imgCache.ts";
 import { buildCollectionReport } from "../utils/collectionReport.ts";
-import { parseTobaccoCsv } from "../utils/csvImport.ts";
+import { parseTobaccoCsv, CSV_DELIM } from "../utils/csvImport.ts";
 import { CATS_EN, SHAPES_EN, ACC_TYPES_EN } from "../constants.ts";
 
 var useState = React.useState;
@@ -244,7 +244,7 @@ export function useExportImport({
   // The two cells that DO localise (Arômes values, Age) are free text the parser
   // never matches on. See CLAUDE.md, "what is deliberately NOT translated".
   function buildCsvLines() {
-    var sep = ";";
+    var sep = CSV_DELIM;
     var lines: string[] = [];
     lines.push(
       [
@@ -720,7 +720,7 @@ export function useExportImport({
       "Oui", "12", "Cave", "100", "100", "2025-01-10", "2024", "", "", "15.50", "", "",
       "A13", "Armoire A", "", ""];
     var lines = [headers, ex1, ex2].map(function (row) {
-      return row.map(csvEsc).join(";");
+      return row.map(csvEsc).join(CSV_DELIM);
     });
     dlFile("﻿" + lines.join("\r\n"), "cave-tabac-modele.csv", "text/csv;charset=utf-8");
   }

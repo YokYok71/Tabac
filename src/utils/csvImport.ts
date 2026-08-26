@@ -62,6 +62,39 @@ export interface CsvImportResult {
 // than silently truncating.
 export var MAX_ROWS = 50000;
 
+/**
+ * THE delimiter every CSV this app WRITES uses — and the reason is a
+ * spreadsheet, not a parser.
+ *
+ * Reading is delimiter-agnostic: `detectDelim` sniffs the header line, so a
+ * comma file, a semicolon file and a tab file all import identically, and every
+ * catalogue already loaded goes on reading exactly as before. What differs is
+ * what happens when someone DOUBLE-CLICKS the file — which is the whole point
+ * of a template, and the ordinary way an export gets looked at.
+ *
+ * Excel picks its delimiter from the system list separator, and in every
+ * comma-decimal locale that separator is `;`. Five of the app's six UI
+ * languages are comma-decimal (fr, es, de, it, pt), so a comma file opens as
+ * ONE column for most users — a template nobody can fill in.
+ *
+ * It is not merely preferable for the cellar export, it is the coherent
+ * choice: the app stores weights and prices AS THE USER TYPED THEM, so a French
+ * cellar legitimately holds `2,5`. `csvEsc` quotes every cell, so a comma
+ * decimal survives either way — but a file whose delimiter and whose decimal
+ * mark are the same character is one editing mistake away from splitting.
+ *
+ * The residual, stated rather than hidden: in an English locale Excel expects
+ * `,`, so an English user gets the one-column open instead. A `sep=;` preamble
+ * would fix both — Excel and LibreOffice honour it — and is deliberately NOT
+ * used: Numbers does not, and it would show a stray first row on the platform
+ * this app is built for first. One rule, five languages of six.
+ *
+ * WRITERS ONLY. Never feed this to a reader: `detectDelim` is what decides how
+ * an incoming file is split, and hardcoding a delimiter there would refuse the
+ * comma files this app itself emitted for years.
+ */
+export var CSV_DELIM = ";";
+
 // ── low-level CSV tokeniser ──────────────────────────────────────────────────
 
 // EXPORTED so the catalogue importer (`utils/userCatalogue.ts`)

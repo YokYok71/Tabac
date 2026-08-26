@@ -32,7 +32,7 @@
 import { CATS, CUTS, mapCategory, mapCut } from "../constants.ts";
 import { FAMILY_AGING_MAX } from "../utils.ts";
 import { LANGUAGES } from "../i18n/languages.ts";
-import { detectDelim, tokenize } from "./csvImport.ts";
+import { detectDelim, tokenize, CSV_DELIM } from "./csvImport.ts";
 import type { TobaccoDb, BlendEntry, BrandMeta } from "./tobaccoDb.ts";
 
 /** The column order of the master CSV. The template ships this header, so a
@@ -351,7 +351,6 @@ export function parseCatalogueCsv(textRaw: string): CatalogueParseResult {
  *  rules so a template round-trips through a spreadsheet unchanged. */
 /** Le séparateur du modèle — voir le bloc au-dessus de
  * `buildCatalogueTemplateCsv` pour pourquoi il vaut `;` et non `,`. */
-export const CATALOGUE_TEMPLATE_DELIM = ";";
 
 function esc(v: string): string {
   var s = String(v == null ? "" : v);
@@ -396,10 +395,10 @@ export function buildCatalogueTemplateCsv(): string {
   function row(vals: Record<string, string>): string {
     for (var k in byName) delete byName[k];
     for (var k2 in vals) byName[k2] = vals[k2]!;
-    return head.map((h) => esc(byName[h] || "")).join(CATALOGUE_TEMPLATE_DELIM);
+    return head.map((h) => esc(byName[h] || "")).join(CSV_DELIM);
   }
 
-  var lines = [head.join(CATALOGUE_TEMPLATE_DELIM)];
+  var lines = [head.join(CSV_DELIM)];
   lines.push(row({
     brand_key: "Halvorsen",
     brand_name: "Halvorsen",
