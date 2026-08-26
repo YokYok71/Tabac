@@ -810,3 +810,141 @@ describe("InventoryDetailView — sessions on the lot detail modal", () => {
     expect(body!.style.minHeight).toBe("0px");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Où revient un lot réactivé — et les deux portes qui le suppriment.
+//
+// LE RETOUR. Le commentaire au-dessus du bouton « Réactiver » énonce le dégât
+// mot pour mot : `originalStatus` vaut « cellar » pour à peu près tout lot que
+// l'app crée, donc un pot ouvert en 2023 et fumé sur cent grammes revenait
+// SCELLÉ — et la branche cave d'`applyLifecycleDates` EFFACE `dateOpened`, le
+// seul témoin de sa date d'ouverture. La règle est donc `wasSmoked ||
+// originalStatus === "jar"` → jar. Sondée, elle passait au vert dans les deux
+// sens : le seul cas existant nourrit `sessions: []`, donc il exerce la moitié
+// « cellar » et jamais celle qui répare quelque chose. Un fixture qui ne peut
+// produire qu'une des deux réponses ne teste ni l'une ni l'autre.
+//
+// LES DEUX PORTES. Le lot se supprime depuis la modale d'ÉDITION et depuis la
+// modale de DÉTAIL, chacune appelant `removeLot(tob.id, lotId)`, et aucune des
+// deux n'était assertée — alors qu'un id de lot n'est PAS unique globalement
+// (c'est écrit sur `useTrashOps` : c'est la paire `tobaccoId|lotId` qui est une
+// identité). Une suppression qui vise le mauvais couple porte sur un autre lot
+// que celui affiché.
+describe("réactivation et suppression d'un lot", () => {
+  const finishedLot = {
+    id: "L1", status: "finished", weightG: "25",
+    dateProduction: "", datePurchased: "", dateOpened: "2024-01-01",
+    dateFinished: "2024-06-01", boxNumber: "", price: "", seller: "", disposed: false,
+  };
+  const tobFin = { ...tobacco, lots: [finishedLot] };
+
+  function renderFiche(over: Record<string, any> = {}) {
+    const ctx: Record<string, any> = {
+      view: "inv",
+      detail: tobFin,
+      statusFilter: "finished",
+      data: { tobaccos: [tobFin], sessions: [], pipes: [], accessories: [], wishlist: [] },
+      changeLotStatus: vi.fn(),
+      removeLot: vi.fn(),
+      ...over,
+    };
+    return { ctx, ...renderWithCtx(<CuratorInventoryDetailView />, ctx) };
+  }
+
+  function reactivate(container: HTMLElement) {
+    const btn = Array.from(container.querySelectorAll("button"))
+      .find(b => /btn_reactivate/i.test(b.textContent || ""));
+    expect(btn, "le bouton Réactiver doit être rendu sur un lot fini").toBeTruthy();
+    fireEvent.click(btn!);
+  }
+
+  it("un lot qui a HÉBERGÉ des séances revient EN POT, pas en cave", () => {
+    // On ne peut pas fumer d'une boîte scellée : une séance prouve
+    // l'ouverture, quoi que dise `originalStatus`.
+    const { ctx, container } = renderFiche({
+      data: {
+        tobaccos: [tobFin],
+        sessions: [{ id: 1, tobaccoId: "1", pipeId: 1, lotId: "L1", date: "2024-03-02", duration: "30", weightG: "2.5" }],
+        pipes: [], accessories: [], wishlist: [],
+      },
+    });
+    reactivate(container as HTMLElement);
+    expect(ctx.changeLotStatus).toHaveBeenCalledWith("1", "L1", "jar");
+  });
+
+  it("un lot NÉ en pot y revient, même sans séance", () => {
+    const born = { ...tobFin, lots: [{ ...finishedLot, originalStatus: "jar" }] };
+    const { ctx, container } = renderFiche({
+      detail: born,
+      data: { tobaccos: [born], sessions: [], pipes: [], accessories: [], wishlist: [] },
+    });
+    reactivate(container as HTMLElement);
+    expect(ctx.changeLotStatus).toHaveBeenCalledWith("1", "L1", "jar");
+  });
+
+  it("un lot JAMAIS fumé et né en cave y revient — la moitié qui doit rester", () => {
+    // Contre-cas : sans lui, répondre « jar » systématiquement passerait les
+    // deux cas ci-dessus, et le bouton cesserait de distinguer quoi que ce
+    // soit. C'est aussi le cas d'origine de ce fichier, conservé ici en regard
+    // de ses jumeaux pour que les trois réponses se lisent ensemble.
+    const { ctx, container } = renderFiche();
+    reactivate(container as HTMLElement);
+    expect(ctx.changeLotStatus).toHaveBeenCalledWith("1", "L1", "cellar");
+  });
+
+  // Les deux portes de suppression du lot. `data-lot-row` est le point
+  // d'accroche que la ligne expose exprès, et l'activation est au CLAVIER :
+  // `PressCard` installe un écouteur de capture à usage unique qui avale le
+  // clic programmatique suivant, donc un `click()` ne prouverait rien.
+  function openLotDetail(container: HTMLElement) {
+    const row = container.querySelector('[data-lot-row="L1"]') as HTMLElement | null;
+    expect(row, "la ligne du lot doit être rendue et porter son point d'accroche").toBeTruthy();
+    row!.focus();
+    fireEvent.keyDown(row!, { key: "Enter" });
+  }
+
+  // SCOPÉ À LA MODALE, et c'est le piège : la barre du haut de la fiche porte
+  // elle aussi un `btn_delete` (celui du TABAC), donc une recherche globale
+  // prend le premier et un cas qui croit éprouver la suppression d'un LOT
+  // éprouve la suppression du tabac — vert pour la mauvaise raison.
+  // On ne cherche QUE dans les modales, et c'est le piège : la barre du haut
+  // de la fiche porte elle aussi un `btn_delete` (celui du TABAC), donc une
+  // recherche globale prend le premier et un cas qui croit éprouver la
+  // suppression d'un LOT éprouve la suppression du tabac — vert pour la
+  // mauvaise raison. Les deux modales nomment leur bouton différemment
+  // (`btn_delete` pour la lecture, `aria_delete_lot` pour l'édition), ce qui
+  // est une raison de plus de ne pas se fier au premier venu.
+  function tapDelete(container: HTMLElement) {
+    const dialogs = Array.from(container.querySelectorAll('[role="dialog"]'));
+    expect(dialogs.length, "une modale doit être ouverte").toBeGreaterThan(0);
+    const del = dialogs
+      .flatMap(d => Array.from(d.querySelectorAll("button, [role=button]")))
+      .find(b => /btn_delete|aria_delete_lot/i.test(
+        b.getAttribute("aria-label") || b.textContent || ""));
+    expect(del, "la modale doit offrir une suppression nommée").toBeTruthy();
+    fireEvent.click(del as Element);
+  }
+
+  it("la modale de DÉTAIL supprime le couple tabac|lot affiché", () => {
+    // Un id de lot n'est PAS unique globalement — c'est la paire
+    // `tobaccoId|lotId` qui est une identité (voir useTrashOps) — donc viser
+    // le mauvais couple porte sur un autre lot que celui à l'écran.
+    const { ctx, container } = renderFiche();
+    openLotDetail(container as HTMLElement);
+    tapDelete(container as HTMLElement);
+    expect(ctx.removeLot).toHaveBeenCalledTimes(1);
+    expect(ctx.removeLot).toHaveBeenCalledWith("1", "L1");
+  });
+
+  it("la modale d'ÉDITION supprime le même couple — la seconde porte", () => {
+    const { ctx, container } = renderFiche();
+    openLotDetail(container as HTMLElement);
+    const edit = Array.from(container.querySelectorAll('[role="dialog"] button, [role="dialog"] [role=button]'))
+      .find(b => /btn_edit/i.test(b.getAttribute("aria-label") || b.textContent || ""));
+    expect(edit, "la modale de détail doit mener à l'édition").toBeTruthy();
+    fireEvent.click(edit as Element);
+    tapDelete(container as HTMLElement);
+    expect(ctx.removeLot).toHaveBeenCalledTimes(1);
+    expect(ctx.removeLot).toHaveBeenCalledWith("1", "L1");
+  });
+});

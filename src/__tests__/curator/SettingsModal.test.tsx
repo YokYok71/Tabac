@@ -1619,3 +1619,111 @@ describe("SettingsModal — le bouton d'effacement total", () => {
     expect(resetAll).not.toHaveBeenCalled();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Deux contrôles de la clé d'API et un contrôle destructeur du catalogue, tous
+// trois assertés par rien : sondés, échanger « enregistrer » et « effacer »,
+// débrancher « effacer », ou retirer la confirmation avant de supprimer le
+// catalogue passaient tous au vert.
+//
+// Ce que cela coûte, dans l'ordre. La paire de la clé fait partir les requêtes
+// d'auto-remplissage — et, via « Scanner la boîte », les photos de tins — vers
+// un compte de fournisseur ; les deux boutons sont adjacents, et rien ne
+// distinguait « j'enregistre ma clé » de « je l'efface ». Le catalogue est un
+// FICHIER DE L'UTILISATEUR (un vrai en mesure 3,77 Mo) qu'aucune corbeille ne
+// rattrape : sa confirmation est la seule chose entre un tap et sa disparition.
+//
+// À NE PAS refaire : la ligne « Effacer toutes les données » EST couverte, et
+// le filtre `keepId` du panneau de doublons est une ceinture — `mergeDuplicates`
+// exclut lui-même la ligne gardée, et cette exclusion-là rougit dans sa propre
+// suite. La sonde sur l'appelant reste verte parce que le MOTEUR absorbe, pas
+// parce que la règle manque.
+describe("les contrôles qui ne pardonnent pas", () => {
+  function aiCtx(over: Record<string, any> = {}): Record<string, any> {
+    return {
+      importModal: true,
+      t: trFr,
+      settingsTab: "data",
+      setSettingsTab: () => {},
+      aiProvider: "anthropic",
+      apiKey: "sk-ant-existante",
+      saveApiKey: vi.fn(),
+      ...over,
+    };
+  }
+
+  function byLabel(container: HTMLElement, label: string) {
+    return container.querySelector(`[aria-label="${label}"]`);
+  }
+
+  it("enregistrer la clé transmet CE QUI EST TAPÉ, pas une chaîne vide", () => {
+    const ctx = aiCtx();
+    const { container } = renderWithCtx(<CuratorSettingsModal />, ctx);
+    const field = byLabel(container as HTMLElement, trFr("lbl_api_key")) as HTMLInputElement;
+    expect(field, "le champ de clé doit être rendu dans l'onglet Données").toBeTruthy();
+    fireEvent.change(field, { target: { value: "  sk-ant-nouvelle  " } });
+    const save = byLabel(container as HTMLElement, trFr("btn_save_key"))
+      || byLabel(container as HTMLElement, trFr("btn_save"));
+    expect(save, "le bouton d'enregistrement doit porter un nom accessible").toBeTruthy();
+    fireEvent.click(save as Element);
+    expect(ctx.saveApiKey).toHaveBeenCalledTimes(1);
+    expect(ctx.saveApiKey).toHaveBeenCalledWith("sk-ant-nouvelle");
+  });
+
+  it("effacer la clé transmet une chaîne VIDE — et vide le champ", () => {
+    const ctx = aiCtx();
+    const { container } = renderWithCtx(<CuratorSettingsModal />, ctx);
+    const clear = byLabel(container as HTMLElement, trFr("btn_clear"));
+    expect(clear, "le bouton d'effacement n'apparaît qu'avec une clé enregistrée").toBeTruthy();
+    fireEvent.click(clear as Element);
+    expect(ctx.saveApiKey).toHaveBeenCalledTimes(1);
+    expect(ctx.saveApiKey).toHaveBeenCalledWith("");
+    const field = byLabel(container as HTMLElement, trFr("lbl_api_key")) as HTMLInputElement;
+    expect(field.value, "laisser la clé à l'écran après l'avoir effacée est un mensonge").toBe("");
+  });
+
+  it("sans clé enregistrée, il n'y a rien à effacer", () => {
+    // Contre-cas : le bouton d'effacement est conditionnel. Sans lui, le cas
+    // ci-dessus passerait aussi sur un rendu qui l'affiche toujours.
+    const ctx = aiCtx({ apiKey: "" });
+    const { container } = renderWithCtx(<CuratorSettingsModal />, ctx);
+    expect(byLabel(container as HTMLElement, trFr("btn_clear"))).toBeNull();
+  });
+
+  // Un rendu PAR réponse, et non deux clics sur le même bouton : le premier
+  // relâchement d'un `PressCard` installe un écouteur de capture à usage unique
+  // qui avale le clic suivant (la défense contre le clic fantôme), donc le
+  // second tap n'atteint jamais le gestionnaire et le cas échouerait pour une
+  // raison qui n'a rien à voir avec la règle.
+  function tapRemoveCatalogue(answer: boolean) {
+    const ctx = aiCtx({
+      catalogueMeta: { blends: 3, brands: 3, loadedAt: 1, fileName: "cat.csv" },
+      clearCatalogue: vi.fn(),
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(answer);
+    try {
+      const { container } = renderWithCtx(<CuratorSettingsModal />, ctx);
+      const btn = Array.from(container.querySelectorAll("button, [role=button]"))
+        .find(b => (b.textContent || "").includes(trFr("btn_cat_remove")));
+      expect(btn, "le bouton n'est offert que si un catalogue est chargé").toBeTruthy();
+      fireEvent.click(btn as Element);
+      return { asked: confirmSpy.mock.calls.length, cleared: ctx.clearCatalogue.mock.calls.length };
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  }
+
+  it("« Retirer le catalogue » DEMANDE avant de supprimer, et respecte un refus", () => {
+    const no = tapRemoveCatalogue(false);
+    expect(no.asked, "supprimer un fichier de l'utilisateur sans demander").toBeGreaterThan(0);
+    expect(no.cleared, "un refus doit tout laisser en place").toBe(0);
+  });
+
+  it("… et supprime bien quand la réponse est oui", () => {
+    // La moitié positive : sans elle, débrancher `clearCatalogue` laisserait le
+    // cas ci-dessus vert — un contrôle mort passe le test du refus.
+    const yes = tapRemoveCatalogue(true);
+    expect(yes.asked).toBeGreaterThan(0);
+    expect(yes.cleared).toBe(1);
+  });
+});
