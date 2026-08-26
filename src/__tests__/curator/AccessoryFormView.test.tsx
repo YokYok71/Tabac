@@ -96,3 +96,70 @@ describe("AccessoryFormView — tag editor", () => {
     expect(sugg).toBeTruthy();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Le bouton Enregistrer n'était jamais tapé — pour la QUATRIÈME fois.
+//
+// Une campagne antérieure a fermé exactement ce trou dans trois formulaires
+// (séance, tabac, pipe) : ces suites rendaient la vue, vérifiaient des
+// pré-remplissages et des états `aria-disabled`, et n'exerçaient jamais
+// l'écriture. Les DEUX qui restaient — accessoire et envie — sont ici, et le
+// fichier ne contenait aucune occurrence d'`addAccessory` ni
+// d'`updateAccessory`.
+//
+// Ce que cela laissait passer tient en une ligne : `(isEdit ? updateAccessory
+// : addAccessory)()` inversé. **Modifier CRÉE un doublon** — nouvel `id`,
+// nouvel `uid`, donc une seconde identité de fusion inter-appareils — et
+// **ajouter ÉCRASE**. Aucun invariant ne le voit : les deux résultats sont des
+// données parfaitement valides.
+describe("AccessoryFormView — l'écriture", () => {
+  const filled = { ...emptyAcc, brand: "Marlow & Finch", name: "Bourre-pipe" };
+
+  function form(over: Record<string, any> = {}) {
+    const ctx: Record<string, any> = {
+      view: "addA",
+      accForm: filled,
+      setAccForm: vi.fn(),
+      BA: emptyAcc,
+      addAccessory: vi.fn(),
+      updateAccessory: vi.fn(),
+      nav: vi.fn(),
+      currencySymbol: "€",
+      ...over,
+    };
+    return { ctx, ...renderWithCtx(<CuratorAccessoryFormView />, ctx) };
+  }
+
+  function saveBtn(container: HTMLElement) {
+    return Array.from(container.querySelectorAll("button"))
+      .find(b => /btn_add|btn_save/.test(b.textContent || ""));
+  }
+
+  it("en AJOUT, le bouton crée — il ne met pas à jour", () => {
+    const { ctx, container } = form();
+    const btn = saveBtn(container as HTMLElement);
+    expect(btn, "le bouton d'enregistrement doit être rendu").toBeTruthy();
+    fireEvent.click(btn!);
+    expect(ctx.addAccessory).toHaveBeenCalledTimes(1);
+    expect(ctx.updateAccessory, "écraser une autre fiche").not.toHaveBeenCalled();
+  });
+
+  it("en ÉDITION, le bouton met à jour — il ne crée pas", () => {
+    const { ctx, container } = form({ view: "editA" });
+    fireEvent.click(saveBtn(container as HTMLElement)!);
+    expect(ctx.updateAccessory).toHaveBeenCalledTimes(1);
+    expect(ctx.addAccessory,
+      "créer ici duplique la fiche ET son uid de fusion").not.toHaveBeenCalled();
+  });
+
+  it("sans identité, le bouton est inerte et l'ANNONCE", () => {
+    // `canSave` est `brand || name` : le contre-cas qui empêche de « corriger »
+    // les deux précédents en appelant l'écriture inconditionnellement.
+    const { ctx, container } = form({ accForm: emptyAcc });
+    const btn = saveBtn(container as HTMLElement);
+    expect(btn!.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(btn!);
+    expect(ctx.addAccessory).not.toHaveBeenCalled();
+    expect(ctx.updateAccessory).not.toHaveBeenCalled();
+  });
+});

@@ -463,3 +463,105 @@ describe("WishFormView — catalogue lock", () => {
     expect(next.catalogueLock).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Même trou que dans le formulaire d'accessoire, et pour la même raison :
+// ce fichier ne contenait aucune occurrence d'`addWish` ni d'`updateWish`.
+// Inverser la ternaire fait qu'une MODIFICATION crée un doublon (nouvel `id`,
+// nouvel `uid`, donc une seconde identité de fusion inter-appareils) et qu'un
+// AJOUT écrase. Les deux produisent des données valides, donc rien ne rougit.
+//
+// Le garde `if (!form.name) return` est épinglé à part, avec sa raison :
+// `updateWish`/`addWish` sont tous deux inertes sur un nom vide, mais `save()`
+// fermait quand même la surcouche et effaçait `editWishId` — donc taper
+// « Enregistrer » avec le Nom effacé JETAIT silencieusement la modification.
+describe("WishFormView — l'écriture", () => {
+  const filled = { ...emptyWish, brand: "Vondel", name: "Nº 7" };
+
+  function form(over: Record<string, any> = {}) {
+    const ctx: Record<string, any> = {
+      showWishForm: true,
+      wishForm: filled,
+      setWishForm: vi.fn(),
+      BW: emptyWish,
+      addWish: vi.fn(),
+      updateWish: vi.fn(),
+      setShowWishForm: vi.fn(),
+      setEditWishId: vi.fn(),
+      editWishId: null,
+      nav: vi.fn(),
+      currencySymbol: "€",
+      ...over,
+    };
+    return { ctx, ...renderWithCtx(<CuratorWishFormView />, ctx) };
+  }
+
+  function saveBtn(container: HTMLElement) {
+    return Array.from(container.querySelectorAll("button"))
+      .find(b => /btn_add|btn_save/.test(b.textContent || ""));
+  }
+
+  it("en AJOUT, le bouton crée — il ne met pas à jour", () => {
+    const { ctx, container } = form();
+    const btn = saveBtn(container as HTMLElement);
+    expect(btn, "le bouton d'enregistrement doit être rendu").toBeTruthy();
+    fireEvent.click(btn!);
+    expect(ctx.addWish).toHaveBeenCalledTimes(1);
+    expect(ctx.updateWish).not.toHaveBeenCalled();
+    expect(ctx.setShowWishForm, "la surcouche doit se refermer").toHaveBeenCalledWith(false);
+  });
+
+  it("en ÉDITION, le bouton met à jour — il ne crée pas", () => {
+    const { ctx, container } = form({ editWishId: 7 });
+    fireEvent.click(saveBtn(container as HTMLElement)!);
+    expect(ctx.updateWish).toHaveBeenCalledTimes(1);
+    expect(ctx.addWish,
+      "créer ici duplique l'envie ET son uid de fusion").not.toHaveBeenCalled();
+  });
+
+  it("un nom vide n'écrit rien ET ne ferme pas — la modification n'est pas jetée", () => {
+    const { ctx, container } = form({ wishForm: { ...emptyWish, brand: "Vondel" } });
+    const btn = saveBtn(container as HTMLElement);
+    expect(btn!.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(btn!);
+    expect(ctx.addWish).not.toHaveBeenCalled();
+    expect(ctx.updateWish).not.toHaveBeenCalled();
+    expect(ctx.setShowWishForm,
+      "fermer ici jetterait silencieusement la saisie").not.toHaveBeenCalled();
+  });
+
+  // LA PORTE QUE `canSave` NE COUVRE PAS, et c'est elle qui rend le garde
+  // `if (!form.name) return` porteur. Sondé par le bouton seul, le retirer
+  // laisse la suite verte : `canSave={!!form.name}` empêche déjà le clic
+  // d'atteindre `save()`. Mais `useUnsavedFormGuard` enregistre ce MÊME `save`
+  // comme `onSave`, et la modale « modifications non enregistrées » l'appelle
+  // DIRECTEMENT — sans passer par le bouton ni par `canSave`. C'est le chemin
+  // que le commentaire du hook décrit : taper « Enregistrer » sur le garde
+  // avec le Nom effacé fermait la surcouche et jetait la saisie.
+  //
+  // Quand une sonde reste verte, trouver la couche qui absorbe — puis vérifier
+  // s'il existe une porte qu'elle ne couvre pas.
+  it("le garde système n'écrit ni ne ferme non plus sur un nom vide", () => {
+    const setFormGuard = vi.fn();
+    const { ctx } = form({
+      wishForm: { ...emptyWish, brand: "Vondel" },
+      setFormGuard,
+    });
+    expect(setFormGuard, "le formulaire doit s'enregistrer auprès du garde").toHaveBeenCalled();
+    const guard = setFormGuard.mock.calls[setFormGuard.mock.calls.length - 1]![0];
+    expect(typeof guard?.onSave, "le garde doit porter un onSave").toBe("function");
+    guard.onSave();
+    expect(ctx.addWish).not.toHaveBeenCalled();
+    expect(ctx.updateWish).not.toHaveBeenCalled();
+    expect(ctx.setShowWishForm,
+      "c'est ce chemin qui jetait la saisie sans rien dire").not.toHaveBeenCalled();
+  });
+
+  it("… et il écrit bien quand le nom est là — le contre-cas", () => {
+    const setFormGuard = vi.fn();
+    const { ctx } = form({ setFormGuard, editWishId: 7 });
+    const guard = setFormGuard.mock.calls[setFormGuard.mock.calls.length - 1]![0];
+    guard.onSave();
+    expect(ctx.updateWish).toHaveBeenCalledTimes(1);
+  });
+});
