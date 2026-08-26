@@ -27,7 +27,7 @@ import { CATS, CUTS, CAT_MAP, CUT_MAP, BT, BL } from "../constants.ts";
  */
 export interface CsvImportIssue {
   row: number;
-  kind: "no-identity" | "category" | "cut" | "number";
+  kind: "no-identity" | "category" | "cut" | "number" | "status";
   brand: string;
   name: string;
   /** The offending label, for the taxonomy kinds and for `number`. */
@@ -50,6 +50,14 @@ export interface CsvImportResult {
   badCategory: number; // rows whose category was snapped to "Autre" (EXACT)
   badCut: number;      // rows whose cut was snapped to "Autre" (EXACT)
   badNumber: number;   // numeric cells that held something unreadable (EXACT)
+  /** Lot rows whose STATUS cell held a word the parser could not place, and
+   *  which therefore fell through to "cellar" (EXACT).
+   *
+   *  Reported because the fall-through is SILENT and produces a perfect-looking
+   *  row: an opened jar imported as a sealed tin, with its `dateOpened` then
+   *  back-filled by the lifecycle repair. A blank cell is NOT counted — it
+   *  legitimately means cellar. */
+  badStatus: number;
   issues: CsvImportIssue[]; // capped at MAX_CSV_ISSUES
   issuesTruncated: boolean; // the list hit the cap; the counts above did not
 }
@@ -218,6 +226,67 @@ var HEADER_ALIASES: Record<string, string> = {
   "site vendeur": "sellerUrl", "url vendeur": "sellerUrl", "seller url": "sellerUrl", "site du vendeur": "sellerUrl",
   "image url": "imageUrl", "image": "imageUrl",
   // "age" (computed display column) intentionally has NO mapping — ignored.
+
+  // ── the four other UI languages ────────────────────────────────────────
+  //
+  // The WRITER stays French and must (see `buildCsvLines`): a file exported
+  // under one UI language has to re-import under another, and that only holds
+  // while there is ONE canonical header shape. What was never true is the other
+  // half — that the READER should be French too. Measured before this: the
+  // table knew FR + EN only, so a Spanish, German, Italian or Portuguese user
+  // who translated the headers in their spreadsheet — the natural thing to do
+  // with a template they cannot read — got `csv_import_empty`, whose message
+  // then told them to look for columns called « Marque » and « Nom ».
+  //
+  // Widening the reader is purely ADDITIVE: no file that imported before
+  // changes meaning, because every one of these keys was previously unknown.
+  //
+  // THE RULE FOR ADDING ONE: it must not already exist pointing at a DIFFERENT
+  // field. Two languages sharing a word for the same field is fine and common
+  // (`Marca` is brand in es/it/pt, `Peso` is weight in es/it/pt). What is not
+  // fine is a homograph: Italian « Note » (notes) folds to `note`, which is
+  // already the FRENCH rating column — so Italian uses `Voto` for the rating
+  // and `Note di degustazione` for the notes. `csvHeaderLanguages.test.ts`
+  // re-derives that check over the whole table, so the next language cannot
+  // introduce one by accident.
+  // es
+  "marca": "brand", "nombre": "name", "categoria": "category",
+  "composicion": "blend", "corte": "cut", "fuerza": "force", "sabor": "taste",
+  "descripcion": "description", "valoracion": "rating", "recomprar": "rebuy",
+  "notas de cata": "tastingNotes", "envejecimiento": "agingMax", "estado": "status",
+  "peso": "weightG", "peso inicial": "weightInitial",
+  "fecha compra": "datePurchased", "fecha produccion": "dateProduction",
+  "fecha apertura": "dateOpened", "fecha fin": "dateFinished",
+  "num. caja": "boxNumber", "num caja": "boxNumber", "caja": "boxNumber",
+  "ubicacion": "storageLocation", "precio": "price", "vendedor": "seller",
+  "sitio vendedor": "sellerUrl",
+  // de
+  "marke": "brand", "kategorie": "category", "mischung": "blend",
+  "schnitt": "cut", "starke": "force", "geschmack": "taste",
+  "beschreibung": "description", "bewertung": "rating", "nachkaufen": "rebuy",
+  "verkostungsnotizen": "tastingNotes", "reifung": "agingMax",
+  "gewicht": "weightG", "anfangsgewicht": "weightInitial",
+  "kaufdatum": "datePurchased", "herstellungsdatum": "dateProduction",
+  "offnungsdatum": "dateOpened", "enddatum": "dateFinished",
+  "dosennummer": "boxNumber", "lagerort": "storageLocation",
+  "preis": "price", "handler": "seller", "handler-website": "sellerUrl",
+  // it
+  "nome": "name", "composizione": "blend", "taglio": "cut", "forza": "force",
+  "gusto": "taste", "descrizione": "description", "voto": "rating",
+  "ricomprare": "rebuy", "note di degustazione": "tastingNotes",
+  "invecchiamento": "agingMax", "stato": "status", "peso iniziale": "weightInitial",
+  "data acquisto": "datePurchased", "data produzione": "dateProduction",
+  "data apertura": "dateOpened", "data fine": "dateFinished",
+  "numero scatola": "boxNumber", "posizione": "storageLocation",
+  "prezzo": "price", "venditore": "seller", "sito venditore": "sellerUrl",
+  // pt
+  "composicao": "blend", "forca": "force", "descricao": "description",
+  "classificacao": "rating", "notas de prova": "tastingNotes",
+  "envelhecimento": "agingMax",
+  "data compra": "datePurchased", "data producao": "dateProduction",
+  "data abertura": "dateOpened", "data fim": "dateFinished",
+  "numero caixa": "boxNumber", "localizacao": "storageLocation",
+  "preco": "price", "site vendedor": "sellerUrl",
 };
 
 // ── value coercion ───────────────────────────────────────────────────────────
@@ -284,8 +353,15 @@ function canonEnum(v: any, list: readonly string[], map?: Record<string, string>
 
 function parseRebuy(v: any): boolean | null {
   var f = fold(v);
-  if (f === "oui" || f === "yes" || f === "y" || f === "true" || f === "1" || f === "o") return true;
-  if (f === "non" || f === "no" || f === "n" || f === "false" || f === "0") return false;
+  // `si` (es/it, accent folded from Sí/Sì), `ja` (de), `sim` (pt) — the words
+  // the app itself renders for yes. NOTE `no` was ALREADY the negative here
+  // and is the Spanish/Italian/Portuguese word for no, so the negative side
+  // needed nothing: the three languages that say « no » were covered by the
+  // English alias all along. German « nein » is the one addition.
+  if (f === "oui" || f === "yes" || f === "y" || f === "true" || f === "1" || f === "o"
+    || f === "si" || f === "ja" || f === "sim") return true;
+  if (f === "non" || f === "no" || f === "n" || f === "false" || f === "0"
+    || f === "nein" || f === "nao") return false;
   return null;
 }
 
@@ -294,11 +370,39 @@ function parseBool(v: any): boolean {
   return f === "oui" || f === "yes" || f === "y" || f === "true" || f === "1" || f === "o";
 }
 
+/**
+ * The status cell, in the six UI languages.
+ *
+ * The words are the ones the APP SHOWS — `lot_jar` / `lot_cellar` /
+ * `lot_finished_lbl` and their `f_*` filter-chip siblings — because that is
+ * what a user transcribes into a spreadsheet. They were read out of the
+ * dictionaries rather than invented; `csvHeaderLanguages.test.ts` re-derives
+ * them from `src/i18n/*.ts`, so a relabelled chip cannot leave this list behind.
+ *
+ * Why it matters more than the headers: an unreadable HEADER loses a column
+ * loudly (the import reports it, and without brand+name it refuses outright),
+ * whereas an unreadable STATUS used to fall through to `|| "cellar"` — so a
+ * Spanish user writing « Tarro » had every opened jar imported as a SEALED
+ * tin, silently, with the row otherwise perfect. That default stays (a blank
+ * cell must still mean cellar), but the caller now reports the coercion.
+ */
 function normStatus(v: any): string {
   var f = fold(v);
-  if (f === "jar" || f === "pot" || f === "en pot" || f === "ouvert" || f === "ouverte") return "jar";
-  if (f === "finished" || f === "fini" || f === "finie" || f === "termine" || f === "termine e" || f === "terminee") return "finished";
-  if (f === "cellar" || f === "cave" || f === "en cave" || f === "scelle" || f === "scellee") return "cellar";
+  if (f === "jar" || f === "pot" || f === "en pot" || f === "ouvert" || f === "ouverte"
+    || f === "tarro" || f === "en tarro"           // es
+    || f === "glas" || f === "im glas"             // de
+    || f === "barattolo" || f === "in barattolo"   // it
+    || f === "frasco" || f === "em frasco") return "jar"; // pt
+  if (f === "finished" || f === "fini" || f === "finie" || f === "termine" || f === "termine e" || f === "terminee"
+    || f === "acabado" || f === "lote acabado"     // es
+    || f === "aufgeraucht" || f === "aufgerauchtes los" // de
+    || f === "finito" || f === "lotto finito"      // it
+    || f === "terminado" || f === "lote terminado") return "finished"; // pt
+  if (f === "cellar" || f === "cave" || f === "en cave" || f === "scelle" || f === "scellee"
+    || f === "bodega" || f === "en bodega"         // es
+    || f === "keller" || f === "im keller"         // de
+    || f === "cantina" || f === "in cantina"       // it
+    || f === "adega" || f === "na adega") return "cellar"; // pt
   return "";
 }
 
@@ -433,7 +537,7 @@ export function parseTobaccoCsv(
   text: string,
   opts?: { idBase?: number; todayIso?: string },
 ): CsvImportResult {
-  var empty: CsvImportResult = { tobaccos: [], rows: 0, skipped: 0, lots: 0, headers: [], sectioned: false, capped: false, badCategory: 0, badCut: 0, badNumber: 0, issues: [], issuesTruncated: false };
+  var empty: CsvImportResult = { tobaccos: [], rows: 0, skipped: 0, lots: 0, headers: [], sectioned: false, capped: false, badCategory: 0, badCut: 0, badNumber: 0, badStatus: 0, issues: [], issuesTruncated: false };
   if (typeof text !== "string") return empty;
   var clean = String(text).replace(/^\uFEFF/, "");
   if (!clean.trim()) return empty;
@@ -470,7 +574,7 @@ export function parseTobaccoCsv(
   var groups: Record<string, any> = Object.create(null);
   var dataRows = 0, skipped = 0, lotCount = 0;
   var sectioned = false, capped = false;
-  var badCategory = 0, badCut = 0, badNumber = 0;
+  var badCategory = 0, badCut = 0, badNumber = 0, badStatus = 0;
   var issues: CsvImportIssue[] = [];
   var note = function (row: number, kind: CsvImportIssue["kind"], b: string, n: string, value: string) {
     if (issues.length < MAX_CSV_ISSUES) issues.push({ row: row, kind: kind, brand: b, name: n, value: value });
@@ -580,7 +684,17 @@ export function parseTobaccoCsv(
       // current so the imported lot is coherent (treated as full / unsmoked).
       var _wGn = parseFloat(wG), _wIn = parseFloat(wInit);
       if (Number.isFinite(_wGn) && Number.isFinite(_wIn) && _wGn > _wIn) wInit = wG;
-      var status = normStatus(rec["status"]) || "cellar";
+      // A status the parser cannot place falls through to "cellar" — and that
+      // default STAYS, because a blank cell legitimately means a sealed tin and
+      // most hand-built files carry no status column at all. What was missing
+      // was the report: a word it could not read produced an otherwise perfect
+      // row, so an opened jar arrived SEALED with nothing said. Only a
+      // NON-EMPTY unreadable cell counts.
+      var rawStatus = String(rec["status"] || "").trim();
+      var status = normStatus(rawStatus) || "cellar";
+      if (rawStatus && !normStatus(rawStatus)) {
+        badStatus++; note(lineNo, "status", brand, name, rawStatus);
+      }
       lotSeq++;
       var lot = Object.assign({}, BL, {
         id: idBase + 100000 + lotSeq,
@@ -629,5 +743,5 @@ export function parseTobaccoCsv(
   }
 
   var tobaccos = order.map(function (k) { return groups[k]; });
-  return { tobaccos: tobaccos, rows: dataRows, skipped: skipped, lots: lotCount, headers: recognised, sectioned: sectioned, capped: capped, badCategory: badCategory, badCut: badCut, badNumber: badNumber, issues: issues, issuesTruncated: issues.length >= MAX_CSV_ISSUES };
+  return { tobaccos: tobaccos, rows: dataRows, skipped: skipped, lots: lotCount, headers: recognised, sectioned: sectioned, capped: capped, badCategory: badCategory, badCut: badCut, badNumber: badNumber, badStatus: badStatus, issues: issues, issuesTruncated: issues.length >= MAX_CSV_ISSUES };
 }

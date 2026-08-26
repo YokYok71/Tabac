@@ -782,7 +782,7 @@ export function useExportImport({
             // Computed BEFORE the import because it decides
             // whether Settings stays open — the row-level panel renders there,
             // and `_runImport` closes the modal for a "file" source.
-            var _coerced = (parsed.badCategory || 0) + (parsed.badCut || 0) + (parsed.badNumber || 0);
+            var _coerced = (parsed.badCategory || 0) + (parsed.badCut || 0) + (parsed.badNumber || 0) + (parsed.badStatus || 0);
             var _hasIssues = parsed.skipped > 0 || _coerced > 0;
             stageImport({ tobaccos: parsed.tobaccos }, "file", {
               autoApply: "merge",
@@ -887,6 +887,7 @@ export function useExportImport({
                 badCategory: parsed.badCategory || 0,
                 badCut: parsed.badCut || 0,
                 badNumber: parsed.badNumber || 0,
+                badStatus: parsed.badStatus || 0,
                 issues: parsed.issues || [],
                 truncated: !!parsed.issuesTruncated,
               });

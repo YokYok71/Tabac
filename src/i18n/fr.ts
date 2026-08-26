@@ -119,6 +119,7 @@ export var FR = {
   csv_issues_cat:"{n} ligne(s) avec une famille non reconnue — ramenée à « {v} »",
   csv_issues_cut:"{n} ligne(s) avec une coupe non reconnue — ramenée à « {v} »",
   csv_issues_num:"{n} valeur(s) numérique(s) illisible(s) — laissée(s) vide(s)",
+  csv_issues_status:"{n} ligne(s) avec un statut non reconnu — importée(s) « en cave »",
   csv_import_done:"{n} tabac(s) et {l} lot(s) importés (fusionnés).",
   csv_import_uptodate:"{m} tabac(s) déjà présent(s) : aucun nouveau lot ajouté (la fusion CSV n'ajoute que des lots).",
   merge_recap_lots:"{l} nouveau(x) lot(s) ajouté(s) à {m} tabac(s) déjà présent(s).",

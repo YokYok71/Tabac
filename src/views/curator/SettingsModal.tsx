@@ -844,6 +844,7 @@ export function CuratorSettingsModal() {
                 { kind: "category", n: csvIssues.badCategory, label: String(t("csv_issues_cat")).replace("{n}", String(csvIssues.badCategory)).replace("{v}", autreLabel) },
                 { kind: "cut", n: csvIssues.badCut, label: String(t("csv_issues_cut")).replace("{n}", String(csvIssues.badCut)).replace("{v}", autreLabel) },
                 { kind: "number", n: csvIssues.badNumber, label: String(t("csv_issues_num")).replace("{n}", String(csvIssues.badNumber)) },
+                { kind: "status", n: csvIssues.badStatus, label: String(t("csv_issues_status")).replace("{n}", String(csvIssues.badStatus)) },
               ]}
               issues={csvIssues.issues}
               truncated={!!csvIssues.truncated}
