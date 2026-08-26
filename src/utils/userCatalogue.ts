@@ -349,12 +349,39 @@ export function parseCatalogueCsv(textRaw: string): CatalogueParseResult {
 
 /** One CSV cell, quoted only when it has to be. Mirrors the export side's
  *  rules so a template round-trips through a spreadsheet unchanged. */
+/** Le séparateur du modèle — voir le bloc au-dessus de
+ * `buildCatalogueTemplateCsv` pour pourquoi il vaut `;` et non `,`. */
+export const CATALOGUE_TEMPLATE_DELIM = ";";
+
 function esc(v: string): string {
   var s = String(v == null ? "" : v);
   return /[",;\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
 /**
+ * LE SÉPARATEUR EST `;`, COMME CELUI DE LA CAVE — et l'unification est une
+ * décision de convention, pas une correction de bug.
+ *
+ * Ce modèle sortait en `,` tandis que le modèle et l'export de la CAVE sortent
+ * en `;`. Ce n'était pas un défaut de correction : `detectDelim` renifle la
+ * ligne d'en-tête et les deux lecteurs acceptent les deux, donc aucun fichier
+ * n'a jamais été mal lu. Ce qui divergeait est le comportement dans un
+ * TABLEUR — et c'est là que le coût est réel : dans une locale où la virgule
+ * est le séparateur DÉCIMAL (fr, es, de, it, pt — cinq des six langues de
+ * l'application), Excel ouvre un fichier séparé par des virgules en UNE SEULE
+ * colonne. Le modèle sert précisément à être ouvert dans un tableur et rempli
+ * à la main, donc la locale de l'utilisateur est le critère.
+ *
+ * `;` PLUTÔT QUE `,` ET NON L'INVERSE, pour trois raisons cumulées : la cave
+ * l'utilise déjà et c'est le plus gros des deux formats ; cinq langues sur six
+ * y gagnent ; et `esc` ci-dessus cite DÉJÀ sur `;` (sa classe est
+ * `[",;\n\r]`), donc le changement ne peut pas casser une prose contenant un
+ * point-virgule — la seule façon dont ce basculement aurait pu mal tourner.
+ *
+ * AUCUN CATALOGUE EXISTANT NE CASSE : `parseCatalogueCsv` détecte le
+ * séparateur, donc un fichier en virgules déjà chargé, sauvegardé dans le
+ * cloud ou exporté continue de se relire à l'identique. C'est asserté.
+ *
  * The fill-in template: the exact header the app reads, plus two example rows
  * that DEMONSTRATE the two things people get wrong — the pipe-separated alias
  * lists, and that a description column exists per language.
@@ -369,10 +396,10 @@ export function buildCatalogueTemplateCsv(): string {
   function row(vals: Record<string, string>): string {
     for (var k in byName) delete byName[k];
     for (var k2 in vals) byName[k2] = vals[k2]!;
-    return head.map((h) => esc(byName[h] || "")).join(",");
+    return head.map((h) => esc(byName[h] || "")).join(CATALOGUE_TEMPLATE_DELIM);
   }
 
-  var lines = [head.join(",")];
+  var lines = [head.join(CATALOGUE_TEMPLATE_DELIM)];
   lines.push(row({
     brand_key: "Halvorsen",
     brand_name: "Halvorsen",
@@ -398,7 +425,12 @@ export function buildCatalogueTemplateCsv(): string {
     roomNote: "3",
     taste: "4",
     blend: "Dark Fired Kentucky, Virginia",
-    description_fr: "Deuxième exemple : cette colonne est facultative, laissez-la vide si besoin.",
+    // Le point-virgule de cette phrase n'est PAS un hasard : il est le
+    // séparateur du fichier, donc cette cellule est ce qui DÉMONTRE la citation
+    // — pour le lecteur humain qui ouvre le modèle, et pour le test qui fait
+    // l'aller-retour. Sans elle, retirer `;` de la classe de `esc` ne faisait
+    // rougir aucun cas (sondé).
+    description_fr: "Deuxième exemple : cette colonne est facultative ; laissez-la vide si besoin.",
     description_en: "Second example: this column is optional — leave it empty if you prefer.",
   }));
   return lines.join("\n") + "\n";

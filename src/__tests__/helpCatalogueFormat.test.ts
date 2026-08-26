@@ -29,7 +29,7 @@
 
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { CATALOGUE_COLUMNS } from "../utils/userCatalogue.ts";
+import { CATALOGUE_COLUMNS, buildCatalogueTemplateCsv } from "../utils/userCatalogue.ts";
 import { LANGUAGES } from "../i18n/languages.ts";
 
 const HELP = readFileSync("public/help.html", "utf8");
@@ -141,6 +141,30 @@ describe("the guide documents the catalogue CSV contract", () => {
       expect(block, `${c}: the format block must not use a table`).not.toContain("<table>");
       expect((block.match(/<li>/g) || []).length, `${c}: one <li> per column group`)
         .toBeGreaterThanOrEqual(11);
+    }
+  });
+
+  it("nomme le BON séparateur d'alias, dans les six langues", () => {
+    // DÉFAUT RÉEL, pré-existant, trouvé en unifiant le séparateur de CHAMPS :
+    // les six blocs disaient « séparés par un point-virgule » alors que
+    // `pipeList` découpe sur `|` et que le modèle le démontre
+    // (`Halvorsen of Bergen|Halvorsen & Son`). Longtemps ce n'était « que »
+    // faux — un alias écrit `A;B` ne se découpait pas. Depuis que `;` est le
+    // séparateur de CHAMPS, suivre le guide DÉCALE toutes les colonnes
+    // suivantes de la ligne. Une instruction fausse devenue destructrice.
+    //
+    // La barre est LUE dans le modèle plutôt que réécrite ici : la garde doit
+    // suivre le code, pas une seconde copie de la règle.
+    const tpl = buildCatalogueTemplateCsv();
+    expect(tpl, "le modèle ne démontre plus la barre verticale").toContain("|");
+    for (const c of codes) {
+      const block = formatBlock(secs[c]!);
+      const alias = (block.match(/<li><strong>brand_aliases[^<]*<\/strong>[^<]*(?:<code>[^<]*<\/code>[^<]*)*/) || [])[0] || "";
+      expect(alias, `${c}: la ligne des alias est introuvable`).toBeTruthy();
+      expect(alias, `${c}: le guide ne nomme pas la barre verticale`).toContain("|");
+      expect(alias.toLowerCase(),
+        `${c}: le guide dit encore point-virgule — suivre l'instruction décale les colonnes`)
+        .not.toMatch(/point-virgule|semicolon|punto y coma|semikolon|punto e virgola|ponto e vírgula/);
     }
   });
 

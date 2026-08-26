@@ -18,10 +18,15 @@
 
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
-import { parseCatalogueCsv, buildCatalogueTemplateCsv, CATALOGUE_COLUMNS } from "../utils/userCatalogue.ts";
+import { parseCatalogueCsv, buildCatalogueTemplateCsv, CATALOGUE_COLUMNS, CATALOGUE_TEMPLATE_DELIM } from "../utils/userCatalogue.ts";
 import { CATS, CUTS } from "../constants.ts";
 import { FAMILY_AGING_MAX } from "../utils.ts";
 
+// LES FIXTURES RESTENT EN VIRGULES, ET C'EST DÉLIBÉRÉ depuis que le MODÈLE est
+// passé au point-virgule : elles sont ce qui prouve qu'un catalogue déjà chargé,
+// sauvegardé dans le cloud ou exporté avant ce changement se relit à
+// l'identique. Les aligner sur le modèle ferait disparaître cette garantie sans
+// que rien ne rougisse — l'assertion du modèle, elle, est explicite plus bas.
 const HEAD = CATALOGUE_COLUMNS.join(",");
 /** One CSV row from a sparse field map, in the template's column order. */
 function row(vals: Record<string, string>): string {
@@ -228,7 +233,52 @@ describe("failure modes are named, never a silent empty catalogue", () => {
 
 describe("the template", () => {
   it("carries the exact header the parser reads", () => {
-    expect(buildCatalogueTemplateCsv().split("\n")[0]).toBe(HEAD);
+    // RENVERSEMENT CONSIGNÉ : ce cas comparait à `HEAD`, en VIRGULES. Le modèle
+    // sort désormais en POINTS-VIRGULES, comme celui de la cave — voir le bloc
+    // au-dessus de `buildCatalogueTemplateCsv`. Les COLONNES et leur ordre sont
+    // inchangés, ce que cette assertion continue de garder.
+    expect(buildCatalogueTemplateCsv().split("\n")[0])
+      .toBe(CATALOGUE_COLUMNS.join(CATALOGUE_TEMPLATE_DELIM));
+  });
+
+  it("emploie le MÊME séparateur que le modèle de la cave", () => {
+    // La divergence unifiée : la cave sortait en `;`, le catalogue en `,`.
+    // Aucun des deux n'était mal lu (`detectDelim` renifle l'en-tête), mais
+    // dans une locale à virgule décimale — cinq des six langues — un tableur
+    // ouvre un fichier à virgules en UNE colonne, et un modèle sert justement
+    // à être ouvert dans un tableur.
+    expect(CATALOGUE_TEMPLATE_DELIM).toBe(";");
+    const head = buildCatalogueTemplateCsv().split("\n")[0]!;
+    expect(head.includes(";"), "le modèle n'est plus en points-virgules").toBe(true);
+  });
+
+  it("une cellule contenant le SÉPARATEUR est citée, et se relit entière", () => {
+    // La garantie sur laquelle repose tout le basculement — `esc` cite déjà sur
+    // `;` — n'était asservie par RIEN : sondé, retirer `;` de sa classe laissait
+    // 80 cas verts, faute d'une seule fixture portant un point-virgule. La
+    // couche absorbante était l'absence de données, pas une autre protection.
+    const parsed = parseCatalogueCsv(buildCatalogueTemplateCsv());
+    const withSemi = Object.keys(parsed.db!.blends)
+      .map((k) => parsed.db!.blends[k]!)
+      .filter((b) => String(b.description?.fr || "").includes(";"));
+    expect(withSemi.length,
+      "aucune ligne d'exemple ne contient le séparateur — la citation n'est démontrée nulle part")
+      .toBeGreaterThan(0);
+    // Entière : une citation manquante couperait la phrase au point-virgule et
+    // décalerait toutes les colonnes suivantes.
+    expect(withSemi[0]!.description!.fr).toContain("laissez-la vide si besoin");
+  });
+
+  it("un catalogue en VIRGULES se relit toujours — rien d'existant ne casse", () => {
+    // La moitié qui compte le plus : un catalogue chargé avant ce changement
+    // vit encore dans IndexedDB et dans le flux cloud, en virgules. Sans ce
+    // cas, basculer le séparateur ET le lecteur passerait inaperçu.
+    const commaCsv = [HEAD, row({ brand_key: "Halvorsen", brand_name: "Halvorsen",
+      blend_name: "Duskfall", category: "Anglais", cut: "Ribbon" })].join("\n") + "\n";
+    const r = parseCatalogueCsv(commaCsv);
+    expect(r.error).toBeNull();
+    expect(r.blends).toBe(1);
+    expect(r.db!.blends["halvorsen|duskfall"]!.category).toBe("Anglais");
   });
 
   it("round-trips through the parser — the template is a VALID catalogue", () => {
