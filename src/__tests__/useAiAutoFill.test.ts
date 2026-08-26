@@ -794,6 +794,36 @@ describe("aiScanLabel — auto-chain", () => {
     expect(result.current.aiLoad).toBe(false);
     vi.unstubAllGlobals();
   });
+
+  // LE CAVIARDAGE, SUR LE SECOND CHEMIN. `redactApiKeys` a deux blocs de tests
+  // comme FONCTION et deux sites d'APPEL ; sondé, neutraliser celui de
+  // l'auto-remplissage rougissait 3 cas et neutraliser celui du SCAN n'en
+  // rougissait aucun. Le motif que ce dépôt a déjà nommé : quand une règle
+  // existe sur deux chemins, c'est presque toujours le SECOND qui n'est pas
+  // testé.
+  //
+  // La conséquence est une CRÉDENTIELLE À L'ÉCRAN : le message du fournisseur
+  // est affiché verbatim, et l'utilisateur qui photographie une boîte est
+  // exactement celui qui joindra une capture d'écran à un ticket. C'est la
+  // raison d'être de la fonction, écrite dans son propre commentaire.
+  it("caviarde une clé renvoyée par le fournisseur pendant un SCAN", async () => {
+    const fetchSpy = vi.fn().mockRejectedValue(
+      new Error("401 Unauthorized: key sk-ant-secret1234567890abcdef rejected"),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    const { result } = renderHook(() => useAiAutoFill(defaultProps({})));
+    await act(async () => {
+      result.current.aiScanLabel("tobacco", new File(["x"], "t.jpg", { type: "image/jpeg" }));
+      await new Promise(r => setTimeout(r, 50));
+    });
+    // Non-vacuité : sans elle, un scan qui n'aurait jamais atteint le réseau
+    // satisferait le « ne contient pas la clé » sans rien prouver.
+    expect(result.current.aiErr, "aucune erreur n'a été surfacée").toBeTruthy();
+    expect(result.current.aiErr, "la clé a fui à l'écran")
+      .not.toContain("sk-ant-secret1234567890abcdef");
+    expect(result.current.aiErr).toContain("[clé masquée]");
+    vi.unstubAllGlobals();
+  });
 });
 
 describe("runAutoFill — degenerate query short-circuit", () => {

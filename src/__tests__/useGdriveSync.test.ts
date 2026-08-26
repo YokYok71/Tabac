@@ -2167,6 +2167,44 @@ describe("cloudNewerBackup — launch check", () => {
     expect(result.current.cloudNewerBackup!.counts).toMatchObject({ tobaccos: 5, pipes: 2 });
   });
 
+  // LE CÂBLAGE DE LA RÉFÉRENCE, trouvé par sonde. `cloudGuardLocalRef` a son
+  // propre bloc de quatre assertions plus haut, et son commentaire promet
+  // « single source so the three guard sites can't drift out of agreement » —
+  // garantie que rien n'assertait : neutraliser les TROIS appels laissait 280
+  // cas verts. La forme `chooseAutoSaveTarget`, à l'identique : la fonction
+  // testée, l'APPEL couvert par rien.
+  //
+  // Tous les cas voisins exercent le sens « la bannière DOIT sortir ». Celui-ci
+  // exerce le sens que la référence sert à produire — la SUPPRESSION — et c'est
+  // le seul que la mutation casse : sans référence, tout fichier paraît plus
+  // récent et la bannière crie en permanence. Elle passe par le sélecteur
+  // Remplacer/Fusionner, donc ce n'est pas destructeur ; c'est une fausse alerte
+  // sur la bannière dont le signal EST la seule raison d'être, et c'est
+  // exactement le défaut que trois passages ont déjà corrigé.
+  it("se TAIT pour un fichier plus ancien que la dernière sauvegarde de cet appareil", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("cave-autosave", "1");
+    // Cet appareil a sauvegardé sur gdrive il y a une heure…
+    localStorage.setItem("cave-autosave-ts-gdrive", String(Date.now() - 3600000));
+    tokenInSession();
+    // …et le nuage ne porte qu'un fichier vieux de trois jours.
+    const older = new Date(Date.now() - 3 * 86400000).toISOString();
+    mockFetch.mockResolvedValue({
+      ok: true, status: 200,
+      json: () => Promise.resolve({
+        files: [{ id: "f1", name: "cave-tabac-20260609-101010-t3-p1-w0-a0-j2.json", modifiedTime: older }],
+      }),
+    });
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    vi.useRealTimers();
+    // Non-vacuité : le contrôle a bien interrogé le nuage. Sans ça, un contrôle
+    // qui n'aurait jamais tourné satisferait l'assertion ci-dessous.
+    expect(mockFetch, "le contrôle de lancement n'a pas eu lieu").toHaveBeenCalled();
+    expect(result.current.cloudNewerBackup,
+      "fausse alerte : un fichier PLUS ANCIEN a été proposé comme plus récent").toBeNull();
+  });
+
   it("flags a foreign backup on a provider this device never saved to — no global-ts fallback (latent-bug fix)", async () => {
     vi.useFakeTimers();
     localStorage.setItem("cave-autosave", "1");
