@@ -200,7 +200,30 @@ describe("sauvegarde manuelle chiffrée — le câblage", () => {
     });
     const { result } = renderHook(() => useGdriveSync(props as any));
     await act(async () => { result.current.gdriveSave("gtok"); });
-    await waitFor(() => expect(result.current.gdriveStatus).toBeTruthy());
+    // CE CAS ATTENDAIT `toBeTruthy()`, ET LA MESURE CORRIGE À MOITIÉ LE
+    // SIGNALEMENT — les deux moitiés valent d'être écrites.
+    //
+    // La FAIBLESSE est réelle : `st_connecting` est posé en PREMIÈRE
+    // instruction de `gdriveSave`, avant le jeton, avant `cloud.list`, avant le
+    // chiffrement, donc ce `waitFor` rendait la main aussitôt et n'attendait
+    // rien du tout — c'est le piège que le commentaire trois cas plus haut
+    // décrit, écrit deux fois dans ce fichier et appliqué une seule.
+    //
+    // Mais le cas N'ÉTAIT PAS CREUX, et je l'ai VÉRIFIÉ plutôt que déduit :
+    // sous une sonde qui fait retomber une invite annulée sur `return
+    // plaintext` — la cave entière en clair sur Drive — l'ancienne version
+    // rougissait déjà (`expected [ Array(1) ] to deeply equal []`), parce que
+    // le chemin annulé est entièrement en micro-tâches et que le
+    // `await act(async …)` les vide toutes. Le `toEqual([])` mesurait donc un
+    // instant où le téléversement avait bel et bien eu lieu.
+    //
+    // Le correctif est gardé pour ce qu'il apporte VRAIMENT : l'assertion ne
+    // dépend plus de la profondeur du vidage d'`act`. Le jour où ce chemin
+    // passe par un aller-retour réseau, la version d'origine devient creuse
+    // en silence ; celle-ci ne le peut pas.
+    await waitFor(() =>
+      expect(String(result.current.gdriveStatus)).toContain("enc_err_cancelled"),
+    );
     expect(await uploadedBodies(calls)).toEqual([]);
   });
 });
