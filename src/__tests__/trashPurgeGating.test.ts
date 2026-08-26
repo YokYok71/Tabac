@@ -43,6 +43,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
+import * as U from "../utils";
 
 const APP_SRC = fs.readFileSync(path.resolve(__dirname, "../App.tsx"), "utf8");
 
@@ -99,13 +100,22 @@ describe("startup trash purge — the gating invariants", () => {
   });
 
   it("computes the cutoff in the PAST — a sign flip would purge everything", () => {
-    // `Date.now() + retention` makes every trashed row "older than the cutoff",
+    // `<horloge> + retention` makes every trashed row "older than the cutoff",
     // so the next launch hard-deletes the entire trash 30 days early. This is
     // the only unprompted permanent deletion in the app.
+    //
+    // REPOINTÉ, et le renversement est consigné ici plutôt que dans un commit.
+    // Ce cas épinglait `Date.now() - TRASH_RETENTION_DAYS`, et il a ROUGI le
+    // jour où l'horloge du balayage est devenue bornée — c'est-à-dire que la
+    // vérification du câblage a fonctionné. Ce qu'il protège est le SIGNE, pas
+    // la provenance de l'horloge : la coupure doit être DANS LE PASSÉ. Cette
+    // propriété est intacte ; seule la source a changé, et elle a désormais ses
+    // propres cas plus bas. Ne pas le ramener sur `Date.now()` : ce serait
+    // ré-exiger l'horloge nue que le correctif retire.
     const line = BODY.split("\n").find((l) => /cutoffMs\s*=/.test(l));
     expect(line).toBeTruthy();
-    expect(line!).toMatch(/Date\.now\(\)\s*-\s*TRASH_RETENTION_DAYS/);
-    expect(line!).not.toMatch(/Date\.now\(\)\s*\+/);
+    expect(line!).toMatch(/-\s*TRASH_RETENTION_DAYS/);
+    expect(line!).not.toMatch(/\+\s*TRASH_RETENTION_DAYS/);
   });
 
   it("saves only when the sweep actually changed something", () => {
@@ -143,5 +153,117 @@ describe("the two sibling startup effects keep their own gates", () => {
   it("useLotIntegrityProbe is loading-gated and keyed on [loading]", () => {
     expect(PROBE_SRC).toMatch(/if\s*\(\s*loading\s*\)\s*return\s*;/);
     expect(PROBE_SRC).toMatch(/\}, \[loading\]\);/);
+  });
+});
+
+/**
+ * L'HORLOGE DU BALAYAGE EST BORNÉE, ET C'EST UN CHOIX PLUTÔT QU'UNE DÉTECTION.
+ *
+ * Le défaut est resté écrit dans CLAUDE.md — « DISCLOSED AND NOT FIXED » — parce
+ * que le garde évident est faux : refuser de balayer quand la coupure dépasse
+ * tous les tampons casserait l'utilisateur qui n'a simplement pas ouvert l'app
+ * depuis deux mois. AUCUNE donnée locale ne sépare ce cas d'une horloge en
+ * avance : les deux mettent `Date.now()` loin devant chaque tampon.
+ *
+ * Donc on ne distingue pas, on BORNE — voir le bloc au-dessus de
+ * `TRASH_RETENTION_DAYS` (constants.ts). Ce qui est verrouillé ici est la
+ * PROPRIÉTÉ qui compte : une ligne supprimée depuis le lancement précédent ne
+ * peut pas être purgée par un saut d'horloge.
+ */
+describe("trustedSweepNow — borner sans prétendre détecter", () => {
+  const DAY = 24 * 3600 * 1000;
+  const CAP = 30 * DAY;
+
+  it("l'usage normal n'est pas bridé : la marque suit l'horloge", () => {
+    // Le cas de LOIN le plus fréquent, épinglé en premier : quiconque ouvre
+    // l'app plus souvent qu'une fois par mois doit voir un comportement
+    // identique à l'octet près.
+    const hier = 1_000_000_000_000;
+    expect(U.trustedSweepNow(hier + DAY, hier, CAP)).toBe(hier + DAY);
+    expect(U.trustedSweepNow(hier + 29 * DAY, hier, CAP)).toBe(hier + 29 * DAY);
+  });
+
+  it("LE DÉFAUT : une horloge en avance d'un an ne peut pas dépasser la marque", () => {
+    const dernier = 1_000_000_000_000;
+    const folle = dernier + 365 * DAY;
+    const trusted = U.trustedSweepNow(folle, dernier, CAP);
+    expect(trusted).toBe(dernier + CAP);
+    // Ce que ça donne concrètement : la coupure ne dépasse pas le lancement
+    // précédent, donc rien de supprimé DEPUIS ce lancement n'est purgeable.
+    const coupure = trusted - 30 * DAY;
+    expect(coupure).toBe(dernier);
+    const suppriméeApres = dernier + DAY;
+    expect(suppriméeApres > coupure).toBe(true);
+  });
+
+  it("une absence réelle converge, elle n'est pas bloquée", () => {
+    // La moitié que le garde naïf cassait. Deux mois d'absence : le premier
+    // lancement avance de la borne, le second rattrape.
+    const dernier = 1_000_000_000_000;
+    const now = dernier + 60 * DAY;
+    const premier = U.trustedSweepNow(now, dernier, CAP);
+    expect(premier).toBe(dernier + CAP);
+    expect(U.trustedSweepNow(now, premier, CAP)).toBe(now);
+  });
+
+  it("une horloge qui RECULE est absorbée — la marque suit vers le bas", () => {
+    // La correction NTP après un démarrage aberrant. Sans le `min`, une seule
+    // mauvaise lecture resterait gravée et brimerait le balayage pour toujours.
+    const aberrante = 1_000_000_000_000 + 365 * DAY;
+    const vraie = 1_000_000_000_000;
+    expect(U.trustedSweepNow(vraie, aberrante, CAP)).toBe(vraie);
+  });
+
+  it("première exécution : pas de marque, pas de base pour borner", () => {
+    const now = 1_000_000_000_000;
+    for (const vide of [null, undefined, 0, NaN, -1]) {
+      expect(U.trustedSweepNow(now, vide as any, CAP), String(vide)).toBe(now);
+    }
+  });
+
+  it("un `now` illisible ne purge rien plutôt que de purger tout", () => {
+    // La coupure serait `NaN - 30j`, et toute comparaison contre NaN est
+    // fausse — donc « rien ne se purge ». Épinglé pour que ça reste le repli.
+    expect(U.trustedSweepNow(NaN as any, 1_000, CAP)).toBe(0);
+  });
+});
+
+describe("…et le câblage, qui est la moitié qui pourrit", () => {
+  it("App.tsx passe par trustedSweepNow, pas par Date.now() nu", () => {
+    // La fonction pure peut être parfaite pendant que l'effet appelle encore
+    // `Date.now()` directement — c'est la forme `chooseAutoSaveTarget`, testée
+    // et non câblée, que ce dépôt a déjà payée.
+    // BODY est l'effet COMMENTAIRES BLANCHIS — indispensable ici, puisque les
+    // commentaires que je viens d'écrire citent `Date.now()` en toutes lettres.
+    expect(BODY).toContain("trustedSweepNow(");
+    expect(BODY).toMatch(/cutoffMs\s*=\s*trustedNow\s*-/);
+    // Et surtout : plus de `Date.now()` servant directement de coupure.
+    expect(BODY).not.toMatch(/cutoffMs\s*=\s*Date\.now\(\)\s*-/);
+  });
+
+  it("la marque est relue ET réécrite, sinon la borne ne borne rien", () => {
+    expect(BODY).toContain("lsGet(SWEEP_CLOCK_KEY)");
+    expect(BODY).toContain("lsSet(SWEEP_CLOCK_KEY");
+  });
+
+  it("la BORNE est TRASH_RETENTION_DAYS, la même constante que la coupure", () => {
+    // La seule chose qu'aucun cas ci-dessus ne peut voir : ils passent tous
+    // `CAP` en littéral, parce que la borne est un PARAMÈTRE. Un appelant qui
+    // écrirait `60 * 24 * 3600 * 1000` les laisserait tous verts en cassant
+    // silencieusement la garantie — la coupure dépasserait la marque
+    // précédente, et une ligne supprimée depuis le lancement d'avant
+    // redeviendrait purgeable par un saut d'horloge.
+    //
+    // C'est aussi ce qui remplace l'alias `SWEEP_CLOCK_MAX_ADVANCE_DAYS` :
+    // knip le signalait comme un export en double, mais la raison de le retirer
+    // est qu'un nom séparé se règle sans voir ce qu'il casse. L'égalité est
+    // structurelle maintenant, et épinglée ici.
+    const appel = BODY.match(/trustedSweepNow\(([\s\S]*?)\);/);
+    expect(appel, "l'appel à trustedSweepNow est introuvable").toBeTruthy();
+    expect(appel![1]).toMatch(/TRASH_RETENTION_DAYS\s*\*\s*24\s*\*\s*3600\s*\*\s*1000/);
+    // Et la coupure lit la MÊME constante, sinon les deux peuvent diverger.
+    expect(BODY).toMatch(
+      /cutoffMs\s*=\s*trustedNow\s*-\s*TRASH_RETENTION_DAYS\s*\*\s*24\s*\*\s*3600\s*\*\s*1000/,
+    );
   });
 });

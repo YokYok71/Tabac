@@ -925,6 +925,43 @@ export function sessionRefersToPurgedLot(
   return !!purged[lotRefKey(tid, se.lotId)];
 }
 
+/**
+ * L'horloge que le balayage de la corbeille a le droit d'utiliser.
+ *
+ * `Date.now()` seul est le défaut : une machine en avance d'un an efface toute
+ * la corbeille au lancement et retire `lotId` à des séances vivantes. Rien dans
+ * les données locales ne sépare « horloge fausse » de « absent deux mois » —
+ * voir le bloc au-dessus de `TRASH_RETENTION_DAYS` (constants.ts) pour le
+ * raisonnement complet et pour ce que cette borne n'achète PAS.
+ *
+ * La borne arrive en PARAMÈTRE, donc aucun cas de cette fonction ne peut voir
+ * un appelant qui en passerait une autre : c'est `trashPurgeGating.test.ts` qui
+ * exige que le site d'appel nomme `TRASH_RETENTION_DAYS`.
+ *
+ * La marque est un high-water mark PERSISTÉ qui suit aussi vers le bas : le
+ * `min` fait que si l'horloge recule (correction NTP après un démarrage
+ * aberrant), on repart de la vraie valeur au lieu de rester bloqué sur celle
+ * qu'on avait crue. Sans cela une seule mauvaise lecture serait gravée.
+ *
+ * Première exécution — marque absente ou illisible — on fait confiance à
+ * `nowMs` : il n'y a aucune base pour borner, et une installation neuve a une
+ * corbeille vide. RÉSIDU ÉNONCÉ : restaurer une sauvegarde sur une machine dont
+ * l'horloge est déjà fausse tombe dans ce cas, exactement comme aujourd'hui.
+ */
+export function trustedSweepNow(
+  nowMs: number,
+  lastTrustedMs: number | null | undefined,
+  maxAdvanceMs: number,
+): number {
+  var now = Number(nowMs);
+  if (!isFinite(now)) return 0;
+  var last = Number(lastTrustedMs);
+  if (!isFinite(last) || last <= 0) return now;
+  var cap = Number(maxAdvanceMs);
+  if (!isFinite(cap) || cap < 0) cap = 0;
+  return Math.min(now, last + cap);
+}
+
 export function sweepExpiredTrash(
   snap: any,
   cutoffMs: number,

@@ -53,7 +53,7 @@ export var APP_VERSION = "1.0";
  * about to move backwards or restart.
  */
 export var APP_GENERATION = 2;
-export var APP_BUILD = "71";
+export var APP_BUILD = "72";
 
 export var CATS = ["Américain","Anglais","Anglais aromatique","Aromatique","Balkan","Burley","Cavendish","Cigare","Dark Fired","Écossais","Lakeland","Latakia","Oriental","Perique","Turkish","VaPer","Virginia","Virginia/Burley","Virginia/Latakia","Autre"] as const;
 export var CATS_EN: Record<string, string> = {"Américain":"American",Anglais:"English","Anglais aromatique":"English aromatic",Aromatique:"Aromatic",Balkan:"Balkan",Burley:"Burley",Cavendish:"Cavendish",Cigare:"Cigar","Dark Fired":"Dark Fired","Écossais":"Scottish",Lakeland:"Lakeland",Latakia:"Latakia",Oriental:"Oriental",Perique:"Perique",Turkish:"Turkish",VaPer:"VaPer",Virginia:"Virginia","Virginia/Burley":"Virginia/Burley","Virginia/Latakia":"Virginia/Latakia",Autre:"Other"};
@@ -555,6 +555,60 @@ export var GDRIVE_CATALOGUE_PREFIX = "cave-tabac-catalogue-";
 export var LOCALSTORAGE_BUDGET_CHARS = 5000000;
 
 export var TRASH_RETENTION_DAYS = 30;
+
+// LE BALAYAGE DE LA CORBEILLE NE CROIT PAS L'HORLOGE SUR PAROLE.
+//
+// `sweepExpiredTrash` purge contre `Date.now() - TRASH_RETENTION_DAYS`, donc une
+// machine dont la date est un an en avance efface TOUTE la corbeille au
+// lancement — et retire `lotId` aux séances qui référencent ces lots, c'est-à-dire
+// à des séances VIVANTES. Sans confirmation, sans message. Atteignabilité faible
+// (démarrage batterie morte avant resynchro NTP, émulateur, date réglée à la main).
+//
+// AUCUNE DONNÉE LOCALE NE DISTINGUE LES DEUX CAS, et c'est le point : « horloge en
+// avance » et « n'a pas ouvert l'app depuis deux mois » mettent tous deux
+// `Date.now()` loin devant chaque tampon de la cave. Le garde évident — refuser de
+// balayer quand la coupure dépasse tous les tampons — casserait le second, où le
+// balayage est exactement ce qu'il faut faire. C'est pourquoi ce défaut est resté
+// écrit plutôt qu'à moitié corrigé.
+//
+// DONC ON NE DISTINGUE PAS, ON BORNE. L'horloge du balayage est une valeur
+// PERSISTÉE qui ne peut avancer que de TRASH_RETENTION_DAYS par lancement
+// (`trustedSweepNow`, utils.ts). Conséquences, dans l'ordre où elles
+// comptent :
+//   · une ligne supprimée DEPUIS le lancement précédent ne peut jamais être
+//     purgée par un saut d'horloge — la coupure ne dépasse pas la marque
+//     précédente ;
+//   · qui ouvre l'app au moins une fois par mois n'est jamais bridé : le
+//     comportement est identique à l'octet près ;
+//   · une absence réelle de six mois converge en six lancements, et le seul coût
+//     entre-temps est une corbeille qui se vide plus tard ;
+//   · une horloge qui RECULE (la correction NTP après coup) est absorbée : la
+//     marque suit vers le bas, donc une valeur aberrante ne reste pas gravée.
+//
+// LA BORNE EST `TRASH_RETENTION_DAYS` LUI-MÊME, et cette ÉGALITÉ est la garantie
+// — pas une valeur voisine bien choisie. En dessous, un utilisateur qui ouvre
+// l'app toutes les six semaines dériverait indéfiniment et sa corbeille
+// afficherait des expirations qu'elle ne tient pas ; au-dessus, la coupure
+// dépasserait la marque précédente et la première garantie tombe.
+//
+// ELLE N'A DÉLIBÉRÉMENT PAS DE NOM À ELLE. Une seconde constante l'aliasant
+// (`SWEEP_CLOCK_MAX_ADVANCE_DAYS = TRASH_RETENTION_DAYS`) a été écrite puis
+// RETIRÉE : knip la signale comme un export en double, ce qui est exact, mais la
+// vraie raison est la panne que ce dépôt paie en boucle — un nom séparé invite à
+// « régler la borne à 60 » sans voir la garantie que ça casse, alors que lire
+// TRASH_RETENTION_DAYS au site d'appel rend l'égalité STRUCTURELLE. Le câblage
+// est épinglé par `trashPurgeGating.test.ts`, qui exige que l'argument de borne
+// nomme cette constante — la fonction pure reçoit sa borne en paramètre, donc
+// aucun de ses cas ne peut voir un appelant qui en passerait une autre.
+//
+// CE QUE ÇA N'EST PAS : une détection d'horloge fausse. Le rayon est borné, pas
+// nul — une ligne qui existait DÉJÀ au lancement précédent peut encore partir en
+// avance. Le fermer complètement demanderait une horloge de confiance (l'en-tête
+// `Date` d'une réponse serveur), donc un réseau que ce chemin n'a pas.
+//
+// La marque persistée que `trustedSweepNow` borne. Locale à l'appareil, jamais
+// dans une sauvegarde : c'est une observation d'horloge, pas une donnée de cave.
+export var SWEEP_CLOCK_KEY = "cave-sweep-clock";
 // Stale-pending sweep threshold (ms). Used by BOTH
 // the mount-time cleanup in App.tsx AND triggerIosAutosaveReauth in
 // useGdriveAuth.ts to recognise an

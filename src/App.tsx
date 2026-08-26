@@ -12,6 +12,7 @@ import {
   computeStats,
   getStorageBlockedHint,
   sweepExpiredTrash,
+  trustedSweepNow,
   restoreScrollY,
   findById,
   entityLabel,
@@ -34,6 +35,7 @@ import {
   BP,
   INIT,
   TRASH_RETENTION_DAYS,
+  SWEEP_CLOCK_KEY,
   GDRIVE_PENDING_STALE_MS,
   xlValue,
 } from "./constants.ts";
@@ -3032,7 +3034,30 @@ function App() {
     trashPurgeRanRef.current = true;
     var id = setTimeout(function () {
       try {
-        var cutoffMs = Date.now() - TRASH_RETENTION_DAYS * 24 * 3600 * 1000;
+        // L'HORLOGE EST BORNÉE, PAS CRUE SUR PAROLE. `Date.now()` seul laissait
+        // une machine en avance d'un an vider toute la corbeille et retirer
+        // `lotId` à des séances vivantes. `trustedSweepNow` plafonne l'avance
+        // par lancement contre une marque persistée ; voir le bloc au-dessus de
+        // TRASH_RETENTION_DAYS (constants.ts) pour pourquoi on borne au lieu de
+        // tenter de détecter une horloge fausse — aucune donnée locale ne
+        // distingue ce cas d'une absence de deux mois.
+        //
+        // LA BORNE EST TRASH_RETENTION_DAYS, la MÊME constante que la coupure
+        // deux lignes plus bas, et cette égalité EST la garantie : la coupure ne
+        // peut pas dépasser la marque précédente, donc rien de supprimé depuis
+        // le lancement d'avant n'est purgeable. Un nom d'alias a été écrit puis
+        // retiré pour que ça se lise ici plutôt que de se régler ailleurs.
+        var lastTrusted = Number(lsGet(SWEEP_CLOCK_KEY));
+        var trustedNow = trustedSweepNow(
+          Date.now(),
+          isFinite(lastTrusted) && lastTrusted > 0 ? lastTrusted : null,
+          TRASH_RETENTION_DAYS * 24 * 3600 * 1000,
+        );
+        // Écrite AVANT le balayage : si `save` échoue, la marque a tout de même
+        // avancé, ce qui ne fait que retarder une purge. L'écrire après aurait
+        // laissé un échec répété rejouer la même avance indéfiniment.
+        lsSet(SWEEP_CLOCK_KEY, String(trustedNow));
+        var cutoffMs = trustedNow - TRASH_RETENTION_DAYS * 24 * 3600 * 1000;
         var res = sweepExpiredTrash(trashPurgeDataRef.current || INIT, cutoffMs);
         if (res.changed) save(res.next);
       } catch (_e) {}
