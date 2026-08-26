@@ -3072,3 +3072,127 @@ describe("an imported API key lands on REPLACE only", () => {
     expect(src).toContain('apiKey && saveApiKey && mode === "replace"');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// `keepModalOpen` — the only thing that decides whether the CSV report is
+// readable at all.
+//
+// The flag exists because of a defect nothing could see: `_runImport` closes
+// the Settings modal for `source === "file"`, so the CSV import's row-level
+// issue panel — which renders INSIDE that modal, under the button that
+// produced it — was painted into a tab that had just shut. It was found by
+// driving the real file picker in a browser; the panel renders perfectly in
+// isolation, which is exactly why no unit test saw it.
+//
+// The CALLER half is fully guarded already (four probes on
+// `useExportImport`'s `keepModalOpen: _hasIssues` all redden). What was
+// asserted by nothing is the half that ACTS on the flag: the hook could
+// ignore it entirely, the caller stay perfect, and the reported defect come
+// back verbatim. Two paths, and it is the second that was untested.
+describe("keepModalOpen — le panneau CSV doit rester lisible", () => {
+  const csvish = { tobaccos: [{ id: 1, brand: "Vondel", name: "Nº 7", lots: [] }] };
+
+  it("un import « file » FERME les réglages quand rien n'est à rapporter", () => {
+    // The historical behaviour, and the counter-case: a clean import still
+    // closes, because the recap toast's « Voir » chip takes you to your
+    // tobaccos, which is where you want to be.
+    const setImportModal = vi.fn();
+    const props = makeProps({ data: baseLocal, setImportModal });
+    const { result } = renderHook(() => useImportConfirm(props as any));
+    act(() => { result.current.stageImport(csvish, "file", { autoApply: "merge" }); });
+    expect(setImportModal).toHaveBeenCalledWith(false);
+  });
+
+  it("le drapeau les laisse OUVERTS — sinon le panneau se peint dans un onglet fermé", () => {
+    const setImportModal = vi.fn();
+    const props = makeProps({ data: baseLocal, setImportModal });
+    const { result } = renderHook(() => useImportConfirm(props as any));
+    act(() => {
+      result.current.stageImport(csvish, "file", { autoApply: "merge", keepModalOpen: true });
+    });
+    expect(setImportModal,
+      "le drapeau est le seul moyen de garder le rapport à l'écran").not.toHaveBeenCalled();
+  });
+
+  it("l'import « drive » ne touche jamais aux réglages, drapeau ou pas", () => {
+    // Scope guard: a careless fix could make the modal state depend on the
+    // flag alone and start closing (or leaving open) a modal the drive path
+    // never owned.
+    for (const keepModalOpen of [true, false]) {
+      const setImportModal = vi.fn();
+      const props = makeProps({ data: baseLocal, setImportModal });
+      const { result } = renderHook(() => useImportConfirm(props as any));
+      act(() => {
+        result.current.stageImport(csvish, "drive", { autoApply: "merge", keepModalOpen });
+      });
+      expect(setImportModal).not.toHaveBeenCalled();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// The FIVE envelope fields are metadata ABOUT the file, never data IN the
+// cellar — and two of the five deletions were asserted by nothing.
+//
+// `_apiKey`, `_settings` and `_schemaVersion` each redden under probe;
+// `_savedAt` and `_saveType` did not, so either could have been dropped and
+// the cellar would have started carrying the backup file's own timestamp and
+// save-type as if they were its own. This file's header comment has claimed
+// the strip since it was written ("stageImport — strips
+// _apiKey/_savedAt/_saveType"), which is what makes it worth pinning: a
+// promise stated in a comment is not a promise.
+//
+// All five are asserted together on purpose — it is one rule, and splitting
+// it is how three of them came to be guarded while two were not.
+describe("les champs d'enveloppe ne deviennent jamais des données de cave", () => {
+  const ENVELOPE = ["_apiKey", "_apiKeyProvider", "_savedAt", "_saveType", "_schemaVersion", "_settings"];
+
+  function envelopedBackup() {
+    return {
+      tobaccos: [{ id: 1, brand: "Vondel", name: "Nº 7", lots: [] }],
+      pipes: [], wishlist: [], accessories: [], sessions: [],
+      nxT: 2, nxP: 1, nxW: 1, nxA: 1, nxJ: 1,
+      _apiKey: "sk-not-mine",
+      _apiKeyProvider: "openai",
+      _savedAt: "2020-01-01T00:00:00.000Z",
+      _saveType: "manual",
+      _schemaVersion: "v6",
+      _settings: { "cave-lang": "de" },
+    };
+  }
+
+  it("aucun des six ne survit à un REPLACE", () => {
+    const save = vi.fn();
+    const props = makeProps({ data: baseLocal, save });
+    const { result } = renderHook(() => useImportConfirm(props as any));
+    act(() => { result.current.stageImport(envelopedBackup(), "drive", { autoApply: "replace" }); });
+    expect(save, "la cave doit avoir été écrite").toHaveBeenCalled();
+    const written = save.mock.calls[0]![0] as any;
+    for (const k of ENVELOPE) {
+      expect(Object.prototype.hasOwnProperty.call(written, k),
+        `${k} a fui dans la cave enregistrée`).toBe(false);
+    }
+  });
+
+  it("ni à un MERGE", () => {
+    const save = vi.fn();
+    const props = makeProps({ data: baseLocal, save });
+    const { result } = renderHook(() => useImportConfirm(props as any));
+    act(() => { result.current.stageImport(envelopedBackup(), "drive", { autoApply: "merge" }); });
+    expect(save).toHaveBeenCalled();
+    const written = save.mock.calls[0]![0] as any;
+    for (const k of ENVELOPE) {
+      expect(Object.prototype.hasOwnProperty.call(written, k),
+        `${k} a fui dans la cave fusionnée`).toBe(false);
+    }
+  });
+
+  it("non-vacuité : le fichier de test les portait bien tous les six", () => {
+    // Without this the two cases above pass on a fixture that never carried
+    // the fields — the shape of vacuous assertion this repo keeps recording.
+    const b = envelopedBackup() as any;
+    for (const k of ENVELOPE) {
+      expect(Object.prototype.hasOwnProperty.call(b, k), k).toBe(true);
+    }
+  });
+});

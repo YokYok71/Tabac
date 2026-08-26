@@ -443,6 +443,43 @@ export function CuratorInventoryListView() {
     nav && nav("addT");
   };
 
+  // The wishlist's two doors, for the reason the three other lists
+  // already have ONE shared opener each: this view had FOUR inline copies of
+  // the open-the-overlay sequence — the "+", the empty-state CTA, and the edit
+  // handler once per list mode (grouped and flat) — and they had already begun
+  // to drift (one wrote `window.scrollY`, the other three `window.scrollY || 0`).
+  // Nothing was wrong yet, which is exactly when this is worth doing: the rule
+  // "the two doors cannot drift" is written down for tobaccos, pipes and
+  // accessories, and the wishlist is the one that never got it.
+  //
+  // BLANKING is the load-bearing half of the add door. A form left any way
+  // other than `cancel()` keeps its working copy, so without the `BW` reset the
+  // "new wish" overlay opens over the previously-edited one — and `addWish`
+  // would inherit its `uid`, the cross-device merge identity.
+  const openAddWish = () => {
+    if (!BW || typeof setWishForm !== "function"
+        || typeof setEditWishId !== "function"
+        || typeof setShowWishForm !== "function") return;
+    setWishForm(Object.assign({}, BW));
+    setEditWishId(null);
+    // Snapshot scroll before opening the overlay: it is NOT a view change,
+    // so `nav()` never fires and useWishStore reads this back on return.
+    if (scrollSaveRef) scrollSaveRef.current["wish"] = window.scrollY || 0;
+    setShowWishForm(true);
+  };
+
+  const openEditWish = (w: WishlistItem) => {
+    if (!BW || typeof setWishForm !== "function"
+        || typeof setEditWishId !== "function"
+        || typeof setShowWishForm !== "function") return;
+    setWishForm(Object.assign({}, BW, w));
+    // Never dropped: without the id, `updateWish`'s .map() matches
+    // nothing at save time and the edit is silently lost.
+    setEditWishId(w.id);
+    if (scrollSaveRef) scrollSaveRef.current["wish"] = window.scrollY || 0;
+    setShowWishForm(true);
+  };
+
   return (
     <div style={{
       position: "relative", minHeight: "100vh",
@@ -466,19 +503,8 @@ export function CuratorInventoryListView() {
             <IconBtn
               icon="plus"
               onClick={() => {
-                if (wishVisible) {
-                  if (BW && setWishForm && setEditWishId && setShowWishForm) {
-                    setWishForm(Object.assign({}, BW));
-                    setEditWishId(null);
-                    // Snapshot scroll before opening wish form overlay
-                    // (overlay → nav() doesn't fire, so the auto-save in App.tsx
-                    // doesn't kick in here; useWishStore reads this on return).
-                    if (scrollSaveRef) scrollSaveRef.current["wish"] = window.scrollY || 0;
-                    setShowWishForm(true);
-                  }
-                } else {
-                  openAddTobacco();
-                }
+                if (wishVisible) openAddWish();
+                else openAddTobacco();
               }}
               bg={wishVisible ? C.oxbloodHi : C.brass}
               color={C.bg} border={false}
@@ -861,14 +887,8 @@ export function CuratorInventoryListView() {
                       ? (t ? t("btn_add_wish") : "Ajouter une envie")
                       : (t ? t("btn_add_tobacco") : "Ajouter un tabac"),
                     onClick: () => {
-                      if (wishVisible) {
-                        if (BW && setWishForm && setEditWishId && setShowWishForm) {
-                          setWishForm(Object.assign({}, BW));
-                          setEditWishId(null);
-                          if (scrollSaveRef) scrollSaveRef.current["wish"] = window.scrollY;
-                          setShowWishForm(true);
-                        }
-                      } else openAddTobacco();
+                      if (wishVisible) openAddWish();
+                      else openAddTobacco();
                     },
                   }]} />
           ) : wishVisible ? (
@@ -916,15 +936,15 @@ export function CuratorInventoryListView() {
                           <WishCard key={w.id} w={w} idx={i}
                             focused={String(w.id) === String(focusedWishId)}
                             onAcquire={() => wishToInv && wishToInv(w)}
-                            onEdit={() => {
-                              if (BW && setWishForm && setEditWishId && setShowWishForm) {
-                                setWishForm(Object.assign({}, BW, w));
-                                setEditWishId(w.id);
-                                // Snapshot scroll before opening wish form overlay
-                                if (scrollSaveRef) scrollSaveRef.current["wish"] = window.scrollY || 0;
-                                setShowWishForm(true);
-                              }
-                            }}
+                            // `openEditWish` writes `scrollSaveRef.current`, and this
+                            // branch builds its rows inside an IIFE that runs during
+                            // render — so the rule traces the ref write to render time.
+                            // It is a handler prop: nothing calls it until a tap. The
+                            // flat branch below is the identical call and is NOT
+                            // flagged, which is what identifies this as the IIFE
+                            // rather than the helper.
+                            // eslint-disable-next-line react-hooks/refs
+                            onEdit={() => openEditWish(w)}
                             onDelete={() => { delWish && delWish(w.id); }} />
                         ))}
                         {!collapsed && (
@@ -939,15 +959,7 @@ export function CuratorInventoryListView() {
                   <WishCard key={w.id} w={w} idx={i}
                     focused={String(w.id) === String(focusedWishId)}
                     onAcquire={() => wishToInv && wishToInv(w)}
-                    onEdit={() => {
-                      if (BW && setWishForm && setEditWishId && setShowWishForm) {
-                        setWishForm(Object.assign({}, BW, w));
-                        setEditWishId(w.id);
-                        // Snapshot scroll before opening wish form overlay
-                        if (scrollSaveRef) scrollSaveRef.current["wish"] = window.scrollY || 0;
-                        setShowWishForm(true);
-                      }
-                    }}
+                    onEdit={() => openEditWish(w)}
                     onDelete={() => { delWish && delWish(w.id); }} />
                 ))
           ) : null}

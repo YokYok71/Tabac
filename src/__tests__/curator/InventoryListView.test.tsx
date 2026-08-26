@@ -1,5 +1,6 @@
 // Curator InventoryListView — sanity tests.
 
+import { readFileSync } from "node:fs";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { AppCtx, type AppCtxType } from "../../AppContext.tsx";
@@ -1276,5 +1277,136 @@ describe("InventoryListView — weight scoped to the active filter", () => {
     const { container } = renderWith(ctxFor("active"));
     expect(container.textContent).toContain("345");
     expect(container.querySelector("[data-scope]")).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// La liste d'envies a QUATRE portes vers son formulaire — le « + », l'appel à
+// l'action de l'état vide, et la modification, une fois par mode de liste
+// (groupé et plat). Elles étaient QUATRE COPIES en ligne de la même séquence,
+// et deux d'entre elles n'étaient assertées par rien : sondées, la suppression
+// depuis le mode GROUPÉ et le blanchiment de la copie de travail depuis l'appel
+// à l'action passaient toutes les deux au vert avec la règle neutralisée,
+// pendant que leurs jumelles du mode plat et du « + » rougissaient. C'est le
+// schéma des deux chemins, encore une fois : c'est le SECOND qui n'est pas
+// couvert.
+//
+// Les trois autres listes ont chacune UN ouvreur partagé par leurs deux portes,
+// précisément pour que « les deux portes ne peuvent pas diverger » ; la liste
+// d'envies ne l'avait jamais eu, et ses copies avaient DÉJÀ commencé à diverger
+// (l'une écrivait `window.scrollY`, les trois autres `window.scrollY || 0`).
+// `openAddWish` / `openEditWish` remplacent les quatre.
+describe("les quatre portes du formulaire d'envie", () => {
+  const w1 = { ...mkWish(1), brand: "Vondel", name: "Nº 7" };
+  const w2 = { ...mkWish(2), brand: "Vondel", name: "Nº 9" };
+
+  function wishCtx(over: Record<string, any> = {}) {
+    return {
+      ...baseCtx,
+      statusFilter: "wish",
+      filtered: [],
+      data: { tobaccos: [], wishlist: [w1, w2], pipes: [], accessories: [], sessions: [] },
+      BW: { name: "", brand: "", priority: "medium" },
+      setWishForm: vi.fn(),
+      setEditWishId: vi.fn(),
+      setShowWishForm: vi.fn(),
+      wishToInv: vi.fn(),
+      delWish: vi.fn(),
+      scrollSaveRef: { current: {} as Record<string, number> },
+      ...over,
+    };
+  }
+
+  function bins(container: HTMLElement) {
+    return Array.from(container.querySelectorAll('[aria-label="btn_delete"]'));
+  }
+  function pencils(container: HTMLElement) {
+    return Array.from(container.querySelectorAll('[aria-label="btn_edit"]'));
+  }
+
+  for (const grouped of [false, true]) {
+    const mode = grouped ? "groupé" : "plat";
+
+    it(`mode ${mode} : la corbeille supprime l'envie de SA carte`, () => {
+      // La régression que cela ferme : en mode groupé, la corbeille pouvait
+      // viser un autre id que celui de la carte tapée, et rien ne rougissait —
+      // une suppression qui porte sur le mauvais objet.
+      // `undefined` means COLLAPSED (the inverted convention), so the group
+      // has to be opened explicitly or the grouped case renders zero cards
+      // and passes for the wrong reason.
+      const ctx = wishCtx({
+        wishGrouped: grouped,
+        collapsedWishGroups: { [w1.brand]: false },
+        toggleWishGroup: () => {},
+      });
+      const { container } = renderWith(ctx);
+      const rows = bins(container);
+      expect(rows.length, "les deux cartes doivent être rendues dans ce mode").toBe(2);
+      fireEvent.click(rows[1]!);
+      expect(ctx.delWish).toHaveBeenCalledTimes(1);
+      expect(ctx.delWish).toHaveBeenCalledWith(w2.id);
+    });
+
+    it(`mode ${mode} : modifier pose l'id — sans lui, l'enregistrement ne trouve rien`, () => {
+      // `undefined` means COLLAPSED (the inverted convention), so the group
+      // has to be opened explicitly or the grouped case renders zero cards
+      // and passes for the wrong reason.
+      const ctx = wishCtx({
+        wishGrouped: grouped,
+        collapsedWishGroups: { [w1.brand]: false },
+        toggleWishGroup: () => {},
+      });
+      const { container } = renderWith(ctx);
+      const rows = pencils(container);
+      expect(rows.length).toBe(2);
+      fireEvent.click(rows[1]!);
+      expect(ctx.setEditWishId).toHaveBeenCalledWith(w2.id);
+      expect(ctx.setWishForm).toHaveBeenCalledTimes(1);
+      expect(ctx.setWishForm.mock.calls[0]![0]).toMatchObject({ id: w2.id, name: w2.name });
+      expect(ctx.setShowWishForm).toHaveBeenCalledWith(true);
+    });
+  }
+
+  it("le « + » ouvre un formulaire VIERGE et sans id d'édition", () => {
+    const ctx = wishCtx();
+    const { container } = renderWith(ctx);
+    const plus = container.querySelector('[aria-label="btn_add"]')
+      || container.querySelector('[aria-label="btn_add_wish"]');
+    expect(plus, "le + doit être rendu en mode envies").toBeTruthy();
+    fireEvent.click(plus as Element);
+    expect(ctx.setEditWishId).toHaveBeenCalledWith(null);
+    expect(ctx.setWishForm.mock.calls[0]![0],
+      "un id résiduel ferait hériter son uid à la nouvelle envie").not.toHaveProperty("id");
+  });
+
+  it("l'appel à l'action de l'état vide blanchit AUSSI la copie de travail", () => {
+    // La seconde porte. Elle n'était assertée par rien : le « + » l'était, elle
+    // non — donc une copie de travail laissée par une modification précédente
+    // rouvrait sous « Ajouter une envie », et `addWish` héritait de son `uid`.
+    const ctx = wishCtx({
+      data: { tobaccos: [], wishlist: [], pipes: [], accessories: [], sessions: [] },
+    });
+    const { container } = renderWith(ctx);
+    const cta = Array.from(container.querySelectorAll("button, [role=button]"))
+      .find(b => (b.textContent || "").includes("btn_add_wish"));
+    expect(cta, "l'état vide doit offrir un chemin vers l'ajout").toBeTruthy();
+    fireEvent.click(cta as Element);
+    expect(ctx.setWishForm).toHaveBeenCalledTimes(1);
+    expect(ctx.setWishForm.mock.calls[0]![0]).not.toHaveProperty("id");
+    expect(ctx.setEditWishId).toHaveBeenCalledWith(null);
+    expect(ctx.setShowWishForm).toHaveBeenCalledWith(true);
+  });
+
+  it("les quatre portes passent par les DEUX ouvreurs — pas par quatre copies", () => {
+    // Ce que le test ci-dessus ne peut pas voir : quatre copies correctes
+    // aujourd'hui restent quatre copies. Assertion au niveau de la SOURCE,
+    // commentaires blanchis d'abord (ce bloc les cite).
+    const src = readFileSync("src/views/curator/InventoryListView.tsx", "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "))
+      .replace(/(^|[^:])\/\/[^\n]*/g, (_m, p) => p + "");
+    const opens = (src.match(/setShowWishForm\(true\)/g) || []).length;
+    expect(opens, "une porte de plus qu'un ouvreur est une copie qui va diverger").toBe(2);
+    expect((src.match(/openAddWish\(\)/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect((src.match(/openEditWish\(w\)/g) || []).length).toBe(2);
   });
 });
