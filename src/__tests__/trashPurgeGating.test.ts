@@ -266,4 +266,28 @@ describe("…et le câblage, qui est la moitié qui pourrit", () => {
       /cutoffMs\s*=\s*trustedNow\s*-\s*TRASH_RETENTION_DAYS\s*\*\s*24\s*\*\s*3600\s*\*\s*1000/,
     );
   });
+
+  it("la PREMIÈRE exécution amorce la marque et ne balaye pas", () => {
+    // Le dernier trou de la borne, et le seul lancement qu'elle ne protégeait
+    // pas : sans marque il n'y a rien à borner. Ce n'est pas un cas de
+    // laboratoire — c'est le premier lancement APRÈS la mise à jour, cave
+    // pleine et marque absente.
+    //
+    // L'ORDRE EST TOUTE LA RÈGLE : la marque doit être ÉCRITE avant le retour,
+    // sinon le lancement suivant se retrouve à son tour sans marque et le trou
+    // ne se referme jamais — il se déplace d'un lancement à chaque fois.
+    const iMarque = BODY.indexOf("lsSet(SWEEP_CLOCK_KEY");
+    const iRetour = BODY.search(/if\s*\(!\s*aUneMarque\s*\)\s*return\s*;/);
+    const iBalayage = BODY.indexOf("sweepExpiredTrash(");
+    expect(iMarque, "la marque doit être écrite").toBeGreaterThan(-1);
+    expect(iRetour, "la première exécution doit sortir avant le balayage").toBeGreaterThan(-1);
+    expect(iBalayage, "le balayage doit être là").toBeGreaterThan(-1);
+    expect(iMarque).toBeLessThan(iRetour);
+    expect(iRetour).toBeLessThan(iBalayage);
+    // Et la marque doit être DÉRIVÉE de la valeur relue. Sans cette ligne,
+    // écrire `var aUneMarque = false;` laisserait tout ce qui précède vert
+    // pendant que le balayage ne tournerait PLUS JAMAIS — la panne silencieuse
+    // que toute cette zone existe pour éviter, obtenue en la « simplifiant ».
+    expect(BODY).toMatch(/aUneMarque\s*=\s*isFinite\(\s*lastTrusted\s*\)\s*&&\s*lastTrusted\s*>\s*0/);
+  });
 });

@@ -3048,15 +3048,36 @@ function App() {
         // le lancement d'avant n'est purgeable. Un nom d'alias a été écrit puis
         // retiré pour que ça se lise ici plutôt que de se régler ailleurs.
         var lastTrusted = Number(lsGet(SWEEP_CLOCK_KEY));
+        var aUneMarque = isFinite(lastTrusted) && lastTrusted > 0;
         var trustedNow = trustedSweepNow(
           Date.now(),
-          isFinite(lastTrusted) && lastTrusted > 0 ? lastTrusted : null,
+          aUneMarque ? lastTrusted : null,
           TRASH_RETENTION_DAYS * 24 * 3600 * 1000,
         );
         // Écrite AVANT le balayage : si `save` échoue, la marque a tout de même
         // avancé, ce qui ne fait que retarder une purge. L'écrire après aurait
         // laissé un échec répété rejouer la même avance indéfiniment.
         lsSet(SWEEP_CLOCK_KEY, String(trustedNow));
+        // PREMIÈRE EXÉCUTION : ON AMORCE LA MARQUE ET ON NE BALAYE PAS.
+        //
+        // Sans marque il n'y a rien à borner, donc ce lancement-là était le seul
+        // que la borne ne protégeait pas — et ce n'est pas un cas de laboratoire :
+        // c'est le premier lancement APRÈS la mise à jour, où la cave est pleine
+        // et la marque n'existe pas encore. Une horloge fausse à cet instant
+        // vidait la corbeille exactement comme avant.
+        //
+        // Amorcer sans balayer coûte UN lancement de purge retardée — invisible
+        // sur une rétention de 30 jours — et ferme le cas TRANSITOIRE, qui est
+        // le plus fréquent en pratique : un démarrage batterie morte, corrigé
+        // par NTP dans les secondes qui suivent. Au lancement suivant la marque
+        // aberrante est là, l'horloge est redevenue juste, et `min(now, …)` la
+        // ramène à la vraie valeur.
+        //
+        // CE QUE ÇA NE FERME PAS, et le dire évite de le re-tenter : une horloge
+        // DURABLEMENT en avance. Au lancement suivant `last ≈ now`, donc la purge
+        // a lieu. C'est hors de portée par construction — pour cet appareil chaque
+        // date de l'app est fausse — et non un oubli.
+        if (!aUneMarque) return;
         var cutoffMs = trustedNow - TRASH_RETENTION_DAYS * 24 * 3600 * 1000;
         var res = sweepExpiredTrash(trashPurgeDataRef.current || INIT, cutoffMs);
         if (res.changed) save(res.next);
