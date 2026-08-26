@@ -24,6 +24,10 @@ import {
   _CSV_VALUES_FOR_TESTS as CSV_VALUES,
 } from "../utils/csvImport";
 import { LANGUAGES } from "../i18n/languages";
+import {
+  CATS_EN, CUTS_EN, SHAPES_EN, BENDS_EN, FILTERS_EN, BOWL_MATS_EN,
+  STEM_MATS_EN, FINISHES_EN, ACC_TYPES_EN, LIGHTER_FUELS_EN, xlValue,
+} from "../constants";
 import { INIT } from "../constants";
 
 beforeEach(() => { vi.clearAllMocks(); });
@@ -111,6 +115,19 @@ describe("un export se ré-importe dans chaque langue", () => {
       expect(r.skipped, `${code} : aucune ligne perdue`).toBe(0);
       expect(r.badStatus, `${code} : aucun statut illisible`).toBe(0);
       expect(r.badCategory + r.badCut, `${code} : la taxonomie reste lisible`).toBe(0);
+    });
+
+    it(`${code} : la CATÉGORIE traverse traduite et revient canonique`, () => {
+      // L'aller-retour du couple relu. `Anglais` s'écrit « Inglés » / « Englisch »
+      // et doit revenir `Anglais` — sans quoi il retomberait sur « Autre » EN
+      // SILENCE, le défaut que ce chantier a passé trois builds à fermer.
+      const csv = exportCsv(makeCellar(), code);
+      const cells = csv.split(/\r?\n/)[1]!.split(";").map((c) => c.replace(/^"|"$/g, ""));
+      expect(cells, `${code} doit écrire la catégorie traduite`)
+        .toContain(xlValue("Anglais", CATS_EN, code));
+      const r = parseTobaccoCsv(csv);
+      expect(r.tobaccos[0]!.category, `${code} : et elle doit revenir canonique`).toBe("Anglais");
+      expect(r.badCategory, `${code} : un mot de l'app ne se signale pas`).toBe(0);
     });
 
     it(`${code} : l'en-tête est réellement écrit dans cette langue`, () => {
@@ -233,6 +250,134 @@ describe("les deux tables couvrent le registre, sans trou", () => {
       expect(no.tobaccos[0]!.rebuy, `${code} : non`).toBe(false);
     }
   });
+});
+
+describe("la ligne d'en-tête FRANÇAISE est le contrat historique", () => {
+  // CE CAS EXISTE PARCE QUE JE L'AI CASSÉE SANS QUE RIEN NE ROUGISSE.
+  //
+  // En sortant les en-têtes d'un tableau littéral vers `CSV_COLUMNS`, j'ai
+  // désaccentué « Éliminé » et perdu le « (ans) » de « Age max cave » — deux
+  // régressions dans la colonne FRANÇAISE, c'est-à-dire dans la forme que
+  // l'app émet depuis toujours et que portent les fichiers déjà chez les
+  // utilisateurs. Les 51 cas de ce fichier sont restés verts : ils vérifiaient
+  // que chaque langue écrit SA forme et que tout se relit, jamais QUELLE forme
+  // le français écrit. Trouvé en RENDANT un export et en le lisant.
+  //
+  // La liste est figée, comme `catalogue-excerpt` : elle n'est pas dérivée du
+  // code qu'elle garde, sinon elle ne garderait rien. La changer est une
+  // DÉCISION — le lecteur replie accents et unités, donc rien ne casse
+  // fonctionnellement, et c'est précisément pour cela que la dérive est
+  // silencieuse et mérite une porte.
+  const FR_TOBACCO = [
+    "Marque", "Nom", "Categorie", "Composition", "Coupe", "Force", "Room Note",
+    "Gout", "Description", "Note", "A reprendre", "Notes degustation",
+    "Age max cave (ans)", "Statut", "Éliminé", "Poids (g)", "Poids initial (g)",
+    "Statut origine", "Date achat", "Date production", "Date mise en pot",
+    "Date fin", "No boite", "Lieu de stockage", "Prix (€)", "Vendeur",
+    "Site vendeur", "Age", "Image URL",
+  ];
+
+  it("le bloc tabacs sort exactement comme il l'a toujours fait", () => {
+    const head = exportCsv(makeCellar(), "fr").split(/\r?\n/)[0]!
+      .split(";").map((c) => c.replace(/^"|"$/g, ""));
+    expect(head).toEqual(FR_TOBACCO);
+  });
+
+  it("et les colonnes accentuées des autres blocs le restent", () => {
+    // Les trois autres que j'avais désaccentuées, dans le bloc des séances.
+    const csv = exportCsv(makeCellar(), "fr");
+    for (const h of ["Durée (min)", "Quantité fumée (g)", "Arômes"]) {
+      expect(csv, `« ${h} » était accentué avant et doit le rester`).toContain(h);
+    }
+  });
+});
+
+describe("les enums des QUATRE AUTRES BLOCS sont traduits aussi", () => {
+  // CE BLOC EXISTE PARCE QU'UNE SONDE EST RESTÉE VERTE — la troisième fois, et
+  // pour une raison différente des deux précédentes : la cave d'essai ne
+  // contenait ni pipe, ni accessoire, ni envie, donc dix colonnes d'énumération
+  // n'étaient asserées par personne. La couche absorbante n'était plus le
+  // lecteur mais le FIXTURE.
+  //
+  // Ces colonnes sont d'affichage pur (le lecteur s'arrête au premier marqueur),
+  // donc rien ne les ramène : seule leur ÉCRITURE peut être mesurée.
+  function fullCellar() {
+    return {
+      ...INIT,
+      pipes: [{
+        id: 1, brand: "Halvorsen", name: "Foxtrot", shape: "Tulipe",
+        courbure: "Droite", length: "140", weight: "45", filterType: "Métal",
+        chamberDiameter: "19", chamberDepth: "40", bowlMaterial: "Argile",
+        stemMaterial: "Acrylique", finish: "Lisse", datePurchased: "2023",
+        dateProduction: "2022", price: "120", seller: "x", rating: "5",
+        status: "active", description: "", notes: "", imageUrl: "", maintenance: [],
+      }],
+      accessories: [{
+        id: 1, brand: "Vondel", name: "Aria", type: "Briquet", fuel: "Essence",
+        status: "active", datePurchased: "2024", price: "30", seller: "y",
+        rating: "4", notes: "", imageUrl: "",
+      }],
+      wishlist: [{
+        id: 1, brand: "Vondel", name: "Nº 7", category: "Anglais", blend: "",
+        cut: "Autre", force: "3", roomNote: "2", taste: "3", description: "",
+        agingMax: "10", tastingNotes: "", notes: "", priority: "high", imageUrl: "",
+      }],
+      nxT: 1, nxP: 2, nxJ: 1, nxW: 2, nxA: 2,
+    };
+  }
+
+  // CHAQUE valeur choisie DOIT différer dans les cinq langues non françaises,
+  // et c'est le cas suivant qui l'exige plutôt qu'un commentaire. Les maps `_XX`
+  // sont SPARSES : le jargon (« Billiard », « Flake ») n'y figure pas, donc son
+  // libellé traduit ÉGALE la valeur canonique — et une assertion écrite sur lui
+  // passe que `xlValue` soit appelé ou non. C'est exactement ce qui est arrivé :
+  // la première version de ce bloc utilisait « Billiard » et une sonde qui
+  // supprimait la traduction de la forme est restée VERTE.
+  const CASES: Array<[string, string, any]> = [
+    ["forme de pipe", "Tulipe", SHAPES_EN],
+    ["courbure", "Droite", BENDS_EN],
+    ["filtre", "Métal", FILTERS_EN],
+    ["matière du foyer", "Argile", BOWL_MATS_EN],
+    ["matière du tuyau", "Acrylique", STEM_MATS_EN],
+    ["finition", "Lisse", FINISHES_EN],
+    ["type d'accessoire", "Briquet", ACC_TYPES_EN],
+    ["combustible", "Essence", LIGHTER_FUELS_EN],
+    ["catégorie d'envie", "Anglais", CATS_EN],
+    ["coupe d'envie", "Autre", CUTS_EN],
+  ];
+
+  it("les valeurs d'essai sont DISCRIMINANTES — sinon le bloc serait creux", () => {
+    // La garde de non-vacuité, et elle est porteuse : si une map perdait un
+    // jour sa traduction pour l'une de ces valeurs, les cas ci-dessous
+    // passeraient sans rien mesurer. Ici, ils le disent.
+    for (const [what, canon, map] of CASES) {
+      for (const { code } of LANGUAGES) {
+        if (code === "fr") continue;
+        expect(xlValue(canon, map, code), `${what} : « ${canon} » doit différer en ${code}`)
+          .not.toBe(canon);
+      }
+    }
+  });
+
+  for (const { code } of LANGUAGES) {
+    it(`${code} : les dix colonnes d'énumération portent le mot de la langue`, () => {
+      const cells = exportCsv(fullCellar(), code)
+        .split(/\r?\n/).join(";").split(";").map((c) => c.replace(/^"|"$/g, ""));
+      for (const [what, canon, map] of CASES) {
+        const want = xlValue(canon, map, code);
+        expect(cells, `${code} : ${what} doit s'écrire « ${want} »`).toContain(want);
+      }
+    });
+
+    it(`${code} : la priorité d'une envie n'est plus un jeton interne`, () => {
+      // « high » était écrit tel quel, dans toutes les langues — un jeton que
+      // l'utilisateur ne voit nulle part ailleurs dans l'app.
+      const cells = exportCsv(fullCellar(), code)
+        .split(/\r?\n/).join(";").split(";").map((c) => c.replace(/^"|"$/g, ""));
+      expect(cells, `${code} : le jeton brut ne doit plus sortir`).not.toContain("high");
+      expect(cells.some((c) => c && c !== "high"), "non-vacuité").toBe(true);
+    });
+  }
 });
 
 describe("le MODÈLE se remplit et se ré-importe dans chaque langue", () => {

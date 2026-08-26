@@ -7,7 +7,10 @@ import { sanitizeAromas, aromaLabelKey } from "../utils/aromas.ts";
 import { imgCache } from "../utils/imgCache.ts";
 import { buildCollectionReport } from "../utils/collectionReport.ts";
 import { parseTobaccoCsv, CSV_DELIM, csvHeader, csvValue } from "../utils/csvImport.ts";
-import { CATS_EN, SHAPES_EN, ACC_TYPES_EN } from "../constants.ts";
+import {
+  CATS_EN, CUTS_EN, SHAPES_EN, BENDS_EN, FILTERS_EN, BOWL_MATS_EN,
+  STEM_MATS_EN, FINISHES_EN, ACC_TYPES_EN, LIGHTER_FUELS_EN, xlValue,
+} from "../constants.ts";
 
 var useState = React.useState;
 
@@ -286,9 +289,9 @@ export function useExportImport({
           [
             tb.brand,
             tb.name,
-            tb.category,
+            xlValue(tb.category, CATS_EN, lang),
             tb.blend,
-            tb.cut,
+            xlValue(tb.cut, CUTS_EN, lang),
             tb.force || "",
             tb.roomNote || "",
             tb.taste || "",
@@ -351,16 +354,16 @@ export function useExportImport({
         [
           p.brand,
           p.name,
-          p.shape,
-          p.courbure || "",
+          xlValue(p.shape, SHAPES_EN, lang),
+          xlValue(p.courbure || "", BENDS_EN, lang),
           p.length || "",
           p.weight || "",
-          p.filterType || "",
+          xlValue(p.filterType || "", FILTERS_EN, lang),
           p.chamberDiameter || "",
           p.chamberDepth || "",
-          p.bowlMaterial || "",
-          p.stemMaterial || "",
-          p.finish || "",
+          xlValue(p.bowlMaterial || "", BOWL_MATS_EN, lang),
+          xlValue(p.stemMaterial || "", STEM_MATS_EN, lang),
+          xlValue(p.finish || "", FINISHES_EN, lang),
           // Pipe dates are year-only (`YYYY`) — emit raw.
           p.datePurchased || "",
           p.dateProduction || "",
@@ -396,9 +399,9 @@ export function useExportImport({
         [
           w.name,
           w.brand,
-          w.category || "",
+          xlValue(w.category || "", CATS_EN, lang),
           w.blend || "",
-          w.cut || "",
+          xlValue(w.cut || "", CUTS_EN, lang),
           w.force || "",
           w.roomNote || "",
           w.taste || "",
@@ -406,7 +409,15 @@ export function useExportImport({
           w.agingMax || "",
           w.tastingNotes || "",
           w.notes || "",
-          w.priority,
+          // Clés LITTÉRALES, jamais `t("prio_" + v)` : une clé construite est
+          // invisible à la porte 9 de doc:check, et une clé manquante rend
+          // alors la clé BRUTE dans le fichier. C'est la règle du dépôt, et
+          // c'est aussi ce que font déjà les deux autres surfaces qui
+          // affichent une priorité (WishFormView, la carte d'envie).
+          w.priority === "high" ? String(t("prio_high"))
+            : w.priority === "medium" ? String(t("prio_medium"))
+              : w.priority === "low" ? String(t("prio_low"))
+                : "",
           w.imageUrl || "",
         ]
           .map(csvEsc)
@@ -429,10 +440,10 @@ export function useExportImport({
       if (isTrashed(a)) return; // Skip trashed
       lines.push(
         [
-          a.type || "",
+          xlValue(a.type || "", ACC_TYPES_EN, lang),
           a.brand || "",
           a.name || "",
-          a.fuel || "",
+          xlValue(a.fuel || "", LIGHTER_FUELS_EN, lang),
           a.status ? csvValue(a.status === "retired" ? "accRetired" : "accActive", lang) : "",
           // Accessory datePurchased is year-only — raw.
           a.datePurchased || "",

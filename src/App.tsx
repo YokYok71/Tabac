@@ -35,7 +35,7 @@ import {
   INIT,
   TRASH_RETENTION_DAYS,
   GDRIVE_PENDING_STALE_MS,
-  ENUM_TRANSLATIONS,
+  xlValue,
 } from "./constants.ts";
 import { applyTheme, THEMES, THEME_COLOR_META } from "./theme-curator.ts";
 import { pickJarLot } from "./utils/lotUtils.ts";
@@ -1010,35 +1010,15 @@ function App() {
     return "⟦ " + out + " ⁂⟧";
   }
   function xl(v: any, map: any) {
-    // Translate a canonical (French) enum value to the active language.
-    // French is canonical → returned as-is. Every other language resolves
-    // its map from ENUM_TRANSLATIONS (keyed by the passed English map), so
-    // call sites stay `xl(value, XXX_EN)` and adding a language is a
-    // constants.ts-only edit. Falls back to the canonical value when a
-    // translation is missing.
-    // `hasOwnProperty`, not a bare index. Every `_XX` enum map
-    // is a plain object literal, so `m["__proto__"]` resolves to
-    // `Object.prototype` — TRUTHY, so `|| v` never fires — and `m["toString"]`
-    // to a FUNCTION. Both are rendered as a React child at the call sites, and
-    // an object child THROWS ("Objects are not valid as a React child"), which
-    // the error boundary turns into the full-screen failure page.
-    // Reachable since the catalogue became the user's own file:
-    // `parseCatalogueCsv` keeps an unrecognised taxonomy label VERBATIM on
-    // purpose, so a row saying `category: __proto__` reaches here — and only in
-    // a NON-French UI, since French returns early, which is precisely the kind
-    // of asymmetry nobody stumbles on by testing.
-    // Guarded at this ONE choke point rather than by null-prototyping ~50 maps
-    // in constants.ts: the map arrives as a PARAMETER, so every caller and
-    // every future map is covered by the same three lines (the
-    // `safeBgUrl` argument — the source is many sites and the sink is one).
-    // `effectiveAgingMax` and `CUT_DENSITY` got this guard earlier; `xl`
-    // and `catColor` are the two sites that pass was missing.
-    if (!v || lang === "fr") return v;
-    var byLang = ENUM_TRANSLATIONS.get(map);
-    var m = byLang ? byLang[lang] : map; // unregistered map → use as-is (legacy)
-    if (!m || !Object.prototype.hasOwnProperty.call(m, v)) return v;
-    var out = m[v];
-    return typeof out === "string" && out ? out : v;
+    // Traduire une valeur d'énumération canonique (française) vers la langue
+    // active. La RÈGLE vit dans `xlValue` (constants.ts) et cette fonction en
+    // est le délégué : elle a dû en sortir le jour où l'export CSV a eu besoin
+    // de traduire une catégorie sans composant React autour de lui, et deux
+    // implémentations d'une même règle sont la panne que ce dépôt paie en
+    // boucle. Les gardes (`hasOwnProperty` contre une clé de prototype venue
+    // du catalogue de l'utilisateur, repli sur la valeur canonique) sont là-bas
+    // avec leur raison ; les call sites restent `xl(value, XXX_EN)`.
+    return xlValue(v, map, lang);
   }
   function ageLabel(d: any) {
     if (d === null || d === undefined) return "\u2014";

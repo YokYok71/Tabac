@@ -1136,6 +1136,37 @@ describe("the extracted doc gates", () => {
       expect(keys.sort()).toEqual(["btn_save", "err_generic", "lbl_x"]);
     });
 
+    it("ne lit PAS un t(\"…\") écrit dans un COMMENTAIRE", () => {
+      // Le défaut vécu : un commentaire expliquant pourquoi le code n'utilise
+      // PAS une clé construite citait `t("prio_" + v)`, et la porte a exigé une
+      // entrée « prio_ » dans les six dictionnaires. Une prose d'exemple n'est
+      // pas une donnée — la leçon que la porte 15 avait déjà apprise, sur
+      // elle-même, un build plus tôt.
+      const keys = D.extractTKeys([
+        [
+          '// jamais appelée : t("ghost_line")',
+          '/* ni celle-ci : t("ghost_block") */',
+          't("real");',
+        ].join("\n"),
+      ]);
+      expect(keys).toEqual(["real"]);
+    });
+
+    it("mais garde tous les VRAIS appels — sinon la porte cesserait de garder", () => {
+      // Le contre-cas. Un blanchiment trop large silencierait des sites
+      // d'appel réels, c'est-à-dire transformerait la correction d'un faux
+      // positif en la perte de la garantie.
+      const keys = D.extractTKeys(['const u = "https://x/y"; t("a"); t("b");']);
+      expect(keys.sort()).toEqual(["a", "b"]);
+    });
+
+    it("le blanchiment préserve longueurs et lignes", () => {
+      // Porteur : les portes qui l'utilisent rapportent des NUMÉROS DE LIGNE.
+      const src = 'a // x\n/* y\nz */\nb';
+      expect(D.blankComments(src).length).toBe(src.length);
+      expect(D.blankComments(src).split("\n").length).toBe(src.split("\n").length);
+    });
+
     it("flags a called key missing from a dictionary — it renders RAW on screen", () => {
       expect(D.findMissingTKeys(["btn_save", "ghost"], ["btn_save"], "de"))
         .toEqual(['i18n: t("ghost") has no entry in src/i18n/de.ts']);

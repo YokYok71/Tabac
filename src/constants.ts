@@ -53,7 +53,7 @@ export var APP_VERSION = "1.0";
  * about to move backwards or restart.
  */
 export var APP_GENERATION = 2;
-export var APP_BUILD = "69";
+export var APP_BUILD = "70";
 
 export var CATS = ["Américain","Anglais","Anglais aromatique","Aromatique","Balkan","Burley","Cavendish","Cigare","Dark Fired","Écossais","Lakeland","Latakia","Oriental","Perique","Turkish","VaPer","Virginia","Virginia/Burley","Virginia/Latakia","Autre"] as const;
 export var CATS_EN: Record<string, string> = {"Américain":"American",Anglais:"English","Anglais aromatique":"English aromatic",Aromatique:"Aromatic",Balkan:"Balkan",Burley:"Burley",Cavendish:"Cavendish",Cigare:"Cigar","Dark Fired":"Dark Fired","Écossais":"Scottish",Lakeland:"Lakeland",Latakia:"Latakia",Oriental:"Oriental",Perique:"Perique",Turkish:"Turkish",VaPer:"VaPer",Virginia:"Virginia","Virginia/Burley":"Virginia/Burley","Virginia/Latakia":"Virginia/Latakia",Autre:"Other"};
@@ -413,6 +413,29 @@ export var ENUM_TRANSLATIONS: Map<Record<string, string>, Record<string, Record<
   [ACC_TYPES_EN,     { en: ACC_TYPES_EN,     es: ACC_TYPES_ES,     de: ACC_TYPES_DE,     it: ACC_TYPES_IT, pt: ACC_TYPES_PT }],
   [LIGHTER_FUELS_EN, { en: LIGHTER_FUELS_EN, es: LIGHTER_FUELS_ES, de: LIGHTER_FUELS_DE, it: LIGHTER_FUELS_IT, pt: LIGHTER_FUELS_PT }],
 ]);
+
+// ── traduire une valeur d'énumération, et la RETROUVER ────────────────────────
+//
+// `xlValue` est la version PURE de l'`xl()` d'App.tsx, dont ce dernier est
+// désormais le délégué : une règle, une implémentation. Elle a dû sortir de la
+// fermeture le jour où l'export CSV a eu besoin de traduire une catégorie sans
+// avoir de composant React autour de lui.
+//
+// Le français est canonique, donc rendu tel quel. Les gardes sont celles d'xl()
+// et elles ne sont pas décoratives : chaque map `_XX` est un objet littéral, si
+// bien que `m["__proto__"]` vaut `Object.prototype` — VRAI, donc le repli
+// `|| v` ne tire jamais — et `m["toString"]` une FONCTION. Atteignable depuis
+// que le catalogue est le fichier de l'utilisateur : `parseCatalogueCsv` garde
+// verbatim un libellé de taxonomie inconnu.
+export function xlValue(v: any, map: any, lang: any): any {
+  if (!v || lang === "fr") return v;
+  var byLang = ENUM_TRANSLATIONS.get(map);
+  var m = byLang ? byLang[String(lang)] : map; // map non enregistrée → telle quelle
+  if (!m || !Object.prototype.hasOwnProperty.call(m, v)) return v;
+  var out = m[v];
+  return typeof out === "string" && out ? out : v;
+}
+
 
 
 // Localized short month names for chart axes / journal group labels.

@@ -774,9 +774,7 @@ function findLanguageAxisGaps(files, codes) {
     // reported back at it. A false positive here is not benign — it gets
     // correct code rewritten to please the guard, which is the failure mode
     // this whole family of gates is written to avoid.
-    const src = raw
-      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-      .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
+    const src = blankComments(raw);
     const lines = raw.split("\n");
     // Flat literals only: no nested braces inside, so the span is unambiguous.
     const literals = [
@@ -1135,12 +1133,35 @@ function findUndocumentedStorageKeys(keys, claudeMd) {
 }
 
 /** Every key a source passes to t()/tr(), plus the LANG[x]?.key direct form. */
+/**
+ * Blank every comment, length-preserving (so offsets and line numbers still
+ * point at the real file).
+ *
+ * A PROSE EXAMPLE IS NOT DATA. Gate 15 learned this by reporting its own
+ * explanatory comment back at itself; gate 9 learned it the same way one
+ * release later, flagging a comment that spelled out `t("prio_" + v)` to say
+ * why the code deliberately does NOT do that. A false positive here is not
+ * benign — it gets correct code, or correct prose, rewritten to please the
+ * guard, which is the failure this whole family of gates exists to avoid.
+ *
+ * Shared rather than copied: it was written for gate 15 and needed verbatim by
+ * gate 9, and two copies of one rule is the drift this repo keeps paying for.
+ */
+function blankComments(source) {
+  return String(source || "")
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
+}
+
 function extractTKeys(sources) {
   const call = /\bt[rR]?\s*\(\s*"([a-zA-Z_][a-zA-Z0-9_]*)"/g;
   const direct = /\bLANG\b[^?]*?\?\.([a-zA-Z_][a-zA-Z0-9_]*)/g;
   const out = new Set();
   for (const src of sources || []) {
-    const c = String(src || "");
+    // Comments blanked: see `blankComments`. A `t("…")` written in prose to
+    // EXPLAIN something is not a call site, and treating it as one made this
+    // gate demand a dictionary entry for a key the code never asks for.
+    const c = blankComments(src);
     for (const m of c.matchAll(call)) out.add(m[1]);
     for (const m of c.matchAll(direct)) out.add(m[1]);
   }
@@ -1366,6 +1387,7 @@ module.exports = {
   findUndocumentedModules,
   extractStorageKeys,
   findUndocumentedStorageKeys,
+  blankComments,
   extractTKeys,
   findMissingTKeys,
   findUnusedTKeys,
