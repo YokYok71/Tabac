@@ -48,7 +48,7 @@ export function Modal({
   // icon used to open the search modal). The visible fade-out is a bonus:
   // `mounted` flips false instantly so the opacity/transform transition
   // plays during the deferred window. Same pattern as the lightbox
-  // (the lightbox ghost-click note in CLAUDE.md) but applied to every Modal at once.
+  // (the lightbox ghost-click note in docs/ui.md) but applied to every Modal at once.
   const [shouldRender, setShouldRender] = useState(open);
   // Restore focus to the element that triggered the modal on close.
   //

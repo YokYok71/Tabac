@@ -3756,7 +3756,7 @@ function App() {
 
 // Catch "Importing a module script failed" — the iOS Safari
 // failure that hits when a lazy chunk fetch races a stale SW cache (the
-// race documented in CLAUDE.md → "React.lazy code splitting — narrow
+// race documented in docs/checks.md → "React.lazy code splitting — narrow
 // re-enable"). Detected via the error message; auto-recovery wipes
 // every SW registration + every Cache Storage entry then reloads.
 // Anti-loop guard: only auto-recover once per 30s window (the flag

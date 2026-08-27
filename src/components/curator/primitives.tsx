@@ -108,7 +108,7 @@ export function useWAAPILoop<T extends HTMLElement>(
 // ─────────────────────────────────────────────────────────────
 // Spinner — small WAAPI-driven rotating ring.
 // In-line busy indicator for buttons whose action runs async.
-// Uses WAAPI (no @keyframes — see CLAUDE.md "No @keyframes…").
+// Uses WAAPI (no @keyframes — see docs/ui.md "No @keyframes…").
 // `color` defaults to "currentColor" so it inherits from the host
 // button; pass an explicit color to override.
 // ─────────────────────────────────────────────────────────────

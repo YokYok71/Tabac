@@ -5,7 +5,7 @@
 // celui-là plutôt que celui que j'ai déjà ? », so it belongs where you are
 // browsing blends you do not own; and the catalogue chunk is ALREADY loaded
 // there, so offering catalogue blends as columns costs no extra fetch (the
-// cold-start gating rule in CLAUDE.md forbids pulling it anywhere else).
+// cold-start gating rule in docs/architecture.md forbids pulling it anywhere else).
 //
 // The decisions worth keeping:
 //

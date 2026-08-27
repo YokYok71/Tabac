@@ -6,7 +6,7 @@
  * (brass / steel / english) × two modes (dark / light) = SIX palettes — and
  * every token is a CSS variable, so a whole palette swaps with no React render
  * and no code path of its own. Nothing verified five of those six: the app was
- * designed and hand-tuned in dark brass. CLAUDE.md states the invariant plainly
+ * designed and hand-tuned in dark brass. docs/ui.md states the invariant plainly
  * ("every text/background colour combination must hit WCAG AA") and lists the
  * pairs that sit closest to the line (`tx3` on `card` is exactly 4.54:1), which
  * is precisely the kind of claim that rots the first time a token moves.

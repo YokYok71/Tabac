@@ -16,7 +16,7 @@ var useRef = React.useRef,
 // debounce, the edge-swipe detection, and the ref indirection (listeners are
 // installed once and always call the LATEST `onBack` closure via `onBackRef`,
 // so App's up-to-date state is used). See "Back navigation & gestures" in
-// CLAUDE.md.
+// docs/integrations.md.
 export function useBackNavigation(onBack: () => void): void {
   var onBackRef = useRef(onBack);
   var lastBackTs = useRef(0);

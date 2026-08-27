@@ -8,7 +8,7 @@
 // Out of scope (deliberate): editing the catalogue, removing entries,
 // saving it into the cellar blob. The catalogue is reference data with its
 // own IndexedDB store; the user's inventory is their own data. See the AI
-// Integration section in CLAUDE.md for the architectural boundary.
+// Integration section in docs/integrations.md for the architectural boundary.
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppCtx } from "../../AppContext.tsx";

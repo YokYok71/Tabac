@@ -696,7 +696,7 @@
       "labels": [
         "i18n device_name_hint (all languages)",
         "public/help.html — \"Nommer cet appareil\" paragraph (all languages)",
-        "CLAUDE.md — cave-device-name key entry"
+        "docs/storage-keys.md — cave-device-name key entry"
       ],
       "why": "A change started appending the device name to every backup FILENAME. The hint kept claiming it was 'jamais dans les sauvegardes' for 20 releases, and the help paragraph contradicted itself in the same breath. If this function stops (or starts) embedding user-visible data in the name, all three places must be re-read.",
       "fingerprint": "f6b67e53d76e85c4"
@@ -776,7 +776,7 @@
       "region": "src/hooks/useGdriveAuth.ts",
       "labels": [
         "public/privacy.html — \"Google Drive\" paragraph: scope, appDataFolder, no other file accessed (all languages)",
-        "CLAUDE.md — Google Integration section (scope + iOS redirect invariant)"
+        "docs/integrations.md — Google Integration section (scope + iOS redirect invariant)"
       ],
       "why": "The policy states the app requests drive.appdata ONLY, can therefore touch nothing else in the user's Drive, and that no token leaves the device. Any change to the requested scope or to where the token goes makes those statements wrong — and this is the paragraph a Google OAuth reviewer reads.",
       "fingerprint": "21c002fc6b53ca55",
@@ -816,7 +816,7 @@
       "region": "src/hooks/useAiAutoFill.ts",
       "labels": [
         "public/help.html — \"Choix du modèle\" note in the AI section (all languages): the families offered per provider, which one is the default, and the promise that each provider's choice is remembered (now qualified: a retired model is remapped)",
-        "CLAUDE.md — the AI Integration provider/default table + the model-selection paragraph"
+        "docs/integrations.md — the AI Integration provider/default table + the model-selection paragraph"
       ],
       "why": "Vendor model line-ups now move every few months, and each refresh silently invalidates prose. One refresh proved the cost twice over: gemini-2.0-flash — the app's own Gemini DEFAULT — had been shut down for four months with every Gemini auto-fill failing, and gpt-4o had left OpenAI's list. The help note is deliberately family-only (Haiku / Sonnet / Opus), which is what kept it TRUE through that refresh — so check that property still holds before anything else. Then re-read: is the named default still the default and still the cheap tier? Does every family the note names still exist in AI_MODEL_OPTIONS? And if AI_MODEL_ALIASES changed, is the remapping sentence still accurate — a live model must never be aliased to a costlier one, and no alias may cross provider families.",
       "fingerprint": "3b9872066b614178"
@@ -826,9 +826,9 @@
       "region": "src/utils/bowlEstimate.ts",
       "labels": [
         "public/help.html — the \"grammage par défaut\" note in the Journal/session section (all languages): the estimate = chamber volume × tobacco cut × pipe shape, the worked comparison \"un flake dense pèse plus qu'un ribbon aéré à volume égal\", the claim that a conical chamber (Dublin family, or Bulldog/Rhodesian) holds LESS than a straight one, and the fallback to the default weight when the pipe has no chamber dimensions",
-        "CLAUDE.md — the bowlEstimate.ts entry, which reproduces the whole CUT_DENSITY table value by value"
+        "docs/architecture.md — the bowlEstimate.ts entry, which reproduces the whole CUT_DENSITY table value by value"
       ],
-      "why": "These numbers have already moved three times and CLAUDE.md quotes the ENTIRE table verbatim, so a single density edit silently makes the docs wrong. Two claims in the help are orderings, not prose, and are separately asserted in bowlEstimate.test.ts — if a density edit inverts Flake vs Ribbon, or makes a conical factor ≥ 1, that test fails FIRST and the help sentence is what has to change. Re-read for: is the cut still the second input (not, say, the tobacco's own weight)? Do the shape families named in the help still match CONICAL_SHAPES_MILD / _STRONG? Is the no-dimensions fallback still the global default weight? And does the CLAUDE.md table still match line for line?",
+      "why": "These numbers have already moved three times and docs/architecture.md quotes the ENTIRE table verbatim, so a single density edit silently makes the docs wrong. Two claims in the help are orderings, not prose, and are separately asserted in bowlEstimate.test.ts — if a density edit inverts Flake vs Ribbon, or makes a conical factor ≥ 1, that test fails FIRST and the help sentence is what has to change. Re-read for: is the cut still the second input (not, say, the tobacco's own weight)? Do the shape families named in the help still match CONICAL_SHAPES_MILD / _STRONG? Is the no-dimensions fallback still the global default weight? And does the CLAUDE.md table still match line for line?",
       "fingerprint": "4d48b0a8ae9dac5d"
     },
     {
@@ -837,7 +837,7 @@
       "labels": [
         "i18n lang_offline_err + lang_offline_reload + lang_loading (all languages)",
         "public/help.html — the \"Langue\" bullet in Préférences (all languages): that a language can be changed at any time, that each one is downloaded on first pick and then kept offline, and what happens when it cannot be downloaded",
-        "CLAUDE.md — the src/i18n.ts structure-tree entry and the \"i18n ON-DEMAND dictionaries\" paragraph"
+        "docs/architecture.md — the src/i18n.ts structure-tree entry ; docs/checks.md — the \"i18n ON-DEMAND dictionaries\" paragraph"
       ],
       "why": "Four of the five dictionaries became on-demand chunks, which made a language change something that can FAIL — and the help still promised it could be changed 'à tout moment' with no caveat, in all five languages, for three releases. A follow-up then found the error copy itself was wrong: it said 'reconnect and try again', but a failed dynamic import is cached AS A FAILURE in the browser's module map, so retrying in the same page makes no network request at all (measured in Chromium: offline tap -> reconnect -> tap again = ONE request, both attempts fail; only a reload clears it). Re-read for: can a switch still fail, and does the copy still name the ONLY action that recovers it? Is English still both the compiled-in dictionary and the fallback? Does a language still stay available offline once fetched? And does a failure still LEAVE the current language rather than silently switching?",
       "fingerprint": "27fc67f9aee99cae"

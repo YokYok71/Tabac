@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 // exact source invariants here — a future revert fails CI at the source
 // level instead of shipping a broken dock to the installed app.
 //
-// Root cause (documented in CLAUDE.md "Layout / scroll model"): on iOS Safari,
+// Root cause (documented in docs/ui.md "Layout / scroll model"): on iOS Safari,
 // `overflow-x:hidden` on <body> turns <body> into a scroll container, so the
 // `position:fixed` dock positions against that scroll box and floats to the
 // middle on scroll. `overflow-x:clip` clips identically WITHOUT creating a

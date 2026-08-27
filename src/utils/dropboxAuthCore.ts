@@ -9,7 +9,7 @@
 // "session expired after 1h" problems the Drive layer needs banners,
 // piggybacks and reconnect buttons for.
 //
-// ⚠️ SECURITY — mirrors the Google-side invariants (CLAUDE.md §19):
+// ⚠️ SECURITY — mirrors the Google-side invariants (CLAUDE.md §20):
 //   - CSRF state check is FAIL-CLOSED: `!st || !expected || st !== expected`.
 //   - The pending action is validated against DROPBOX_OAUTH_ACTIONS
 //     before dispatch (same whitelist values as gdrive-pending).

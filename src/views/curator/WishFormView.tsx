@@ -63,7 +63,7 @@ export function CuratorWishFormView() {
   // position landed the user mid-form. This effect fires once per open
   // (deps gate on `showWishForm || !!editWishId`).
   //
-  // CRITICAL — CLAUDE.md "Hook-order trap" rule: EVERY hook in this
+  // CRITICAL — docs/ui.md "Hook-order trap" rule: EVERY hook in this
   // component must run BEFORE any early return (the WishFormView is
   // mounted unconditionally in CuratorApp.tsx, so the render count
   // varies between closed and open states). The dupInfo

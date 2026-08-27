@@ -403,7 +403,7 @@ export const MODE_LIGHT: Record<string, string> = {
 // A meta's `content` needs a LITERAL hex — a var() is not resolved there — so
 // App.tsx used to hardcode both values. The light one was `#e7ddc6`, i.e. the
 // light page ground duplicated by hand from MODE_LIGHT with nothing watching it,
-// and CLAUDE.md quotes that exact literal as the reference ground for every
+// and docs/ui.md quotes that exact literal as the reference ground for every
 // computed light-mode value. Deriving it means a future light-ground retune
 // carries the status bar with it instead of silently desyncing.
 //
@@ -544,7 +544,7 @@ export function fs(px: number): string {
 }
 
 // Form inputs must never compute below 16px or iOS Safari zooms on focus
-// (CLAUDE.md §20). Floor the scaled value at 16px so the S (0.9) setting
+// (docs/architecture.md — fsInput). Floor the scaled value at 16px so the S (0.9) setting
 // can't reintroduce the zoom. max() is supported everywhere calc() is.
 export function fsInput(px: number): string {
   return `max(16px, calc(${px}px * var(--cave-font-scale, 1)))`;

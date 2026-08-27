@@ -292,7 +292,7 @@ export function useTobaccoStore({
     // Stamp the lot's origin status at creation. Used to anchor the
     // now-removed auto-revert rule; informational only
     // (displayed in the lot edit modal, kept for future migrations /
-    // analytics — see CLAUDE.md §12). Anything other than "jar" maps
+    // analytics — see CLAUDE.md §13). Anything other than "jar" maps
     // to "cellar".
     if (!base.originalStatus) {
       base.originalStatus = base.status === "jar" ? "jar" : "cellar";

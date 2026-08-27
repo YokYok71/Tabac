@@ -119,7 +119,7 @@
 <ul>
   <li>De lire et écrire des fichiers de sauvegarde horodatés (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) dans un dossier privé réservé à l'application, invisible dans votre Google Drive. L'application conserve au maximum 3 sauvegardes manuelles et un fichier de sauvegarde automatique horodaté (<code>cave-tabac-auto-….json</code>, écrasé en place à chaque sauvegarde) ; les fichiers manuels les plus anciens sont supprimés automatiquement.</li>
 </ul>
-<p>L'application n'accède à aucun autre fichier de votre Google Drive. L'authentification est gérée directement par Google via OAuth 2.0. Aucun token ni donnée Google n'est transmis à un tiers.</p>
+<p>L'application n'accède à aucun autre fichier de votre Google Drive. L'authentification est gérée directement par Google via OAuth 2.0. Aucun token ni donnée Google n'est transmis à un tiers. Comme pour Dropbox, le contenu peut être <strong>chiffré avant envoi</strong> si vous avez activé le chiffrement des sauvegardes.</p>
 
 <h2>Catalogue de référence (votre fichier)</h2>
 <p>L'application n'embarque <strong>aucun catalogue</strong>. Si vous en chargez un (Paramètres → Données → Catalogue de référence), le fichier CSV que vous fournissez est conservé <strong>localement</strong>, dans une base de données du navigateur qui lui est réservée (IndexedDB « cave-catalogue »), avec une version analysée pour accélérer les recherches. Il n'est envoyé à aucun service tiers et n'est jamais transmis à un fournisseur d'IA.</p>
@@ -200,7 +200,7 @@
 <ul>
   <li>Reading and writing timestamped backup files (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in a private folder dedicated to the app, invisible in your Google Drive. The app keeps at most 3 manual backups plus one timestamped auto-save file (<code>cave-tabac-auto-….json</code>, overwritten in place on each save); the oldest manual files are deleted automatically.</li>
 </ul>
-<p>The app never accesses any other file in your Google Drive. Authentication is handled directly by Google via OAuth 2.0. No token or Google data is transmitted to any third party.</p>
+<p>The app never accesses any other file in your Google Drive. Authentication is handled directly by Google via OAuth 2.0. No token or Google data is transmitted to any third party. As with Dropbox, the content can be <strong>encrypted before upload</strong> if you enabled backup encryption.</p>
 
 <h2>Reference catalogue (your file)</h2>
 <p>The app ships <strong>no catalogue</strong>. If you load one (Settings → Data → Reference catalogue), the CSV file you supply is kept <strong>locally</strong>, in a browser database reserved for it (the “cave-catalogue” IndexedDB), together with a parsed copy that makes lookups fast. It is sent to no third-party service and is never passed to an AI provider.</p>
@@ -279,7 +279,7 @@
 <ul>
   <li>Leer y escribir archivos de copia de seguridad con marca de tiempo (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) en una carpeta privada dedicada a la aplicación, invisible en tu Google Drive. La aplicación conserva como máximo 3 copias de seguridad manuales más un archivo de guardado automático con marca de tiempo (<code>cave-tabac-auto-….json</code>, sobrescrito en el mismo lugar en cada guardado); los archivos manuales más antiguos se eliminan automáticamente.</li>
 </ul>
-<p>La aplicación nunca accede a ningún otro archivo de tu Google Drive. La autenticación la gestiona directamente Google mediante OAuth 2.0. Ningún token ni dato de Google se transmite a terceros.</p>
+<p>La aplicación nunca accede a ningún otro archivo de tu Google Drive. La autenticación la gestiona directamente Google mediante OAuth 2.0. Ningún token ni dato de Google se transmite a terceros. Al igual que con Dropbox, el contenido puede <strong>cifrarse antes de subirse</strong> si has activado el cifrado de las copias de seguridad.</p>
 
 <h2>Catálogo de referencia (tu archivo)</h2>
 <p>La app <strong>no incluye ningún catálogo</strong>. Si cargas uno (Ajustes → Datos → Catálogo de referencia), el archivo CSV que aportas se guarda <strong>localmente</strong>, en una base de datos del navegador reservada para él (IndexedDB «cave-catalogue»), junto con una versión analizada que acelera las búsquedas. No se envía a ningún servicio de terceros y nunca se transmite a un proveedor de IA.</p>
@@ -357,7 +357,7 @@
 <ul>
   <li>Das Lesen und Schreiben von Sicherungsdateien mit Zeitstempel (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in einem privaten, der App vorbehaltenen Ordner, der in deinem Google Drive unsichtbar ist. Die App bewahrt höchstens 3 manuelle Sicherungen sowie eine automatische Sicherungsdatei mit Zeitstempel auf (<code>cave-tabac-auto-….json</code>, die bei jeder Sicherung an Ort und Stelle überschrieben wird); die ältesten manuellen Dateien werden automatisch gelöscht.</li>
 </ul>
-<p>Die App greift nie auf eine andere Datei in deinem Google Drive zu. Die Authentifizierung wird direkt von Google über OAuth 2.0 abgewickelt. Es werden keine Tokens oder Google-Daten an Dritte übermittelt.</p>
+<p>Die App greift nie auf eine andere Datei in deinem Google Drive zu. Die Authentifizierung wird direkt von Google über OAuth 2.0 abgewickelt. Es werden keine Tokens oder Google-Daten an Dritte übermittelt. Wie bei Dropbox kann der Inhalt <strong>vor dem Hochladen verschlüsselt werden</strong>, wenn du die Verschlüsselung der Sicherungen aktiviert hast.</p>
 
 <h2>Referenzkatalog (deine Datei)</h2>
 <p>Die App enthält <strong>keinen Katalog</strong>. Wenn du einen lädst (Einstellungen → Daten → Referenzkatalog), wird die von dir bereitgestellte CSV-Datei <strong>lokal</strong> gespeichert, in einer eigens dafür reservierten Browser-Datenbank (IndexedDB „cave-catalogue“), zusammen mit einer ausgewerteten Fassung für schnelle Suchen. Sie geht an keinen Drittanbieterdienst und wird nie an einen KI-Anbieter übermittelt.</p>
@@ -435,7 +435,7 @@
 <ul>
   <li>Leggere e scrivere file di backup con marca temporale (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in una cartella privata dedicata all'applicazione, invisibile nel tuo Google Drive. L'applicazione conserva al massimo 3 backup manuali più un file di salvataggio automatico con marca temporale (<code>cave-tabac-auto-….json</code>, sovrascritto sul posto a ogni salvataggio); i file manuali più vecchi vengono eliminati automaticamente.</li>
 </ul>
-<p>L'applicazione non accede mai ad alcun altro file del tuo Google Drive. L'autenticazione è gestita direttamente da Google tramite OAuth 2.0. Nessun token o dato Google viene trasmesso a terzi.</p>
+<p>L'applicazione non accede mai ad alcun altro file del tuo Google Drive. L'autenticazione è gestita direttamente da Google tramite OAuth 2.0. Nessun token o dato Google viene trasmesso a terzi. Come con Dropbox, il contenuto può essere <strong>cifrato prima del caricamento</strong> se hai attivato la cifratura dei backup.</p>
 
 <h2>Catalogo di riferimento (il tuo file)</h2>
 <p>L'app <strong>non include alcun catalogo</strong>. Se ne carichi uno (Impostazioni → Dati → Catalogo di riferimento), il file CSV che fornisci resta <strong>in locale</strong>, in un database del browser riservato a esso (IndexedDB «cave-catalogue»), insieme a una versione già analizzata che rende rapide le ricerche. Non viene inviato ad alcun servizio di terzi e non è mai trasmesso a un fornitore di IA.</p>
@@ -514,7 +514,7 @@
 <ul>
   <li>Ler e escrever ficheiros de cópia de segurança com data e hora (<code>cave-tabac-AAAAMMDD-HHMMSS-….json</code>) numa pasta privada dedicada à aplicação, invisível no seu Google Drive. A aplicação conserva no máximo 3 cópias manuais mais um ficheiro de gravação automática com data e hora (<code>cave-tabac-auto-….json</code>, substituído no mesmo lugar em cada gravação); os ficheiros manuais mais antigos são eliminados automaticamente.</li>
 </ul>
-<p>A aplicação nunca acede a qualquer outro ficheiro do seu Google Drive. A autenticação é feita diretamente pela Google através de OAuth 2.0. Nenhum token nem dados da Google são transmitidos a terceiros.</p>
+<p>A aplicação nunca acede a qualquer outro ficheiro do seu Google Drive. A autenticação é feita diretamente pela Google através de OAuth 2.0. Nenhum token nem dados da Google são transmitidos a terceiros. Tal como no Dropbox, o conteúdo pode ser <strong>cifrado antes do envio</strong> se tiver ativado a cifragem das cópias de segurança.</p>
 
 <h2>Catálogo de referência (o seu ficheiro)</h2>
 <p>A aplicação <strong>não inclui qualquer catálogo</strong>. Se carregar um (Definições → Dados → Catálogo de referência), o ficheiro CSV que fornece fica guardado <strong>localmente</strong>, numa base de dados do navegador reservada para ele (IndexedDB «cave-catalogue»), juntamente com uma versão já analisada que torna as pesquisas rápidas. Não é enviado a qualquer serviço de terceiros e nunca é transmitido a um fornecedor de IA.</p>

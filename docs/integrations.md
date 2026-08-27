@@ -88,7 +88,7 @@ The system-back inputs (browser/hardware back, left-edge swipe) call a single `g
 **`nav(v, opts?)` API** (App.tsx):
 - `nav(v)` — default forward navigation. Snapshots the leaving view's scroll if it's a list (`inv` / `pipes` / `acc` / `journal`), sets `scrollToTopRef.current = true`, then updates `view`. The centralised restore useEffect sees the flag and lets the page land at the top.
 - `nav(v, { restoreScroll: true })` — used by store save-success paths (e.g. `useTobaccoStore.updateTobacco` after editing). Skips the scroll-to-top so the centralised useEffect restores the saved scrollY for `v`.
-- `nav()` must NEVER reset `editXxxId` / `xxxForm` state (a hard invariant — see Curator UI section) and must NEVER wipe `scrollSaveRef` (likewise — see Scroll preservation section).
+- `nav()` must NEVER reset `editXxxId` / `xxxForm` state (a hard invariant — see the Curator UI section in `docs/ui.md`) and must NEVER wipe `scrollSaveRef` (likewise — see Scroll preservation section).
 
 ## Google Integration
 

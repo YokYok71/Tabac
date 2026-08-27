@@ -186,7 +186,7 @@ export function CuratorUpdatePill() {
            button with an aria-label, so a keyboard or screen-reader user could
            DISMISS the update notification but never ACT on it: the one control
            just rewritten to be explicit was the one nobody could reach.
-           CLAUDE.md's own a11y invariant forbids exactly this shape. */
+           docs/ui.md's own a11y invariant forbids exactly this shape. */
         style={{
           cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
           background: "transparent", border: "none", padding: 0,

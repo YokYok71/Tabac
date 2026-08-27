@@ -70,7 +70,7 @@ export function pickJarLot(tob: any, weightUnit: string): { lot: any; idx: numbe
 // tobacco have any usable lot / how much stock is on hand". Extracted from
 // ~7 drifted inline copies across SessionFormView / TastingView /
 // InventoryDetailView / InventoryListView. CLAUDE.md
-// conv. #17/#18 require SessionFormView and TastingView to offer the SAME
+// conv. #18/#19 require SessionFormView and TastingView to offer the SAME
 // tobaccos/lots line-for-line — sharing the predicate turns that
 // copy-paste discipline into a code guarantee.
 

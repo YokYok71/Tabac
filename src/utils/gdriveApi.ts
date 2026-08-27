@@ -1,6 +1,6 @@
 // gdriveApi.ts — pure, React-free Drive wire-level helpers.
 //
-// Step 1 of the useGdriveSync split (CLAUDE.md "Drive
+// Step 1 of the useGdriveSync split (docs/integrations.md "Drive
 // refactor" plan). This module hosts everything that needs NO React
 // state and NO closure over the hook: backup naming/parsing, the
 // fetch-with-timeout wrapper, and the rotation pruner. The OAuth/auth

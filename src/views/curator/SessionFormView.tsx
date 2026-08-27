@@ -41,7 +41,7 @@ export function CuratorSessionFormView() {
   // must therefore be stable across those transitions: every hook MUST
   // be called BEFORE any early return, or React throws #310 ("rendered
   // more hooks than during the previous render") when the user navigates
-  // into addJ/editJ. See CLAUDE.md "Hook-order trap".
+  // into addJ/editJ. See docs/ui.md "Hook-order trap".
   const [tnDraft, setTnDraft] = useState<string>("");
   const tnRing = useFocusRing();
   // Pending cellar confirm — when the user tries to save but the selected

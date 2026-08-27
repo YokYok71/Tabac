@@ -1,4 +1,4 @@
-// Enforce the enum DISPLAY invariant (CLAUDE.md § "Enum DISPLAY
+// Enforce the enum DISPLAY invariant (docs/checks.md § "Enum DISPLAY
 // invariant") in the Curator UI.
 //
 // WHY. Enum values (category, cut, shape, courbure, filterType, bowlMaterial,

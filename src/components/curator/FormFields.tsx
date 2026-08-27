@@ -172,7 +172,7 @@ const baseInput: React.CSSProperties = {
   // 16px (was 15) — iOS Safari auto-zooms on focus when an
   // input font-size is < 16. Pinch-zoom was re-enabled, so the
   // user can still pinch the form if they want, but the involuntary
-  // focus zoom is the annoying one. CLAUDE.md §20 documents this as
+  // focus zoom is the annoying one. docs/architecture.md (fsInput) documents this as
   // the canonical iOS-no-zoom workaround.
   fontFamily: F.body, fontSize: fsInput(17),
   outline: "none", boxSizing: "border-box",

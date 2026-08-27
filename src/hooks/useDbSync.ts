@@ -132,7 +132,7 @@ export function useDbSync(opts: {
   // keyboard-focus case, not this touch ghost-click. We keep the banner
   // mounted as an inert "✓ synchronised" state for a short window so the
   // layout stays put and the ghost-click hits an inert surface. Mirrors
-  // the Modal / lightbox deferred-unmount pattern (see CLAUDE.md).
+  // the Modal / lightbox deferred-unmount pattern (see docs/ui.md).
   var _applied = useState(false),
     applied = _applied[0],
     setApplied = _applied[1];

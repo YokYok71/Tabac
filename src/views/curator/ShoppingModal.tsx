@@ -124,7 +124,7 @@ export function CuratorShoppingModal() {
           aria-label={[tr("shopping_check", "Marquer comme acheté"), [it.brand, it.name].filter(Boolean).join(" ")].filter(Boolean).join(" · ")}
           aria-pressed={on}
           style={{
-            // WCAG 2.5.5 / CLAUDE.md a11y invariant: 44px minimum. The visual
+            // WCAG 2.5.5 / docs/ui.md a11y invariant: 44px minimum. The visual
             // box stays 30px inside a transparent 44px target — a shopping list
             // is used one-handed while walking, the worst case for a small hit
             // area, and the row is already ~50px tall so nothing shifts.

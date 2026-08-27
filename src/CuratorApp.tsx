@@ -59,7 +59,7 @@ const CuratorShoppingModal = lazy(() => import("./views/curator/ShoppingModal.ts
 // modal lazy mounts that close via an X button overlapping another
 // tappable surface (e.g. Settings X over the HomeView search icon).
 // `true` transitions are immediate so opening the modal is snappy.
-// Same defence pattern as the lightbox (see the note in CLAUDE.md).
+// Same defence pattern as the lightbox (see the note in docs/ui.md).
 function useDeferredFalse(value: boolean, delayMs = 320): boolean {
   const [deferred, setDeferred] = useState(value);
   useEffect(() => {
@@ -136,7 +136,7 @@ export function CuratorApp() {
         // width:100% (NOT 100vw) — 100vw ignores the scrollbar and creates a
         // horizontal-overflow sliver that, combined with body scroll, floats
         // the fixed dock on iOS PWA. See index.html overflow-x:clip + the
-        // iOS-PWA dock guardrail in CLAUDE.md (restored after a roll-back undid it).
+        // iOS-PWA dock guardrail in docs/ui.md (restored after a roll-back undid it).
         width: "100%", minHeight: "100vh",
         background: `radial-gradient(circle at 30% 15%, ${C.washMoss}, ${C.bg} 70%), ${C.bg}`,
         display: "flex", justifyContent: "center",

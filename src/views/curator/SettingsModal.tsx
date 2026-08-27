@@ -2617,7 +2617,7 @@ function CatalogueStatus({
             0.85 composites — under AA, reported by `theme:contrast` in all
             three light palettes. The de-emphasis is carried by the WEIGHT of
             the line above (700 against this one's regular), which costs no
-            contrast. See CLAUDE.md: never dim TEXT with opacity. */}
+            contrast. See docs/ui.md: never dim TEXT with opacity. */}
         <span>
           {String(tr("cat_loaded_on", "Chargé le {d}"))
             .replace("{d}", meta.loadedAt ? fmtDate(localDayKey(meta.loadedAt), dateFormat) : "—")}

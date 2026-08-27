@@ -478,7 +478,42 @@ const FIX_HEADINGS = [
   "corrección", "correcciones",
   "behoben", "fehlerbehebung", "fehlerbehebungen",
   "correzione", "correzioni",
+  // PORTUGAIS. Il manquait, alors que `pt` est une section de plein droit du
+  // changelog depuis l'ajout de la sixième langue : la porte lisait cinq
+  // sections sur six et se taisait sur la dernière.
+  "correção", "correções", "correcção", "correcções",
 ];
+
+/** Un qualificatif ne doit PAS désarmer la porte.
+ *
+ *  LA COMPARAISON ÉTAIT `FIX_HEADINGS.includes(titre)`, donc une ÉGALITÉ SUR
+ *  LE TITRE ENTIER — et une entrée sous-titrée « Correction **importante** »
+ *  passait. MESURÉ sur le document publié : l'entrée du build 25 s'auto-classe
+ *  comme correctif dans les SIX langues (« Correction importante », « Important
+ *  fix », « Corrección importante », « Wichtige Behebung », « Correzione
+ *  importante », « Correção importante ») et la porte rendait ZÉRO erreur.
+ *
+ *  C'est la même classe que les exemptions qui énonçaient un DÉNOMBREMENT au
+ *  lieu d'une PROPRIÉTÉ : une liste de chaînes exactes ne garde que les
+ *  formulations qu'on a pensé à écrire, et l'adjectif le plus banal la
+ *  contourne. La propriété réelle est « le titre CONTIENT un mot qui classe
+ *  l'entrée comme correctif ».
+ *
+ *  DÉCOUPAGE PAR MOTS, ET NON `indexOf` : une sous-chaîne nue attraperait
+ *  « correctionnel » ou l'anglais « prefix » (qui contient « fix »), et une
+ *  porte qui fait supprimer une entrée correcte est pire qu'une porte absente.
+ *  Les termes en deux mots (« bug fix ») sont testés à part, sur le titre
+ *  entier normalisé. */
+function headingDeclaresAFix(txt) {
+  const norm = String(txt).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  if (!norm) return false;
+  const mots = new Set(norm.split(" "));
+  for (const terme of FIX_HEADINGS) {
+    if (terme.includes(" ")) { if (norm.includes(terme)) return true; }
+    else if (mots.has(terme)) return true;
+  }
+  return false;
+}
 
 // Words a user has no concept of (implementation) or cannot act on (pure
 // display). Kept narrow on purpose — every term here is one whose presence in
@@ -519,7 +554,7 @@ function checkChangelogIsFunctional(changelogHtml, version) {
 
     for (const h of body.match(/<h3>([^<]*)<\/h3>/g) || []) {
       const txt = h.replace(/<\/?h3>/g, "").trim().toLowerCase();
-      if (FIX_HEADINGS.includes(txt) && !seenFail.has(build)) {
+      if (headingDeclaresAFix(txt) && !seenFail.has(build)) {
         seenFail.add(build);
         errors.push(
           `changelog Build ${build}: the entry is sub-titled "${h.replace(/<\/?h3>/g, "").trim()}" — ` +

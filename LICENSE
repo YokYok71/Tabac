@@ -159,4 +159,8 @@ distribution bundle. Their source is not included in shipped artifacts:
   - jsdom (MIT, https://github.com/jsdom/jsdom)
   - jest-axe (MIT, https://github.com/nickcolley/jest-axe)
   - axe-core (MPL-2.0, https://github.com/dequelabs/axe-core)
-  - @playwright/test (Apache-2.0, https://playwright.dev)
+  - playwright-core (Apache-2.0, https://playwright.dev) — installed on demand
+    (npm i --no-save) by the two opt-in browser checks; never a dependency,
+    never redistributed.
+  - fast-check (MIT, https://github.com/dubzzz/fast-check)
+  - knip (ISC, https://knip.dev)

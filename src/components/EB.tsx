@@ -7,7 +7,7 @@ import { lsGet, lsSet } from "../utils/appStorage.ts";
 // EB.test.tsx) are unchanged. Handles chunk-load-error auto-recovery (SW +
 // caches purge → reload) with a 30 s anti-loop guard; falls back to a manual
 // "clear cache & reload" screen. See the "EB chunk-load recovery" section in
-// CLAUDE.md.
+// docs/architecture.md.
 
 function isChunkLoadError(e: any): boolean {
   if (!e) return false;

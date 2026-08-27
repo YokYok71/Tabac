@@ -9,7 +9,7 @@
 //
 // Kept PURE + framework-free so it's exhaustively unit-testable; App.tsx owns
 // the ref that holds the live stack and the setters that apply a popped
-// location. See "Back navigation & gestures" in CLAUDE.md.
+// location. See "Back navigation & gestures" in docs/integrations.md.
 
 export interface NavLoc {
   view: string;
