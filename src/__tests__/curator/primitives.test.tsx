@@ -363,3 +363,51 @@ describe("SpecRow — seller link", () => {
     expect(container.textContent).toContain("Local shop");
   });
 });
+
+// ── UN CONTRÔLE OCCUPÉ RESTE UN CONTRÔLE ────────────────────────────────────
+//
+// La convention pour mettre un déclencheur en veille pendant une action en vol
+// est la même que pour le désactiver : `onClick={cond ? undefined : cb}`. Or
+// `PressCard` n'accordait `role` / `tabIndex` que sur `onClick || ariaDisabled`
+// — donc une carte OCCUPÉE n'avait ni l'un ni l'autre et annonçait `aria-busy`
+// sur quelque chose qui n'était plus un contrôle. Elle sortait de l'arbre
+// d'accessibilité précisément pendant qu'elle avait quelque chose à dire.
+//
+// Atteignable sur SIX sites : les deux boutons d'`AICard` pendant un
+// remplissage, et les quatre déclencheurs de géolocalisation. Tous sont des
+// déclencheurs, donc l'élargissement ne rend « bouton » à rien qui ne le soit.
+describe("PressCard — un contrôle occupé reste joignable", () => {
+  it("garde role et tabIndex quand ariaBusy, sans onClick", () => {
+    const { container } = render(
+      <PressCard ariaBusy ariaLabel="chercher"><span>x</span></PressCard>,
+    );
+    const el = container.querySelector('[aria-label="chercher"]') as HTMLElement;
+    expect(el, "la carte doit être rendue").toBeTruthy();
+    expect(el.getAttribute("role"), "occupée mais plus un bouton").toBe("button");
+    expect(el.getAttribute("tabindex"), "occupée mais plus atteignable").toBe("0");
+    expect(el.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("…et reste INERTE — occupé n'est pas cliquable", () => {
+    // Le contre-cas de l'élargissement : rendre le rôle ne doit pas rendre
+    // l'action. Sans lui, « garde son rôle » serait satisfait par une carte qui
+    // relance l'appel en cours.
+    const cb = vi.fn();
+    const { container } = render(
+      <PressCard ariaBusy ariaLabel="occupé"><span>x</span></PressCard>,
+    );
+    fireEvent.click(container.querySelector('[aria-label="occupé"]') as HTMLElement);
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("une carte NI cliquable NI occupée NI désactivée n'est pas un bouton", () => {
+    // La non-vacuité : sans ce cas, accorder `role="button"` à tout le monde
+    // satisferait les deux cas au-dessus.
+    const { container } = render(
+      <PressCard ariaLabel="décor"><span>x</span></PressCard>,
+    );
+    const el = container.querySelector('[aria-label="décor"]') as HTMLElement;
+    expect(el.getAttribute("role")).toBeNull();
+    expect(el.getAttribute("tabindex")).toBeNull();
+  });
+});

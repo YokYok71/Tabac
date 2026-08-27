@@ -602,8 +602,21 @@ export function PressCard({ children, onClick, style, ariaLabel, ariaBusy, ariaD
       // A card marked ariaDisabled keeps button semantics + focusability even
       // though onClick is undefined — that is the whole point: the user must be
       // able to find the control and be told it is unavailable.
-      role={onClick || ariaDisabled ? "button" : undefined}
-      tabIndex={onClick || ariaDisabled ? 0 : undefined}
+      //
+      // `ariaBusy` EARNS THE SAME, and its absence was a live defect. The
+      // convention for standing a trigger down mid-flight is the same
+      // `onClick={cond ? undefined : cb}`, so a BUSY card had neither `onClick`
+      // nor `ariaDisabled` — it announced `aria-busy` on something that was no
+      // longer a control at all, dropping out of the accessibility tree exactly
+      // while it had something to say. AICard's search and scan buttons both do
+      // this during a fill (`aiLoad`), as do the four geolocation triggers.
+      // A busy control IS a control: findable, focusable, announced busy, and
+      // inert — which is what ARIA prescribes, and what `aria-busy` is FOR.
+      // Fixed in the primitive rather than at the six call sites: the choke
+      // point is one line and it covers every future consumer (the `safeBgUrl`
+      // argument — many sources, one sink).
+      role={onClick || ariaDisabled || ariaBusy ? "button" : undefined}
+      tabIndex={onClick || ariaDisabled || ariaBusy ? 0 : undefined}
       aria-label={ariaLabel}
       aria-busy={ariaBusy}
       aria-disabled={ariaDisabled}
