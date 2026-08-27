@@ -1621,7 +1621,29 @@ function ImportConfirmPanel({
               </div>
             </PressCard>
 
-            <PressCard onClick={() => applyImport("replace")} style={{
+            {/* LA SEULE DES TROIS CARTES QUI EFFACE, ET LA SEULE SANS FILET.
+                « Fusionner » n'efface rien, « Annuler » renonce ; celle-ci
+                remplace la cave entière, et la corbeille ne la rattrape PAS —
+                elle garde des suppressions unitaires, pas un remplacement de
+                base. C'est exactement la classe qui, dans ce dépôt, garde un
+                `window.confirm` : « Vider la corbeille » et « Retirer le
+                catalogue » en ont un pour la même raison. Ce n'est donc pas un
+                retour aux dialogues de confirmation retirés en 23 — ceux-là
+                gardaient des SOFT-deletes, qui ont un annuler de 8 s et une
+                corbeille de 30 jours derrière eux.
+                `window.confirm` et non une modale maison : c'est de la chrome
+                de navigateur, donc non recouvrable par un cadre hostile — la
+                raison déjà écrite pour la réinitialisation. */}
+            <PressCard onClick={() => {
+              // Fail-CLOSED, comme les deux autres confirmations du dépôt : un
+              // `confirm` refusé — ou supprimé par le navigateur, qui rend
+              // alors `false` — ne remplace rien. Ouvrir par défaut serait la
+              // pire des deux erreurs sur une action irréversible.
+              if (window.confirm(tr("import_replace_confirm",
+                "Remplacer toute votre cave par ce fichier ? Vos tabacs, pipes, accessoires, envies et séances actuels seront effacés — la corbeille ne les garde pas. Cette action est irréversible."))) {
+                applyImport("replace");
+              }
+            }} style={{
               padding: "11px 14px",
               background: alpha(C.oxblood, "1f"), border: `1px solid ${alpha(C.oxblood, "88")}`,
               borderRadius: 8, textAlign: "left",

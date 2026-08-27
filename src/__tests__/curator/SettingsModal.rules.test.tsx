@@ -224,15 +224,34 @@ describe("SettingsModal — le panneau d'import", () => {
     expect(applyImport.mock.calls[0]![0]).toBe("merge");
   });
 
-  it("« Remplacer » demande bien un remplacement", () => {
-    // Le miroir. Sans lui, câbler LES DEUX cartes sur "merge" passerait le
-    // cas ci-dessus : la restauration propre depuis une sauvegarde ne
-    // remplacerait plus rien et l'utilisateur récupérerait un mélange de son
-    // ancienne cave et de la sauvegarde.
-    const { container, applyImport } = renderPanel();
-    fireEvent.click(findCard(container as HTMLElement, trFr("import_replace")));
-    expect(applyImport).toHaveBeenCalledTimes(1);
-    expect(applyImport.mock.calls[0]![0]).toBe("replace");
+  it("« Remplacer » DEMANDE d'abord — et un refus n'importe rien", () => {
+    // La carte est la seule des trois qui efface, et la seule sans filet : la
+    // corbeille garde des suppressions unitaires, pas un remplacement de base.
+    // Elle a donc reçu la même confirmation que « Vider la corbeille » et
+    // « Retirer le catalogue ». Sans ce cas, retirer la confirmation ne
+    // coûterait rien au CI.
+    const spy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    try {
+      const { container, applyImport } = renderPanel();
+      fireEvent.click(findCard(container as HTMLElement, trFr("import_replace")));
+      expect(spy.mock.calls.length, "effacer la cave sans rien demander").toBeGreaterThan(0);
+      expect(applyImport, "un refus doit tout laisser en place").not.toHaveBeenCalled();
+    } finally { spy.mockRestore(); }
+  });
+
+  it("… et remplace bien quand la réponse est oui", () => {
+    // Les deux miroirs à la fois. Sans celui-ci, une confirmation qui
+    // n'accepte JAMAIS passerait le cas ci-dessus et la restauration propre
+    // depuis une sauvegarde deviendrait impossible ; et câbler LES DEUX cartes
+    // sur "merge" passerait aussi, l'utilisateur récupérant alors un mélange
+    // de son ancienne cave et de la sauvegarde au lieu de la sauvegarde.
+    const spy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    try {
+      const { container, applyImport } = renderPanel();
+      fireEvent.click(findCard(container as HTMLElement, trFr("import_replace")));
+      expect(applyImport).toHaveBeenCalledTimes(1);
+      expect(applyImport.mock.calls[0]![0]).toBe("replace");
+    } finally { spy.mockRestore(); }
   });
 
   it("« Annuler » ne touche à rien", () => {
@@ -286,5 +305,116 @@ describe("SettingsModal — le panneau d'import", () => {
     const sel = applyImport.mock.calls[0]![1];
     expect(sel, "la sélection doit être transmise").toBeInstanceOf(Set);
     expect(Array.from(sel as Set<string>)).toEqual(["tobacco:t1"]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5 + 6. LE SÉLECTEUR DE SAUVEGARDE DRIVE — la radio doit choisir CELLE
+// qu'elle nomme, et le panneau doit décrire CELLE qui est choisie.
+//
+// C'est la surface la plus destructrice de l'application : « Importer » y
+// remplace la cave entière (`confirm_replace` : « Remplace tout. »), sans
+// corbeille derrière — elle garde des suppressions unitaires, pas un
+// remplacement de base.
+//
+// Sondé, suite ENTIÈRE à chaque fois (5881 cas / 305 fichiers) :
+//
+//   la radio écrit toujours `sel: 0`                       → 5881 verts
+//   les trois lectures `options[sel]` deviennent `options[0]` → 5881 verts
+//
+// La première rupture restaure la MAUVAISE sauvegarde : on choisit celle
+// d'avant-hier parce que celle d'hier était incomplète, et on récupère celle
+// d'hier. La seconde est plus vicieuse — la restauration part sur la bonne,
+// mais les DEUX avertissements (« cette sauvegarde semble vide », « elle
+// contient moins de données que votre version locale ») décrivent une autre
+// ligne : un garde-fou qui rassure sur un fichier que l'on ne va pas
+// restaurer, ou qui alarme sur un fichier que l'on n'a pas choisi.
+//
+// POURQUOI RIEN NE LE VOYAIT, et c'est exactement le défaut déjà payé sur la
+// croix de `CompareModal` : les cas existants montent le sélecteur avec
+// `sel: 0`. À `sel: 0`, lire `options[sel]` et lire `options[0]` sont
+// indiscernables. La règle n'est vérifiable qu'à partir de DEUX options, dont
+// une choisie qui n'est PAS la première.
+// ─────────────────────────────────────────────────────────────────────────
+describe("SettingsModal — le sélecteur de sauvegarde Drive", () => {
+  const compte = (n: number) => ({
+    tobaccos: n, pipes: n, wishlist: n, accessories: n, sessions: n,
+  });
+
+  function montreSelecteur(over: Record<string, any> = {}) {
+    const setGdriveConfirm = vi.fn();
+    const r = renderWithCtx(<CuratorSettingsModal />, baseCtx({
+      setGdriveConfirm,
+      doGdriveConfirm: vi.fn(),
+      gdriveLoadOptionPayload: vi.fn(),
+      ...over,
+    }));
+    return { ...r, setGdriveConfirm };
+  }
+
+  /** Les options du sélecteur sont des `role="radio"`. */
+  function radios(container: HTMLElement): HTMLElement[] {
+    const rs = Array.from(container.querySelectorAll("[role='radio']")) as HTMLElement[];
+    expect(rs.length, "le sélecteur ne liste pas ses sauvegardes").toBeGreaterThan(1);
+    return rs;
+  }
+
+  it("choisir la DEUXIÈME ligne sélectionne la deuxième, pas la première", () => {
+    const gdriveConfirm = {
+      sel: 0,
+      options: [
+        { id: "f1", modifiedTime: "2026-07-02T12:00:00Z", counts: compte(9) },
+        { id: "f2", modifiedTime: "2026-07-01T12:00:00Z", counts: compte(4) },
+      ],
+    };
+    const { container, setGdriveConfirm } = montreSelecteur({ gdriveConfirm });
+    fireEvent.click(radios(container as HTMLElement)[1]!);
+    expect(setGdriveConfirm, "la ligne touchée n'a rien sélectionné").toHaveBeenCalledTimes(1);
+    // La forme de l'appel est la règle : `sel` doit valoir l'INDEX touché.
+    const arg = setGdriveConfirm.mock.calls[0]![0];
+    const suivant = typeof arg === "function" ? arg(gdriveConfirm) : arg;
+    expect(suivant.sel, "restaurer une sauvegarde autre que celle choisie").toBe(1);
+  });
+
+  it("l'avertissement « sauvegarde vide » décrit la ligne CHOISIE", () => {
+    // `sel: 1` et c'est la DEUXIÈME qui est vide : à `sel: 0` ce cas ne
+    // distinguerait rien. La moitié négative suit, sur le même montage
+    // inversé, sinon un panneau qui crie toujours passerait celui-ci.
+    const vide = { id: "f2", modifiedTime: "2026-07-01T12:00:00Z", counts: compte(0) };
+    const plein = { id: "f1", modifiedTime: "2026-07-02T12:00:00Z", counts: compte(9) };
+
+    const a = montreSelecteur({ gdriveConfirm: { sel: 1, options: [plein, vide] } });
+    expect(
+      (a.container as HTMLElement).textContent || "",
+      "la sauvegarde choisie est vide et rien ne le dit — l'importer efface tout",
+    ).toContain(trFr("backup_empty_warn"));
+
+    const b = montreSelecteur({ gdriveConfirm: { sel: 0, options: [plein, vide] } });
+    expect(
+      (b.container as HTMLElement).textContent || "",
+      "avertissement de vacuité sur une sauvegarde PLEINE — l'alarme devient du bruit",
+    ).not.toContain(trFr("backup_empty_warn"));
+  });
+
+  it("l'avertissement « moins de données » compare la ligne CHOISIE", () => {
+    // Même dispositif : la perte est portée par la DEUXIÈME option.
+    const grosse = { id: "f1", modifiedTime: "2026-07-02T12:00:00Z", counts: compte(9) };
+    const petite = { id: "f2", modifiedTime: "2026-07-01T12:00:00Z", counts: compte(1) };
+    const local = {
+      tobaccos: [{ id: 1 }, { id: 2 }, { id: 3 }], pipes: [], wishlist: [],
+      accessories: [], sessions: [],
+    };
+
+    const a = montreSelecteur({ gdriveConfirm: { sel: 1, options: [grosse, petite] }, data: local });
+    expect(
+      (a.container as HTMLElement).textContent || "",
+      "la sauvegarde choisie perd des tabacs et rien ne le dit",
+    ).toContain(trFr("restore_fewer_title"));
+
+    const b = montreSelecteur({ gdriveConfirm: { sel: 0, options: [grosse, petite] }, data: local });
+    expect(
+      (b.container as HTMLElement).textContent || "",
+      "alerte de perte sur une sauvegarde plus GROSSE que le local",
+    ).not.toContain(trFr("restore_fewer_title"));
   });
 });
