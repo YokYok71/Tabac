@@ -549,6 +549,34 @@ function checkChangelogIsFunctional(changelogHtml, version) {
  * is TypeScript ESM. The shape it expects is the one the file already has:
  * `code: { field: …, … },` inside `export var LANG_ASSETS = { … };`.
  */
+/** LE DOCUMENT DE PROJET EST SEPT FICHIERS, ET LES PORTES LES LISENT TOUS.
+ *
+ *  `CLAUDE.md` est injecté en entier dans chaque session ET dans chaque
+ *  sous-agent, donc sa taille est un coût récurrent payé sur des travaux qui
+ *  n'en lisent presque rien. MESURÉ : à 1,08 Mo (~270 k jetons) il évinçait les
+ *  sous-agents de leur propre contexte — trois agents de sondage sur quatre
+ *  sont morts avant leur première sonde. La narration a été déplacée VERBATIM
+ *  dans `docs/*.md` ; rien n'a été réécrit, donc chaque porte garde exactement
+ *  le même sujet et il suffit de lui remettre le même texte.
+ *
+ *  LA LISTE VIT ICI ET NON DANS `doc-check.cjs` parce qu'elle a TROIS lecteurs
+ *  — la porte, `docChecks.test.ts` et `appSettings.test.ts` — et qu'une liste
+ *  écrite trois fois est la dérive que ce dépôt paie en boucle.
+ *
+ *  QUAND VOUS AJOUTEZ UN FICHIER DE DOC, AJOUTEZ-LE ICI : une porte qui cesse
+ *  de voir son sujet ne rapporte RIEN, ce qui se lit exactement comme un dépôt
+ *  propre. `docFiles.test.ts` inverse la charge et exige que tout `docs/*.md`
+ *  suivi par git soit couvert. */
+const DOC_FILES = [
+  "CLAUDE.md",
+  "docs/architecture.md",
+  "docs/ui.md",
+  "docs/integrations.md",
+  "docs/storage-keys.md",
+  "docs/checks.md",
+  "docs/history.md",
+];
+
 const LANG_ASSET_FIELDS = ["numberLocale", "nominatim", "monthsShort", "dayInitials", "aiPromptName"];
 
 /**
@@ -1474,6 +1502,7 @@ module.exports = {
   checkTestCountFreshness,
   findLanguageAxisGaps,
   extractGroupLabelKeys,
+  DOC_FILES,
   LANG_ASSET_FIELDS,
   FIX_HEADINGS,
   NON_FUNCTIONAL_TERMS,

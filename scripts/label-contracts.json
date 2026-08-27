@@ -581,7 +581,7 @@
       "match": "MAX_ROWS\\s*=\\s*(\\d+)",
       "docs": [
         {
-          "file": "CLAUDE.md",
+          "file": "docs/architecture.md",
           "patterns": [
             "MAX_ROWS` ({n})"
           ]
@@ -595,7 +595,7 @@
       "match": "MAX_TAG_LEN\\s*=\\s*(\\d+)",
       "docs": [
         {
-          "file": "CLAUDE.md",
+          "file": "docs/architecture.md",
           "patterns": [
             "cap each {n} chars"
           ]
@@ -609,7 +609,7 @@
       "match": "MAX_TAGS_PER_ITEM\\s*=\\s*(\\d+)",
       "docs": [
         {
-          "file": "CLAUDE.md",
+          "file": "docs/architecture.md",
           "patterns": [
             "cap {n}/item"
           ]
@@ -638,7 +638,7 @@
       "divide": 1000,
       "docs": [
         {
-          "file": "CLAUDE.md",
+          "file": "docs/storage-keys.md",
           "patterns": [
             "older than {n} s"
           ]
@@ -652,7 +652,7 @@
       "match": "MAX_CSV_ISSUES\\s*=\\s*(\\d+)",
       "docs": [
         {
-          "file": "CLAUDE.md",
+          "file": "docs/architecture.md",
           "patterns": [
             "MAX_CSV_ISSUES` ({n}"
           ]
@@ -666,7 +666,7 @@
       "match": "MAX_CATALOGUE_ISSUES\\s*=\\s*(\\d+)",
       "docs": [
         {
-          "file": "CLAUDE.md",
+          "file": "docs/architecture.md",
           "patterns": [
             "MAX_CATALOGUE_ISSUES` ({n})"
           ]
@@ -680,7 +680,7 @@
       "match": "MAX_CATALOGUE_ROWS\\s*=\\s*(\\d+)",
       "docs": [
         {
-          "file": "CLAUDE.md",
+          "file": "docs/checks.md",
           "patterns": [
             "MAX_CATALOGUE_ROWS` ({n})"
           ]

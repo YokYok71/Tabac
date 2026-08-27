@@ -83,6 +83,10 @@ function triggers(file: string, pats: string[]): boolean {
 const INERT: Array<{ re: RegExp; why: string }> = [
   { re: /^src\/__tests__\//, why: "les tests n'entrent pas dans le bundle mesuré" },
   { re: /^CLAUDE\.md$/, why: "documentation interne, jamais rendue" },
+  // Les six fichiers dans lesquels la narration de `CLAUDE.md` a été déplacée
+  // au découpage : même nature, même raison. Ils sont lus par `doc:check`
+  // (`docChecks.DOC_FILES`), jamais par le bundle.
+  { re: /^docs\/.*\.md$/, why: "documentation interne, jamais rendue" },
   { re: /^README|^LICENSE|^SECURITY\.md$/, why: "documentation de dépôt" },
   // Le CNAME de la RACINE, à ne pas confondre avec `public/CNAME`, qui est
   // copié dans `dist/` et déclenche donc la campagne via `public/**`. Celui-ci

@@ -90,7 +90,13 @@ describe("extractTreePaths", () => {
   it("the SHIPPED tree parses, and every path it lists exists", () => {
     // The same assertion doc:check makes — here so a stale tree also breaks
     // `npm test`, and so this module is proven against the real document.
-    const md = readFileSync("CLAUDE.md", "utf8");
+    // Le document est SEPT fichiers depuis le découpage : l'arbre a suivi la
+    // narration dans `docs/architecture.md`, donc lire `CLAUDE.md` seul
+    // mesurerait un document qui ne contient plus son sujet — et
+    // `extractTreePaths` rapporterait « section not found », c'est-à-dire un
+    // échec bruyant plutôt qu'une passe à vide. La concaténation est celle que
+    // la porte elle-même construit.
+    const md = D.DOC_FILES.map((f: string) => readFileSync(f, "utf8")).join("\n");
     const { paths, errors } = D.extractTreePaths(md);
     expect(errors).toEqual([]);
     expect(paths.length).toBeGreaterThan(50);

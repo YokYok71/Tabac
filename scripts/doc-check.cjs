@@ -62,7 +62,16 @@ const i18nChecks = require("./i18nChecks.cjs");
 const docChecks = require("./docChecks.cjs");
 
 const ROOT = path.resolve(__dirname, "..");
-const CLAUDE = fs.readFileSync(path.join(ROOT, "CLAUDE.md"), "utf8");
+
+// THE PROJECT DOCUMENT IS SEVEN FILES, AND EVERY GATE BELOW READS ALL OF THEM.
+// The list is `docChecks.DOC_FILES` (see the comment there for why the split
+// happened and why the list lives in the pure module rather than here). What
+// matters at this call site: `CLAUDE` is the CONCATENATION, so gates 2/3/4
+// grep the whole document and gate 9 still finds "## Repository Structure"
+// wherever that section now lives.
+const CLAUDE = docChecks.DOC_FILES
+  .map((f) => fs.readFileSync(path.join(ROOT, f), "utf8"))
+  .join("\n");
 const CONSTANTS = fs.readFileSync(path.join(ROOT, "src/constants.ts"), "utf8");
 const VERSION_JSON = JSON.parse(fs.readFileSync(path.join(ROOT, "public/version.json"), "utf8"));
 const PACKAGE_JSON = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));

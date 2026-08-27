@@ -5,6 +5,8 @@ import {
 } from "../utils/appSettings.ts";
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
+import { createRequire } from "node:module";
+const docChecks = createRequire(import.meta.url)("../../scripts/docChecks.cjs");
 
 // Preferences travel with the backup.
 //
@@ -136,7 +138,13 @@ describe("every exported key is a documented preference", () => {
   it("appears in the CLAUDE.md storage-keys table", () => {
     // The keys table is the reference for what the app stores. A preference we
     // now COPY INTO USER FILES had better be described there.
-    const doc = readFileSync(resolve(__dirname, "..", "..", "CLAUDE.md"), "utf8");
+    // La table des clés a suivi la narration dans `docs/storage-keys.md` au
+    // découpage du document ; on lit la MÊME liste que la porte (`DOC_FILES`),
+    // sinon ce cas passerait en mesurant un fichier qui ne porte plus sa table.
+    const root = resolve(__dirname, "..", "..");
+    const doc = (docChecks.DOC_FILES as string[])
+      .map((f) => readFileSync(resolve(root, f), "utf8"))
+      .join("\n");
     const missing = (SETTINGS_KEYS as readonly string[]).filter((k) => doc.indexOf("`" + k + "`") === -1);
     expect(missing).toEqual([]);
   });
