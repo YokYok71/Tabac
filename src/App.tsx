@@ -43,7 +43,7 @@ import { applyTheme, THEMES, THEME_COLOR_META } from "./theme-curator.ts";
 import { pickJarLot } from "./utils/lotUtils.ts";
 import { buildTobaccoAromaIndex, tobaccoMatchesAromas } from "./utils/aromas.ts";
 import { lotMaturityBucket, isRecentPurchase, scopeFromStatusFilter, lotInScope, scopedHeldWeight, scopedOldestAgeDays } from "./utils/cellarInsights.ts";
-import { isLowStock } from "./utils/shopping.ts";
+import { isLowStock, lowStockThreshold } from "./utils/shopping.ts";
 import { assertLotInvariants } from "./utils/lotInvariants.ts";
 import { imgCache, imgMap } from "./utils/imgCache.ts";
 import { processOAuthReturn } from "./utils/oauthReturn.ts";
@@ -2520,7 +2520,7 @@ function App() {
         // (including "à ne pas reprendre" — the shopping list is the one that
         // drops those; here the user just wants to see what's running low).
         ls = ls.filter(function (t) {
-          return isLowStock(t, parseFloat(watchLowWeight) || (weightUnit === "oz" ? 0.9 : 25));
+          return isLowStock(t, lowStockThreshold(watchLowWeight, weightUnit));
         });
       else if (eff === "recent")
         // "Achats récents" — a tabac with at least one LIVE,

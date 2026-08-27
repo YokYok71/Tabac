@@ -68,7 +68,16 @@ function moreFiltersToggle(container: HTMLElement) {
 function renderExpanded(ctx: any) {
   const res = renderWith(ctx);
   const toggle = moreFiltersToggle(res.container);
-  if (toggle) fireEvent.click(toggle);
+  // TROUVER LE CONTRÔLE EST UNE PRÉ-CONDITION, PAS UNE BRANCHE. C'était
+  // `if (toggle) fireEvent.click(toggle)` : si la pastille de repli disparaît,
+  // le clic ne part pas, les filtres secondaires ne sont jamais dépliés — et
+  // TOUS les cas qui passent par cette fonction assertent alors sur une page où
+  // ils ne sont pas rendus. La plupart passeraient quand même, pour la mauvaise
+  // raison. C'est la forme creuse n°1, fermée neuf fois ailleurs dans cette
+  // suite au build 75 et oubliée ici parce qu'elle est dans un HELPER et non
+  // dans un `it()`.
+  expect(toggle, "la pastille « plus de filtres » a disparu — les filtres secondaires ne sont plus dépliables").toBeTruthy();
+  fireEvent.click(toggle as HTMLElement);
   return res;
 }
 

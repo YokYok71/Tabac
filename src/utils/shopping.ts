@@ -46,6 +46,40 @@ export function isLowStock(tob: any, threshold: number): boolean {
   return w > 0 && w <= threshold;
 }
 
+/** Les valeurs de repli du seuil de stock bas, PAR UNITÉ D'AFFICHAGE.
+ *
+ *  25 g ≈ 0,88 oz : le repli en onces est arrondi à 0,9, ce qui est la valeur
+ *  historique — ne pas le « corriger » en 0,88, il est affiché dans un champ
+ *  que l'utilisateur édite et un nombre rond y vaut mieux qu'une conversion
+ *  exacte. */
+export var LOW_STOCK_DEFAULT_G = 25;
+export var LOW_STOCK_DEFAULT_OZ = 0.9;
+
+/** LE seuil de stock bas effectif, à partir de la préférence stockée.
+ *
+ *  L'EXPRESSION EXISTAIT EN CINQ COPIES — `App.tsx`, `HomeViewV2`,
+ *  `InventoryListView` (deux fois) et `ShoppingModal` — toutes écrites
+ *  `parseFloat(watchLowWeight) || (weightUnit === "oz" ? 0.9 : 25)`. Elles
+ *  s'accordaient, ce qui est précisément ce qui rend la classe dangereuse :
+ *  rien ne signale une copie qui décroche, et la puce « Stock bas », son
+ *  compteur, la liste de courses et la section « À surveiller » du Home
+ *  sélectionneraient alors des ensembles différents en prétendant nommer le
+ *  même. C'est la duplication que ce dépôt a déjà payée sur le prédicat de
+ *  collections (quatre copies), sur `FAMILY_AGING_MAX` et sur `CATS`.
+ *
+ *  LE `|| ` EST CONSERVÉ, ET DÉLIBÉRÉMENT : la préférence est une chaîne
+ *  saisie à la main, donc `parseFloat` rend `NaN` sur une valeur vide ou
+ *  illisible, et **zéro doit aussi retomber sur le repli** — un seuil de 0
+ *  ferait que `isLowStock` (qui exige `w > 0 && w <= seuil`) ne sélectionne
+ *  plus JAMAIS rien, c'est-à-dire une puce qui disparaît sans que personne
+ *  sache pourquoi. Un `?? ` ou un test `isFinite` laisserait passer le 0.
+ *  Une valeur NÉGATIVE retombe aussi, pour la même raison. */
+export function lowStockThreshold(stored: any, weightUnit: string): number {
+  var n = parseFloat(String(stored));
+  if (isFinite(n) && n > 0) return n;
+  return weightUnit === "oz" ? LOW_STOCK_DEFAULT_OZ : LOW_STOCK_DEFAULT_G;
+}
+
 export function computeShoppingList(
   tobaccos: any[] | null | undefined,
   wishlist: any[] | null | undefined,

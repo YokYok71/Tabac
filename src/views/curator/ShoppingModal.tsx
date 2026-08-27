@@ -16,7 +16,7 @@ import { Notice } from "../../components/curator/Notice.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { lsGet, lsSet } from "../../utils/appStorage.ts";
 import { safeJsonParse } from "../../utils/safeJson.ts";
-import { computeShoppingList, type ShoppingItem } from "../../utils/shopping.ts";
+import { computeShoppingList, type ShoppingItem, lowStockThreshold } from "../../utils/shopping.ts";
 
 const CHECKED_KEY = "cave-shopping-checked";
 
@@ -40,7 +40,7 @@ export function CuratorShoppingModal() {
 
   const list = shoppingOpen
     ? computeShoppingList(data?.tobaccos || [], data?.wishlist || [], {
-        lowWeightThreshold: parseFloat(watchLowWeight) || (weightUnit === "oz" ? 0.9 : 25),
+        lowWeightThreshold: lowStockThreshold(watchLowWeight, weightUnit),
       })
     : { restock: [], wishes: [] };
   const total = list.restock.length + list.wishes.length;

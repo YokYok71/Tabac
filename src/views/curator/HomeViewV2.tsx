@@ -5,6 +5,7 @@
 // rendering.
 
 import React from "react";
+import { lowStockThreshold } from "../../utils/shopping.ts";
 import { useAppCtx } from "../../AppContext.tsx";
 import { alpha, fs, C, F, catColor, CARD_BG, CARD_SHADOW } from "../../theme-curator.ts";
 import { CATS_EN, monthsShort } from "../../constants.ts";
@@ -195,7 +196,7 @@ export function CuratorHomeViewV2() {
   );
   const watchlist = React.useMemo(
     () => computeWatchlist(data?.tobaccos || [], {
-      lowWeightThreshold: parseFloat(watchLowWeight) || (weightUnit === "oz" ? 0.9 : 25),
+      lowWeightThreshold: lowStockThreshold(watchLowWeight, weightUnit),
       // Pull the FULL watch pool (severity-ordered) so the "À
       // surveiller" list can rotate a window of 3 through ALL of them over
       // time, instead of the display just capping at the top few.

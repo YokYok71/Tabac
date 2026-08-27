@@ -10,6 +10,7 @@
 //   7. Aide (help, contact, privacy, changelog, licenses)
 
 import React, { useState, useEffect } from "react";
+import { lowStockThreshold } from "../../utils/shopping.ts";
 import { useAppCtx } from "../../AppContext.tsx";
 import { APP_VERSION, APP_BUILD, CATS_EN } from "../../constants.ts";
 import { VERSION_CHECK_STALE_MS } from "../../hooks/useAppUpdate.ts";
@@ -1051,7 +1052,12 @@ export function CuratorSettingsModal() {
           <Row label={(t ? t("lbl_watch_low_weight") : "Seuil stock bas") + ` (${weightUnit || "g"})`}
                sub={t ? t("watch_low_hint") : "En dessous, un tabac est signalé (sauf « à ne pas reprendre »)"}>
             <WatchThresholdInput
-              value={watchLowWeight || "25"}
+              // LE « 25 » EN DUR ÉTAIT LA SIXIÈME COPIE DU SEUIL, ET LA SEULE
+              // QUI DIVERGEAIT : il ignorait l'unité, si bien qu'en onces le
+              // champ affichait 25 pendant que les cinq consommateurs
+              // appliquaient 0,9 — le réglage MENTAIT sur la valeur en vigueur,
+              // d'un facteur 28. Il passe par le même résolveur qu'eux.
+              value={watchLowWeight || String(lowStockThreshold("", weightUnit))}
               onCommit={(v) => saveWatchLowWeight && saveWatchLowWeight(v)}
               ariaLabel={(t ? t("lbl_watch_low_weight") : "Seuil stock bas") + " (" + (weightUnit || "g") + ")"}
               ring={wlwRing} />

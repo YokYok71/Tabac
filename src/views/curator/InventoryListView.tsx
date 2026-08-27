@@ -20,7 +20,7 @@ import { Ico, IcoName } from "../../components/curator/icons.tsx";
 import { MaturityChip } from "../../components/curator/MaturityChip.tsx";
 import { ToggleBtn, ActiveFilterPill, ScrollableChipRow } from "../../components/curator/FilterControls.tsx";
 import { CuratorTrashIndicator } from "../../components/curator/TrashIndicator.tsx";
-import { computeShoppingList, shoppingCount, isLowStock } from "../../utils/shopping.ts";
+import { computeShoppingList, shoppingCount, isLowStock, lowStockThreshold } from "../../utils/shopping.ts";
 import { compareByBrandThenName } from "../../utils/sortBrandName.ts";
 import { allTags } from "../../utils/tags.ts";
 import { FilterChipSimple } from "../../components/curator/FilterControls.tsx";
@@ -77,7 +77,7 @@ export function CuratorInventoryListView() {
   // when there's something to buy: low-stock rebuys + wishlist).
   const shopCount = useMemo(
     () => shoppingCount(computeShoppingList(data?.tobaccos || [], data?.wishlist || [], {
-      lowWeightThreshold: parseFloat(watchLowWeight) || (weightUnit === "oz" ? 0.9 : 25),
+      lowWeightThreshold: lowStockThreshold(watchLowWeight, weightUnit),
     })),
     [data?.tobaccos, data?.wishlist, watchLowWeight, weightUnit],
   );
@@ -197,7 +197,7 @@ export function CuratorInventoryListView() {
   const [advFiltersOpen, setAdvFiltersOpen] = useState(false);
   // "Stock bas" threshold — same definition as the shopping list
   // and the watchlist (user's display unit, default 25 g / 0.9 oz).
-  const lowThreshold = parseFloat(watchLowWeight) || (weightUnit === "oz" ? 0.9 : 25);
+  const lowThreshold = lowStockThreshold(watchLowWeight, weightUnit);
   const counts = useMemo(() => {
     let cellar = 0, jars = 0, finished = 0, disposed = 0, approaching = 0, overaged = 0, smokesoon = 0, active = 0, usedUp = 0, nolot = 0, norebuy = 0, young = 0, optimal = 0, lowstock = 0, recent = 0;
     for (const tob of tobaccos) {
