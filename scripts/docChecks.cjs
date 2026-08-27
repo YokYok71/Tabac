@@ -34,15 +34,27 @@
 function extractTreePaths(md, heading) {
   const head = heading || "## Repository Structure";
   const out = { paths: [], errors: [] };
-  const structIdx = String(md).indexOf(head);
-  if (structIdx < 0) {
-    out.errors.push(`CLAUDE.md: '${head}' section not found`);
+  // UN TITRE MARKDOWN EST UNE LIGNE QUI COMMENCE PAR `## `, PAS UNE
+  // SOUS-CHAÎNE — et l'ancienne version cherchait la sous-chaîne, ce qui a
+  // rendu la porte 9 VACUEUSE le jour où une phrase du document a cité le titre
+  // pour expliquer ce que la porte fait. C'est la classe que ce dépôt a déjà
+  // payée quatre fois (une garde qui lit sa propre prose comme une donnée), ici
+  // dans sa forme la plus coûteuse : la première occurrence était l'explication,
+  // la clôture suivante était une autre clôture, l'analyse rendait ZÉRO chemin
+  // et AUCUNE erreur — donc `doc:check` annonçait « OK » en n'examinant plus
+  // rien. Une porte qui cesse de voir son sujet ne rapporte pas une panne, elle
+  // rapporte un dépôt propre.
+  const m = new RegExp("^" + head.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*$", "m")
+    .exec(String(md));
+  if (!m) {
+    out.errors.push(`'${head}' section not found (a heading is a LINE, not a mention in prose)`);
     return out;
   }
+  const structIdx = m.index;
   const fenceStart = md.indexOf("```", structIdx);
   const fenceEnd = fenceStart < 0 ? -1 : md.indexOf("```", fenceStart + 3);
   if (fenceStart < 0 || fenceEnd < 0) {
-    out.errors.push("CLAUDE.md: repository-structure code fence not found");
+    out.errors.push("repository-structure code fence not found");
     return out;
   }
   const stack = [];
@@ -63,6 +75,15 @@ function extractTreePaths(md, heading) {
     stack.length = depth + 1;
     if (/[*{]/.test(entry)) continue; // glob / brace pattern, not a literal path
     out.paths.push({ rel: stack.join("/"), isDir });
+  }
+  // NON-VACUITÉ. Une clôture qui ne rend AUCUN chemin n'est pas un arbre : ou
+  // bien on a trouvé la mauvaise clôture, ou bien l'arbre a été vidé. Les deux
+  // sont des pannes, et sans cette ligne les deux passent en silence — c'est
+  // exactement ainsi que la porte 9 est restée verte en n'examinant rien.
+  if (out.paths.length === 0) {
+    out.errors.push(
+      "repository-structure fence parsed to ZERO paths — wrong fence, or the tree was emptied",
+    );
   }
   return out;
 }

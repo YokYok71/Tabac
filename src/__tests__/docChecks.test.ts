@@ -87,6 +87,43 @@ describe("extractTreePaths", () => {
     expect(D.extractTreePaths("## Repository Structure\nno fence").errors[0]).toMatch(/fence/);
   });
 
+  it("un titre CITÉ DANS UNE PHRASE n'est pas un titre", () => {
+    // LA RÉGRESSION QUI A RENDU LA PORTE 9 VACUEUSE, et elle a été introduite
+    // par la prose qui EXPLIQUAIT la porte. Au découpage du document, l'index
+    // de `CLAUDE.md` a écrit « gate 9 still slices the tree out of
+    // `## Repository Structure` » ; la recherche était une SOUS-CHAÎNE, donc
+    // elle tombait sur cette phrase, prenait la clôture suivante venue, rendait
+    // ZÉRO chemin et AUCUNE erreur — `doc:check` annonçait « OK » en
+    // n'examinant plus rien. Un titre markdown est une LIGNE.
+    const doc = [
+      "voir `## Repository Structure` pour l'arbre",
+      "```",
+      "pas un arbre",
+      "```",
+      "",
+      "## Repository Structure",
+      "",
+      "```",
+      "/",
+      "├── package.json",
+      "└── src/",
+      "    └── App.tsx",
+      "```",
+    ].join("\n");
+    const r = D.extractTreePaths(doc);
+    expect(r.errors).toEqual([]);
+    expect(r.paths.map((p: any) => p.rel)).toEqual(["package.json", "src", "src/App.tsx"]);
+  });
+
+  it("une clôture qui rend ZÉRO chemin est une ERREUR, jamais une passe muette", () => {
+    // La non-vacuité, sans laquelle les deux pannes possibles — mauvaise
+    // clôture, arbre vidé — se lisent l'une comme l'autre comme un dépôt
+    // propre. C'est la moitié qui a laissé la régression ci-dessus invisible.
+    const r = D.extractTreePaths("## Repository Structure\n\n```\nrien du tout\n```");
+    expect(r.paths).toEqual([]);
+    expect(r.errors[0]).toMatch(/ZERO paths/);
+  });
+
   it("the SHIPPED tree parses, and every path it lists exists", () => {
     // The same assertion doc:check makes — here so a stale tree also breaks
     // `npm test`, and so this module is proven against the real document.
