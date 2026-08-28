@@ -171,14 +171,23 @@ describe("useAppUpdate — checkUpdate triggers cache purge when up-to-date", ()
   // the auto path.
   it("treats a DOWNGRADE version.json as up-to-date (refresh, not a bogus update)", async () => {
     const { getRegistrations } = installPurgeSpies();
-    const olderBuild = String(Math.max(1, Number(APP_BUILD) - 1));
+    // LE PLANCHER `Math.max(1, …)` SUPPOSAIT QUE LES BUILDS COMMENCENT À 1.
+    // Il rendait `String(Math.max(1, Number(APP_BUILD) - 1))`, ce qui vaut
+    // **1** dès que `APP_BUILD` est "0" — le premier build d'une version
+    // mineure. Le montage servait alors un build PLUS RÉCENT que le courant :
+    // le cas ne mesurait plus une rétrogradation mais une mise à jour
+    // légitime, et il rougissait en reprochant à l'app d'avoir raison. C'est
+    // la forme que ce dépôt paie en boucle — un fixe qui encode l'ÉTAT DU
+    // MOMENT (« les builds valent au moins 1 ») au lieu de la PROPRIÉTÉ
+    // (« le distant est strictement plus ancien »).
+    //
+    // Un descripteur strictement plus ancien qui survit à n'importe quel
+    // `APP_BUILD` passe par la VERSION : `isRemoteNewer` la compare AVANT le
+    // build et sort sur un verdict négatif, quel que soit le numéro servi.
+    const older = { version: "0.9", build: "999" };
     vi.stubGlobal(
       "fetch",
-      vi.fn(() =>
-        Promise.resolve({
-          json: () => Promise.resolve({ version: APP_VERSION, build: olderBuild }),
-        }),
-      ),
+      vi.fn(() => Promise.resolve({ json: () => Promise.resolve(older) })),
     );
     const { result } = renderHook(() => useAppUpdate());
     await act(async () => { result.current.checkUpdate(); });

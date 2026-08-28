@@ -17,7 +17,7 @@ export var WELCOME_KEY = "cave-curator-welcomed";
 export var SCHEMA_VERSION = "v6";
 import { langAssets } from "./i18n/languages.ts";
 
-export var APP_VERSION = "1.0";
+export var APP_VERSION = "1.1";
 
 /**
  * The UPDATE EPOCH, and the only thing that survives a
@@ -53,7 +53,7 @@ export var APP_VERSION = "1.0";
  * about to move backwards or restart.
  */
 export var APP_GENERATION = 2;
-export var APP_BUILD = "79";
+export var APP_BUILD = "0";
 
 export var CATS = ["Américain","Anglais","Anglais aromatique","Aromatique","Balkan","Burley","Cavendish","Cigare","Dark Fired","Écossais","Lakeland","Latakia","Oriental","Perique","Turkish","VaPer","Virginia","Virginia/Burley","Virginia/Latakia","Autre"] as const;
 export var CATS_EN: Record<string, string> = {"Américain":"American",Anglais:"English","Anglais aromatique":"English aromatic",Aromatique:"Aromatic",Balkan:"Balkan",Burley:"Burley",Cavendish:"Cavendish",Cigare:"Cigar","Dark Fired":"Dark Fired","Écossais":"Scottish",Lakeland:"Lakeland",Latakia:"Latakia",Oriental:"Oriental",Perique:"Perique",Turkish:"Turkish",VaPer:"VaPer",Virginia:"Virginia","Virginia/Burley":"Virginia/Burley","Virginia/Latakia":"Virginia/Latakia",Autre:"Other"};
