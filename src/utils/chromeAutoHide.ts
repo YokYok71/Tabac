@@ -1,3 +1,5 @@
+import { shouldShowDock, type DockGate } from "./dockVisibility.ts";
+
 // Escamotage de la chrome au défilement — la décision, PURE.
 //
 // Même découpage que `dockVisibility.ts` : la règle vit ici pour être éprouvée
@@ -20,51 +22,40 @@
 // amener une envie sous elle. Une TRANSLATION ne change pas une hauteur (un
 // `scaleY` l'aurait changée) : la mesure reste juste, barre visible ou non.
 
-/** Les vues où la chrome s'escamote : les SIX racines, celles que le dock
- *  atteint. Le critère n'est pas « une liste » mais « la barre du haut ne porte
- *  aucune sortie » — et il a fallu un retour d'usage pour que je l'applique
- *  vraiment. La première version disait « les quatre racines de LISTE » et
- *  laissait dehors `stats` et `home` sans autre raison que ce mot : or le
- *  `leading` de `StatsView` est un ornement décoratif, exactement comme les
- *  quatre autres, et le Home a son propre en-tête collant bâti sur la même
- *  recette. Énoncer un critère puis appliquer un autre est la façon la plus
- *  discrète de se tromper.
- *
- *  RESTE DEHORS, ET POUR LE CRITÈRE : `catalog` — sa barre porte un vrai
- *  `IconBtn icon="back"` vers l'inventaire. Ainsi que les formulaires, les
- *  fiches, la dégustation et les pages de documentation. */
-export const AUTO_HIDE_VIEWS: ReadonlySet<string> = new Set([
-  "home", "inv", "pipes", "acc", "journal", "stats",
-]);
+/** La MÊME porte que le dock — c'est tout l'intérêt de dériver : une entrée
+ *  ajoutée là-bas vaut ici sans qu'on y touche. */
+export type ChromeGate = DockGate;
 
-export interface ChromeGate {
-  showWishForm?: boolean | undefined;
-  editWishId?: unknown;
-  /** Les FICHES. Elles ne changent PAS de vue — `InventoryDetailView` se rend
-   *  sous `view === "inv"`, la fiche pipe sous `"pipes"`, l'accessoire sous
-   *  `"acc"` — ce sont des sous-états, pas des vues. Sans ces trois champs, une
-   *  fiche ouverte hérite donc du périmètre de sa liste et s'escamote, alors
-   *  que sa barre du haut porte un `IconBtn icon="back"` : la SEULE sortie.
-   *  C'est le défaut même pour lequel `catalog` est exclu, et il a été livré
-   *  sur trois pages avant d'être vu. */
-  detail?: unknown;
-  pipeDet?: unknown;
-  accDet?: unknown;
-}
-
-/** La vue courante autorise-t-elle l'escamotage ?
+/** L'escamotage s'applique EXACTEMENT LÀ OÙ LA CHROME EST AFFICHÉE.
  *
- *  La superposition de la liste d'envies recouvre l'écran comme un formulaire :
- *  tant qu'elle est ouverte, la chrome dessous ne doit pas bouger. C'est la
- *  même garde que `shouldShowDock`, et pour la même raison. */
+ *  C'est `shouldShowDock` — pas une seconde liste. Le critère est de
+ *  l'utilisateur, et il est meilleur que le mien : « toutes les pages où se
+ *  trouvent les menus ». Si les barres sont là, elles peuvent s'effacer ; si
+ *  elles n'y sont pas, la question ne se pose pas.
+ *
+ *  CE QUE LA DUPLICATION A COÛTÉ, ET POURQUOI ELLE DISPARAÎT. J'ai d'abord
+ *  tenu un `AUTO_HIDE_VIEWS` à la main, en parallèle de `NO_DOCK_VIEWS`. En
+ *  trois commits, il a produit TROIS chaînes fantômes — `"catalogue"` (la vue
+ *  s'appelle `catalog`), puis `"detail"`, `"pipeDet"`, `"accDet"` (des
+ *  sous-états, pas des vues) — dont la dernière a livré le défaut même que le
+ *  périmètre existait pour empêcher. Une liste d'identifiants recopiée
+ *  s'accorde toujours avec elle-même et jamais avec l'application. En dérivant
+ *  la décision, la classe entière disparaît : il n'y a plus d'identifiant à
+ *  écrire, donc plus d'identifiant à inventer.
+ *
+ *  MON OBJECTION D'ORIGINE ÉTAIT PLUS FAIBLE QUE JE NE L'AI DITE. J'excluais
+ *  les fiches et le catalogue parce que leur barre porte le bouton retour.
+ *  Mais ce bouton n'est PAS la seule sortie — `useBackNavigation` câble le
+ *  retour système (bouton matériel, geste de bord) et `decideBack` sait fermer
+ *  une fiche — et il n'est jamais absent plus d'une demi-seconde, puisque tout
+ *  mouvement vers le haut ET l'arrêt le ramènent.
+ *
+ *  RESTENT DEHORS, sans effort de notre part : la dégustation, les huit
+ *  formulaires plein écran, les quatre pages de documentation et la
+ *  superposition d'envies. Tous parce que le dock n'y est pas — donc il n'y a
+ *  rien à escamoter. */
 export function canAutoHideChrome(view: string, gate: ChromeGate = {}): boolean {
-  if (!AUTO_HIDE_VIEWS.has(view)) return false;
-  // Une superposition ou une fiche ouverte suspend l'escamotage : dans les deux
-  // cas ce qui est à l'écran n'est plus la liste, et la barre du haut n'y porte
-  // plus une icône décorative mais une sortie.
-  if (gate.showWishForm || gate.editWishId) return false;
-  if (gate.detail || gate.pipeDet || gate.accDet) return false;
-  return true;
+  return shouldShowDock(view, gate);
 }
 
 /** Zone haute où la chrome est TOUJOURS visible. Sans elle, un défilement

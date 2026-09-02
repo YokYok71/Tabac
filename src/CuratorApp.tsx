@@ -118,7 +118,7 @@ export function CuratorApp() {
   // la visibilité du dock garde UNE définition, à laquelle celle-ci s'ajoute.
   // Le périmètre (quatre racines de liste) et la règle vivent dans
   // `utils/chromeAutoHide.ts` ; ici on ne fait que les brancher.
-  const chromeHidden = useChromeAutoHide(canAutoHideChrome(view, { showWishForm, editWishId, detail, pipeDet, accDet }));
+  const chromeHidden = useChromeAutoHide(canAutoHideChrome(view, { showWishForm, editWishId }));
   const chromeMs = usePrefersReducedMotion() ? "0ms" : "220ms";
 
   // Filter out optional sections the user disabled in Settings (acc/journal/stats),

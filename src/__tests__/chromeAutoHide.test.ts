@@ -25,10 +25,10 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import {
-  canAutoHideChrome, nextChromeHidden, AUTO_HIDE_VIEWS,
+  canAutoHideChrome, nextChromeHidden,
   CHROME_REVEAL_TOP_PX, CHROME_HIDE_DELTA_PX, CHROME_MIN_OVERFLOW_RATIO,
 } from "../utils/chromeAutoHide";
-import { NO_DOCK_VIEWS } from "../utils/dockVisibility";
+import { shouldShowDock } from "../utils/dockVisibility";
 
 /** Une page franchement plus longue que l'écran, loin du sommet. */
 const LONGUE = { viewportH: 800, docH: 4000 };
@@ -61,72 +61,52 @@ function idsDeVueReels(): Set<string> {
   return out;
 }
 
-describe("canAutoHideChrome — le périmètre", () => {
+describe("canAutoHideChrome — le périmètre est celui du DOCK", () => {
   const REELS = idsDeVueReels();
 
-  it("aucun identifiant du périmètre n'est un FANTÔME", () => {
-    // La garde qui aurait attrapé « catalogue ». Un identifiant absent des
-    // vues ne désigne rien : la règle serait muette sur cette page, en silence.
-    expect(REELS.size, "aucune garde de vue lue — l'extraction est vide, donc creuse")
+  it("l'escamotage vaut EXACTEMENT là où la chrome est affichée", () => {
+    // L'ASSERTION QUI REMPLACE UNE LISTE, et qui supprime une classe de bug
+    // entière. J'ai tenu un `AUTO_HIDE_VIEWS` à la main pendant trois commits ;
+    // il a produit TROIS chaînes fantômes — « catalogue » (la vue est
+    // `catalog`), puis « detail »/« pipeDet »/« accDet » (des sous-états, pas
+    // des vues) — dont la dernière a livré le défaut que le périmètre existait
+    // pour empêcher. Une liste recopiée s'accorde toujours avec elle-même.
+    // Ici on ne compare plus à une liste : on compare les DEUX décisions sur
+    // tous les identifiants que l'application déclare, et sur les deux états de
+    // la superposition d'envies.
+    expect(REELS.size, "aucun identifiant lu — la comparaison serait creuse")
       .toBeGreaterThan(10);
-    const fantomes = [...AUTO_HIDE_VIEWS].filter((v) => !REELS.has(v));
-    expect(fantomes, "des identifiants du périmètre ne correspondent à aucune vue").toEqual([]);
+    const desaccords: string[] = [];
+    for (const v of REELS) {
+      for (const g of [{}, { showWishForm: true }, { editWishId: 7 }]) {
+        if (canAutoHideChrome(v, g) !== shouldShowDock(v, g)) desaccords.push(v + " " + JSON.stringify(g));
+      }
+    }
+    expect(desaccords, "l'escamotage et le dock ne s'accordent plus").toEqual([]);
   });
 
-  it("les SIX racines escamotent", () => {
-    // Le critère est « la barre du haut ne porte aucune sortie », PAS « c'est
-    // une liste » — c'est en énonçant l'un et en appliquant l'autre que
-    // `stats` et `home` sont restés dehors à tort au premier jet.
-    for (const v of ["home", "inv", "pipes", "acc", "journal", "stats"]) {
+  it("les pages QUI PORTENT les menus escamotent — fiches et catalogue compris", () => {
+    // Le critère est de l'utilisateur : « toutes les pages où se trouvent les
+    // menus ». Le catalogue en fait partie, et les fiches aussi — elles ne
+    // changent pas de vue, elles se rendent sous `inv`/`pipes`/`acc`, donc
+    // elles sont couvertes par leur liste sans clause supplémentaire.
+    for (const v of ["home", "inv", "pipes", "acc", "journal", "stats", "catalog"]) {
+      expect(REELS.has(v), `« ${v} » n'est pas un identifiant de vue réel`).toBe(true);
       expect(canAutoHideChrome(v), v).toBe(true);
     }
   });
 
-  it("le CATALOGUE n'escamote pas — sa barre porte le bouton retour", () => {
-    // `catalog`, l'identifiant RÉEL (voir la note ci-dessus).
-    expect(REELS.has("catalog"), "la vue catalogue a changé d'identifiant").toBe(true);
-    expect(canAutoHideChrome("catalog")).toBe(false);
-  });
-
-  it("UNE FICHE OUVERTE suspend l'escamotage — elle ne change pas de vue", () => {
-    // LE DÉFAUT QUE CE CAS AURAIT DÛ ATTRAPER, ET QU'IL A LAISSÉ PASSER.
-    // La version précédente assertait `canAutoHideChrome("detail")`,
-    // `"pipeDet"`, `"accDet"` — TROIS chaînes qui ne sont pas des identifiants
-    // de vue. Les fiches ne changent PAS `view` : `InventoryDetailView` se rend
-    // sous `view === "inv"`, la fiche pipe sous `"pipes"`, l'accessoire sous
-    // `"acc"`. Le cas mesurait donc trois valeurs impossibles pendant que la
-    // vraie situation — une fiche ouverte sur sa liste — escamotait la barre
-    // qui porte son `IconBtn icon="back"`, c'est-à-dire la seule sortie.
-    // C'est le défaut même pour lequel `catalog` est exclu.
-    expect(canAutoHideChrome("inv", { detail: { id: 1 } })).toBe(false);
-    expect(canAutoHideChrome("pipes", { pipeDet: { id: 2 } })).toBe(false);
-    expect(canAutoHideChrome("acc", { accDet: { id: 3 } })).toBe(false);
-    // La non-vacuité : les MÊMES vues, fiche fermée, escamotent bien. Sans
-    // elle, une règle qui refuse toujours passerait les trois lignes ci-dessus.
-    expect(canAutoHideChrome("inv", { detail: null })).toBe(true);
-    expect(canAutoHideChrome("pipes", { pipeDet: null })).toBe(true);
-    expect(canAutoHideChrome("acc", { accDet: null })).toBe(true);
-  });
-
-  it("ni la dégustation, ni les pages de doc — et ce sont de VRAIS identifiants", () => {
-    const vues = ["tasting", "help", "changelog", "privacy", "licenses"];
-    for (const v of vues) {
+  it("les pages SANS menus n'escamotent pas — il n'y a rien à effacer", () => {
+    for (const v of ["tasting", "addT", "editT", "addP", "editP", "addA", "editA",
+                     "addJ", "editJ", "help", "changelog", "privacy", "licenses"]) {
       expect(REELS.has(v), `« ${v} » n'est pas un identifiant de vue réel`).toBe(true);
       expect(canAutoHideChrome(v), v).toBe(false);
     }
   });
 
-  it("aucun formulaire plein écran n'escamote", () => {
-    // Ils prennent l'écran et leur barre porte l'action d'enregistrement.
-    // Dérivé de `NO_DOCK_VIEWS` plutôt que réécrit : une vue ajoutée là-bas
-    // doit rester exclue ici, et une liste recopiée s'accorderait toujours
-    // avec elle-même.
-    const communes = [...AUTO_HIDE_VIEWS].filter((v) => NO_DOCK_VIEWS.has(v));
-    expect(communes, "une vue est à la fois sans dock et escamotable").toEqual([]);
-  });
-
   it("la superposition d'envies suspend l'escamotage", () => {
-    // Elle recouvre l'écran comme un formulaire : même garde que le dock.
+    // Elle recouvre l'écran comme un formulaire — et comme elle masque déjà le
+    // dock, la dérivation le donne gratuitement.
     expect(canAutoHideChrome("inv", { showWishForm: true })).toBe(false);
     expect(canAutoHideChrome("inv", { editWishId: 42 })).toBe(false);
     expect(canAutoHideChrome("inv", { showWishForm: false, editWishId: null })).toBe(true);
@@ -196,11 +176,16 @@ describe("…et la coquille BRANCHE bien la règle", () => {
     expect(shell).toContain("shouldShowDock(view,");
     expect(shell).toContain("canAutoHideChrome(view,");
     expect(shell).toContain("useChromeAutoHide(");
-    // LE CÂBLAGE DES SOUS-ÉTATS. La règle peut refuser parfaitement sur une
-    // fiche et la coquille ne jamais lui dire qu'une fiche est ouverte : c'est
-    // ainsi que le défaut a été livré.
-    expect(shell, "la coquille ne transmet pas les fiches à la règle")
-      .toMatch(/canAutoHideChrome\(view,\s*\{[^}]*detail[^}]*pipeDet[^}]*accDet[^}]*\}\)/);
+    // LA MÊME PORTE AUX DEUX APPELS. La dérivation ne vaut que si le site
+    // d'appel donne aux deux fonctions le MÊME état : leur passer des portes
+    // différentes les ferait diverger malgré une règle dérivée, et ce serait
+    // d'autant plus difficile à voir que le code aurait l'air correct.
+    const porte = (re: RegExp) => (shell.match(re) || [])[1];
+    const gDock = porte(/shouldShowDock\(view,\s*(\{[^}]*\})/);
+    const gChrome = porte(/canAutoHideChrome\(view,\s*(\{[^}]*\})/);
+    expect(gDock, "appel à shouldShowDock introuvable").toBeTruthy();
+    expect(gChrome, "appel à canAutoHideChrome introuvable").toBeTruthy();
+    expect(gChrome, "le dock et l'escamotage ne reçoivent pas le même état").toBe(gDock);
   });
 
   it("la barre du haut ET le dock reçoivent l'escamotage", () => {
