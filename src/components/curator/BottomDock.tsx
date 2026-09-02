@@ -105,8 +105,10 @@ export function BottomDock({ active, onNav, accent = C.brass, items = DOCK_ITEMS
       // gagné à la main. On descend de 140 % plutôt que 100 % pour emporter
       // aussi l'ombre portée et la marge de sécurité du bas d'écran.
       transform: hidden ? "translateZ(0) translateY(140%)" : "translateZ(0)",
+      // PAS de `will-change` ici non plus : le `translateZ(0)` ci-dessus promeut
+      // DÉJÀ cette bande, et c'est une promotion voulue, argumentée. En ajouter
+      // une seconde ne fait que garder une couche de plus en vie.
       transition: `transform ${motionMs} cubic-bezier(0.22, 1, 0.36, 1)`,
-      willChange: "transform",
     }}>
       <div style={{
         margin: "0 12px",

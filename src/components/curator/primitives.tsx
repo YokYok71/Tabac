@@ -762,8 +762,14 @@ export function TopBar({
       // sous le doigt, et sa HAUTEUR est inchangée — ce dont dépend la seule
       // mesure qui la lit (`data-topbar`, la révélation d'une envie).
       transform: "var(--chrome-shift, none)",
+      // PAS de `will-change` : c'est une promotion de couche PERMANENTE, et
+      // cette barre est déjà floutée et collante — exactement le type de chrome
+      // sur lequel ce dépôt a documenté une dérive de rendu iOS. Une
+      // translation de 220 ms sur un élément simple n'a besoin d'aucun indice.
+      // (`will-change` figure aussi dans la liste des propriétés créant un bloc
+      // conteneur : en poser un de plus dans la colonne ne se justifie que par
+      // un gain, et il n'y en a pas.)
       transition: "transform var(--chrome-ms, 220ms) cubic-bezier(0.22, 1, 0.36, 1)",
-      willChange: "transform",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
         {leading}
