@@ -23,7 +23,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import {
   canAutoHideChrome, nextChromeHidden, AUTO_HIDE_VIEWS,
   CHROME_REVEAL_TOP_PX, CHROME_HIDE_DELTA_PX, CHROME_MIN_OVERFLOW_RATIO,
@@ -34,23 +34,59 @@ import { NO_DOCK_VIEWS } from "../utils/dockVisibility";
 const LONGUE = { viewportH: 800, docH: 4000 };
 const BAS = CHROME_REVEAL_TOP_PX + 500;
 
+/** Les identifiants de vue RÉELS, extraits des vues elles-mêmes.
+ *
+ *  ÉCRIT APRÈS UN TEST CREUX, ET C'EST LA RAISON DE CETTE DÉRIVATION. La
+ *  première version de ce fichier assertait `canAutoHideChrome("catalogue")`
+ *  — or la vue s'appelle `catalog`. Le cas passait donc pour une mauvaise
+ *  raison : il mesurait une chaîne qui n'existe NULLE PART dans l'application,
+ *  et il serait resté vert même si le vrai `catalog` avait été ajouté au
+ *  périmètre. C'est l'exclusion la plus importante du lot (sa barre porte
+ *  l'unique sortie) et elle n'était gardée par rien.
+ *
+ *  Une liste réécrite à la main aurait le même défaut. On lit donc les gardes
+ *  des vues (`view !== "x"` / `view === "x"`) : un identifiant qui ne s'y
+ *  trouve pas n'existe pas. */
+function idsDeVueReels(): Set<string> {
+  const out = new Set<string>();
+  for (const f of readdirSync("src/views/curator")) {
+    if (!f.endsWith(".tsx")) continue;
+    const src = readFileSync("src/views/curator/" + f, "utf8");
+    for (const m of src.matchAll(/view\s*[!=]==\s*"([a-zA-Z]+)"/g)) out.add(m[1]!);
+  }
+  return out;
+}
+
 describe("canAutoHideChrome — le périmètre", () => {
-  it("les quatre racines de liste escamotent", () => {
-    for (const v of ["inv", "pipes", "journal", "acc"]) {
+  const REELS = idsDeVueReels();
+
+  it("aucun identifiant du périmètre n'est un FANTÔME", () => {
+    // La garde qui aurait attrapé « catalogue ». Un identifiant absent des
+    // vues ne désigne rien : la règle serait muette sur cette page, en silence.
+    expect(REELS.size, "aucune garde de vue lue — l'extraction est vide, donc creuse")
+      .toBeGreaterThan(10);
+    const fantomes = [...AUTO_HIDE_VIEWS].filter((v) => !REELS.has(v));
+    expect(fantomes, "des identifiants du périmètre ne correspondent à aucune vue").toEqual([]);
+  });
+
+  it("les SIX racines escamotent", () => {
+    // Le critère est « la barre du haut ne porte aucune sortie », PAS « c'est
+    // une liste » — c'est en énonçant l'un et en appliquant l'autre que
+    // `stats` et `home` sont restés dehors à tort au premier jet.
+    for (const v of ["home", "inv", "pipes", "acc", "journal", "stats"]) {
       expect(canAutoHideChrome(v), v).toBe(true);
     }
   });
 
   it("le CATALOGUE n'escamote pas — sa barre porte le bouton retour", () => {
-    // La distinction qui a fixé le périmètre : sur les quatre racines le
-    // `leading` de la TopBar est une icône décorative, sur `catalogue` c'est
-    // un `IconBtn icon="back"` qui appelle `nav("inv")`.
-    expect(canAutoHideChrome("catalogue")).toBe(false);
+    // `catalog`, l'identifiant RÉEL (voir la note ci-dessus).
+    expect(REELS.has("catalog"), "la vue catalogue a changé d'identifiant").toBe(true);
+    expect(canAutoHideChrome("catalog")).toBe(false);
   });
 
-  it("ni le Home, ni les fiches, ni la dégustation, ni les pages de doc", () => {
-    for (const v of ["home", "detail", "pipeDet", "accDet", "tasting",
-                     "stats", "help", "changelog", "privacy", "licenses"]) {
+  it("ni les fiches, ni la dégustation, ni les pages de doc", () => {
+    for (const v of ["detail", "pipeDet", "accDet", "tasting",
+                     "help", "changelog", "privacy", "licenses"]) {
       expect(canAutoHideChrome(v), v).toBe(false);
     }
   });
@@ -145,6 +181,17 @@ describe("…et la coquille BRANCHE bien la règle", () => {
       .toContain("--chrome-shift");
     expect(shell, "le dock ne reçoit pas hidden — il est en portail, il ne peut pas hériter")
       .toMatch(/hidden=\{chromeHidden\}/);
+  });
+
+  it("le Home a son PROPRE en-tête, et il honore la variable lui aussi", () => {
+    // `HomeViewV2` n'utilise pas le primitif `TopBar` : elle bâtit son en-tête
+    // à la main, avec la même recette collante et floutée. C'est donc un SECOND
+    // site d'appel, invisible depuis `primitives.tsx` — et le genre d'endroit
+    // où une fonctionnalité s'arrête sans que rien ne le dise. Elle hérite de
+    // `--chrome-shift` parce que son en-tête est un descendant de `<main>`.
+    const home = readFileSync("src/views/curator/HomeViewV2.tsx", "utf8");
+    expect(home, "l'en-tête du Home n'honore pas --chrome-shift : la page ne s'escamote pas")
+      .toContain("var(--chrome-shift, none)");
   });
 
   it("la TopBar honore la variable, et le dock COMPOSE son translateZ", () => {

@@ -586,7 +586,7 @@ export function CuratorHomeViewV2() {
             primitive), so the row never slides under the iOS notch. It is
             STICKY (same frosted recipe as the shared TopBar / FormScreen) so
             the masthead stays visible while the Home scrolls under it. */}
-        <div style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 14px)", paddingLeft: 18, paddingRight: 14, paddingBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 20, background: `linear-gradient(180deg, ${C.bg}, ${alpha(C.bg, "cc")})`, backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}>
+        <div style={{ paddingTop: "max(env(safe-area-inset-top, 0px), 14px)", paddingLeft: 18, paddingRight: 14, paddingBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 20, background: `linear-gradient(180deg, ${C.bg}, ${alpha(C.bg, "cc")})`, backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", transform: "var(--chrome-shift, none)", transition: "transform var(--chrome-ms, 220ms) cubic-bezier(0.22, 1, 0.36, 1)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <Orn color={C.brass} />
             <span style={{ fontFamily: F.display, fontStyle: "italic", fontSize: fs(17), color: C.title, letterSpacing: 0.2 }}>{t ? t("app_name") : "Ma Cave à Tabac"}</span>

@@ -20,9 +20,21 @@
 // amener une envie sous elle. Une TRANSLATION ne change pas une hauteur (un
 // `scaleY` l'aurait changée) : la mesure reste juste, barre visible ou non.
 
-/** Les vues où la chrome s'escamote. Racines de liste uniquement. */
+/** Les vues où la chrome s'escamote : les SIX racines, celles que le dock
+ *  atteint. Le critère n'est pas « une liste » mais « la barre du haut ne porte
+ *  aucune sortie » — et il a fallu un retour d'usage pour que je l'applique
+ *  vraiment. La première version disait « les quatre racines de LISTE » et
+ *  laissait dehors `stats` et `home` sans autre raison que ce mot : or le
+ *  `leading` de `StatsView` est un ornement décoratif, exactement comme les
+ *  quatre autres, et le Home a son propre en-tête collant bâti sur la même
+ *  recette. Énoncer un critère puis appliquer un autre est la façon la plus
+ *  discrète de se tromper.
+ *
+ *  RESTE DEHORS, ET POUR LE CRITÈRE : `catalog` — sa barre porte un vrai
+ *  `IconBtn icon="back"` vers l'inventaire. Ainsi que les formulaires, les
+ *  fiches, la dégustation et les pages de documentation. */
 export const AUTO_HIDE_VIEWS: ReadonlySet<string> = new Set([
-  "inv", "pipes", "journal", "acc",
+  "home", "inv", "pipes", "acc", "journal", "stats",
 ]);
 
 export interface ChromeGate {
