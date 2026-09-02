@@ -36,9 +36,18 @@ export interface BottomDockProps {
    *  item labels — this component takes already-translated strings and has no
    *  access to `t` (deliberate: it is a pure presentational primitive). */
   navLabel?: string | undefined;
+  /** Durée de la transition d'escamotage — "0ms" quand l'utilisateur
+   *  demande moins de mouvement. Passée IN, comme les libellés : ce primitif
+   *  ne lit ni contexte ni media query. */
+  motionMs?: string | undefined;
+  /** Escamotage au défilement. Le dock est monté en PORTAIL sur `document.body`,
+   *  donc il n'hérite pas de la propriété personnalisée que la coquille pose
+   *  pour la TopBar — il faut la lui passer. La décision reste unique et vit
+   *  dans `utils/chromeAutoHide.ts`. */
+  hidden?: boolean | undefined;
 }
 
-export function BottomDock({ active, onNav, accent = C.brass, items = DOCK_ITEMS, navLabel = "Sections" }: BottomDockProps) {
+export function BottomDock({ active, onNav, accent = C.brass, items = DOCK_ITEMS, navLabel = "Sections", hidden = false, motionMs = "220ms" }: BottomDockProps) {
   const activeIdx = items.findIndex(it => it.id === active);
   return (
     <div style={{
@@ -90,7 +99,14 @@ export function BottomDock({ active, onNav, accent = C.brass, items = DOCK_ITEMS
       // the installed PWA, the glass is still blurred. WebKit does not treat
       // this transform as a backdrop root, so promoting the outer strip is
       // compatible with a backdrop-filter on the pill inside it.
-      transform: "translateZ(0)",
+      // LE `translateZ(0)` EST COMPOSÉ, PAS REMPLACÉ : il est là délibérément
+      // pour que le flou d'arrière-plan garde sa racine (voir la note
+      // au-dessus), donc l'écrire seul en le perdant casserait un invariant
+      // gagné à la main. On descend de 140 % plutôt que 100 % pour emporter
+      // aussi l'ombre portée et la marge de sécurité du bas d'écran.
+      transform: hidden ? "translateZ(0) translateY(140%)" : "translateZ(0)",
+      transition: `transform ${motionMs} cubic-bezier(0.22, 1, 0.36, 1)`,
+      willChange: "transform",
     }}>
       <div style={{
         margin: "0 12px",

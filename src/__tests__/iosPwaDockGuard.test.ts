@@ -117,8 +117,26 @@ describe("iOS-PWA floating-dock guardrails", () => {
   // — which is what the user reported. Retired.
   it("the fixed strip is promoted to its own layer (see comment)", () => {
     const src = read("src/components/curator/BottomDock.tsx");
-    expect(src, "the outer position:fixed strip carries a compositing promotion")
-      .toMatch(/transform:\s*["']translateZ\(0\)["']/);
+    // L'ASSERTION ÉPINGLAIT UNE ORTHOGRAPHE, PAS LA PROPRIÉTÉ, et l'escamotage
+    // au défilement l'a révélé : la ligne est devenue un ternaire
+    // (`hidden ? "translateZ(0) translateY(140%)" : "translateZ(0)"`) et le
+    // motif `transform: "translateZ(0)"` a cessé de correspondre — alors que la
+    // promotion était toujours là, dans les DEUX branches. Un test qui rougit
+    // sur une réécriture équivalente fait supprimer du code correct.
+    //
+    // Ce qui compte est : quel que soit l'état du dock, la bande extérieure
+    // porte la promotion. On lit donc TOUS les états possibles de la ligne et
+    // on exige que chacun la porte — ce qui est strictement plus fort que
+    // l'ancien motif, puisqu'un ternaire dont une seule branche l'oubliait
+    // passait avant de ne plus rien correspondre.
+    const tfLine = (src.match(/^\s*transform:.*$/m) || [""])[0];
+    const etats = tfLine.match(/"[^"]*"/g) || [];
+    expect(etats.length, "aucun état lisible sur la ligne transform de la bande")
+      .toBeGreaterThan(0);
+    for (const e of etats) {
+      expect(e, "un état du dock perd la promotion de couche : " + e)
+        .toContain("translateZ(0)");
+    }
     // The promotion belongs on the OUTER strip, never on the pill: on the pill
     // it would sit between the backdrop-filter and its backdrop, which is the
     // exact risk the property is already suspected of carrying.

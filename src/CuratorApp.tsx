@@ -7,6 +7,8 @@ import { useAppCtx } from "./AppContext.tsx";
 import { C, F, DOCK_ACCENT, fs } from "./theme-curator.ts";
 import { BottomDock, DOCK_ITEMS } from "./components/curator/BottomDock.tsx";
 import { shouldShowDock } from "./utils/dockVisibility.ts";
+import { canAutoHideChrome } from "./utils/chromeAutoHide.ts";
+import { useChromeAutoHide, usePrefersReducedMotion } from "./hooks/useChromeAutoHide.ts";
 
 import { CuratorHomeViewV2 }            from "./views/curator/HomeViewV2.tsx";
 import { CuratorInventoryListView }     from "./views/curator/InventoryListView.tsx";
@@ -112,6 +114,13 @@ export function CuratorApp() {
   // when the wishlist form is taking over the screen. See dockVisibility.ts.
   const showDock = shouldShowDock(view, { showWishForm, editWishId });
 
+  // Escamotage au défilement — composé AVEC `showDock`, jamais en parallèle :
+  // la visibilité du dock garde UNE définition, à laquelle celle-ci s'ajoute.
+  // Le périmètre (quatre racines de liste) et la règle vivent dans
+  // `utils/chromeAutoHide.ts` ; ici on ne fait que les brancher.
+  const chromeHidden = useChromeAutoHide(canAutoHideChrome(view, { showWishForm, editWishId }));
+  const chromeMs = usePrefersReducedMotion() ? "0ms" : "220ms";
+
   // Filter out optional sections the user disabled in Settings (acc/journal/stats),
   // then translate each label via a "dock_<id>" i18n key so every UI language
   // is covered (es/de/it previously fell back to French labels).
@@ -178,6 +187,12 @@ export function CuratorApp() {
           // tasting banner is offset by `topInset` so it sits below whichever
           // top banner is up, instead of the two sharing one rectangle.
           paddingTop: (topBannerH + bannerH) || undefined,
+          // La TopBar est un PRIMITIF partagé par toutes les vues, y compris
+          // les formulaires : elle ne peut donc pas décider elle-même de
+          // s'escamoter. La coquille pose une propriété personnalisée que la
+          // barre se contente d'honorer — un seul endroit décide, et sur les
+          // vues non éligibles la variable vaut `none`, donc rien ne bouge.
+          ...({ "--chrome-shift": chromeHidden ? "translateY(-100%)" : "none", "--chrome-ms": chromeMs } as React.CSSProperties),
         }}>
           {/* List & detail views — each returns null when not active.
               HomeViewV2 is the sole Home (the classic HomeView was
@@ -225,6 +240,8 @@ export function CuratorApp() {
               intact. Locked by src/__tests__/curator/dockPortal.test.tsx. */}
           {showDock && typeof document !== "undefined" && createPortal(
             <BottomDock
+              hidden={chromeHidden}
+              motionMs={chromeMs}
               active={dockId}
               onNav={(id) => {
                 // IOS-style "tap active tab to scroll to top".

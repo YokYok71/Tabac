@@ -752,6 +752,18 @@ export function TopBar({
       position: "sticky", top: 0, zIndex: 20,
       background: `linear-gradient(180deg, ${C.bg}, ${alpha(C.bg, "cc")})`,
       backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+      // Escamotage au défilement. La barre n'en décide RIEN : elle honore une
+      // propriété personnalisée que la coquille pose (`--chrome-shift`), et
+      // qui vaut `none` partout où l'escamotage ne s'applique pas — donc ce
+      // primitif reste identique sur les formulaires et les fiches.
+      //
+      // UNE TRANSLATION, ET C'EST CE QUI REND L'OPÉRATION SÛRE : l'élément
+      // garde sa place dans le flux, donc le contenu ne saute pas d'un pixel
+      // sous le doigt, et sa HAUTEUR est inchangée — ce dont dépend la seule
+      // mesure qui la lit (`data-topbar`, la révélation d'une envie).
+      transform: "var(--chrome-shift, none)",
+      transition: "transform var(--chrome-ms, 220ms) cubic-bezier(0.22, 1, 0.36, 1)",
+      willChange: "transform",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
         {leading}
