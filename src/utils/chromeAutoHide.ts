@@ -40,6 +40,16 @@ export const AUTO_HIDE_VIEWS: ReadonlySet<string> = new Set([
 export interface ChromeGate {
   showWishForm?: boolean | undefined;
   editWishId?: unknown;
+  /** Les FICHES. Elles ne changent PAS de vue — `InventoryDetailView` se rend
+   *  sous `view === "inv"`, la fiche pipe sous `"pipes"`, l'accessoire sous
+   *  `"acc"` — ce sont des sous-états, pas des vues. Sans ces trois champs, une
+   *  fiche ouverte hérite donc du périmètre de sa liste et s'escamote, alors
+   *  que sa barre du haut porte un `IconBtn icon="back"` : la SEULE sortie.
+   *  C'est le défaut même pour lequel `catalog` est exclu, et il a été livré
+   *  sur trois pages avant d'être vu. */
+  detail?: unknown;
+  pipeDet?: unknown;
+  accDet?: unknown;
 }
 
 /** La vue courante autorise-t-elle l'escamotage ?
@@ -48,7 +58,13 @@ export interface ChromeGate {
  *  tant qu'elle est ouverte, la chrome dessous ne doit pas bouger. C'est la
  *  même garde que `shouldShowDock`, et pour la même raison. */
 export function canAutoHideChrome(view: string, gate: ChromeGate = {}): boolean {
-  return AUTO_HIDE_VIEWS.has(view) && !gate.showWishForm && !gate.editWishId;
+  if (!AUTO_HIDE_VIEWS.has(view)) return false;
+  // Une superposition ou une fiche ouverte suspend l'escamotage : dans les deux
+  // cas ce qui est à l'écran n'est plus la liste, et la barre du haut n'y porte
+  // plus une icône décorative mais une sortie.
+  if (gate.showWishForm || gate.editWishId) return false;
+  if (gate.detail || gate.pipeDet || gate.accDet) return false;
+  return true;
 }
 
 /** Zone haute où la chrome est TOUJOURS visible. Sans elle, un défilement

@@ -53,6 +53,10 @@ function idsDeVueReels(): Set<string> {
     if (!f.endsWith(".tsx")) continue;
     const src = readFileSync("src/views/curator/" + f, "utf8");
     for (const m of src.matchAll(/view\s*[!=]==\s*"([a-zA-Z]+)"/g)) out.add(m[1]!);
+    // Les pages de documentation ne se gardent pas par `view !== "x"` : elles
+    // passent par un registre et sont atteintes par `nav("changelog")`. Sans
+    // cette seconde source, elles compteraient comme des fantômes.
+    for (const m of src.matchAll(/nav\(\s*"([a-zA-Z]+)"/g)) out.add(m[1]!);
   }
   return out;
 }
@@ -84,9 +88,30 @@ describe("canAutoHideChrome — le périmètre", () => {
     expect(canAutoHideChrome("catalog")).toBe(false);
   });
 
-  it("ni les fiches, ni la dégustation, ni les pages de doc", () => {
-    for (const v of ["detail", "pipeDet", "accDet", "tasting",
-                     "help", "changelog", "privacy", "licenses"]) {
+  it("UNE FICHE OUVERTE suspend l'escamotage — elle ne change pas de vue", () => {
+    // LE DÉFAUT QUE CE CAS AURAIT DÛ ATTRAPER, ET QU'IL A LAISSÉ PASSER.
+    // La version précédente assertait `canAutoHideChrome("detail")`,
+    // `"pipeDet"`, `"accDet"` — TROIS chaînes qui ne sont pas des identifiants
+    // de vue. Les fiches ne changent PAS `view` : `InventoryDetailView` se rend
+    // sous `view === "inv"`, la fiche pipe sous `"pipes"`, l'accessoire sous
+    // `"acc"`. Le cas mesurait donc trois valeurs impossibles pendant que la
+    // vraie situation — une fiche ouverte sur sa liste — escamotait la barre
+    // qui porte son `IconBtn icon="back"`, c'est-à-dire la seule sortie.
+    // C'est le défaut même pour lequel `catalog` est exclu.
+    expect(canAutoHideChrome("inv", { detail: { id: 1 } })).toBe(false);
+    expect(canAutoHideChrome("pipes", { pipeDet: { id: 2 } })).toBe(false);
+    expect(canAutoHideChrome("acc", { accDet: { id: 3 } })).toBe(false);
+    // La non-vacuité : les MÊMES vues, fiche fermée, escamotent bien. Sans
+    // elle, une règle qui refuse toujours passerait les trois lignes ci-dessus.
+    expect(canAutoHideChrome("inv", { detail: null })).toBe(true);
+    expect(canAutoHideChrome("pipes", { pipeDet: null })).toBe(true);
+    expect(canAutoHideChrome("acc", { accDet: null })).toBe(true);
+  });
+
+  it("ni la dégustation, ni les pages de doc — et ce sont de VRAIS identifiants", () => {
+    const vues = ["tasting", "help", "changelog", "privacy", "licenses"];
+    for (const v of vues) {
+      expect(REELS.has(v), `« ${v} » n'est pas un identifiant de vue réel`).toBe(true);
       expect(canAutoHideChrome(v), v).toBe(false);
     }
   });
@@ -171,6 +196,11 @@ describe("…et la coquille BRANCHE bien la règle", () => {
     expect(shell).toContain("shouldShowDock(view,");
     expect(shell).toContain("canAutoHideChrome(view,");
     expect(shell).toContain("useChromeAutoHide(");
+    // LE CÂBLAGE DES SOUS-ÉTATS. La règle peut refuser parfaitement sur une
+    // fiche et la coquille ne jamais lui dire qu'une fiche est ouverte : c'est
+    // ainsi que le défaut a été livré.
+    expect(shell, "la coquille ne transmet pas les fiches à la règle")
+      .toMatch(/canAutoHideChrome\(view,\s*\{[^}]*detail[^}]*pipeDet[^}]*accDet[^}]*\}\)/);
   });
 
   it("la barre du haut ET le dock reçoivent l'escamotage", () => {
