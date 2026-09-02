@@ -63,8 +63,19 @@ export function canAutoHideChrome(view: string, gate: ChromeGate = {}): boolean 
  *  encore rien gagné en place. */
 export var CHROME_REVEAL_TOP_PX = 80;
 
-/** Descente cumulée à partir de laquelle on masque. Assez pour qu'un
- *  tremblement de doigt ou le rebond iOS ne déclenche rien. */
+/** Descente CUMULÉE, sur une même course, à partir de laquelle on masque.
+ *  Assez pour qu'un tremblement de doigt ou le rebond iOS ne déclenche rien.
+ *
+ *  « CUMULÉE » EST LE MOT QUI MANQUAIT, ET SON ABSENCE ÉTAIT UN DÉFAUT LIVRÉ.
+ *  Le commentaire disait déjà « cumulée » ; le code comparait le déplacement
+ *  d'UNE TRAME. Or `useChromeAutoHide` ne mesure qu'une fois par trame, donc le
+ *  seuil était devenu, sans que rien ne le dise, une VITESSE : 12 px par trame,
+ *  soit ~720 px/s. Un geste vif la dépasse, un glissement posé — celui qu'on
+ *  fait en lisant — ne l'atteint jamais. D'où le rapport « quand je swipe vers
+ *  le haut ça ne se masque pas » : la fonctionnalité marchait pour qui jetait
+ *  la liste et restait absente pour qui la lisait. Le seuil est maintenant
+ *  mesuré depuis le début de la course en cours (voir `nextChromeState`), donc
+ *  quatre trames à 3 px masquent comme une trame à 13 px. */
 export var CHROME_HIDE_DELTA_PX = 12;
 
 /** Il faut au moins ce multiple de la hauteur d'écran À DÉFILER pour que
@@ -79,31 +90,75 @@ export var CHROME_MIN_OVERFLOW_RATIO = 0.75;
  *  seule en moins d'une seconde, sans qu'il faille deviner le geste. */
 export var CHROME_IDLE_REVEAL_MS = 500;
 
+/** Ce qu'une trame MESURE. Aucune position antérieure ici : le passé est dans
+ *  l'état, pas dans la mesure. */
 export interface ScrollMetrics {
   scrollY: number;
-  prevScrollY: number;
   viewportH: number;
   docH: number;
 }
 
-/** LA RÈGLE. Rendue par `nextChromeHidden(étatPrécédent, mesures)`.
+/** Ce que la règle RETIENT d'une trame à l'autre.
+ *
+ *  DEUX REPÈRES, ET IL EN FAUT BIEN DEUX — c'est là qu'était le défaut. Avec la
+ *  seule position précédente, on ne peut lire qu'une VITESSE ; avec le seul
+ *  point d'ancrage, on ne peut plus lire un RETOURNEMENT (descendu de 100 px
+ *  puis remonté de 5, le cumul reste +95 et la barre ne reviendrait pas, alors
+ *  que la remontée immédiate est la moitié de la règle sur laquelle
+ *  l'utilisateur compte). Donc :
+ *
+ *   - `lastY`   : la dernière position mesurée. Sert à lire la DIRECTION.
+ *   - `anchorY` : l'endroit où la course en cours a commencé. Sert à lire la
+ *                 QUANTITÉ parcourue depuis, dans cette direction. Il est
+ *                 remis à `lastY` à chaque retournement — ce qui fait
+ *                 exactement du cumul « depuis le dernier changement de sens ». */
+export interface ChromeScrollState {
+  hidden: boolean;
+  anchorY: number;
+  lastY: number;
+}
+
+/** État de départ, et aussi état de RETOUR : révéler, c'est repartir d'ici.
+ *  Le minuteur d'immobilité s'en sert pour que la course suivante se mesure
+ *  depuis la position actuelle et non depuis un ancrage périmé. */
+export function initialChromeScrollState(scrollY: number): ChromeScrollState {
+  return { hidden: false, anchorY: scrollY, lastY: scrollY };
+}
+
+/** LA RÈGLE. Rendue par `nextChromeState(étatPrécédent, mesures)`.
  *
  *  L'ordre des clauses EST la règle, et chacune l'emporte sur les suivantes :
  *
  *   1. page trop courte  → visible (rien à gagner)
  *   2. près du sommet    → visible (on n'a encore rien gagné)
- *   3. mouvement vers le haut, si petit soit-il → visible, IMMÉDIATEMENT
- *   4. descente franche  → masqué
+ *   3. course vers le haut, si courte soit-elle → visible, IMMÉDIATEMENT
+ *   4. course vers le bas au-delà du seuil → masqué
  *   5. sinon             → on garde l'état, pour ne pas osciller sur le bruit
  *
  *  La clause 3 avant la 4 est ce qui rend la remontée fiable : c'est le geste
  *  par lequel l'utilisateur redemande la recherche et les filtres, et il doit
- *  aboutir avant qu'il n'y arrive. */
-export function nextChromeHidden(prevHidden: boolean, m: ScrollMetrics): boolean {
-  if (!(m.docH - m.viewportH > m.viewportH * CHROME_MIN_OVERFLOW_RATIO)) return false;
-  if (m.scrollY <= CHROME_REVEAL_TOP_PX) return false;
-  var delta = m.scrollY - m.prevScrollY;
-  if (delta < 0) return false;
-  if (delta > CHROME_HIDE_DELTA_PX) return true;
-  return prevHidden;
+ *  aboutir avant qu'il n'y arrive.
+ *
+ *  Les clauses 1 et 2 REPARTENT DE ZÉRO plutôt que de simplement rendre
+ *  `false` : une course entamée dans une zone où l'on ne masque pas ne doit pas
+ *  compter pour la suivante, sinon revenir au sommet puis redescendre de 2 px
+ *  masquerait d'un coup. */
+export function nextChromeState(s: ChromeScrollState, m: ScrollMetrics): ChromeScrollState {
+  if (!(m.docH - m.viewportH > m.viewportH * CHROME_MIN_OVERFLOW_RATIO)) {
+    return initialChromeScrollState(m.scrollY);
+  }
+  if (m.scrollY <= CHROME_REVEAL_TOP_PX) return initialChromeScrollState(m.scrollY);
+
+  var step = m.scrollY - s.lastY;
+  var anchorY = s.anchorY;
+  // Retournement : la course précédente est close, la nouvelle part d'ici.
+  if (step > 0 && s.anchorY > s.lastY) anchorY = s.lastY;
+  if (step < 0 && s.anchorY < s.lastY) anchorY = s.lastY;
+
+  var run = m.scrollY - anchorY;
+  var hidden = s.hidden;
+  if (run < 0) hidden = false;
+  else if (run > CHROME_HIDE_DELTA_PX) hidden = true;
+
+  return { hidden: hidden, anchorY: anchorY, lastY: m.scrollY };
 }

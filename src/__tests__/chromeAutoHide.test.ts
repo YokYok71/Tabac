@@ -4,7 +4,7 @@
  * Deux moitiés, parce que ce dépôt a payé six fois la seconde : une règle
  * éprouvée là où elle est DÉFINIE et non gardée là où elle est APPELÉE
  * (`chooseAutoSaveTarget`, `reDeductRestoredSessions`, `findParityGaps`,
- * `useUnsavedFormGuard`…). `nextChromeHidden` peut être parfaite et
+ * `useUnsavedFormGuard`…). `nextChromeState` peut être parfaite et
  * `CuratorApp` ne jamais la brancher : le résultat serait une fonctionnalité
  * qui n'existe pas, avec une suite verte.
  *
@@ -25,14 +25,29 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import {
-  canAutoHideChrome, nextChromeHidden,
+  canAutoHideChrome, nextChromeState, initialChromeScrollState,
   CHROME_REVEAL_TOP_PX, CHROME_HIDE_DELTA_PX, CHROME_MIN_OVERFLOW_RATIO,
+  type ChromeScrollState,
 } from "../utils/chromeAutoHide";
 import { shouldShowDock } from "../utils/dockVisibility";
 
 /** Une page franchement plus longue que l'écran, loin du sommet. */
 const LONGUE = { viewportH: 800, docH: 4000 };
 const BAS = CHROME_REVEAL_TOP_PX + 500;
+
+/** Rejoue une SUITE de positions comme le ferait le hook — une mesure par
+ *  trame — et rend l'état final.
+ *
+ *  Les cas passent par ici plutôt que par un appel isolé parce que la règle
+ *  porte désormais sur une COURSE et non sur un pas : un cas à un seul appel ne
+ *  peut plus, par construction, distinguer « 12 px d'un coup » de « quatre fois
+ *  3 px », qui est exactement la différence que le défaut livré avait laissée
+ *  passer. */
+function rejoue(positions: number[], page = LONGUE, depart?: ChromeScrollState): ChromeScrollState {
+  let s = depart ?? initialChromeScrollState(positions[0] ?? 0);
+  for (const y of positions) s = nextChromeState(s, { ...page, scrollY: y });
+  return s;
+}
 
 /** Les identifiants de vue RÉELS, extraits des vues elles-mêmes.
  *
@@ -113,56 +128,83 @@ describe("canAutoHideChrome — le périmètre est celui du DOCK", () => {
   });
 });
 
-describe("nextChromeHidden — la règle", () => {
+describe("nextChromeState — la règle", () => {
   it("une descente franche masque", () => {
-    expect(nextChromeHidden(false, {
-      ...LONGUE, prevScrollY: BAS, scrollY: BAS + CHROME_HIDE_DELTA_PX + 1,
-    })).toBe(true);
+    expect(rejoue([BAS, BAS + CHROME_HIDE_DELTA_PX + 1]).hidden).toBe(true);
   });
 
-  it("TOUT mouvement vers le haut révèle, même d'un pixel", () => {
+  it("UN GLISSEMENT LENT masque aussi — le seuil est une DISTANCE, pas une vitesse", () => {
+    // LE DÉFAUT LIVRÉ, ET LE SEUL CAS QUI L'AURAIT VU. Le seuil était comparé
+    // au pas d'UNE TRAME ; comme le hook ne mesure qu'une fois par trame, il
+    // était devenu ~720 px/s. Quatre pas de 3 px descendent bien 12 px et ne
+    // franchissaient rien. Chaque pas ci-dessous est INDIVIDUELLEMENT sous le
+    // seuil : c'est ce qui rend le cas non trivial.
+    const pas = 3;
+    expect(pas).toBeLessThan(CHROME_HIDE_DELTA_PX);
+    const suite = [BAS, BAS + pas, BAS + 2 * pas, BAS + 3 * pas, BAS + 4 * pas, BAS + 5 * pas];
+    expect(rejoue(suite).hidden).toBe(true);
+  });
+
+  it("TOUT mouvement vers le haut révèle, même d'un pixel APRÈS une longue descente", () => {
     // La moitié qui rend la chrome récupérable. Un seuil symétrique paraîtrait
     // cohérent et serait le défaut : il faudrait remonter franchement pour
     // récupérer une barre partie au moindre tremblement.
-    expect(nextChromeHidden(true, {
-      ...LONGUE, prevScrollY: BAS, scrollY: BAS - 1,
-    })).toBe(false);
+    //
+    // « APRÈS UNE LONGUE DESCENTE » EST LA PART QUI COMPTE, et elle est neuve.
+    // Avec un cumul, un seul repère ne suffisait plus : descendu de 300 px puis
+    // remonté de 1, le cumul reste +299 et la barre serait restée cachée. C'est
+    // le piège que le second repère (`anchorY`, remis à zéro au retournement)
+    // existe pour éviter, et ce cas est ce qui l'atteste.
+    const descendu = rejoue([BAS, BAS + 300]);
+    expect(descendu.hidden).toBe(true);
+    expect(nextChromeState(descendu, { ...LONGUE, scrollY: BAS + 299 }).hidden).toBe(false);
   });
 
   it("une descente SOUS le seuil ne change rien — pas d'oscillation", () => {
-    expect(nextChromeHidden(false, {
-      ...LONGUE, prevScrollY: BAS, scrollY: BAS + CHROME_HIDE_DELTA_PX,
-    })).toBe(false);
-    expect(nextChromeHidden(true, {
-      ...LONGUE, prevScrollY: BAS, scrollY: BAS + CHROME_HIDE_DELTA_PX,
-    })).toBe(true);
+    expect(rejoue([BAS, BAS + CHROME_HIDE_DELTA_PX]).hidden).toBe(false);
+    const cache = { hidden: true, anchorY: BAS, lastY: BAS };
+    expect(rejoue([BAS + CHROME_HIDE_DELTA_PX], LONGUE, cache).hidden).toBe(true);
   });
 
   it("près du sommet, toujours visible — même en descendant", () => {
-    expect(nextChromeHidden(true, {
-      ...LONGUE, prevScrollY: 0, scrollY: CHROME_REVEAL_TOP_PX,
-    })).toBe(false);
+    const cache = { hidden: true, anchorY: 0, lastY: 0 };
+    expect(rejoue([CHROME_REVEAL_TOP_PX], LONGUE, cache).hidden).toBe(false);
     // Et la borne mord bien : un pixel plus bas, la descente reprend ses droits.
-    expect(nextChromeHidden(false, {
-      ...LONGUE, prevScrollY: CHROME_REVEAL_TOP_PX,
-      scrollY: CHROME_REVEAL_TOP_PX + CHROME_HIDE_DELTA_PX + 1,
-    })).toBe(true);
+    expect(rejoue([
+      CHROME_REVEAL_TOP_PX + 1,
+      CHROME_REVEAL_TOP_PX + CHROME_HIDE_DELTA_PX + 2,
+    ]).hidden).toBe(true);
+  });
+
+  it("les zones où l'on ne masque pas REPARTENT DE ZÉRO", () => {
+    // CE CAS PORTE SUR L'ÉTAT, PAS SUR `hidden`, ET C'EST DÉLIBÉRÉ — écrit
+    // ainsi après qu'une sonde a refusé la première version. J'avais affirmé
+    // que sans cette remise à zéro « repartir du sommet et descendre de deux
+    // pixels masquerait d'un coup » ; c'est FAUX, la règle de retournement
+    // recale l'ancrage au premier changement de sens, donc la sortie `hidden`
+    // est identique dans les deux formes. Un cas qui aurait mesuré `hidden`
+    // serait resté vert le défaut réintroduit : il l'était.
+    //
+    // Ce que la remise à zéro garantit réellement est plus modeste et vaut
+    // qu'on l'épingle : l'état ne conserve AUCUNE mémoire d'une course entamée
+    // là où l'escamotage ne s'applique pas — c'est la même normalisation dont
+    // le minuteur d'immobilité se sert pour révéler.
+    expect(rejoue([BAS, BAS + 300, 40])).toEqual(initialChromeScrollState(40));
+    const courte = { viewportH: 800, docH: 900 };
+    expect(rejoue([BAS, BAS + 300], courte)).toEqual(initialChromeScrollState(BAS + 300));
   });
 
   it("une page trop courte n'escamote JAMAIS", () => {
     const courte = { viewportH: 800, docH: 800 + 800 * CHROME_MIN_OVERFLOW_RATIO };
-    expect(nextChromeHidden(true, {
-      ...courte, prevScrollY: BAS, scrollY: BAS + 500,
-    })).toBe(false);
+    expect(rejoue([BAS, BAS + 500], courte).hidden).toBe(false);
     // Non-vacuité : la MÊME descente sur une page longue masque bien. Sans
     // cette moitié, une règle qui ne masque jamais passerait le cas ci-dessus.
-    expect(nextChromeHidden(true, {
-      ...LONGUE, prevScrollY: BAS, scrollY: BAS + 500,
-    })).toBe(true);
+    expect(rejoue([BAS, BAS + 500]).hidden).toBe(true);
   });
 
   it("le rebond iOS (défilement négatif) révèle au lieu de masquer", () => {
-    expect(nextChromeHidden(true, { ...LONGUE, prevScrollY: 0, scrollY: -60 })).toBe(false);
+    const cache = { hidden: true, anchorY: 0, lastY: 0 };
+    expect(rejoue([-60], LONGUE, cache).hidden).toBe(false);
   });
 });
 

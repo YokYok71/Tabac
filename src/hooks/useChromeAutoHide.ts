@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
-  nextChromeHidden, CHROME_IDLE_REVEAL_MS,
+  nextChromeState, initialChromeScrollState, CHROME_IDLE_REVEAL_MS,
+  type ChromeScrollState,
 } from "../utils/chromeAutoHide.ts";
 
 // Le CÂBLAGE de l'escamotage : la règle vit dans `utils/chromeAutoHide.ts`,
@@ -34,7 +35,9 @@ import {
 export function useChromeAutoHide(active: boolean): boolean {
   const [hidden, setHidden] = useState(false);
   const [prevActive, setPrevActive] = useState(active);
-  const prevY = useRef(0);
+  // La mémoire de la règle vit dans une ref, pas dans l'état : elle change à
+  // chaque trame alors que seul `hidden` a besoin d'un rendu.
+  const scroll = useRef<ChromeScrollState>(initialChromeScrollState(0));
   const rafId = useRef(0);
   const idleId = useRef(0);
 
@@ -46,25 +49,29 @@ export function useChromeAutoHide(active: boolean): boolean {
 
   useEffect(() => {
     if (!active) return;
-    prevY.current = window.scrollY;
+    scroll.current = initialChromeScrollState(window.scrollY);
     let queued = false;
 
     const measure = () => {
       queued = false;
-      const m = {
+      const next = nextChromeState(scroll.current, {
         scrollY: window.scrollY,
-        prevScrollY: prevY.current,
         viewportH: window.innerHeight,
         docH: document.documentElement.scrollHeight,
-      };
-      setHidden((h) => nextChromeHidden(h, m));
-      prevY.current = window.scrollY;
+      });
+      scroll.current = next;
+      setHidden(next.hidden);
     };
+
+    // Révéler REMET LA RÈGLE À ZÉRO, sans quoi la trame suivante retrouverait
+    // son ancrage d'avant l'arrêt et remasquerait aussitôt : le minuteur
+    // paraîtrait ne rien faire.
+    const reveal = () => { scroll.current = initialChromeScrollState(window.scrollY); setHidden(false); };
 
     const onScroll = () => {
       if (!queued) { queued = true; rafId.current = requestAnimationFrame(measure); }
       window.clearTimeout(idleId.current);
-      idleId.current = window.setTimeout(() => setHidden(false), CHROME_IDLE_REVEAL_MS);
+      idleId.current = window.setTimeout(reveal, CHROME_IDLE_REVEAL_MS);
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
