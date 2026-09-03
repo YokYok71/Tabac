@@ -258,6 +258,20 @@ After every significant task (bug fix, feature, security change, release), alway
   pushed — a rewrite leaves the old commit reachable by SHA. `Co-Authored-By`
   stays; it names an author, which is what a trailer is for. Set by the user,
   standing: *« enlève l'url et ne remets jamais ceci — pas utile »*.
+- **ALWAYS CHECK THAT THE PREVIOUS DEPLOY HAS FINISHED BEFORE PUSHING TO `main`.**
+  `deploy.yml` carries `concurrency: { group: pages, cancel-in-progress: true }`,
+  so a second push while the first is still deploying does not queue behind it —
+  it **kills** it. The build that was in flight never reaches the users, and
+  nothing says so afterwards: the commit is on `main`, the workflow list shows a
+  grey *cancelled* that reads like a hiccup, and the site keeps serving the
+  version before it. Query the run for the previous SHA and wait for
+  `completed`; push the feature branch first if you need somewhere to put the
+  work meanwhile. **Set by the user, standing** — and recorded here because it
+  was broken twice in one session: once by me on the reasoning that a
+  documentation-only push was harmless (it is not — what matters is not what the
+  new push contains but what the cancellation destroys), and once by two runs
+  created for the same SHA in the same second. A rule that lives only in a
+  conversation dies with it, which is the whole reason this line exists.
 
 ## Key Conventions for AI Assistants
 
