@@ -18,6 +18,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { useChromeAutoHide } from "../hooks/useChromeAutoHide";
 import { CHROME_IDLE_REVEAL_MS, CHROME_REVEAL_TOP_PX, CHROME_HIDE_DELTA_PX }
   from "../utils/chromeAutoHide";
@@ -83,5 +84,43 @@ describe("useChromeAutoHide", () => {
     trame(BAS);
     trame(BAS + 500);
     expect(result.current).toBe(false);
+  });
+});
+
+describe("mouvement réduit — la préférence système", () => {
+  // POURQUOI CE CAS VIT ICI. `usePrefersReducedMotion` (même module que le hook
+  // ci-dessus) couvre UNE animation : celle de la chrome, parce qu'elle passe
+  // par une variable CSS qu'il faut poser en JavaScript. Les 67 autres
+  // transitions de l'app sont inline et hors de sa portée — c'est une règle
+  // globale dans `index.html` qui les couvre. Les deux moitiés visent le même
+  // résultat ; si la seconde disparaissait, la première resterait verte et
+  // l'app cesserait silencieusement d'honorer la préférence PARTOUT SAUF sur
+  // les barres. D'où ce cas, à côté de la moitié qu'il complète.
+  const html = readFileSync("index.html", "utf8");
+
+  it("index.html porte une règle globale de mouvement réduit", () => {
+    // LA PROPRIÉTÉ, PAS L'ORTHOGRAPHE. On n'épingle ni la liste de sélecteurs
+    // ni la valeur exacte : on exige qu'une media query `reduce` existe et
+    // qu'elle écrase LES DEUX durées — une règle qui n'en neutraliserait
+    // qu'une laisserait la moitié des animations en place.
+    const bloc = /@media[^{]*prefers-reduced-motion:\s*reduce[^{]*\{([\s\S]*?\})\s*\}/.exec(html);
+    expect(bloc, "aucune media query prefers-reduced-motion dans index.html").toBeTruthy();
+    const corps = bloc![1]!;
+    expect(corps, "transition-duration n'est pas neutralisée").toMatch(/transition-duration:[^;]*!important/);
+    expect(corps, "animation-duration n'est pas neutralisée").toMatch(/animation-duration:[^;]*!important/);
+    // Le sélecteur doit être universel : viser une classe ou un élément
+    // laisserait dehors les 68 styles inline, qui sont la totalité de l'app.
+    expect(/@media[^{]*prefers-reduced-motion:\s*reduce[^{]*\{\s*\*/.test(html),
+      "la règle ne vise pas tous les éléments").toBe(true);
+  });
+
+  it("la durée n'est pas ZÉRO — un zéro strict supprime l'évènement de fin", () => {
+    // Pas cosmétique : certains moteurs n'émettent pas `transitionend` sur une
+    // durée nulle. Rien n'écoute cet évènement aujourd'hui, et c'est
+    // précisément pourquoi la contrainte doit être écrite plutôt que sue.
+    const durees = [...html.matchAll(/(?:transition|animation)-duration:\s*([\d.]+)(m?s)/g)]
+      .map((m) => parseFloat(m[1]!));
+    expect(durees.length, "aucune durée lue — le cas serait creux").toBeGreaterThan(0);
+    for (const d of durees) expect(d, "une durée à zéro").toBeGreaterThan(0);
   });
 });

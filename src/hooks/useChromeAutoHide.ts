@@ -90,13 +90,23 @@ export function useChromeAutoHide(active: boolean): boolean {
 
 // ── prefers-reduced-motion ────────────────────────────────────────────────
 //
-// CETTE APPLICATION N'HONORE `prefers-reduced-motion` NULLE PART AILLEURS —
-// sept transitions dans les primitifs, aucune garde. La traiter ici et pas
-// ailleurs n'est pas une incohérence par distraction, c'est une distinction
-// assumée : les sept autres sont des micro-mouvements de quelques pixels sur un
-// bouton pressé, celle-ci est une bande PLEINE LARGEUR qui traverse l'écran.
-// C'est précisément la classe de mouvement que cette préférence existe pour, et
-// la seule de l'app à ce jour.
+// LA PRÉFÉRENCE EST HONORÉE À DEUX ENDROITS, ET LES DEUX SONT NÉCESSAIRES.
+// `index.html` porte une media query globale qui neutralise toutes les durées
+// de transition et d'animation ; ce hook fait la même chose ici, en JavaScript,
+// parce que la durée de l'escamotage passe par une VARIABLE CSS (`--chrome-ms`)
+// qu'il faut poser depuis React — une feuille de style ne peut pas la calculer
+// à notre place. Les deux visent le même résultat par deux chemins, et aucun ne
+// rend l'autre inutile.
+//
+// CE PARAGRAPHE A LONGTEMPS DIT LE CONTRAIRE, ET IL FAUT SAVOIR POURQUOI. Il
+// affirmait que l'application n'honorait la préférence « nulle part ailleurs —
+// sept transitions dans les primitifs », et présentait cette exception comme
+// une distinction assumée. Le chiffre était faux : il comptait un seul fichier.
+// Le compte réel est de 68 transitions, dont 33 comportent un mouvement. Une
+// exception défendable pour sept l'était beaucoup moins pour trente-trois, et
+// c'est ce recomptage qui a produit la règle globale. Quand un commentaire
+// justifie une exception par une quantité, la quantité est la première chose à
+// vérifier.
 //
 // LA FONCTION EST CONSERVÉE, SEULE L'ANIMATION TOMBE. « Moins de mouvement » ne
 // veut pas dire « moins de fonctionnalités » : la chrome s'escamote et revient
@@ -107,8 +117,14 @@ export function useChromeAutoHide(active: boolean): boolean {
 // synchrone que la première version faisait dans un effet — refusé par
 // `react-hooks/set-state-in-effect`, à raison.
 //
-// RÉSIDU ÉNONCÉ : généraliser la préférence aux sept autres transitions est un
-// chantier à part, non fait ici.
+// LE RÉSIDU QUI ÉTAIT ÉNONCÉ ICI EST FERMÉ : la généralisation existe, sous la
+// forme d'une règle CSS globale dans `index.html` plutôt que d'un hook porté
+// dans trente-trois composants. La forme compte autant que le fait — une règle
+// couvre aussi les transitions qui n'existent pas encore, là où trente-trois
+// sites d'appel sont trente-trois occasions d'oublier le trente-quatrième.
+// Gardée par `useChromeAutoHide.test.ts`, qui exige la PROPRIÉTÉ (une media
+// query `reduce`, un sélecteur universel, les deux durées neutralisées, aucune
+// à zéro) et non l'orthographe de la règle.
 const RM_QUERY = "(prefers-reduced-motion: reduce)";
 
 function rmMatchMedia(): MediaQueryList | null {

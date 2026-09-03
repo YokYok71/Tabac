@@ -33,6 +33,35 @@
 <link rel="preload" href="%BASE_URL%fonts/dm-sans-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="%BASE_URL%fonts/newsreader-var.woff2" as="font" type="font/woff2" crossorigin>
 <style>@font-face{font-family:'DM Sans';font-style:normal;font-weight:400 700;font-display:swap;src:url('%BASE_URL%fonts/dm-sans-var.woff2') format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Newsreader';font-style:normal;font-weight:400 600;font-display:swap;src:url('%BASE_URL%fonts/newsreader-var.woff2') format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Newsreader';font-style:italic;font-weight:400 500;font-display:swap;src:url('%BASE_URL%fonts/newsreader-italic-var.woff2') format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('%BASE_URL%fonts/ibm-plex-mono-400.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url('%BASE_URL%fonts/ibm-plex-mono-500.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;src:url('%BASE_URL%fonts/ibm-plex-mono-600.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:700;font-display:swap;src:url('%BASE_URL%fonts/ibm-plex-mono-700.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{background:var(--c-bg,#0a0a0a);font-family:'DM Sans',-apple-system,system-ui,sans-serif;overflow-x:clip}#root{min-height:100vh}button{touch-action:manipulation}</style>
+
+<!-- MOUVEMENT RÉDUIT — la préférence système, honorée en un seul endroit.
+
+     iOS (Réglages → Accessibilité → Mouvement) et Android (Supprimer les
+     animations) exposent un réglage que le navigateur transmet ici. Les gens qui
+     l'activent ne le font pas par goût : troubles vestibulaires, migraines
+     déclenchées par le mouvement, mal des transports. Une animation qu'ils n'ont
+     pas demandée est un symptôme.
+
+     POURQUOI ICI ET PAS DANS LES COMPOSANTS. L'app porte 68 transitions inline,
+     dont 33 comportent un mouvement. Faire passer un `usePrefersReducedMotion`
+     dans chacune serait 33 endroits à ne pas oublier, aujourd'hui et à chaque
+     ajout. Une règle CSS globale les couvre toutes, y compris celles qui
+     n'existent pas encore — c'est la seule forme qui ne se périme pas.
+
+     CE QU'ELLE NE CASSE PAS, vérifié : aucun code de l'app n'écoute
+     `transitionend` ni `animationend`, donc rien n'attend la fin d'une animation
+     pour continuer. Aucun `scroll-behavior: smooth` non plus (choix déjà
+     assumé dans FilterControls), donc rien à neutraliser de ce côté.
+
+     `0.01ms` ET NON `0` : une durée nulle empêche l'évènement de fin d'être
+     émis par certains moteurs. La valeur reste imperceptible tout en gardant
+     l'animation formellement existante.
+
+     `usePrefersReducedMotion` (hooks/useChromeAutoHide.ts) SURVIT et n'est pas
+     redondant : l'escamotage de la chrome lit la préférence en JavaScript pour
+     poser sa variable `--chrome-ms`, ce qu'une feuille de style ne peut pas
+     faire à sa place. Les deux visent le même résultat par deux chemins. -->
+<style>@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition-duration:0.01ms !important;animation-duration:0.01ms !important}}</style>
 </head>
 <body>
 <style>@keyframes fadeInSlow{from{opacity:0}to{opacity:1}}</style>

@@ -159,6 +159,16 @@ Previously the app loaded Newsreader / DM Sans / IBM Plex Mono from `fonts.googl
 
 **Reset on navigation.** `nav()` (App.tsx end of function) briefly swaps the viewport meta to a non-scalable form, then restores the original `content` in the next animation frame. The flip forces iOS Safari / Android Chrome to reset the visual viewport (zoom back to 100 %); the next-frame restore brings pinch-zoom back so the new screen is still zoomable. Without this, the user's zoom level persisted across screens — zooming into a card and then opening a form left the form at a weird zoom. The try/catch around the meta lookup protects against an unlikely missing tag.
 
+## Mouvement réduit — `prefers-reduced-motion`
+
+`index.html` porte une media query globale qui neutralise **toutes** les durées de transition et d'animation (`*, *::before, *::after` → `transition-duration` et `animation-duration` à `0.01ms !important`). Elle est la seule couverture des styles inline, qui sont la totalité de l'app.
+
+**Pourquoi une règle CSS et non un hook porté partout.** L'app compte **68 transitions**, dont **33 comportent un mouvement** (`transform`, `opacity`, `width`, `left`) ; les 35 autres ne changent qu'une couleur et sont hors sujet. Faire passer `usePrefersReducedMotion` dans 33 composants, c'est 33 endroits à ne pas oublier aujourd'hui et à chaque ajout ; une règle globale couvre aussi les transitions qui n'existent pas encore. **Le compte est ce qui a produit la décision** : un commentaire du hook justifiait l'exception par « sept transitions », un chiffre qui ne comptait qu'un fichier — une exception défendable pour sept l'est beaucoup moins pour trente-trois.
+
+**`0.01ms` et non `0`.** Une durée nulle empêche certains moteurs d'émettre `transitionend`. Rien n'écoute cet évènement dans l'app (vérifié : zéro occurrence de `transitionend` / `animationend`), et c'est précisément pourquoi la contrainte est écrite plutôt que sue. Aucun `scroll-behavior: smooth` non plus — déjà un choix assumé dans `FilterControls` — donc rien à neutraliser de ce côté.
+
+**`usePrefersReducedMotion` (`hooks/useChromeAutoHide.ts`) reste nécessaire** et n'est pas un doublon : la durée de l'escamotage de la chrome passe par la variable CSS `--chrome-ms`, qu'il faut poser depuis React. Les deux moitiés visent le même résultat par deux chemins. Locké par `useChromeAutoHide.test.ts`, qui exige la PROPRIÉTÉ (media query `reduce` présente, sélecteur universel, les deux durées neutralisées, aucune à zéro) et non l'orthographe de la règle — quatre sondes, chacune rougissant son cas.
+
 ### Visual unification pass
 
 Recap of the curator design-system consolidation sweep. Each step was a self-contained refactor with zero behaviour change (except a tiny tone fix on InventoryListView in the first and an a11y fix in the last). All five shipped on top of the baseline.
