@@ -120,6 +120,7 @@ export var ES = {
   csv_issues_cut:"{n} fila(s) con un corte no reconocido — pasado a «{v}»",
   csv_issues_num:"{n} valor(es) numérico(s) ilegible(s) — dejado(s) vacío(s)",
   csv_issues_status:"{n} fila(s) con un estado no reconocido — importada(s) como «en bodega»",
+  csv_issues_cols:"{n} columna(s) ignorada(s) — su contenido no se ha importado",
 csv_tpl_desc:"Ejemplo: tu propia descripcion de la mezcla.",
 csv_tpl_notes:"Ejemplo: tus propias notas de cata.",
   csv_import_done:"{n} tabaco(s) y {l} lote(s) importados (fusionados).",

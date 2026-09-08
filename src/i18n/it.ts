@@ -120,6 +120,7 @@ export var IT = {
   csv_issues_cut:"{n} riga/righe con un taglio non riconosciuto — ricondotto a «{v}»",
   csv_issues_num:"{n} valore/i numerico/i illeggibile/i — lasciato/i vuoto/i",
   csv_issues_status:"{n} riga/righe con uno stato non riconosciuto — importate «in cantina»",
+  csv_issues_cols:"{n} colonna/colonne ignorata/e — il loro contenuto non è stato importato",
 csv_tpl_desc:"Esempio: la tua descrizione della miscela.",
 csv_tpl_notes:"Esempio: le tue note di degustazione.",
   csv_import_done:"{n} tabacco/i e {l} lotto/i importati (uniti).",

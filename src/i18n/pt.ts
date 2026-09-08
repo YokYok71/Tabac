@@ -127,6 +127,7 @@ export var PT = {
   csv_issues_cut:"{n} linha(s) com um corte não reconhecido — passado a «{v}»",
   csv_issues_num:"{n} valor(es) numérico(s) ilegível(eis) — deixado(s) vazio(s)",
   csv_issues_status:"{n} linha(s) com um estado não reconhecido — importada(s) como «na adega»",
+  csv_issues_cols:"{n} coluna(s) ignorada(s) — o seu conteúdo não foi importado",
 csv_tpl_desc:"Exemplo: a sua descricao da mistura.",
 csv_tpl_notes:"Exemplo: as suas notas de prova.",
   csv_import_done:"{n} tabaco(s) e {l} lote(s) importados (fundidos).",

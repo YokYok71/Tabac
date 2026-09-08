@@ -120,6 +120,7 @@ export var FR = {
   csv_issues_cut:"{n} ligne(s) avec une coupe non reconnue — ramenée à « {v} »",
   csv_issues_num:"{n} valeur(s) numérique(s) illisible(s) — laissée(s) vide(s)",
   csv_issues_status:"{n} ligne(s) avec un statut non reconnu — importée(s) « en cave »",
+  csv_issues_cols:"{n} colonne(s) ignorée(s) — leur contenu n'a pas été importé",
 csv_tpl_desc:"Exemple : votre description du blend.",
 csv_tpl_notes:"Exemple : vos notes de degustation.",
   csv_import_done:"{n} tabac(s) et {l} lot(s) importés (fusionnés).",

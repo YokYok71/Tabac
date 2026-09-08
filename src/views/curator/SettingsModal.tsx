@@ -846,6 +846,11 @@ export function CuratorSettingsModal() {
                 { kind: "cut", n: csvIssues.badCut, label: String(t("csv_issues_cut")).replace("{n}", String(csvIssues.badCut)).replace("{v}", autreLabel) },
                 { kind: "number", n: csvIssues.badNumber, label: String(t("csv_issues_num")).replace("{n}", String(csvIssues.badNumber)) },
                 { kind: "status", n: csvIssues.badStatus, label: String(t("csv_issues_status")).replace("{n}", String(csvIssues.badStatus)) },
+                // EN TÊTE DE LISTE SERAIT TENTANT et serait faux : les sections
+                // sont rendues dans cet ordre, et une colonne ignorée est la
+                // seule anomalie qui n'appartient à aucune ligne de données.
+                // Elle ferme la liste comme elle ferme la lecture du fichier.
+                { kind: "column", n: csvIssues.badColumn || 0, label: String(t("csv_issues_cols")).replace("{n}", String(csvIssues.badColumn || 0)) },
               ]}
               issues={csvIssues.issues}
               truncated={!!csvIssues.truncated}

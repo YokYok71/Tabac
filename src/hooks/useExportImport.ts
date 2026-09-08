@@ -747,7 +747,12 @@ export function useExportImport({
             // Computed BEFORE the import because it decides
             // whether Settings stays open — the row-level panel renders there,
             // and `_runImport` closes the modal for a "file" source.
-            var _coerced = (parsed.badCategory || 0) + (parsed.badCut || 0) + (parsed.badNumber || 0) + (parsed.badStatus || 0);
+            // `badColumn` COMPTE ICI, et c'est la moitié qui donne au rapport sa
+            // raison d'être : un fichier dont trois colonnes sont ignorées peut
+            // n'avoir AUCUNE ligne fautive — chaque ligne importée est correcte,
+            // simplement amputée. Sans ce terme, l'import le plus silencieusement
+            // incomplet resterait celui qui ne montre aucun panneau.
+            var _coerced = (parsed.badCategory || 0) + (parsed.badCut || 0) + (parsed.badNumber || 0) + (parsed.badStatus || 0) + (parsed.badColumn || 0);
             var _hasIssues = parsed.skipped > 0 || _coerced > 0;
             stageImport({ tobaccos: parsed.tobaccos }, "file", {
               autoApply: "merge",
@@ -853,6 +858,8 @@ export function useExportImport({
                 badCut: parsed.badCut || 0,
                 badNumber: parsed.badNumber || 0,
                 badStatus: parsed.badStatus || 0,
+                badColumn: parsed.badColumn || 0,
+                ignoredColumns: parsed.ignoredColumns || [],
                 issues: parsed.issues || [],
                 truncated: !!parsed.issuesTruncated,
               });

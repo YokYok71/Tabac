@@ -27,12 +27,34 @@ import { CATS, CUTS, CAT_MAP, CUT_MAP, BT, BL } from "../constants.ts";
  */
 export interface CsvImportIssue {
   row: number;
-  kind: "no-identity" | "category" | "cut" | "number" | "status";
+  kind: "no-identity" | "category" | "cut" | "number" | "status" | "column";
   brand: string;
   name: string;
   /** The offending label, for the taxonomy kinds and for `number`. */
   value: string;
 }
+
+/** Champs que l'export tabac ÉCRIT et que le lecteur ignore délibérément.
+ *
+ *  `age` est calculé à l'affichage : le réimporter écraserait une valeur
+ *  dérivée par une valeur figée. Il n'a donc pas d'alias, et c'est correct.
+ *
+ *  CETTE LISTE N'EXISTE QUE POUR NE PAS CRIER AU LOUP. Sans elle, le rapport
+ *  de colonnes ignorées se déclencherait sur CHAQUE aller-retour — l'usage le
+ *  plus courant de l'import — en accusant une colonne que l'application a
+ *  écrite elle-même. Un avertissement qui se trompe à tous les coups est un
+ *  avertissement qu'on apprend à ne plus lire, ce qui détruirait la valeur des
+ *  vrais.
+ *
+ *  ELLE EST ÉCRITE À LA MAIN, donc c'est la classe de liste figée que ce dépôt
+ *  a payée six fois. La charge est inversée dans `csvIgnoredColumns.test.ts` :
+ *  le test lit les colonnes que `buildCsvLines` écrit RÉELLEMENT et exige que
+ *  chacune soit lisible OU inscrite ici. Une colonne d'export nouvelle et non
+ *  lue rougit, au lieu de devenir une fausse alerte permanente. */
+export var CSV_UNREAD_BY_DESIGN = ["age"];
+
+/** Bornage de la liste de colonnes ignorées. Le COMPTE reste exact. */
+export var MAX_IGNORED_COLUMNS = 50;
 
 /** Detail-list cap. The COUNTS below stay exact; only the list is bounded.
  *  Separate from the catalogue's `MAX_CATALOGUE_ISSUES` on purpose: it is a
@@ -58,6 +80,22 @@ export interface CsvImportResult {
    *  back-filled by the lifecycle repair. A blank cell is NOT counted — it
    *  legitimately means cellar. */
   badStatus: number;
+  /** Colonnes de l'en-tête que le lecteur n'a pas su placer (EXACT).
+   *
+   *  LE SILENCE ÉTAIT LE DÉFAUT. Une colonne inconnue était simplement sautée :
+   *  l'import réussissait, le rapport ne disait rien, et l'utilisateur
+   *  découvrait plus tard que « Blend », « Tin date » ou « Qté » n'étaient
+   *  jamais arrivés. C'est la MÊME forme de panne que le statut non reconnu,
+   *  signalé pour la même raison : une ligne d'apparence parfaite, amputée.
+   *
+   *  Elle frappe précisément le premier peuplement d'une cave depuis un tableur
+   *  personnel — le seul moment où l'utilisateur ne peut pas comparer au
+   *  contenu attendu, puisqu'il n'a encore rien. */
+  badColumn: number;
+  /** Les libellés BRUTS ignorés, dans l'ordre du fichier, dédupliqués et
+   *  bornés à `MAX_IGNORED_COLUMNS`. Bruts et non repliés : l'utilisateur doit
+   *  reconnaître ce qu'il lit dans son tableur. */
+  ignoredColumns: string[];
   issues: CsvImportIssue[]; // capped at MAX_CSV_ISSUES
   issuesTruncated: boolean; // the list hit the cap; the counts above did not
 }
@@ -437,6 +475,29 @@ export function csvValue(key: string, lang: any): string {
 /** Test-only : la table complète, pour que l'aller-retour se dérive au lieu de
  *  se réécrire (une copie serait une deuxième source de vérité). */
 export var _CSV_COLUMNS_FOR_TESTS = CSV_COLUMNS;
+
+/** Les libellés repliés des champs de `CSV_UNREAD_BY_DESIGN`, dans TOUTES les
+ *  langues où l'écrivain sait les émettre.
+ *
+ *  DÉRIVÉ DE `CSV_COLUMNS`, jamais recopié : c'est la même table qui écrit
+ *  l'en-tête, donc l'exclusion suit automatiquement une traduction corrigée ou
+ *  une septième langue. Une liste de mots écrite ici se serait désaccordée de
+ *  l'export à la première retouche, et la seule trace en aurait été une fausse
+ *  alerte chez l'utilisateur — c'est-à-dire nulle part où on la verrait. */
+var _UNREAD_LABELS: Record<string, true> = (function () {
+  var out: Record<string, true> = Object.create(null);
+  CSV_UNREAD_BY_DESIGN.forEach(function (field) {
+    // `const` et non `var` : le rétrécissement de type d'un `var` ne survit pas
+    // à l'entrée dans la fonction de rappel ci-dessous.
+    const row = Object.prototype.hasOwnProperty.call(CSV_COLUMNS, field) ? CSV_COLUMNS[field] : null;
+    if (!row) return;
+    Object.keys(row).forEach(function (lg) {
+      var f = fold(row[lg]);
+      if (f) out[f] = true;
+    });
+  });
+  return out;
+})();
 export var _CSV_VALUES_FOR_TESTS = CSV_VALUES;
 
 // ── value coercion ───────────────────────────────────────────────────────────
@@ -692,7 +753,7 @@ export function parseTobaccoCsv(
   text: string,
   opts?: { idBase?: number; todayIso?: string },
 ): CsvImportResult {
-  var empty: CsvImportResult = { tobaccos: [], rows: 0, skipped: 0, lots: 0, headers: [], sectioned: false, capped: false, badCategory: 0, badCut: 0, badNumber: 0, badStatus: 0, issues: [], issuesTruncated: false };
+  var empty: CsvImportResult = { tobaccos: [], rows: 0, skipped: 0, lots: 0, headers: [], sectioned: false, capped: false, badCategory: 0, badCut: 0, badNumber: 0, badStatus: 0, badColumn: 0, ignoredColumns: [], issues: [], issuesTruncated: false };
   if (typeof text !== "string") return empty;
   var clean = String(text).replace(/^\uFEFF/, "");
   if (!clean.trim()) return empty;
@@ -714,9 +775,49 @@ export function parseTobaccoCsv(
     return Object.prototype.hasOwnProperty.call(HEADER_ALIASES, f) ? HEADER_ALIASES[f]! : null;
   });
   var recognised = colKey.filter(function (k): k is string { return !!k; });
+
+  // Les colonnes que le lecteur n'a pas su placer.
+  //
+  // TROIS EXCLUSIONS, ET CHACUNE ÉVITE UNE FAUSSE ALERTE.
+  //
+  // (1) UN EN-TÊTE QUI NE NOMME RIEN, et c'est `fold` qui le dit, pas un test
+  //     sur la cellule brute. Les tableurs produisent des colonnes vides en
+  //     pagaille (colonne de travail effacée, point-virgule final) ; `fold`
+  //     rend "" pour celles-là — mais AUSSI pour une colonne nommée « (g) »,
+  //     puisqu'il retire les unités entre parenthèses. Les deux méritent le
+  //     silence : ni l'une ni l'autre ne désigne un champ, et dénoncer « (g) »
+  //     serait plus déroutant que se taire. Une garde `if (!raw) return` a
+  //     précédé celle-ci ; une sonde a montré qu'elle ne changeait aucun
+  //     résultat — `fold` l'attrapait déjà — et elle a donc été retirée.
+  // (2) Les libellés de `CSV_UNREAD_BY_DESIGN`, dans les six langues, sinon
+  //     tout aller-retour d'un export accuserait l'application elle-même.
+  // (3) Une colonne DUPLIQUÉE n'est comptée qu'une fois — c'est une colonne,
+  //     pas deux problèmes.
+  var ignoredColumns: string[] = [];
+  var badColumn = 0;
+  var seenIgnored: Record<string, true> = Object.create(null);
+  headerCells.forEach(function (h, i) {
+    if (colKey[i]) return;
+    var f = fold(h);
+    if (!f) return;
+    var raw = String(h == null ? "" : h).trim();
+    if (Object.prototype.hasOwnProperty.call(_UNREAD_LABELS, f)) return;
+    if (seenIgnored[f]) return;
+    seenIgnored[f] = true;
+    badColumn++;
+    if (ignoredColumns.length < MAX_IGNORED_COLUMNS) ignoredColumns.push(raw);
+  });
+
   if (recognised.indexOf("brand") < 0 || recognised.indexOf("name") < 0) {
     // Without a brand + name column there's nothing to key on.
-    return Object.assign({}, empty, { headers: recognised });
+    //
+    // LE RAPPORT DE COLONNES VOYAGE AVEC CE RETOUR ANTICIPÉ, et c'est le cas
+    // où il sert le plus : un fichier dont AUCUN en-tête n'est reconnu échoue
+    // avec « aucun tabac valide trouvé », un message qui dit ce qui n'a pas
+    // marché sans dire pourquoi. Les libellés lus le disent.
+    return Object.assign({}, empty, {
+      headers: recognised, badColumn: badColumn, ignoredColumns: ignoredColumns,
+    });
   }
 
   var idBase = (opts && typeof opts.idBase === "number" && Number.isFinite(opts.idBase))
@@ -734,6 +835,13 @@ export function parseTobaccoCsv(
   var note = function (row: number, kind: CsvImportIssue["kind"], b: string, n: string, value: string) {
     if (issues.length < MAX_CSV_ISSUES) issues.push({ row: row, kind: kind, brand: b, name: n, value: value });
   };
+
+  // Les colonnes ignorées entrent dans la MÊME liste que les autres anomalies,
+  // à la ligne 1 — qui EST leur ligne, celle de l'en-tête. Le panneau les
+  // affiche donc, les groupe et les copie sans qu'on touche à un composant, et
+  // l'utilisateur lit « Ligne 1 · « Blend » » à l'endroit où il lit déjà le
+  // reste. Une seconde voie d'affichage aurait été une seconde chose à tenir.
+  ignoredColumns.forEach(function (label) { note(1, "column", "", "", label); });
 
   for (var r = 1; r < grid.length; r++) {
     var cells = grid[r] || [];
@@ -898,5 +1006,5 @@ export function parseTobaccoCsv(
   }
 
   var tobaccos = order.map(function (k) { return groups[k]; });
-  return { tobaccos: tobaccos, rows: dataRows, skipped: skipped, lots: lotCount, headers: recognised, sectioned: sectioned, capped: capped, badCategory: badCategory, badCut: badCut, badNumber: badNumber, badStatus: badStatus, issues: issues, issuesTruncated: issues.length >= MAX_CSV_ISSUES };
+  return { tobaccos: tobaccos, rows: dataRows, skipped: skipped, lots: lotCount, headers: recognised, sectioned: sectioned, capped: capped, badCategory: badCategory, badCut: badCut, badNumber: badNumber, badStatus: badStatus, badColumn: badColumn, ignoredColumns: ignoredColumns, issues: issues, issuesTruncated: issues.length >= MAX_CSV_ISSUES };
 }
