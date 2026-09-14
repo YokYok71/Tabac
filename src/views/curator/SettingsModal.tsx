@@ -1628,6 +1628,10 @@ function ImportConfirmPanel({
             toggleSection={toggleSection}
             onConfirm={() => applyImport("merge", selectedSet)}
             onBack={() => { setSelectMode(false); setSelectedSet(new Set()); }}
+            /* `onBack` vide la sélection : on RESSORT de l'écran, et y revenir
+               la reconstruit entière. Garder l'ancien état serait pire que les
+               deux — ni tout coché, ni vierge, mais le reliquat d'une visite
+               précédente que rien ne rappelle. */
           />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1640,14 +1644,27 @@ function ImportConfirmPanel({
                 {tr("import_merge", "Fusionner")}
               </div>
               <div style={{ color: C.tx, fontSize: fs(15), lineHeight: 1.4 }}>
-                {tr("import_merge_desc", "Rien n'est effacé. Les éléments absents sont ajoutés ; une fiche déjà présente peut recevoir les lots du fichier qui lui manquent, et voir ses informations rafraîchies si la copie importée est plus récente. Vos poids, séances et photos locales sont préservés.")}
+                {tr("import_merge_desc", "Rien n'est effacé. Les éléments absents sont ajoutés ; une fiche déjà présente peut recevoir les lots du fichier qui lui manquent, et voir ses informations rafraîchies si la copie importée est plus récente — vos notes personnelles ne sont jamais remplacées. Vos poids, séances et photos locales sont préservés.")}
               </div>
             </PressCard>
 
             {/* Third option — selective merge. The user
                 picks which entities from the imported payload to
                 bring in. Sessions ride with the merge as usual. */}
-            <PressCard onClick={() => setSelectMode(true)} style={{
+            <PressCard onClick={() => {
+              // TOUT EST COCHÉ À L'OUVERTURE, et c'est un changement demandé
+              // après un rapport d'usage qui vaut la peine d'être consigné :
+              // l'utilisateur avait conclu que l'import « n'amenait que les
+              // tabacs » alors qu'il n'avait coché qu'eux. La liste partait
+              // VIDE, donc le chemin facile — cocher la première section et
+              // valider — menait à en oublier, sur un écran qui ne dit nulle
+              // part qu'il en reste. Cocher d'abord inverse la charge : la
+              // sélection sert désormais à EXCLURE, ce qui correspond à
+              // l'intention dominante (on importe généralement tout) et rend
+              // l'oubli visible, puisqu'il faut décocher pour le produire.
+              setSelectedSet(importAllKeys(parsed));
+              setSelectMode(true);
+            }} style={{
               padding: "11px 14px",
               background: alpha(C.brass, "1a"), border: `1px solid ${alpha(C.brass, "88")}`,
               borderRadius: 8, textAlign: "left",
@@ -1656,7 +1673,7 @@ function ImportConfirmPanel({
                 {tr("import_select_items", "Sélectionner les éléments")}
               </div>
               <div style={{ color: C.tx, fontSize: fs(15), lineHeight: 1.4 }}>
-                {tr("import_select_desc", "Choisir lesquels des tabacs, pipes, envies, accessoires et séances du fichier à fusionner dans votre inventaire.")}
+                {tr("import_select_desc", "Tout est coché d'avance : décochez les tabacs, pipes, envies, accessoires ou séances que vous ne voulez pas importer.")}
               </div>
             </PressCard>
 
@@ -1736,6 +1753,35 @@ function ImportConfirmPanel({
 // Session labels are resolved via the imported snapshot first
 // (tobaccoSnapshot / pipeSnapshot — frozen at save time), falling
 // back to a lookup in the imported tabacs/pipes arrays.
+/** Les genres SÉLECTIONNABLES d'une charge importée, et leurs fiches.
+ *
+ *  UNE SEULE DÉFINITION, parce qu'il y a maintenant deux lecteurs : la liste
+ *  qui les affiche, et le pré-cochage qui doit les connaître tous. Les redire
+ *  dans le panneau aurait été une seconde liste de genres — la classe de liste
+ *  figée que ce dépôt a payée six fois — et son mode de panne serait le plus
+ *  pénible possible : un genre oublié du seeding resterait DÉCOCHÉ par défaut,
+ *  donc absent de l'import, sur un écran qui affirme tout avoir pris.
+ *
+ *  L'encodage « genre:id » est celui qu'attend `useImportConfirm.applyImport`. */
+export function importSelectableSections(parsed: any): Array<{ kind: string; items: any[] }> {
+  return [
+    { kind: "tobacco", items: (parsed.tobaccos || []).filter(Boolean) },
+    { kind: "pipe", items: (parsed.pipes || []).filter(Boolean) },
+    { kind: "wish", items: (parsed.wishlist || []).filter(Boolean) },
+    { kind: "accessory", items: (parsed.accessories || []).filter(Boolean) },
+    { kind: "session", items: (parsed.sessions || []).filter(Boolean) },
+  ].filter((x) => x.items.length > 0);
+}
+
+/** Toutes les clés d'une charge — l'état de départ de la sélection. */
+export function importAllKeys(parsed: any): Set<string> {
+  const out = new Set<string>();
+  importSelectableSections(parsed).forEach((sec) => {
+    sec.items.forEach((it: any) => { out.add(sec.kind + ":" + String(it.id)); });
+  });
+  return out;
+}
+
 function ImportSelectionList({
   parsed, t, dateFormat, selectedSet, toggleKey, toggleSection, onConfirm, onBack,
 }: {
@@ -1751,9 +1797,6 @@ function ImportSelectionList({
   const tr = (k: string, frFallback: string) => (t ? t(k) : frFallback);
   const tobs = (parsed.tobaccos || []).filter((it: any) => it);
   const pipes = (parsed.pipes || []).filter((it: any) => it);
-  const wishes = (parsed.wishlist || []).filter((it: any) => it);
-  const accs = (parsed.accessories || []).filter((it: any) => it);
-  const sessions = (parsed.sessions || []).filter((it: any) => it);
   // Map imported tobaccos / pipes by id for the session label
   // resolver (snapshot first, then lookup against the imported
   // entities — never against local data, the picker shows the
@@ -1776,14 +1819,19 @@ function ImportSelectionList({
   function entityRowLabel(it: any): string {
     return [it.brand, it.name].filter(Boolean).join(" — ") || "—";
   }
+  // L'ORDRE ET LES FICHES VIENNENT DE `importSelectableSections` ; ici on ne
+  // pose que l'habillage. Séparer les deux est ce qui garantit que le
+  // pré-cochage voit exactement les mêmes genres que l'affichage.
+  const HABILLAGE: Record<string, { label: string; accent: string; rowLabel: (it: any) => string }> = {
+    tobacco:   { label: tr("nav_tobaccos",          "Tabacs"),      accent: C.brassHi,   rowLabel: entityRowLabel },
+    pipe:      { label: tr("aria_pipes",            "Pipes"),       accent: C.oxbloodHi, rowLabel: entityRowLabel },
+    wish:      { label: tr("import_section_wishes", "Envies"),      accent: C.oxbloodHi, rowLabel: entityRowLabel },
+    accessory: { label: tr("aria_accessories",      "Accessoires"), accent: C.ember,     rowLabel: entityRowLabel },
+    session:   { label: tr("stat_sessions",         "Séances"),     accent: C.sage,      rowLabel: sessionLabel },
+  };
   const sections: { kind: string; label: string; items: any[]; accent: string;
-    rowLabel: (it: any) => string }[] = [
-    { kind: "tobacco",   label: tr("nav_tobaccos",         "Tabacs"),      items: tobs,    accent: C.brassHi,   rowLabel: entityRowLabel },
-    { kind: "pipe",      label: tr("aria_pipes",           "Pipes"),       items: pipes,   accent: C.oxbloodHi, rowLabel: entityRowLabel },
-    { kind: "wish",      label: tr("import_section_wishes", "Envies"),     items: wishes,  accent: C.oxbloodHi, rowLabel: entityRowLabel },
-    { kind: "accessory", label: tr("aria_accessories",     "Accessoires"), items: accs,    accent: C.ember,     rowLabel: entityRowLabel },
-    { kind: "session",   label: tr("stat_sessions",        "Séances"),     items: sessions, accent: C.sage,     rowLabel: sessionLabel },
-  ].filter(s => s.items.length > 0);
+    rowLabel: (it: any) => string }[] = importSelectableSections(parsed)
+      .map((sec) => Object.assign({}, HABILLAGE[sec.kind]!, { kind: sec.kind, items: sec.items }));
   const total = selectedSet.size;
   return (
     <div>
@@ -1792,7 +1840,7 @@ function ImportSelectionList({
         background: alpha(C.brass, "12"), border: `1px solid ${alpha(C.brass, "88")}`,
         color: C.brassHi, fontSize: fs(13.5), lineHeight: 1.45,
       }}>
-        {tr("import_pick_intro", "Choisissez les éléments à fusionner. Les doublons (mêmes marque + nom, ou mêmes date+tabac+pipe+durée pour les séances) sont ignorés automatiquement — cocher un doublon conserve simplement votre copie locale.")}
+        {tr("import_pick_intro", "Tout est coché : décochez ce que vous ne voulez pas importer. Les doublons (mêmes marque + nom, ou mêmes date+tabac+pipe+durée pour les séances) sont ignorés automatiquement — cocher un doublon conserve simplement votre copie locale.")}
       </div>
 
       <div style={{
@@ -2639,17 +2687,17 @@ function CatalogueStatus({
     );
   }
   if (outcome && outcome.kind === "parse") {
-    return <Notice tone="error">{tr("cat_err_parse", "Fichier illisible.")}</Notice>;
+    return <Notice tone="error">{tr("cat_err_parse", "Fichier illisible : aucune fiche trouvée. Vérifiez que les colonnes brand_key et blend_name sont présentes.")}</Notice>;
   }
   if (outcome && outcome.kind === "write") {
-    return <Notice tone="error">{tr("cat_err_write", "Impossible d'enregistrer le catalogue.")}</Notice>;
+    return <Notice tone="error">{tr("cat_err_write", "Impossible d'enregistrer le catalogue (stockage plein ou navigation privée).")}</Notice>;
   }
   if (outcome && outcome.kind === "read") {
     return <Notice tone="error">{tr("cat_err_read", "Impossible de lire le fichier.")}</Notice>;
   }
   // Still reading: say nothing rather than "none".
   if (meta === undefined) return null;
-  if (!meta) return <Notice tone="info">{tr("cat_none_hint", "Aucun catalogue chargé.")}</Notice>;
+  if (!meta) return <Notice tone="info">{tr("cat_none_hint", "Aucun catalogue chargé. Téléchargez le modèle, remplissez-le, puis chargez-le ici : il alimentera l'auto-remplissage, la recherche, les comparaisons et la page Catalogue.")}</Notice>;
 
   var unknown = ([] as string[])
     .concat(meta.unknownCategories || [], meta.unknownCuts || [])
@@ -2674,13 +2722,13 @@ function CatalogueStatus({
           {meta.name ? " · " + meta.name : ""}
         </span>
         {meta.skippedNoIdentity > 0 && (
-          <span>{String(tr("cat_warn_skipped", "{n} ligne(s) ignorée(s).")).replace("{n}", String(meta.skippedNoIdentity))}</span>
+          <span>{String(tr("cat_warn_skipped", "{n} ligne(s) ignorée(s) faute de marque ou de nom.")).replace("{n}", String(meta.skippedNoIdentity))}</span>
         )}
         {meta.duplicateKeys > 0 && (
-          <span>{String(tr("cat_warn_dupes", "{n} doublon(s).")).replace("{n}", String(meta.duplicateKeys))}</span>
+          <span>{String(tr("cat_warn_dupes", "{n} doublon(s) : seule la première fiche a été gardée.")).replace("{n}", String(meta.duplicateKeys))}</span>
         )}
         {unknown.length > 0 && (
-          <span>{String(tr("cat_warn_unknown", "Valeurs non reconnues : {v}")).replace("{v}", unknown.join(", "))}</span>
+          <span>{String(tr("cat_warn_unknown", "Valeurs non reconnues, gardées telles quelles : {v}")).replace("{v}", unknown.join(", "))}</span>
         )}
       </div>
     </Notice>

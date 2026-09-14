@@ -52,6 +52,7 @@ function champsDeLExport(): string[][] {
 }
 
 import { readFileSync } from "node:fs";
+import { importAllKeys, importSelectableSections } from "../views/curator/SettingsModal";
 
 /** Construit un fichier d'export minimal dans la langue demandée. */
 function fichier(lang: string, sections: Array<[string, string[], string[][]]>): string {
@@ -388,5 +389,56 @@ describe("…et l'étiquette ne ment plus", () => {
       expect(help.split(`<strong>${lbl}</strong>`).length - 1,
         `${lg} : le guide ne cite pas « ${lbl} » deux fois`).toBe(2);
     }
+  });
+});
+
+describe("la sélection part TOUT COCHÉ", () => {
+  // DEMANDÉ APRÈS UN RAPPORT D'USAGE, et le rapport valait mieux que sa cause
+  // apparente : « ça n'importe que le tabac » venait d'une sélection où
+  // l'utilisateur n'avait coché que les tabacs. La liste partait VIDE, donc le
+  // chemin facile — cocher la première section et valider — menait à en
+  // oublier, sur un écran qui ne dit nulle part ce qui reste. Cocher d'abord
+  // inverse la charge : la sélection sert à EXCLURE, ce qui correspond à
+  // l'intention dominante et rend l'oubli délibéré.
+  const charge = {
+    tobaccos: [{ id: 1 }, { id: 2 }],
+    pipes: [{ id: 10 }],
+    wishlist: [{ id: 20 }],
+    accessories: [{ id: 30 }],
+    sessions: [{ id: 40 }],
+  };
+
+  it("toutes les clés de la charge y sont, les cinq genres compris", () => {
+    const keys = importAllKeys(charge);
+    expect([...keys].sort()).toEqual(
+      ["accessory:30", "pipe:10", "session:40", "tobacco:1", "tobacco:2", "wish:20"],
+    );
+  });
+
+  it("les genres cochés sont EXACTEMENT ceux que la liste affiche", () => {
+    // LA MOITIÉ QUI COMPTE, et la raison d'avoir sorti une définition
+    // partagée : un genre oublié du pré-cochage resterait décoché par défaut,
+    // donc absent de l'import, sur un écran qui a l'air de tout avoir pris.
+    // On compare donc les deux lecteurs de la même source plutôt que de
+    // redire une liste de genres ici.
+    const affiches = importSelectableSections(charge).map((s) => s.kind).sort();
+    const coches = [...new Set([...importAllKeys(charge)].map((k) => k.split(":")[0]))].sort();
+    expect(coches).toEqual(affiches);
+  });
+
+  it("une charge sans un genre ne le fabrique pas", () => {
+    const keys = importAllKeys({ tobaccos: [{ id: 1 }] });
+    expect([...keys]).toEqual(["tobacco:1"]);
+    expect(importSelectableSections({ tobaccos: [{ id: 1 }] })).toHaveLength(1);
+  });
+
+  it("le panneau SÈME la sélection en entrant dans l'écran", () => {
+    // Le câblage : sans cet appel, la définition partagée serait juste et
+    // l'écran partirait vide quand même.
+    const panel = readFileSync("src/views/curator/SettingsModal.tsx", "utf8");
+    const i = panel.indexOf("setSelectMode(true)");
+    expect(i, "l'entrée dans l'écran de sélection est introuvable").toBeGreaterThan(0);
+    expect(panel.slice(Math.max(0, i - 400), i),
+      "la sélection n'est pas pré-remplie à l'ouverture").toContain("setSelectedSet(importAllKeys(parsed))");
   });
 });

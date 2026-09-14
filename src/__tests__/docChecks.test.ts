@@ -1688,3 +1688,43 @@ describe("checkChangelogLanguageParity", () => {
     expect(D.checkChangelogLanguageParity(html, version, codes)).toEqual([]);
   });
 });
+
+describe("findFallbackMismatches connaît les DEUX formes de repli", () => {
+  // L'ANGLE MORT, TROUVÉ EN LE HEURTANT. Cette porte ne lisait que
+  // `t ? t("k") : "…"`. Or `SettingsModal` — le fichier qui porte le plus de
+  // replis — passe par un helper local `tr("k", "…")`, invisible au motif.
+  // Mesuré en l'élargissant : 107 replis de cette forme, dont 7 divergeaient du
+  // français sans que rien ne le dise. Le trou s'est révélé de la pire façon :
+  // j'ai réécrit deux libellés, la porte a dit OK, et leurs replis annonçaient
+  // encore le comportement d'avant.
+  const ref = { k_a: "Bonjour", k_b: "Au revoir" };
+
+  it("attrape la forme ternaire", () => {
+    const out = D.findFallbackMismatches('x = t ? t("k_a") : "Salut";', ref, "f");
+    expect(out).toHaveLength(1);
+    expect(out[0].key).toBe("k_a");
+  });
+
+  it("attrape AUSSI la forme helper `tr(clé, repli)`", () => {
+    const out = D.findFallbackMismatches('x = tr("k_a", "Salut");', ref, "f");
+    expect(out, "la forme tr() reste invisible").toHaveLength(1);
+    expect(out[0].key).toBe("k_a");
+  });
+
+  it("se tait quand le repli est EXACT, dans les deux formes", () => {
+    // Non-vacuité : sans cette moitié, une fonction qui signale tout passerait
+    // les deux cas ci-dessus.
+    expect(D.findFallbackMismatches('t ? t("k_a") : "Bonjour"', ref, "f")).toHaveLength(0);
+    expect(D.findFallbackMismatches('tr("k_b", "Au revoir")', ref, "f")).toHaveLength(0);
+  });
+
+  it("ignore une clé inconnue plutôt que d'inventer une divergence", () => {
+    expect(D.findFallbackMismatches('tr("k_inexistante", "n\'importe")', ref, "f")).toHaveLength(0);
+  });
+
+  it("ne rapporte qu'UNE fois un même couple clé + repli", () => {
+    const out = D.findFallbackMismatches(
+      'a = tr("k_a", "Salut"); b = tr("k_a", "Salut");', ref, "f");
+    expect(out).toHaveLength(1);
+  });
+});

@@ -280,14 +280,30 @@ describe("SettingsModal — le panneau d'import", () => {
       (container as HTMLElement).querySelectorAll("button"),
     ).find((b) => (b.textContent || "").includes(trFr("import_action_selection")));
 
-    // Avant toute coche : rien n'est sélectionné, donc le bouton doit être
-    // inerte. S'il partait ici, il partirait avec un ensemble VIDE — et
-    // `applyImport` traite l'absence de sélection comme « tout prendre ».
+    // ── RENVERSEMENT, consigné sur l'assertion plutôt que supprimé ──
+    // Ceci exigeait que le bouton soit INERTE à l'ouverture, parce que rien
+    // n'y était coché. L'écran part maintenant TOUT COCHÉ : un rapport d'usage
+    // avait conclu que l'import « n'amenait que les tabacs » alors que seuls
+    // les tabacs avaient été cochés, le chemin court — cocher la première
+    // section et valider — laissant le reste de côté sans que rien ne le dise.
+    //
+    // LA PRÉOCCUPATION DU CAS RESTE ENTIÈRE, ET ELLE EST MIEUX ÉPROUVÉE QU'AVANT.
+    // `applyImport` traite l'absence de sélection comme « tout prendre », donc
+    // confirmer un ensemble VIDE importerait le fichier entier. Cet état était
+    // auparavant celui de l'ouverture ; il n'est plus atteignable qu'en
+    // décochant tout — ce que ce cas fait maintenant, c'est-à-dire par le
+    // chemin qu'un utilisateur peut réellement emprunter.
     const before = confirmBtn();
     expect(before, "le bouton de confirmation du sélecteur est introuvable").toBeTruthy();
     expect((before as HTMLButtonElement).disabled,
+      "la sélection ne part pas tout cochée").toBe(false);
+
+    // Tout décocher : on retombe sur l'ensemble vide, et la garde doit tenir.
+    rows.forEach((r) => fireEvent.click(r));
+    expect((confirmBtn() as HTMLButtonElement).disabled,
       "confirmer une sélection vide importerait tout le fichier").toBe(true);
 
+    // Puis une seule ligne recochée.
     fireEvent.click(target as HTMLElement);
 
     const after = confirmBtn();

@@ -317,11 +317,34 @@ function checkHelpAnchors(doc, sectionIds) {
  * the key-existence gate.
  */
 function findFallbackMismatches(fileText, refMap, label) {
-  const re = /\bt\(\s*"([A-Za-z0-9_]+)"\s*\)\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+  // DEUX FORMES, ET LA SECONDE ÉTAIT L'ANGLE MORT. Cette porte ne connaissait
+  // que `t ? t("k") : "…"`. Or `SettingsModal` — le fichier qui en porte le
+  // plus — passe par un helper local `tr("k", "…")` qui fait exactement la même
+  // chose, et que le motif ne voyait pas. MESURÉ en élargissant : 107 replis de
+  // cette forme, dont 7 divergeaient du français sans que rien ne le dise.
+  //
+  // Le trou s'est révélé de la pire façon possible : j'ai réécrit deux libellés
+  // de la sélection d'import, la porte a dit OK, et leurs replis annonçaient
+  // encore le comportement d'avant. Une porte qui couvre une forme sur deux
+  // rassure exactement autant qu'une porte complète, ce qui est le problème.
+  const res = [
+    /\bt\(\s*"([A-Za-z0-9_]+)"\s*\)\s*:\s*"((?:[^"\\]|\\.)*)"/g,
+    /\btr\(\s*"([A-Za-z0-9_]+)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*\)/g,
+  ];
   const out = [];
+  const seen = Object.create(null);
+  for (const re of res) scan(re);
+  return out;
+
+  function scan(re) {
   let m;
   while ((m = re.exec(String(fileText))) !== null) {
     const k = m[1], lit = m[2];
+    // Un même couple clé+repli peut être lu deux fois si les deux motifs se
+    // chevauchent un jour ; on ne le rapporte qu'une.
+    const sig = k + "\u0000" + lit;
+    if (seen[sig]) continue;
+    seen[sig] = true;
     if (!(k in refMap)) continue;
     if (refMap[k] !== lit) {
       out.push({
@@ -330,7 +353,7 @@ function findFallbackMismatches(fileText, refMap, label) {
       });
     }
   }
-  return out;
+  }
 }
 
 

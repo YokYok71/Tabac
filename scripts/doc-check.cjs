@@ -584,7 +584,7 @@ try {
     });
     if (fbMismatch.length > 0) {
       err(
-        "i18n: " + fbMismatch.length + ' dev-fallback literal(s) diverge from their fr value (t ? t("k") : "…"). Make each fallback equal fr[k]:\n      • ' +
+        "i18n: " + fbMismatch.length + ' dev-fallback literal(s) diverge from their fr value (t ? t("k") : "…" OR tr("k", "…")). Make each fallback equal fr[k]:\n      • ' +
         fbMismatch.slice(0, 12).join("\n      • ") +
         (fbMismatch.length > 12 ? "\n      • …and " + (fbMismatch.length - 12) + " more" : ""),
       );
