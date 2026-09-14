@@ -841,6 +841,15 @@
       ],
       "why": "Four of the five dictionaries became on-demand chunks, which made a language change something that can FAIL — and the help still promised it could be changed 'à tout moment' with no caveat, in all five languages, for three releases. A follow-up then found the error copy itself was wrong: it said 'reconnect and try again', but a failed dynamic import is cached AS A FAILURE in the browser's module map, so retrying in the same page makes no network request at all (measured in Chromium: offline tap -> reconnect -> tap again = ONE request, both attempts fail; only a reload clears it). Re-read for: can a switch still fail, and does the copy still name the ONLY action that recovers it? Is English still both the compiled-in dictionary and the fallback? Does a language still stay available offline once fetched? And does a failure still LEAVE the current language rather than silently switching?",
       "fingerprint": "27fc67f9aee99cae"
+    },
+    {
+      "id": "ci-gate-triggers",
+      "region": ".github/workflows/checks.yml",
+      "labels": [
+        "docs/checks.md — the paragraph disclosing WHEN npm test / doc:check fire (push vs pull_request)"
+      ],
+      "why": "docs/checks.md disclosed \"npm test and doc:check run only on push to main, not on pull_request\". Build 62 made that false and the paragraph stood for three weeks, then was read cold and re-reported to the user as an open finding — one of three stale disclosures in that document found the same day. The workflow and the prose describing it had no mechanical link, so no gate could see the gap. Changing the trigger surface now forces that paragraph to be re-read.",
+      "fingerprint": "dfd89e2aa026f974"
     }
   ]
 }

@@ -28,6 +28,17 @@ name: Checks
 # WORKFLOW et non de job : les séparer est ce qui permet de ne les lancer que
 # lorsqu'un fichier peut réellement changer un pixel. Voir l'en-tête de ce
 # fichier-là pour la mesure et pour la raison de sa place hors de deploy.yml.
+# LABEL-CONTRACT:start ci-gate-triggers — see scripts/label-contracts.json
+#
+# WHEN THE GATES FIRE IS DOCUMENTED ELSEWHERE, AND THAT PROSE WENT STALE ONCE.
+# docs/checks.md carried "npm test and doc:check run only on push to main, not
+# on pull_request" for the three weeks after build 62 made it false — and it was
+# then read cold and re-reported as an open finding. Nothing could see the gap:
+# the workflow and the paragraph describing it have no mechanical link. This
+# region is fingerprinted so that changing it FAILS doc:check until whoever
+# changed it has re-read that paragraph. Do not move the end marker to shrink
+# the region without saying why — the point is that the whole trigger surface
+# (the `on:` block AND the per-step `if:` conditions) is what the prose claims.
 on:
   push:
     branches: [main]
@@ -97,3 +108,4 @@ jobs:
           # bumped yet. Every other gate in doc:check still runs.
           DOC_CHECK_SKIP_BUMP: "1"
         run: npm run doc:check
+# LABEL-CONTRACT:end ci-gate-triggers
