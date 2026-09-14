@@ -55,7 +55,11 @@ export function useExportImport({
   ageLabel: (d: any) => string;
   dateFormat?: string;
   lang?: string;
-  stageImport: (parsed: any, source: "file" | "drive", options?: { autoApply?: "replace" | "merge"; onMerged?: (summary: any) => void; keepModalOpen?: boolean }) => void;
+  stageImport: (parsed: any, source: "file" | "drive", options?: {
+    autoApply?: "replace" | "merge"; onMerged?: (summary: any) => void; keepModalOpen?: boolean;
+    mergeOnly?: boolean;
+    csvSummary?: { rows: number; lots: number; issues: number; ignoredColumns: string[] };
+  }) => void;
   markExported?: () => void;
   // Non-blocking recap sink (App's setImportRecap). When present,
   // the CSV import outcome shows as a Notice toast instead of window.alert.
@@ -730,7 +734,18 @@ export function useExportImport({
             if (!tb || !Array.isArray(tb.lots)) return;
             tb.lots.forEach(function (l: any) { if (l) l.id = monotonicId(); });
           });
-          if (!parsed.tobaccos.length) {
+          // LES TROIS AUTRES SECTIONS ONT LA MÊME CONTRAINTE, POUR LA MÊME
+          // RAISON. `parseTobaccoCsv` est pure et déterministe (elle est
+          // fuzzée), donc elle frappe ses identifiants depuis une base fixe :
+          // deux imports successifs produiraient les MÊMES identifiants sous
+          // des fiches différentes. Ce qui était vrai des lots l'est de chaque
+          // pipe, envie et accessoire dès lors que le lecteur les produit.
+          [parsed.pipes, parsed.wishlist, parsed.accessories].forEach(function (arr: any[]) {
+            (arr || []).forEach(function (e: any) { if (e) e.id = monotonicId(); });
+          });
+          var _secCount = (parsed.pipes || []).length + (parsed.wishlist || []).length
+            + (parsed.accessories || []).length;
+          if (!parsed.tobaccos.length && !_secCount) {
             // Explicit diagnosis instead of a generic "empty" message:
             var head = raw.replace(/^\uFEFF/, "").trim();
             var looksJson = head.charAt(0) === "{" || head.charAt(0) === "[" || head.indexOf("\"tobaccos\"") >= 0;
@@ -743,7 +758,6 @@ export function useExportImport({
             // Capture the merge recap (lot-level merge now tops up
             // an existing blend's lots) so the feedback reflects what really
             // changed instead of the older add-only claim.
-            var _summary: any = null;
             // Computed BEFORE the import because it decides
             // whether Settings stays open — the row-level panel renders there,
             // and `_runImport` closes the modal for a "file" source.
@@ -754,11 +768,14 @@ export function useExportImport({
             // incomplet resterait celui qui ne montre aucun panneau.
             var _coerced = (parsed.badCategory || 0) + (parsed.badCut || 0) + (parsed.badNumber || 0) + (parsed.badStatus || 0) + (parsed.badColumn || 0);
             var _hasIssues = parsed.skipped > 0 || _coerced > 0;
-            stageImport({ tobaccos: parsed.tobaccos }, "file", {
-              autoApply: "merge",
-              onMerged: function (s: any) { _summary = s; },
-              keepModalOpen: _hasIssues,
-            });
+            // LE RÉCAPITULATIF EST DEVENU UN RAPPEL, ET IL LE FALLAIT. Il
+            // s'exécutait juste après `stageImport`, ce qui ne marchait que
+            // parce que l'import s'appliquait tout seul : maintenant que
+            // l'utilisateur voit d'abord un aperçu, le moment où l'on peut dire
+            // ce qui a été fait est celui où il a dit oui. Un récapitulatif
+            // laissé en place aurait annoncé un import avant qu'il existe — et
+            // il l'aurait annoncé même sur un refus.
+            var _recap = function (_summary: any) {
             // An IMPORT does not count as a backup. This called
             // `markExported()`, which bumps `cave-last-export-ts` and silences
             // the "you have not backed up in a while" reminder for 30 days —
@@ -812,9 +829,24 @@ export function useExportImport({
               done += "\n\n" + String(t ? t("merge_recap_trashed") : "{n} élément(s) sont déjà dans votre corbeille : rien n'a été ajouté. Restaurez-les depuis la corbeille si vous les voulez de nouveau.")
                 .replace("{n}", String(_summary.trashedSkipped));
             }
-            // The full CSV export is multi-section — warn that only tabacs came in.
-            if (parsed.sectioned) {
-              done += "\n\n" + (t ? t("csv_import_sections") : "Un export CSV contient aussi pipes, accessoires et séances : seuls les tabacs ont été importés. Pour tout restaurer, utilisez une sauvegarde JSON.");
+            // LES TROIS AUTRES SECTIONS, quand le fichier en portait. Compté
+            // depuis ce que la LECTURE a produit et non depuis la fusion : le
+            // récapitulatif des tabacs dit déjà, ligne suivante, ce que la
+            // fusion a fait des doublons, et mélanger les deux mesures dans une
+            // seule phrase est ce qui avait rendu « 1 tabac déjà présent » faux.
+            var _secN = (parsed.pipes || []).length + (parsed.wishlist || []).length
+              + (parsed.accessories || []).length;
+            if (_secN > 0) {
+              done += "\n\n" + String(t ? t("csv_import_sections_done") : "{p} pipe(s), {w} envie(s) et {a} accessoire(s) également importés.")
+                .replace("{p}", String((parsed.pipes || []).length))
+                .replace("{w}", String((parsed.wishlist || []).length))
+                .replace("{a}", String((parsed.accessories || []).length));
+            }
+            // LA SEULE SECTION QUE LE LECTEUR LAISSE PASSER, et l'avertissement
+            // ne sort que si le fichier en portait une — `hadSessions` et non
+            // `sectioned`, qui serait vrai d'un export sans la moindre séance.
+            if (parsed.hadSessions) {
+              done += "\n\n" + (t ? t("csv_import_sections") : "Les séances ne s'importent pas depuis un CSV : elles portent un débit de poids sur un lot précis, que le fichier ne nomme pas. Pour les retrouver, utilisez une sauvegarde JSON.");
             }
             // What the PARSER could not read, which the recap
             // had never mentioned even though it was already counted.
@@ -864,7 +896,32 @@ export function useExportImport({
                 truncated: !!parsed.issuesTruncated,
               });
             }
-          } catch (_e2) {}
+            } catch (_e2) { /* un récapitulatif qui échoue ne doit pas défaire l'import */ }
+            };
+            stageImport({
+              tobaccos: parsed.tobaccos,
+              pipes: parsed.pipes,
+              wishlist: parsed.wishlist,
+              accessories: parsed.accessories,
+            }, "file", {
+              // FUSION SEULE, ET CE N'EST PAS UNE PRÉCAUTION DE PRINCIPE. Le
+              // panneau propose « Remplacer » au JSON parce qu'une sauvegarde
+              // JSON contient TOUTE la cave. Un CSV de tabacs n'en contient
+              // qu'une part : offrir « Remplacer » dessus effacerait pipes,
+              // séances et accessoires à partir d'un fichier qui n'en parle
+              // pas. Le guide promet depuis toujours que l'import CSV ne
+              // remplace jamais ; cette option est ce qui tient la promesse
+              // maintenant que le CSV passe par le même panneau.
+              mergeOnly: true,
+              csvSummary: {
+                rows: parsed.rows || 0,
+                lots: parsed.lots || 0,
+                issues: (parsed.skipped || 0) + _coerced,
+                ignoredColumns: parsed.ignoredColumns || [],
+              },
+              onMerged: _recap,
+              keepModalOpen: _hasIssues,
+            });
         } catch (_e) {
           try { window.alert(t ? t("err_import_failed") : "Échec de l'import du fichier."); } catch (_e3) {}
         }

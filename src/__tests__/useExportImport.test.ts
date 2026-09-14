@@ -50,6 +50,29 @@ afterEach(() => {
 // withPhotos rejection (broken IndexedDB) used to vanish: no alert, no
 // file, no status change — the user believed the export had succeeded.
 
+/** Le mock de `stageImport` qui JOUE L'APPLICATION.
+ *
+ *  ÉCRIT QUAND LE CSV A CESSÉ DE S'APPLIQUER TOUT SEUL. Ces cas passaient un
+ *  `vi.fn()` nu : le récapitulatif s'exécutait juste après `stageImport`, donc
+ *  il partait quoi qu'il arrive. Il est maintenant joué par `onMerged`, c'est-
+ *  à-dire au moment où l'utilisateur dit oui dans le panneau — un mock muet
+ *  laisse donc l'import en suspens, ce qui est le comportement JUSTE et non un
+ *  test à réparer. Le mock rejoue cette acceptation.
+ *
+ *  Le résumé par défaut est celui d'une fusion qui n'a RIEN trouvé à
+ *  rattacher : c'est l'état dans lequel ces cas se trouvaient déjà quand
+ *  `_summary` restait nul, donc leurs assertions gardent leur sens. */
+function stageImportApplique(summary?: any) {
+  return vi.fn((_p: any, _s: any, opts: any) => {
+    if (opts && typeof opts.onMerged === "function") {
+      opts.onMerged(summary || {
+        tobaccosMatched: 0, blendsToppedUp: 0, entitiesUpdated: 0, lotsAppended: 0,
+        identityConflicts: 0, trashedSkipped: 0, sessionsUpdated: 0, tobaccosAdded: 0,
+      });
+    }
+  });
+}
+
 describe("doExport / doBackupZip — withPhotos rejection surfaces an error", () => {
   it("doExport alerts with err_export_failed when withPhotos rejects", async () => {
     const alertSpy = vi.spyOn(globalThis, "alert" as any).mockImplementation(() => {});
@@ -499,7 +522,7 @@ describe("doDownloadCsvTemplate", () => {
 });
 
 describe("doImportCsvFile", () => {
-  it("merges parsed tobaccos via stageImport(autoApply:merge)", async () => {
+  it("met en scène les QUATRE listes et n'applique plus tout seul", async () => {
     const stageImport = vi.fn();
     const markExported = vi.fn();
     vi.spyOn(globalThis, "alert" as any).mockImplementation(() => {});
@@ -523,11 +546,27 @@ describe("doImportCsvFile", () => {
     expect(stageImport).toHaveBeenCalledOnce();
     const [payload, source, options] = stageImport.mock.calls[0]!;
     expect(source).toBe("file");
-    expect(options.autoApply).toBe("merge");
-    expect(typeof options.onMerged).toBe("function"); // merge recap callback
+    // ── RENVERSEMENT, consigné sur l'assertion plutôt que supprimé ──
+    // Ceci exigeait `options.autoApply === "merge"` : le CSV s'écrivait tout
+    // seul et s'expliquait après. Il passe maintenant par le panneau de
+    // confirmation, comme le JSON — on voit ce qui va entrer avant de dire oui.
+    // La contrepartie est que `onMerged` n'est plus un simple rappel de
+    // récapitulatif : c'est LUI qui déclenche le récapitulatif, et il ne part
+    // qu'à l'application.
+    expect(options.autoApply, "le CSV s'applique encore sans aperçu").toBeUndefined();
+    expect(options.mergeOnly, "l'aperçu doit être en fusion seule").toBe(true);
+    expect(options.csvSummary, "le récapitulatif de lecture n'est pas transmis").toBeTruthy();
+    expect(typeof options.onMerged).toBe("function"); // recap, joué à l'application
     expect(payload.tobaccos).toHaveLength(1);
     expect(payload.tobaccos[0].brand).toBe("Brackwater");
-    expect(payload.pipes).toBeUndefined();   // tobaccos-only payload → merge preserves other kinds
+    // ── SECOND RENVERSEMENT ──
+    // `payload.pipes` était `undefined` et c'était le point : la charge ne
+    // portait que les tabacs. Les trois autres sections de l'export sont
+    // désormais lues, donc les clés existent — vides ici, puisque ce fichier
+    // n'a pas de section, ce qui est exactement ce qu'il faut vérifier.
+    expect(payload.pipes, "les pipes ne voyagent pas").toEqual([]);
+    expect(payload.wishlist).toEqual([]);
+    expect(payload.accessories).toEqual([]);
     // ── REVERSAL, recorded so it is not "fixed" back ──
     // This used to assert markExported WAS called. An import is not a backup:
     // `markExported` bumps `cave-last-export-ts` and silences the "you have not
@@ -675,7 +714,7 @@ describe("doImportCsvFile", () => {
   });
 
   it("surfaces the 'already up to date' note when a CSV row matches an existing blend with no new lot", () => {
-    const stageImport = vi.fn();
+    const stageImport = stageImportApplique();
     const alertSpy = vi.spyOn(globalThis, "alert" as any).mockImplementation(() => {});
     // Local already has Brackwater · Duskfall → the merge would skip it (add-only).
     const props = makeProps({
@@ -768,7 +807,7 @@ describe("doImportCsvFile", () => {
   });
 
   it("does NOT surface the matched note when all CSV rows are new blends", () => {
-    const stageImport = vi.fn();
+    const stageImport = stageImportApplique();
     const alertSpy = vi.spyOn(globalThis, "alert" as any).mockImplementation(() => {});
     const props = makeProps({ stageImport, t: (k: string) => k, data: { ...INIT, tobaccos: [] } });
     const { result } = renderHook(() => useExportImport(props as any));
@@ -832,13 +871,10 @@ describe("doImportCsvFile", () => {
     expect(alertSpy).toHaveBeenCalledWith("csv_import_json");
   });
 
-  it("imports the tabac section and warns when given the multi-section export CSV", () => {
-    const stageImport = vi.fn();
-    const alertSpy = vi.spyOn(globalThis, "alert" as any).mockImplementation(() => {});
+  /** Monte le CSV donné dans le lecteur de fichier et rend l'alerte finale. */
+  function importe(csv: string, stageImport: any, alertSpy: any) {
     const props = makeProps({ stageImport, t: (k: string) => k });
     const { result } = renderHook(() => useExportImport(props as any));
-
-    const csv = "Marque;Nom;Statut;Poids (g)\nBrackwater;Duskfall;Pot;25\n=== PIPES ===\nHalvorsen;Sherlock;Billiard;80";
     const fakeInput: any = { click: vi.fn(), files: [new Blob([csv])] };
     vi.spyOn(document, "createElement").mockReturnValue(fakeInput as any);
     class FakeReader {
@@ -846,17 +882,66 @@ describe("doImportCsvFile", () => {
       readAsText() { this.result = csv; if (this.onload) this.onload(); }
     }
     (globalThis as any).FileReader = FakeReader;
-
     act(() => { result.current.doImportCsvFile(); });
     act(() => { fakeInput.onchange(); });
-
-    // only the tabac section imported
-    expect(stageImport).toHaveBeenCalledOnce();
-    expect(stageImport.mock.calls[0]![0].tobaccos).toHaveLength(1);
-    // the success alert carries the "sections" note
     const ac = alertSpy.mock.calls;
-    const msg = String(ac[ac.length - 1]![0]);
+    return ac.length ? String(ac[ac.length - 1]![0]) : "";
+  }
+
+  it("un export multi-sections amène AUSSI les pipes", () => {
+    // ── RENVERSEMENT, consigné plutôt que supprimé ──
+    // Ce cas s'appelait « imports the tabac section and warns » et exigeait le
+    // contraire : que seuls les tabacs entrent, et que l'alerte porte
+    // `csv_import_sections`. C'ÉTAIT LE DÉFAUT. Un export CSV a quatre blocs,
+    // le lecteur s'arrêtait au premier, et l'aller-retour perdait pipes, envies
+    // et accessoires en silence. L'avertissement ne disait pas « il manque des
+    // choses », il entérinait le manque.
+    const stageImport = stageImportApplique();
+    const alertSpy = vi.spyOn(globalThis, "alert" as any).mockImplementation(() => {});
+    const msg = importe(
+      "Marque;Nom;Statut;Poids (g)\nBrackwater;Duskfall;Pot;25\n\n"
+      + "=== PIPES ===\nMarque;Modele;Forme\nHalvorsen;Sherlock;Billiard",
+      stageImport, alertSpy,
+    );
+    expect(stageImport).toHaveBeenCalledOnce();
+    const payload = stageImport.mock.calls[0]![0];
+    expect(payload.tobaccos).toHaveLength(1);
+    expect(payload.pipes, "la pipe de l'export n'est pas arrivée").toHaveLength(1);
+    expect(payload.pipes[0].name).toBe("Sherlock");
+    expect(msg).toContain("csv_import_sections_done");
+    // Et l'avertissement sur les séances ne sort PAS : ce fichier n'en a pas.
+    expect(msg, "avertissement de séances sur un fichier qui n'en porte aucune")
+      .not.toContain("csv_import_sections\n");
+  });
+
+  it("une section SANS ligne d'en-tête ne produit rien, et le dit", () => {
+    // Le cas que l'échantillon de l'ancien test contenait sans le savoir : il
+    // écrivait « === PIPES === » suivi directement d'une ligne de VALEURS. La
+    // première ligne après un marqueur EST l'en-tête — c'est la forme que
+    // l'export produit — donc ces valeurs sont lues comme des noms de colonnes,
+    // aucune fiche n'en sort, et les libellés sont signalés comme inconnus.
+    // C'est le comportement juste, et il vaut mieux qu'il soit épinglé.
+    const stageImport = stageImportApplique();
+    const alertSpy = vi.spyOn(globalThis, "alert" as any).mockImplementation(() => {});
+    importe(
+      "Marque;Nom\nBrackwater;Duskfall\n\n=== PIPES ===\nHalvorsen;Sherlock;Billiard",
+      stageImport, alertSpy,
+    );
+    const payload = stageImport.mock.calls[0]![0];
+    expect(payload.pipes, "des valeurs lues comme des fiches").toHaveLength(0);
+    expect(payload.tobaccos).toHaveLength(1);
+  });
+
+  it("une section SÉANCES est signalée, et elle seule", () => {
+    const stageImport = stageImportApplique();
+    const alertSpy = vi.spyOn(globalThis, "alert" as any).mockImplementation(() => {});
+    const msg = importe(
+      "Marque;Nom\nBrackwater;Duskfall\n\n=== SEANCES ===\nDate;Tabac\n2026-01-01;Duskfall",
+      stageImport, alertSpy,
+    );
     expect(msg).toContain("csv_import_sections");
+    expect(msg, "rien d'autre n'a été importé, donc rien à annoncer")
+      .not.toContain("csv_import_sections_done");
   });
 });
 
@@ -1033,7 +1118,11 @@ describe("the CSV import says what it could not read", () => {
   // rows as for a clean one — the lesson, one importer over.
   function runImport(csv: string, extra: Record<string, any> = {}) {
     const setImportRecap = vi.fn();
-    const stageImport = vi.fn();
+    // JOUE L'APPLICATION : depuis que le CSV passe par l'aperçu, le
+    // récapitulatif et le panneau d'anomalies ne partent qu'à l'acceptation.
+    // Un mock muet laisserait l'import en suspens — ce qui est le comportement
+    // juste, et non un test à réparer.
+    const stageImport = stageImportApplique();
     const props = makeProps({ stageImport, setImportRecap, ...extra });
     const { result } = renderHook(() => useExportImport(props as any));
     const fakeInput: any = { click: vi.fn(), files: [new Blob([csv])] };
@@ -1067,7 +1156,7 @@ describe("the CSV import says what it could not read", () => {
     // the modal for a "file" source, so the panel rendered perfectly into a
     // tab that had just shut. No test could see it — the panel renders fine in
     // isolation.
-    const stageImport = vi.fn();
+    const stageImport = stageImportApplique();
     const props = makeProps({ stageImport, setImportRecap: vi.fn() });
     const { result } = renderHook(() => useExportImport(props as any));
     const csv = [HEAD, GOOD, ",,Anglais,Ribbon,50"].join("\n");
@@ -1130,7 +1219,7 @@ describe("the CSV import says what it could not read", () => {
 
   it("…and that coercion keeps Settings OPEN, or the panel renders into a shut tab", () => {
     // The defect, through the door its own fixtures never opened.
-    const stageImport = vi.fn();
+    const stageImport = stageImportApplique();
     const props = makeProps({ stageImport, setImportRecap: vi.fn() });
     const { result } = renderHook(() => useExportImport(props as any));
     const csv = [HEAD, GOOD, "Vondel,633,Pipeweed,Ribbon,50"].join("\n");
@@ -1173,7 +1262,7 @@ describe("the CSV import says what it could not read", () => {
     // A stale panel must not outlive the file that produced it — it would
     // describe a file the user has already replaced.
     const setImportRecap = vi.fn();
-    const props = makeProps({ stageImport: vi.fn(), setImportRecap });
+    const props = makeProps({ stageImport: stageImportApplique(), setImportRecap });
     const { result } = renderHook(() => useExportImport(props as any));
     let text = [HEAD, GOOD, ",,Anglais,Ribbon,50"].join("\n");
     const fakeInput: any = { click: vi.fn(), files: [new Blob([""])] };

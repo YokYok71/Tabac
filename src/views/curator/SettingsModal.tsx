@@ -1492,13 +1492,15 @@ function ImportConfirmPanel({
     imgData: Record<string, string>;
     dupCounts: { tobaccos: number; pipes: number; wishlist: number; accessories: number };
     incoming: { tobaccos: number; pipes: number; wishlist: number; accessories: number; sessions: number };
+    mergeOnly?: boolean | undefined;
+    csvSummary?: { rows: number; lots: number; issues: number; ignoredColumns: string[] } | undefined;
   };
   applyImport: (mode: "replace" | "merge", selection?: Set<string>) => void;
   cancelImport: () => void;
   dateFormat?: "fr" | "en";
   t?: (k: string) => string;
 }) {
-  const { incoming, dupCounts, parsed } = importConfirm;
+  const { incoming, dupCounts, parsed, mergeOnly, csvSummary } = importConfirm;
   const tr = (k: string, frFallback: string) => (t ? t(k) : frFallback);
   // Optional second pane — a checkbox picker that lets
   // the user merge only a chosen subset of the imported payload.
@@ -1566,6 +1568,38 @@ function ImportConfirmPanel({
           {row(incoming.accessories, dupCounts.accessories, tr("aria_accessories",  "Accessoires"))}
           {row(incoming.sessions,    0,                     tr("stat_sessions",     "Séances"))}
         </div>
+
+        {/* CE QUE LA LECTURE A COÛTÉ, AVANT D'APPLIQUER. Le bloc du dessus dit
+            ce qui va ENTRER ; celui-ci dit ce que le fichier a donné — lignes
+            lues, lots reconstruits, anomalies, colonnes ignorées. Ces chiffres
+            existaient déjà mais n'apparaissaient qu'APRÈS l'import, dans un
+            panneau que l'on découvrait une fois le mal fait. Les montrer ici
+            est tout l'intérêt d'avoir un aperçu. */}
+        {csvSummary && (
+          <div style={{
+            padding: "8px 12px", marginBottom: 12, borderRadius: 8,
+            background: C.bg2, border: `1px solid ${C.rule}`,
+            color: C.tx2, fontSize: fs(13.5), lineHeight: 1.5,
+          }}>
+            <div style={{ fontFamily: F.mono, color: C.tx }}>
+              {String(tr("csv_preview_read", "{r} ligne(s) lue(s) · {l} lot(s)"))
+                .replace("{r}", String(csvSummary.rows))
+                .replace("{l}", String(csvSummary.lots))}
+            </div>
+            {csvSummary.issues > 0 && (
+              <div style={{ color: C.amber, marginTop: 4 }}>
+                ⚠ {String(tr("csv_preview_issues", "{n} anomalie(s) — le détail s'affichera après l'import"))
+                  .replace("{n}", String(csvSummary.issues))}
+              </div>
+            )}
+            {csvSummary.ignoredColumns.length > 0 && (
+              <div style={{ color: C.amber, marginTop: 4 }}>
+                ⚠ {String(tr("csv_preview_cols", "Colonne(s) ignorée(s) : {v}"))
+                  .replace("{v}", csvSummary.ignoredColumns.join(", "))}
+              </div>
+            )}
+          </div>
+        )}
 
         {(dupCounts.tobaccos + dupCounts.pipes + dupCounts.wishlist + dupCounts.accessories) > 0 && (
           <div style={{
@@ -1638,7 +1672,17 @@ function ImportConfirmPanel({
                 corbeille de 30 jours derrière eux.
                 `window.confirm` et non une modale maison : c'est de la chrome
                 de navigateur, donc non recouvrable par un cadre hostile — la
-                raison déjà écrite pour la réinitialisation. */}
+                raison déjà écrite pour la réinitialisation.
+
+                ELLE DISPARAÎT EN MODE FUSION SEULE, et c'est une question de
+                CONTENU. Une sauvegarde JSON porte toute la cave, donc la
+                remplacer par elle a un sens. Un CSV n'en porte qu'une part —
+                souvent les seuls tabacs : « Remplacer » y effacerait pipes,
+                séances et accessoires à partir d'un fichier qui n'en parle
+                pas. Le guide promet depuis toujours que l'import CSV ne
+                remplace jamais ; c'est ici que la promesse se tient, puisque
+                les deux chemins partagent désormais ce panneau. */}
+            {!mergeOnly && (
             <PressCard onClick={() => {
               // Fail-CLOSED, comme les deux autres confirmations du dépôt : un
               // `confirm` refusé — ou supprimé par le navigateur, qui rend
@@ -1660,6 +1704,7 @@ function ImportConfirmPanel({
                 {tr("import_replace_desc", "Effacer les données locales et utiliser le fichier importé. À utiliser pour une restauration propre depuis une sauvegarde.")}
               </div>
             </PressCard>
+            )}
 
             <PressCard onClick={cancelImport} style={{
               padding: "10px 12px",

@@ -388,6 +388,25 @@ export interface ImportConfirmState {
   // parsed — so backing out of the picker silenced a genuinely-newer backup
   // for ever. See `_executeCloudNewerRestore` in useGdriveSync.
   onApplied?: (() => void) | undefined;
+  /** Masque la carte « Remplacer » du panneau.
+   *
+   *  POUR LE CSV, ET POUR UNE RAISON DE CONTENU, PAS DE PRUDENCE. Une
+   *  sauvegarde JSON porte TOUTE la cave, donc la remplacer par elle a un
+   *  sens. Un CSV n'en porte qu'une part — souvent les seuls tabacs — et
+   *  « Remplacer » y effacerait pipes, séances et accessoires à partir d'un
+   *  fichier qui n'en parle pas. Le guide promet depuis toujours que l'import
+   *  CSV ne remplace jamais ; cette option est ce qui tient la promesse
+   *  maintenant que les deux chemins partagent un panneau. */
+  mergeOnly?: boolean | undefined;
+  /** Le récapitulatif de LECTURE, propre au CSV, affiché avant d'appliquer.
+   *
+   *  Le panneau sait dire ce qui va ENTRER (compteurs, doublons) ; il ne sait
+   *  rien de ce que la lecture a coûté — lignes lues, lots reconstruits,
+   *  anomalies, colonnes ignorées. Ces chiffres n'existaient qu'APRÈS coup,
+   *  dans un panneau que l'on découvrait une fois l'import fait. */
+  csvSummary?: {
+    rows: number; lots: number; issues: number; ignoredColumns: string[];
+  } | undefined;
 }
 
 export function useImportConfirm({
@@ -482,6 +501,8 @@ export function useImportConfirm({
       /** Leave the Settings modal OPEN after an auto-applied
        *  import. Default false — the historical behaviour. See `_runImport`. */
       keepModalOpen?: boolean;
+      mergeOnly?: boolean;
+      csvSummary?: { rows: number; lots: number; issues: number; ignoredColumns: string[] };
     },
   ) {
     // Fail-closed front door. A payload that doesn't even look
@@ -620,6 +641,8 @@ export function useImportConfirm({
       apiKeyProvider: pendingApiKeyProvider,
           settings: pendingSettings,
       onApplied: (options && options.onApplied) || undefined,
+      mergeOnly: (options && options.mergeOnly) || undefined,
+      csvSummary: (options && options.csvSummary) || undefined,
     });
   }
 

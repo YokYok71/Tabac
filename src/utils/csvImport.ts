@@ -16,7 +16,12 @@
  * fuzzed. The result is a tobaccos-only payload fed to the merge import path.
  */
 
-import { CATS, CUTS, CAT_MAP, CUT_MAP, BT, BL } from "../constants.ts";
+import {
+  CATS, CUTS, CAT_MAP, CUT_MAP, BT, BL, BP, BW, BA,
+  SHAPES, BENDS, FILTERS, BOWL_MATS, STEM_MATS, FINISHES, ACC_TYPES, LIGHTER_FUELS,
+  SHAPES_EN, BENDS_EN, FILTERS_EN, BOWL_MATS_EN, STEM_MATS_EN, FINISHES_EN,
+  ACC_TYPES_EN, LIGHTER_FUELS_EN, ENUM_TRANSLATIONS,
+} from "../constants.ts";
 
 /**
  * One entry per row the parser could not read as written.
@@ -96,6 +101,23 @@ export interface CsvImportResult {
    *  bornés à `MAX_IGNORED_COLUMNS`. Bruts et non repliés : l'utilisateur doit
    *  reconnaître ce qu'il lit dans son tableur. */
   ignoredColumns: string[];
+  /** Les trois AUTRES sections, quand le fichier en porte.
+   *
+   *  Vides pour un fichier de tabacs seul, ce qui est le cas courant d'un
+   *  premier peuplement depuis un tableur. Remplies par un export complet de
+   *  l'application, où elles referment l'aller-retour : jusqu'ici il rendait
+   *  les tabacs et perdait le reste en silence. */
+  pipes: any[];
+  wishlist: any[];
+  accessories: any[];
+  /** Le fichier portait une section SÉANCES, qui n'est pas lue.
+   *
+   *  DISTINCT DE `sectioned`, et la distinction porte tout l'avertissement.
+   *  `sectioned` dit « ce fichier a des sections » — vrai d'un export qui n'a
+   *  que des pipes, dont toutes les sections sont maintenant lues. Prévenir
+   *  là-dessus que « les séances ne s'importent pas » serait un hors-sujet
+   *  affiché à quelqu'un qui n'en avait pas. */
+  hadSessions: boolean;
   issues: CsvImportIssue[]; // capped at MAX_CSV_ISSUES
   issuesTruncated: boolean; // the list hit the cap; the counts above did not
 }
@@ -446,6 +468,22 @@ var CSV_VALUES: Record<string, Record<string, string>> = {
   pipeFinished: { fr: "Finie", en: "Retired", es: "Retirada", de: "Ausgemustert", it: "Ritirata", pt: "Retirado" },
   accActive:    { fr: "Actif", en: "Active", es: "Activo", de: "Aktiv", it: "Attivo", pt: "Ativo" },
   accRetired:   { fr: "Retire", en: "Retired", es: "Retirado", de: "Ausgemustert", it: "Ritirato", pt: "Retirado" },
+  // PRIORITÉ D'UNE ENVIE — arrivée ici quand le lecteur a appris à lire la
+  // section WISHLIST, et les mots sont COPIÉS DES DICTIONNAIRES, pas réinventés.
+  //
+  // L'écrivain les prenait de `t("prio_high" | "prio_medium" | "prio_low")`.
+  // Ce module est PUR et fuzzé : il n'a pas de `t`, et les dictionnaires autres
+  // que l'anglais sont chargés à la demande, donc il ne pouvait pas relire ce
+  // que l'export avait écrit. Les porter ici donne UNE table que l'écrivain et
+  // le lecteur partagent — le même mouvement que `CSV_COLUMNS`.
+  //
+  // LES SIX VALEURS SONT CELLES DES DICTIONNAIRES AU MOT PRÈS, et ce n'est pas
+  // un détail : en choisir de « meilleures » aurait rendu illisibles tous les
+  // fichiers déjà exportés, silencieusement, puisqu'une priorité non reconnue
+  // retombe simplement sur « moyenne ».
+  prioHigh:   { fr: "Haute", en: "High", es: "Alta", de: "Hoch", it: "Alta", pt: "Alta" },
+  prioMedium: { fr: "Moyenne", en: "Medium", es: "Media", de: "Mittel", it: "Media", pt: "Média" },
+  prioLow:    { fr: "Basse", en: "Low", es: "Baja", de: "Niedrig", it: "Bassa", pt: "Baixa" },
 };
 
 /** La langue d'écriture : celle demandée si l'app l'a, sinon le FRANÇAIS.
@@ -533,6 +571,40 @@ function foldIndex(map: Record<string, string>): Record<string, string> {
 }
 var _CAT_FOLD = foldIndex(CAT_MAP as unknown as Record<string, string>);
 var _CUT_FOLD = foldIndex(CUT_MAP as unknown as Record<string, string>);
+
+/** L'INVERSE d'`ENUM_TRANSLATIONS` : libellé localisé replié → valeur canonique.
+ *
+ *  DÉRIVÉ, ET C'ÉTAIT LA CONDITION POUR LIRE LES AUTRES SECTIONS. Une pipe
+ *  exportée en allemand écrit sa forme, sa courbure, son filtre, ses deux
+ *  matières et sa finition en allemand ; un accessoire son type et son
+ *  combustible. Cela fait HUIT énumérations × cinq langues, et les recopier à la
+ *  main aurait été la liste figée que ce dépôt a payée six fois — avec le même
+ *  mode de panne : un mot mal recopié donne « Autre », en silence, sur une fiche
+ *  d'apparence correcte.
+ *
+ *  `ENUM_TRANSLATIONS` porte déjà canonique → localisé pour ces huit tables.
+ *  L'inverser coûte une boucle et suit automatiquement toute traduction
+ *  corrigée ou toute septième langue. Le français est absent des lignes (il EST
+ *  la valeur canonique) et `canonEnum` le retrouve seul en repliant la liste. */
+function enumBackIndex(enMap: Record<string, string>): Record<string, string> {
+  var out: Record<string, string> = Object.create(null);
+  const byLang = ENUM_TRANSLATIONS.get(enMap);
+  if (!byLang) return out;
+  Object.keys(byLang).forEach(function (lg) {
+    const m = byLang[lg];
+    if (!m) return;
+    Object.keys(m).forEach(function (canon) {
+      const label = m[canon];
+      if (!label) return;
+      var f = fold(label);
+      // PREMIER ARRIVÉ GAGNE. Deux langues partagent souvent un mot
+      // (« Billiard » est identique partout) ; ce qui compte est que la cible
+      // soit la même, et elle l'est puisque la clé EST la valeur canonique.
+      if (f && !out[f]) out[f] = canon;
+    });
+  });
+  return out;
+}
 
 function canonEnum(v: any, list: readonly string[], map?: Record<string, string>): string {
   var raw = String(v == null ? "" : v).trim();
@@ -743,7 +815,216 @@ function normAging(v: any): string {
   return "";
 }
 
+// ── les trois AUTRES sections ────────────────────────────────────────────────
+//
+// L'EXPORT ÉCRIT QUATRE SECTIONS ET LE LECTEUR N'EN LISAIT QU'UNE. Un utilisateur
+// qui exportait sa cave en CSV, la modifiait dans un tableur et la réimportait
+// récupérait ses tabacs et perdait ses pipes, ses envies et ses accessoires —
+// sans un mot, puisque le lecteur s'ARRÊTAIT au premier marqueur de section.
+// Le fichier avait l'air complet, l'import réussissait, et la moitié du contenu
+// n'arrivait jamais. C'est la troisième fois dans ce module que le défaut a
+// cette forme : une perte silencieuse sur un chemin d'apparence normale.
+//
+// LES SÉANCES RESTENT DEHORS, ET C'EST UNE DÉCISION, PAS UN OUBLI. Une séance
+// porte un DÉBIT DE POIDS sur un lot précis. Le CSV n'écrit ni identifiant de
+// lot ni uid : il écrit le nom du tabac et celui de la pipe. Réimporter une
+// séance obligerait donc à deviner son lot, et les deux issues sont mauvaises —
+// deviner juste redéduit un poids déjà déduit, deviner faux débite le mauvais
+// lot. Le chemin JSON sait le faire parce qu'il transporte les uids et sait
+// détacher une séance dont le lot est douteux (`sessionsDetached`) ; le CSV n'a
+// rien de tout cela. Une section lue à moitié serait pire que pas lue du tout.
+// La règle reste donc : les séances voyagent en JSON.
+
+/** Ce qu'une section sait produire. */
+interface CsvSectionSpec {
+  /** Clé de sortie dans la charge utile. */
+  kind: "pipes" | "wishlist" | "accessories";
+  /** Les marqueurs qui l'ouvrent, tels que l'export les écrit. */
+  markers: string[];
+  /** Les champs que l'export écrit pour cette section, dans son ordre. */
+  fields: string[];
+  /** Sans CES colonnes, une ligne n'a pas d'identité et n'est pas importable. */
+  identity: string[];
+}
+
+var CSV_SECTIONS: CsvSectionSpec[] = [
+  {
+    kind: "pipes",
+    markers: ["=== PIPES ==="],
+    fields: ["brand", "pipeModel", "shape", "bend", "length", "weightG", "filterType",
+      "chamberDiameter", "chamberDepth", "bowlMaterial", "stemMaterial", "finish",
+      "datePurchased", "dateProduction", "price", "seller", "rating", "status",
+      "description", "notes", "imageUrl"],
+    // Une pipe sans modèle n'est pas une fiche. La marque seule ne suffit pas :
+    // on en possède plusieurs de la même.
+    identity: ["pipeModel"],
+  },
+  {
+    kind: "wishlist",
+    markers: ["=== WISHLIST ==="],
+    fields: ["name", "brand", "category", "blend", "cut", "force", "roomNote", "taste",
+      "description", "agingMax", "tastingNotes", "notes", "priority", "imageUrl"],
+    identity: ["name"],
+  },
+  {
+    kind: "accessories",
+    markers: ["=== ACCESSOIRES ===", "=== ACCESSORIES ==="],
+    fields: ["accType", "brand", "name", "fuel", "status", "datePurchased", "price",
+      "seller", "rating", "notes", "imageUrl"],
+    identity: ["name"],
+  },
+];
+
+/** L'en-tête d'une section → ses champs, DÉRIVÉ de `CSV_COLUMNS`.
+ *
+ *  Pas une seconde table d'alias. `CSV_COLUMNS` porte déjà les six libellés de
+ *  chacun de ces champs — c'est elle que l'écrivain consulte — donc l'inverser
+ *  par section donne un lecteur qui ne peut pas diverger de l'écrivain. Vérifié
+ *  avant d'écrire ceci : aucune des trois sections ne contient d'homographe
+ *  dans aucune des six langues, c'est-à-dire qu'aucun libellé n'y désigne deux
+ *  champs. `csvSections.test.ts` refait cette vérification plutôt que de la
+ *  croire sur parole. */
+function sectionHeaderIndex(spec: CsvSectionSpec): Record<string, string> {
+  var out: Record<string, string> = Object.create(null);
+  spec.fields.forEach(function (f) {
+    const row = Object.prototype.hasOwnProperty.call(CSV_COLUMNS, f) ? CSV_COLUMNS[f] : null;
+    if (!row) return;
+    Object.keys(row).forEach(function (lg) {
+      const lab = row[lg];
+      if (!lab) return;
+      var k = fold(lab);
+      if (k && !out[k]) out[k] = f;
+    });
+  });
+  return out;
+}
+
+var _SECTION_INDEX: Record<string, Record<string, string>> = Object.create(null);
+CSV_SECTIONS.forEach(function (s) { _SECTION_INDEX[s.kind] = sectionHeaderIndex(s); });
+
+/** Marqueur → section. Construit depuis `CSV_SECTIONS`, donc ajouter une
+ *  section quelque part l'ajoute partout. */
+var _MARKER_TO_KIND: Record<string, string> = (function () {
+  var out: Record<string, string> = Object.create(null);
+  CSV_SECTIONS.forEach(function (s) {
+    s.markers.forEach(function (m) { out[m] = s.kind; });
+  });
+  return out;
+})();
+
 // ── main ─────────────────────────────────────────────────────────────────────
+
+var _SHAPE_BACK = enumBackIndex(SHAPES_EN as unknown as Record<string, string>);
+var _BEND_BACK = enumBackIndex(BENDS_EN as unknown as Record<string, string>);
+var _FILTER_BACK = enumBackIndex(FILTERS_EN as unknown as Record<string, string>);
+var _BOWL_BACK = enumBackIndex(BOWL_MATS_EN as unknown as Record<string, string>);
+var _STEM_BACK = enumBackIndex(STEM_MATS_EN as unknown as Record<string, string>);
+var _FINISH_BACK = enumBackIndex(FINISHES_EN as unknown as Record<string, string>);
+var _ACCTYPE_BACK = enumBackIndex(ACC_TYPES_EN as unknown as Record<string, string>);
+var _FUEL_BACK = enumBackIndex(LIGHTER_FUELS_EN as unknown as Record<string, string>);
+
+/** Le libellé localisé d'une VALEUR (pas d'un en-tête) → son jeton canonique.
+ *
+ *  Construit depuis `CSV_VALUES`, la table que l'écrivain consulte, donc les
+ *  deux sens ne peuvent pas diverger. Rendu `""` si le mot n'est d'aucune
+ *  langue connue — l'appelant décide alors du repli, et c'est à lui de le
+ *  faire : « statut illisible » ne veut pas dire la même chose pour une pipe
+ *  (active) et pour une envie (priorité moyenne). */
+function canonValue(v: any, keys: string[]): string {
+  var f = fold(v);
+  if (!f) return "";
+  for (var i = 0; i < keys.length; i++) {
+    var row = Object.prototype.hasOwnProperty.call(CSV_VALUES, keys[i]!) ? CSV_VALUES[keys[i]!] : null;
+    if (!row) continue;
+    var lgs = Object.keys(row);
+    for (var j = 0; j < lgs.length; j++) {
+      if (fold(row[lgs[j]!]) === f) return keys[i]!;
+    }
+  }
+  return "";
+}
+
+/** Une ligne de section → une fiche prête pour la fusion, ou `null`.
+ *
+ *  PURE et déterministe comme le reste du module : l'identifiant vient d'une
+ *  base fixe, et l'appelant le re-frappe avec le compteur global. Le lecteur de
+ *  tabacs a la même contrainte, pour la même raison — deux imports successifs
+ *  produiraient autrement les mêmes identifiants sous des fiches différentes. */
+function buildSectionEntity(
+  kind: string, rec: Record<string, string>, id: number,
+  num: (field: string) => string,
+): any {
+  function s(k: string): string { return String(rec[k] == null ? "" : rec[k]).trim(); }
+  if (kind === "pipes") {
+    return Object.assign({}, BP, {
+      id: id,
+      brand: s("brand"),
+      name: s("pipeModel"),
+      shape: canonEnum(s("shape"), SHAPES, _SHAPE_BACK),
+      courbure: canonEnum(s("bend"), BENDS, _BEND_BACK),
+      length: num("length"),
+      weight: num("weightG"),
+      filterType: canonEnum(s("filterType"), FILTERS, _FILTER_BACK),
+      chamberDiameter: num("chamberDiameter"),
+      chamberDepth: num("chamberDepth"),
+      bowlMaterial: canonEnum(s("bowlMaterial"), BOWL_MATS, _BOWL_BACK),
+      stemMaterial: canonEnum(s("stemMaterial"), STEM_MATS, _STEM_BACK),
+      finish: canonEnum(s("finish"), FINISHES, _FINISH_BACK),
+      datePurchased: s("datePurchased"),
+      dateProduction: s("dateProduction"),
+      price: num("price"),
+      seller: s("seller"),
+      rating: clamp05(s("rating")),
+      // Un statut illisible donne « active », PAS « finie » : le repli le plus
+      // sûr est celui qui garde la pipe dans la collection visible.
+      status: canonValue(s("status"), ["pipeFinished"]) ? "finished" : "active",
+      description: s("description"),
+      notes: s("notes"),
+      imageUrl: s("imageUrl"),
+      // Tableaux NEUFS par fiche. Un `Object.assign` depuis `BP` copie la
+      // RÉFÉRENCE de ses tableaux vides, si bien que toutes les pipes importées
+      // partageraient un seul `maintenance` et un seul `photos` — ajouter un
+      // entretien à l'une les donnerait à toutes.
+      photos: [], maintenance: [], tags: [],
+    });
+  }
+  if (kind === "wishlist") {
+    var prio = canonValue(s("priority"), ["prioHigh", "prioMedium", "prioLow"]);
+    return Object.assign({}, BW, {
+      id: id,
+      name: s("name"),
+      brand: s("brand"),
+      category: canonEnum(s("category"), CATS, _CAT_FOLD),
+      blend: s("blend"),
+      cut: canonEnum(s("cut"), CUTS, _CUT_FOLD),
+      force: clamp05(s("force")),
+      roomNote: clamp05(s("roomNote")),
+      taste: clamp05(s("taste")),
+      description: s("description"),
+      agingMax: s("agingMax"),
+      tastingNotes: s("tastingNotes"),
+      notes: s("notes"),
+      priority: prio === "prioHigh" ? "high" : prio === "prioLow" ? "low" : "medium",
+      imageUrl: s("imageUrl"),
+    });
+  }
+  return Object.assign({}, BA, {
+    id: id,
+    type: canonEnum(s("accType"), ACC_TYPES, _ACCTYPE_BACK),
+    brand: s("brand"),
+    name: s("name"),
+    fuel: canonEnum(s("fuel"), LIGHTER_FUELS, _FUEL_BACK),
+    status: canonValue(s("status"), ["accRetired"]) ? "retired" : "active",
+    datePurchased: s("datePurchased"),
+    price: num("price"),
+    seller: s("seller"),
+    rating: clamp05(s("rating")),
+    notes: s("notes"),
+    imageUrl: s("imageUrl"),
+    tags: [],
+  });
+}
+
 
 var LOT_FIELDS = ["status", "weightG", "weightInitial", "originalStatus", "datePurchased",
   "dateProduction", "dateOpened", "dateFinished", "boxNumber", "storageLocation",
@@ -753,7 +1034,7 @@ export function parseTobaccoCsv(
   text: string,
   opts?: { idBase?: number; todayIso?: string },
 ): CsvImportResult {
-  var empty: CsvImportResult = { tobaccos: [], rows: 0, skipped: 0, lots: 0, headers: [], sectioned: false, capped: false, badCategory: 0, badCut: 0, badNumber: 0, badStatus: 0, badColumn: 0, ignoredColumns: [], issues: [], issuesTruncated: false };
+  var empty: CsvImportResult = { tobaccos: [], rows: 0, skipped: 0, lots: 0, headers: [], sectioned: false, capped: false, badCategory: 0, badCut: 0, badNumber: 0, badStatus: 0, badColumn: 0, ignoredColumns: [], pipes: [], wishlist: [], accessories: [], hadSessions: false, issues: [], issuesTruncated: false };
   if (typeof text !== "string") return empty;
   var clean = String(text).replace(/^\uFEFF/, "");
   if (!clean.trim()) return empty;
@@ -796,19 +1077,38 @@ export function parseTobaccoCsv(
   var ignoredColumns: string[] = [];
   var badColumn = 0;
   var seenIgnored: Record<string, true> = Object.create(null);
-  headerCells.forEach(function (h, i) {
-    if (colKey[i]) return;
-    var f = fold(h);
-    if (!f) return;
-    var raw = String(h == null ? "" : h).trim();
-    if (Object.prototype.hasOwnProperty.call(_UNREAD_LABELS, f)) return;
-    if (seenIgnored[f]) return;
-    seenIgnored[f] = true;
-    badColumn++;
-    if (ignoredColumns.length < MAX_IGNORED_COLUMNS) ignoredColumns.push(raw);
-  });
+  // EXTRAIT EN FONCTION parce qu'il y a maintenant QUATRE en-têtes à juger, pas
+  // un : celui des tabacs et celui de chacune des trois sections. Le compte et
+  // la liste sont partagés — une colonne étrangère est une colonne étrangère,
+  // que l'utilisateur l'ait écrite au-dessus de ses tabacs ou de ses pipes. Un
+  // second bloc recopié aurait divergé au premier ajout d'exclusion.
+  function collectIgnored(cells: any[], keys: (string | null)[]) {
+    cells.forEach(function (h, i) {
+      if (keys[i]) return;
+      var f = fold(h);
+      if (!f) return;
+      var raw = String(h == null ? "" : h).trim();
+      if (Object.prototype.hasOwnProperty.call(_UNREAD_LABELS, f)) return;
+      if (seenIgnored[f]) return;
+      seenIgnored[f] = true;
+      badColumn++;
+      if (ignoredColumns.length < MAX_IGNORED_COLUMNS) ignoredColumns.push(raw);
+    });
+  }
+  // UN FICHIER PEUT NE PAS AVOIR DE BLOC TABACS DU TOUT. Sa première ligne est
+  // alors un marqueur de section — le cas de qui veut n'importer que ses pipes,
+  // et celui qu'on obtient en coupant un export complet. Sans cette
+  // reconnaissance, le retour anticipé ci-dessous rendait ZÉRO fiche sur un
+  // fichier parfaitement lisible, en accusant l'absence des colonnes « Marque »
+  // et « Nom » qui n'ont rien à faire dans un bloc de pipes.
+  var firstIsMarker = _CSV_SECTION_MARKERS.indexOf(
+    unescapeFormulaGuard(String(headerCells[0] == null ? "" : headerCells[0]).trim()),
+  ) >= 0;
+  // Et l'en-tête n'est jugé que s'il en est un : dénoncer « === PIPES === »
+  // comme une colonne inconnue serait une fausse alerte de plus.
+  if (!firstIsMarker) collectIgnored(headerCells, colKey);
 
-  if (recognised.indexOf("brand") < 0 || recognised.indexOf("name") < 0) {
+  if (!firstIsMarker && (recognised.indexOf("brand") < 0 || recognised.indexOf("name") < 0)) {
     // Without a brand + name column there's nothing to key on.
     //
     // LE RAPPORT DE COLONNES VOYAGE AVEC CE RETOUR ANTICIPÉ, et c'est le cas
@@ -830,6 +1130,14 @@ export function parseTobaccoCsv(
   var groups: Record<string, any> = Object.create(null);
   var dataRows = 0, skipped = 0, lotCount = 0;
   var sectioned = false, capped = false;
+  // L'état de lecture des AUTRES sections. `curKind` vaut `null` tant qu'on est
+  // dans le bloc tabacs ou dans une section que l'on ne lit pas (les séances).
+  var curKind: string | null = null;
+  var curCols: (string | null)[] = [];
+  var awaitHeader = false;
+  var sectionOut: Record<string, any[]> = { pipes: [], wishlist: [], accessories: [] };
+  var sectionSeq = 0;
+  var hadSessions = false;
   var badCategory = 0, badCut = 0, badNumber = 0, badStatus = 0;
   var issues: CsvImportIssue[] = [];
   var note = function (row: number, kind: CsvImportIssue["kind"], b: string, n: string, value: string) {
@@ -843,7 +1151,9 @@ export function parseTobaccoCsv(
   // reste. Une seconde voie d'affichage aurait été une seconde chose à tenir.
   ignoredColumns.forEach(function (label) { note(1, "column", "", "", label); });
 
-  for (var r = 1; r < grid.length; r++) {
+  // Départ à 0 quand la première ligne EST un marqueur : sinon on sauterait
+  // l'ouverture de la seule section du fichier.
+  for (var r = firstIsMarker ? 0 : 1; r < grid.length; r++) {
     var cells = grid[r] || [];
     // The full CSV EXPORT (buildCsvLines) is multi-section: the tobacco block
     // is followed by "=== PIPES ===" / "=== ACCESSOIRES ===" / "=== JOURNAL ==="
@@ -861,7 +1171,69 @@ export function parseTobaccoCsv(
     // Match the EXACT known markers, not any "===" prefix,
     // so a user brand like "=== rare ===" is parsed as a tobacco instead of
     // triggering the section-stop and dropping that row + everything after.
-    if (_CSV_SECTION_MARKERS.indexOf(firstCell) >= 0) { sectioned = true; break; }
+    if (_CSV_SECTION_MARKERS.indexOf(firstCell) >= 0) {
+      // UN MARQUEUR OUVRE UNE SECTION, IL N'ARRÊTE PLUS LA LECTURE. C'était le
+      // défaut : l'export écrit quatre sections et le lecteur s'arrêtait à la
+      // première, si bien qu'un aller-retour perdait pipes, envies et
+      // accessoires sans rien dire.
+      sectioned = true;
+      curKind = Object.prototype.hasOwnProperty.call(_MARKER_TO_KIND, firstCell)
+        ? _MARKER_TO_KIND[firstCell]! : null;
+      // Une section que l'on ne lit pas (les séances — voir la note sur
+      // `CSV_SECTIONS`) laisse `curKind` à `null` : ses lignes sont ignorées
+      // sans jamais retomber dans le bloc tabacs, ce qui est exactement ce que
+      // l'ancien `break` garantissait et qu'il ne faut pas perdre.
+      if (curKind === null) hadSessions = true;
+      curCols = [];
+      awaitHeader = curKind !== null;
+      continue;
+    }
+    // DANS UNE SECTION : on ne retombe JAMAIS dans la logique des tabacs.
+    if (sectioned) {
+      var anySec = cells.some(function (c) { return String(c == null ? "" : c).trim() !== ""; });
+      if (!anySec) continue;
+      if (curKind === null) continue;
+      if (awaitHeader) {
+        // La première ligne non vide après le marqueur EST l'en-tête.
+        var idx = _SECTION_INDEX[curKind] || Object.create(null);
+        curCols = cells.map(function (h) {
+          var f = fold(h);
+          return Object.prototype.hasOwnProperty.call(idx, f) ? idx[f]! : null;
+        });
+        collectIgnored(cells, curCols);
+        awaitHeader = false;
+        continue;
+      }
+      if (dataRows >= MAX_ROWS) { capped = true; break; }
+      dataRows++;
+      var srec: Record<string, string> = Object.create(null);
+      for (var sc = 0; sc < curCols.length; sc++) {
+        var sk = curCols[sc];
+        if (!sk) continue;
+        srec[sk] = unescapeFormulaGuard(String(cells[sc] == null ? "" : cells[sc]).trim());
+      }
+      var spec = CSV_SECTIONS.filter(function (x) { return x.kind === curKind; })[0]!;
+      // L'IDENTITÉ D'ABORD, comme pour un tabac : une ligne qui ne nomme rien
+      // n'est pas une fiche, et l'importer créerait une entrée vide que
+      // l'utilisateur devrait retrouver et supprimer à la main.
+      var hasIdentity = spec.identity.every(function (f) { return String(srec[f] || "").trim() !== ""; });
+      if (!hasIdentity) {
+        skipped++;
+        note(r + 1, "no-identity", String(srec["brand"] || ""), String(srec["name"] || srec["pipeModel"] || ""), "");
+        continue;
+      }
+      var secLine = r + 1;
+      var secName = String(srec["name"] || srec["pipeModel"] || "");
+      var secBrand = String(srec["brand"] || "");
+      var readSecNum = function (field: string): string {
+        var res = readNum(srec[field]);
+        if (res.bad) { badNumber++; note(secLine, "number", secBrand, secName, res.bad); }
+        return res.value;
+      };
+      sectionSeq++;
+      sectionOut[curKind]!.push(buildSectionEntity(curKind, srec, idBase + 500000 + sectionSeq, readSecNum));
+      continue;
+    }
     // skip a fully-empty line
     var anyVal = cells.some(function (c) { return String(c == null ? "" : c).trim() !== ""; });
     if (!anyVal) continue;
@@ -1006,5 +1378,5 @@ export function parseTobaccoCsv(
   }
 
   var tobaccos = order.map(function (k) { return groups[k]; });
-  return { tobaccos: tobaccos, rows: dataRows, skipped: skipped, lots: lotCount, headers: recognised, sectioned: sectioned, capped: capped, badCategory: badCategory, badCut: badCut, badNumber: badNumber, badStatus: badStatus, badColumn: badColumn, ignoredColumns: ignoredColumns, issues: issues, issuesTruncated: issues.length >= MAX_CSV_ISSUES };
+  return { tobaccos: tobaccos, rows: dataRows, skipped: skipped, lots: lotCount, headers: recognised, sectioned: sectioned, capped: capped, badCategory: badCategory, badCut: badCut, badNumber: badNumber, badStatus: badStatus, badColumn: badColumn, ignoredColumns: ignoredColumns, pipes: sectionOut["pipes"]!, wishlist: sectionOut["wishlist"]!, accessories: sectionOut["accessories"]!, hadSessions: hadSessions, issues: issues, issuesTruncated: issues.length >= MAX_CSV_ISSUES };
 }
