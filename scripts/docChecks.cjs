@@ -1211,12 +1211,47 @@ function findUndocumentedModules(files, claudeMd, label) {
     .map((f) => `${label}/${f} not mentioned in CLAUDE.md`);
 }
 
-/** Every literal localStorage/sessionStorage key a source touches. */
+/**
+ * Every literal localStorage/sessionStorage key a source touches.
+ *
+ * IT READ ONE ACCESSOR AND THE CODEBASE USES TWO — SO IT WAS 71 % BLIND.
+ * The pattern was `localStorage.(get|set|remove)Item("…")` only, while this
+ * repo reaches storage through the `lsGet` / `lsSet` / `lsRemove` helpers in
+ * `src/utils/appStorage.ts` (they swallow the private-mode throw, so they are
+ * the CORRECT thing to call and the direct form is the exception). MEASURED at
+ * the moment of widening: the gate saw **20** keys and missed **48**.
+ *
+ * The honest half, and the reason this is a near miss rather than an incident:
+ * **none of those 48 was undocumented.** They were all in the document, put
+ * there by hand. So the net had a 71 % hole that had not yet cost anything —
+ * a guard reporting "OK" with exactly the confidence of one that works, which
+ * is the failure shape this repo has already paid for three times (`prune` red
+ * for nine releases, gate 14 naming a language without reading its map, a
+ * whole gate's call site deleted with 3672 tests green).
+ *
+ * Found by auditing the DOCUMENTATION for stale claims, not by auditing the
+ * gate: `docs/storage-keys.md` called itself the reference for every key while
+ * two real keys were absent from its table. Chasing why nothing had said so
+ * led here. Worth recording, because the gap was never going to surface from
+ * the gate's own green output.
+ *
+ * STILL LITERALS ONLY, deliberately. `lsGet(SWEEP_CLOCK_KEY)` passes a
+ * constant and is not matched — the same limitation the direct form always
+ * had, and widening to constants means resolving them, which is a different
+ * (and much larger) tool. What this closes is the accessor axis, not the
+ * indirection axis; saying so is the difference between a guard and a claim.
+ */
 function extractStorageKeys(sources) {
-  const re = /localStorage\.(?:getItem|setItem|removeItem)\s*\(\s*["']([^"']+)["']/g;
+  // Both storages on the direct form (`sessionStorage` carries `gdrive-tk` on
+  // every platform but iOS standalone), and the three helpers.
+  const res = [
+    /(?:local|session)Storage\.(?:getItem|setItem|removeItem)\s*\(\s*["']([^"']+)["']/g,
+    /\bls(?:Get|Set|Remove)\s*\(\s*["']([^"']+)["']/g,
+  ];
   const out = new Set();
   for (const src of sources || []) {
-    for (const m of String(src || "").matchAll(re)) out.add(m[1]);
+    const s = String(src || "");
+    for (const re of res) for (const m of s.matchAll(re)) out.add(m[1]);
   }
   return [...out];
 }

@@ -14,7 +14,7 @@
 
 import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { LANGUAGES } from "../i18n/languages";
 
 const requireCjs = createRequire(import.meta.url);
@@ -1142,6 +1142,55 @@ describe("the extracted doc gates", () => {
       expect(keys.sort()).toEqual(["cave-lang", "gdrive-tk"]);
     });
 
+    it("reads the HELPERS too, not just the direct accessor", () => {
+      // The gate read `localStorage.getItem("…")` only, while this repo reaches
+      // storage through lsGet/lsSet/lsRemove (they swallow the private-mode
+      // throw, so they are the correct call and the direct form is the
+      // exception). MEASURED when this was widened: 20 keys seen, 48 missed.
+      expect(
+        D.extractStorageKeys([
+          'lsGet("cave-theme"); lsSet("cave-font-scale", v); lsRemove("cave-wish-sort");',
+        ]).sort(),
+      ).toEqual(["cave-font-scale", "cave-theme", "cave-wish-sort"]);
+    });
+
+    it("reads sessionStorage on the direct form — gdrive-tk lives there off iOS", () => {
+      expect(D.extractStorageKeys(['sessionStorage.getItem("gdrive-tk")'])).toEqual(["gdrive-tk"]);
+    });
+
+    it("does NOT claim to resolve a constant, which is the axis left open", () => {
+      // `lsGet(SWEEP_CLOCK_KEY)` is not a literal. Saying so in a test is what
+      // keeps the widening a guard rather than a claim: it closes the ACCESSOR
+      // axis, not the INDIRECTION axis.
+      expect(D.extractStorageKeys(["lsGet(SWEEP_CLOCK_KEY)"])).toEqual([]);
+    });
+
+    it("sees the real tree through the helpers — derived, never a copied count", () => {
+      // The number that matters is not 20-vs-68 (it moves); it is that the
+      // helper-only keys are NOT zero, i.e. the widening is load-bearing on
+      // THIS repo and not merely on the fixtures above. Derived from src/ so
+      // it cannot go stale the way the figures in the prose did.
+      const files: string[] = [];
+      const walk = (d: string) => {
+        for (const n of readdirSync(d)) {
+          const f = `${d}/${n}`;
+          if (statSync(f).isDirectory()) { if (n !== "__tests__") walk(f); }
+          else if (/\.(ts|tsx)$/.test(n) && !/\.test\./.test(n)) files.push(f);
+        }
+      };
+      walk("src");
+      const sources = files.map((f) => readFileSync(f, "utf8"));
+      const all = D.extractStorageKeys(sources);
+      const directOnly = sources.flatMap((s) =>
+        [...s.matchAll(/localStorage\.(?:getItem|setItem|removeItem)\s*\(\s*["']([^"']+)["']/g)].map((m) => m[1]!));
+      const helperOnly = all.filter((k: string) => !directOnly.includes(k));
+      expect(helperOnly.length).toBeGreaterThan(20);
+      // And the property the whole gate exists for: nothing it now sees is
+      // undocumented. If this fails, a key was added without a table row.
+      const doc = D.DOC_FILES.map((f: string) => readFileSync(f, "utf8")).join("\n");
+      expect(D.findUndocumentedStorageKeys(all, doc)).toEqual([]);
+    });
+
     it("flags a key the keys table does not carry", () => {
       expect(D.findUndocumentedStorageKeys(["cave-new"], "| `cave-lang` |")).toHaveLength(1);
     });
@@ -1784,5 +1833,65 @@ describe("findForeignLabelQuotes — une section cite les libellés de SA langue
     expect(D.findForeignLabelQuotes(page("de", "<strong>Stats</strong>"), dicts, ["Stats"])).toHaveLength(0);
     const wiring = readFileSync("scripts/doc-check.cjs", "utf8");
     expect(wiring, "la porte n'est pas câblée").toContain("findForeignLabelQuotes(");
+  });
+});
+
+describe("docs/storage-keys.md ne peut plus mentir sur ce qui quitte l'appareil", () => {
+  /**
+   * SEPT LIGNES DISAIENT « jamais dans les sauvegardes » DE CLÉS QUI VOYAGENT.
+   *
+   * `cave-theme`, `cave-theme-mode`, `cave-font-scale`, `cave-wish-sort`,
+   * `cave-maint-threshold`, `cave-maint-reminders-enabled` et la famille
+   * `ai-model-*` sont toutes dans `SETTINGS_KEYS`, donc `collectSettings()`
+   * les met dans `_settings` et elles partent dans chaque export. Rien de
+   * sensible ne fuit — ce sont des préférences, et la clé d'API est exclue par
+   * un mécanisme séparé — mais c'est la table de référence de ce qui quitte
+   * l'appareil, et elle affirmait le contraire du code.
+   *
+   * TROUVÉ PAR UN AUDIT DE LA PROSE, PAS PAR UNE PORTE, et c'est la raison
+   * d'être de ce test : la vérité est MÉCANIQUE (« cette clé est-elle dans
+   * SETTINGS_KEYS ? »), donc la laisser à la relecture humaine était un choix
+   * par défaut, pas une décision.
+   *
+   * DÉRIVÉ DES DEUX CÔTÉS — la liste vient de `appSettings.ts`, les lignes du
+   * document. Aucune énumération recopiée : une clé ajoutée aux préférences
+   * fait rougir ce test tant que sa ligne n'est pas corrigée.
+   */
+  const SETTINGS_KEYS: string[] = (() => {
+    const src = readFileSync("src/utils/appSettings.ts", "utf8");
+    const blk = /SETTINGS_KEYS\s*=\s*\[([\s\S]*?)\]\s*as const/.exec(src);
+    return [...(blk![1]!).matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
+  })();
+
+  const rows = readFileSync("docs/storage-keys.md", "utf8")
+    .split("\n")
+    .map((line, i) => ({ line, n: i + 1, key: (/^\| `([^`]+)`/.exec(line) || [])[1] }))
+    .filter((r) => r.key);
+
+  it("lit vraiment les deux côtés (non-vacuité)", () => {
+    expect(SETTINGS_KEYS.length).toBeGreaterThan(20);
+    expect(rows.length).toBeGreaterThan(50);
+  });
+
+  it("aucune ligne ne déclare « never in backups » pour une clé de SETTINGS_KEYS", () => {
+    // Une ligne peut documenter une FAMILLE (`ai-model-` + provider), donc le
+    // préfixe compte comme une correspondance.
+    const travels = (key: string) =>
+      SETTINGS_KEYS.some((k) => k === key || (key.endsWith("-") && k.startsWith(key)));
+    const lying = rows
+      .filter((r) => r.line.includes("Device-local, never in backups") && travels(r.key!))
+      .map((r) => `${r.n}: ${r.key}`);
+    expect(lying).toEqual([]);
+  });
+
+  it("et chaque clé de SETTINGS_KEYS a bien une ligne", () => {
+    // L'autre sens : une préférence exportée dont personne n'a écrit la ligne
+    // est invisible autrement — la porte 4 vérifie qu'elle est quelque part
+    // dans les sept fichiers, pas qu'elle est DANS CETTE TABLE.
+    const documented = new Set(rows.map((r) => r.key!));
+    const missing = SETTINGS_KEYS.filter(
+      (k) => !documented.has(k) && ![...documented].some((d) => d.endsWith("-") && k.startsWith(d)),
+    );
+    expect(missing).toEqual([]);
   });
 });
