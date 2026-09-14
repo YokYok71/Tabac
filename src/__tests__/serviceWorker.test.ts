@@ -263,3 +263,56 @@ describe("sw.js — message origin gate", () => {
     expect(originIdx).toBeLessThan(skipIdx);
   });
 });
+
+describe("index.html — la barre d'état iOS ne doit plus se superposer", () => {
+  /**
+   * `black-translucent` FAIT PASSER LE CONTENU SOUS LA BARRE D'ÉTAT, et iOS
+   * pose alors son propre voile par-dessus pour garder l'heure et la batterie
+   * lisibles quel que soit le fond. Ce voile tombe sur la bande où vit la
+   * barre du haut de l'app : sur un iPad passé à iOS 27, elle est devenue
+   * TROUBLE — texte et icônes ternis. La même page, le même build, ouverte
+   * dans Safari sur le même appareil : nette. Cette paire de captures est ce
+   * qui a tranché, et elle a tué deux diagnostics défendus avant elle (le fond
+   * translucide des barres, puis la promotion de couche du `transform`
+   * d'escamotage) — tous deux présents dans Safari, qui est net.
+   *
+   * AUCUN CSS DE L'APP NE PEUT LE CORRIGER : le voile est peint par le système
+   * après toute la composition de la page. Le seul levier est de ne plus
+   * demander la superposition.
+   *
+   * GARDÉ ICI parce que c'est une seule valeur, invisible à la relecture, dont
+   * le retour ramènerait le défaut en silence — et que le raisonnement qui l'a
+   * produite a coûté une longue recherche à tâtons.
+   */
+  const html = readFileSync("index.html", "utf8");
+
+  it("ne demande pas une barre d'état superposée", () => {
+    const m = /<meta\s+name="apple-mobile-web-app-status-bar-style"\s+content="([^"]+)"/.exec(html);
+    expect(m).toBeTruthy();                       // non-vacuité : la balise existe
+    expect(m![1]).not.toBe("black-translucent");
+  });
+
+  it("garde `viewport-fit=cover`, qui porte encore les autres bords", () => {
+    // La bande du HAUT est désormais réservée par le système, mais les côtés
+    // en paysage et l'indicateur d'accueil en bas dépendent toujours de
+    // `cover` — le retirer avec la superposition serait un dommage collatéral.
+    //
+    // SUR LA BALISE, PAS SUR LE FICHIER, et la première version se contentait
+    // du fichier. Le long commentaire posé au-dessus de la balise
+    // `status-bar-style` contient lui-même la chaîne `viewport-fit=cover` : un
+    // `toContain` sur tout le document restait donc VERT quand on retirait
+    // l'attribut de la vraie balise — sondé, c'est arrivé. Une garde satisfaite
+    // par la prose qui la décrit ne garde rien ; c'est la troisième fois que
+    // cette forme se présente dans ce dépôt le même jour.
+    const vp = /<meta\s+name="viewport"\s+content="([^"]+)"/.exec(html);
+    expect(vp).toBeTruthy();
+    expect(vp![1]).toContain("viewport-fit=cover");
+  });
+
+  it("laisse `theme-color` piloter la bande, donc suit le mode clair/sombre", () => {
+    // C'est la raison de préférer `default` à `black` : `black` figerait la
+    // bande en noir, alors que l'app a un mode clair et que App.tsx tient déjà
+    // `theme-color` en phase avec le mode choisi (THEME_COLOR_META).
+    expect(html).toMatch(/<meta\s+name="theme-color"\s+content="#[0-9a-fA-F]{6}"/);
+  });
+});

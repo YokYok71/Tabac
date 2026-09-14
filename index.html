@@ -15,7 +15,47 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://accounts.google.com https://apis.google.com; connect-src 'self' https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com https://www.googleapis.com https://accounts.google.com https://oauth2.googleapis.com https://api.dropboxapi.com https://content.dropboxapi.com https://nominatim.openstreetmap.org; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://accounts.google.com; font-src 'self'; object-src 'none'; base-uri 'self'; worker-src 'self'; form-action 'self' https://accounts.google.com; frame-src https://www.openstreetmap.org; frame-ancestors 'none'; upgrade-insecure-requests;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- `default` ET NON `black-translucent`, et ce n'est pas une préférence
+     esthétique : c'est la seule chose qui puisse retirer le voile qu'iOS
+     peignait sur la barre du haut.
+
+     CE QUI A ÉTÉ OBSERVÉ. Sur un iPad passé à iOS 27, la barre du haut de
+     l'app INSTALLÉE est apparue trouble — texte et icônes ternis, comme sous
+     une brume. La MÊME page, le MÊME build, ouverte dans Safari sur le même
+     appareil : nette. C'est cette paire de captures qui a tranché, et elle a
+     tué au passage deux diagnostics défendus ici-même : la transparence du
+     fond des barres (rendue opaque au build 15, sans effet) et la promotion
+     de couche due au `transform` de l'escamotage (présent aussi dans Safari,
+     qui est net). Une cause qui ne distingue pas standalone de navigateur ne
+     peut pas expliquer une différence entre standalone et navigateur.
+
+     POURQUOI. Avec `black-translucent`, le contenu web passe SOUS la barre
+     d'état et iOS dessine la sienne par-dessus — en posant un voile pour que
+     l'heure et la batterie restent lisibles quel que soit le fond. Ce voile
+     tombe exactement sur la bande où vit la barre du haut. Dans Safari la
+     chrome du navigateur occupe cette bande, donc rien n'est superposé. Et
+     c'est aussi pourquoi AUCUN CSS de l'app ne pouvait le corriger : le voile
+     est peint après toute la composition de la page.
+
+     `default` PLUTÔT QUE `black`, qui aurait aussi réservé la bande : `black`
+     la figerait en noir, alors que cette app a un MODE CLAIR. La balise
+     `theme-color` est déjà tenue en phase avec le mode choisi par App.tsx
+     (voir THEME_COLOR_META), et son propre commentaire la nomme « iOS status
+     bar / letterbox » — `default` laisse donc cette synchronisation, déjà
+     correcte, piloter la bande, là où `black` la contredirait la moitié du
+     temps.
+
+     CE QUE ÇA COÛTE, dit plutôt que découvert : l'app ne s'étend plus sous la
+     barre d'état. `viewport-fit=cover` RESTE — il porte encore les côtés en
+     paysage et l'indicateur d'accueil en bas. Le `max(env(safe-area-inset-top,
+     0), 14px)` des barres s'ajuste seul : la bande étant réservée, l'inset
+     haut retombe à 0 et le plancher de 14 px reprend la main, sans double
+     marge.
+
+     NON VÉRIFIÉ SUR APPAREIL au moment d'écrire ceci — aucun iPad ici. iOS lit
+     ce réglage à l'ajout à l'écran d'accueil, donc il peut falloir retirer
+     puis ré-ajouter l'icône pour que le changement prenne. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cave Tabac">
 <meta name="theme-color" content="#0a0a0a">
 <title>Ma Cave à Tabac</title>
