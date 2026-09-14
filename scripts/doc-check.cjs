@@ -32,9 +32,10 @@
  *          likely forgotten translation. Allowlist covers emojis,
  *          single-char codes, and English/French cognates that are
  *          legitimately spelled the same (Notes, Description, …).
- *      (b) EN string > 1.4× FR string length (FR ≥ 3 chars) → may
- *          overflow card / button layouts. Surfaces a copy-tightening
- *          opportunity, not a hard error.
+ *      (b) A translation > 1.4× the FR length (FR ≥ 3 chars) → MAY
+ *          overflow card / button layouts. Advisory: whether anything
+ *          actually breaks is answered by `npm run i18n:layout`, which
+ *          renders it. See the block comment at the gate itself.
  *  11. Privacy disclosure — every third-party domain the app
  *      sends requests to (extracted from https:// literals in src/,
  *      minus placeholder + user-initiated-link domains) must be
@@ -676,6 +677,27 @@ try {
 
     // (e) Long-string visual audit — a translation > 1.4× the reference
     // length can overflow tight layouts. Per non-reference language.
+    //
+    // THIS WARNING IS A PROMPT, NOT A DEFECT LIST, AND ITS REMEDIATION LINE
+    // USED TO SAY OTHERWISE. It read "Tighten the <code> copy or verify the
+    // surface absorbs it" — i.e. it asked the reader to do BY HAND, over ~350
+    // keys, the thing `i18n:layout` already does mechanically, and it never
+    // named that script. The question these keys raise ("does anything
+    // actually break?") is not answerable by reading strings at all: it
+    // depends on the box each string lands in. It was answered by RENDERING,
+    // the answer is committed (`scripts/i18n-layout.cjs` — the layouts absorb
+    // the slack, the last full matrix passed), and a reader following this
+    // line was being pointed BACKWARDS at settled work. Measured cost of that:
+    // the warning was re-reported as an open finding by someone reading it
+    // cold, which is exactly what a stale pointer buys.
+    //
+    // IT IS NOT SILENCED, AND THAT IS DELIBERATE. It stays the only thing that
+    // spots a NEWLY over-long key without a browser — `i18n:layout` is opt-in,
+    // needs `playwright-core` and ~10 min, so months pass between runs. Its
+    // job is to say "a browser run is worth it", which is why the message now
+    // names the command instead of prescribing hand-work.
+    //
+    // Do not restate the per-language counts here: the warning prints them.
     const RATIO_THRESHOLD = i18nChecks.RATIO_THRESHOLD;
     for (const code of codes) {
       if (code === I18N_REF) continue;
@@ -690,7 +712,11 @@ try {
             JSON.stringify(tMap[x.k])
           ).join("\n      • ") +
           (longRatio.length > 10 ? "\n      • …and " + (longRatio.length - 10) + " more" : "") +
-          "\n    Tighten the " + code + " copy or verify the surface (button width, card chip) absorbs it.",
+          "\n    Advisory — do NOT re-read these by hand. Whether any of them actually breaks a layout " +
+          "is answered by RENDERING: `npm run i18n:layout` drives the built app in a real browser " +
+          "(every language × 360/820 px × 2 text sizes) and FAILS on genuine overflow, clipped text, " +
+          "or text cut off by a hidden-overflow ancestor. The last full matrix passed. Treat this " +
+          "line as a prompt to re-run that check when the count moves — not as a list to fix.",
         );
       }
     }

@@ -127,6 +127,61 @@ describe("doc:check gate wiring", () => {
     expect(/\bcheckEnumCoverage\b/.test(withCallSiteRemoved)).toBe(false);
   });
 
+  it("every `npm run …` a gate points at is a script that exists", () => {
+    /**
+     * THE SECOND WAY A GATE ROTS: not a deleted call, a stale POINTER.
+     *
+     * The length-outlier warning used to end "Tighten the <code> copy or
+     * verify the surface absorbs it" — hand-work over ~350 keys, and no
+     * mention of `i18n:layout`, the opt-in browser check that had already
+     * answered the question by rendering. A reader following that line was
+     * sent backwards at settled work, and one did. The message now names the
+     * command, which is the same good practice as naming the decision
+     * function in a failure ("See docChecks.resolveBumpSkip.") — and it
+     * inherits the same hazard: a renamed script leaves the message
+     * confidently pointing at nothing.
+     *
+     * Scanned WITH comments, unlike the reachability test above, because a
+     * stale pointer in a block comment misleads a reader exactly as well as
+     * one in a string — and the file's own summary carries one.
+     */
+    const scripts = Object.keys(
+      JSON.parse(readFileSync("package.json", "utf8")).scripts as Record<string, string>,
+    );
+    const named: string[] = [];
+    for (const f of ["scripts/doc-check.cjs", ...MODULES]) {
+      for (const m of readFileSync(f, "utf8").matchAll(/npm run ([A-Za-z0-9:_-]+)/g)) {
+        named.push(`${f}: ${m[1]!}`);
+      }
+    }
+    // Non-vacuity: a regex that matched nothing would otherwise "pass", which
+    // is the failure shape this whole file exists to refuse.
+    expect(named.length).toBeGreaterThanOrEqual(3);
+    expect(named.filter((n) => !scripts.includes(n.split(": ")[1]!))).toEqual([]);
+    /**
+     * The pointer this test was written for — asserted INSIDE THE MESSAGE,
+     * not merely somewhere in the file.
+     *
+     * The first version of this line was `expect(src).toContain("npm run
+     * i18n:layout")`, and probing it showed it guarded nothing: the file's
+     * own summary (gate 10b, ~640 lines up) mentions the command too, so
+     * reverting the warning to "Tighten the <code> copy…" left the test
+     * GREEN. It would have locked a pointer in a comment while the sentence
+     * a user actually reads went back to prescribing hand-work — a guard
+     * that passes over the exact defect it was written for, which is this
+     * file's own subject one layer in.
+     *
+     * So the window is the `warn(` call itself: find the phrase that
+     * identifies this gate's message, walk back to the call that builds it,
+     * and require the pointer within that call.
+     */
+    const src = readFileSync("scripts/doc-check.cjs", "utf8");
+    const phrase = src.indexOf("may overflow tight layouts");
+    expect(phrase).toBeGreaterThan(-1);
+    const call = src.slice(src.lastIndexOf("warn(", phrase), phrase + 1200);
+    expect(call).toContain("npm run i18n:layout");
+  });
+
   it("a name that survives only in a STRING does not count as wired", () => {
     // The case that got past this test. doc-check.cjs's bump-gate failure
     // message ends "See docChecks.resolveBumpSkip.", so removing the call left
