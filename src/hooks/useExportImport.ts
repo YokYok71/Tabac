@@ -751,7 +751,7 @@ export function useExportImport({
             var looksJson = head.charAt(0) === "{" || head.charAt(0) === "[" || head.indexOf("\"tobaccos\"") >= 0;
             var msg = looksJson
               ? (t ? t("csv_import_json") : "Ce fichier est une sauvegarde JSON, pas un CSV de tabacs. Utilisez « Importer fichier (.json) » pour le restaurer.")
-              : (t ? t("csv_import_empty") : "Aucun tabac valide trouvé. Vérifiez que le fichier CSV contient les colonnes « Marque » et « Nom » (téléchargez le modèle CSV).");
+              : (t ? t("csv_import_empty") : "Aucune fiche lisible dans ce fichier. Un CSV de tabacs doit porter les colonnes « Marque » et « Nom » ; un export complet porte en plus ses sections pipes, envies et accessoires (téléchargez le modèle CSV).");
             try { window.alert(msg); } catch (_e) {}
             return;
           }

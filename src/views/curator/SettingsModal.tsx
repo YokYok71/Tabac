@@ -828,7 +828,7 @@ export function CuratorSettingsModal() {
           )}
           <ActionBtn icon="book"  label={t ? t("btn_collection_report") : "Rapport de collection"} onClick={doCollectionReport} accent={C.steelHi} />
           <ActionBtn icon="plus"  label={t ? t("btn_import_file") : "Importer fichier (.json)"} onClick={doImportFile} accent={C.amber} />
-          <ActionBtn icon="chart" label={t ? t("btn_import_csv") : "Importer tabacs (.csv)"} onClick={doImportCsvFile} accent={C.sage} />
+          <ActionBtn icon="chart" label={t ? t("btn_import_csv") : "Importer un CSV"} onClick={doImportCsvFile} accent={C.sage} />
           {/* The rows the import could not read, under the
               button that produced them (the action↔feedback adjacency rule). The
               recap toast says HOW MANY; a toast is `maxWidth`-bounded and

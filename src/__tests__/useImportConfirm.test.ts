@@ -3196,3 +3196,65 @@ describe("les champs d'enveloppe ne deviennent jamais des données de cave", () 
     }
   });
 });
+
+// ── LE CSV APPORTE MAINTENANT PIPES ET ACCESSOIRES ───────────────────────────
+//
+// Rapport d'usage : « ça n'importe que le tabac ». Le lecteur produit bien les
+// trois sections depuis le build 9 ; ce qui restait à prouver est que la FUSION
+// les applique, et que le panneau les COMPTE — une charge correctement lue mais
+// jamais écrite serait le même défaut silencieux, déplacé d'un cran.
+describe("une charge CSV multi-sections arrive jusqu'à la cave", () => {
+  const charge = () => ({
+    tobaccos: [{ id: 1, brand: "Halvorsen", name: "Brackwater", lots: [] }],
+    pipes: [{ id: 501, brand: "Vondel", name: "Aldwych", lots: undefined }],
+    wishlist: [{ id: 502, brand: "R.T. Mallow", name: "Corvane" }],
+    accessories: [{ id: 503, brand: "Østergaard", name: "Rivière Dorée", type: "Briquet" }],
+  });
+
+  it("le panneau COMPTE les quatre genres", () => {
+    const props = makeProps({ data: { tobaccos: [], pipes: [], wishlist: [], accessories: [], sessions: [] } });
+    const { result } = renderHook(() => useImportConfirm(props as any));
+    act(() => { result.current.stageImport(charge(), "file", { mergeOnly: true } as any); });
+    const ic = result.current.importConfirm!;
+    expect(ic.incoming.tobaccos).toBe(1);
+    expect(ic.incoming.pipes, "les pipes ne sont pas comptées dans l'aperçu").toBe(1);
+    expect(ic.incoming.wishlist).toBe(1);
+    expect(ic.incoming.accessories).toBe(1);
+    expect(ic.mergeOnly, "le mode fusion seule n'est pas porté").toBe(true);
+  });
+
+  it("la FUSION les écrit vraiment — c'est la moitié qui manquait", () => {
+    const save = vi.fn();
+    const props = makeProps({
+      data: { tobaccos: [], pipes: [], wishlist: [], accessories: [], sessions: [] }, save,
+    });
+    const { result } = renderHook(() => useImportConfirm(props as any));
+    act(() => { result.current.stageImport(charge(), "file", { mergeOnly: true } as any); });
+    act(() => { result.current.applyImport("merge"); });
+    expect(save, "la fusion n'a rien écrit").toHaveBeenCalled();
+    const written = save.mock.calls[save.mock.calls.length - 1]![0];
+    expect(written.tobaccos, "tabacs").toHaveLength(1);
+    expect(written.pipes, "la pipe n'est pas arrivée en cave").toHaveLength(1);
+    expect(written.pipes[0].name).toBe("Aldwych");
+    expect(written.wishlist, "l'envie n'est pas arrivée").toHaveLength(1);
+    expect(written.accessories, "l'accessoire n'est pas arrivé").toHaveLength(1);
+    expect(written.accessories[0].name).toBe("Rivière Dorée");
+  });
+
+  it("une SÉLECTION partielle n'écrit que ce qui est coché", () => {
+    // Le second point du rapport : « que les pipes et accessoires soient aussi
+    // importés SI SÉLECTIONNÉS ». La sélection encode « genre:id ».
+    const save = vi.fn();
+    const props = makeProps({
+      data: { tobaccos: [], pipes: [], wishlist: [], accessories: [], sessions: [] }, save,
+    });
+    const { result } = renderHook(() => useImportConfirm(props as any));
+    act(() => { result.current.stageImport(charge(), "file", { mergeOnly: true } as any); });
+    act(() => { result.current.applyImport("merge", new Set(["pipe:501", "accessory:503"])); });
+    const written = save.mock.calls[save.mock.calls.length - 1]![0];
+    expect(written.pipes, "la pipe cochée n'est pas entrée").toHaveLength(1);
+    expect(written.accessories, "l'accessoire coché n'est pas entré").toHaveLength(1);
+    expect(written.tobaccos, "un tabac NON coché est entré quand même").toHaveLength(0);
+    expect(written.wishlist, "une envie NON cochée est entrée quand même").toHaveLength(0);
+  });
+});

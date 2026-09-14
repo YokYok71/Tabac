@@ -340,3 +340,53 @@ describe("…et la coquille branche l'aperçu", () => {
       .toContain('applyImport("replace")');
   });
 });
+
+describe("…et l'étiquette ne ment plus", () => {
+  // RAPPORT D'USAGE, ET IL ÉTAIT FONDÉ : « l'entrée de menu s'appelle importer
+  // le tabac et effectivement ça n'importe que le tabac ». La lecture des trois
+  // sections a été livrée au build 9 ; le bouton, lui, continuait d'annoncer
+  // des tabacs. Un nom qui promet moins que ce que l'action fait est une
+  // documentation fausse posée à l'endroit le plus lu de l'application, et
+  // c'est ce qui a fait conclure — raisonnablement — que rien n'avait changé.
+  const LANGS6 = ["fr", "en", "es", "de", "it", "pt"];
+
+  it("aucune langue ne nomme un seul genre dans le bouton d'import CSV", () => {
+    // La PROPRIÉTÉ, pas l'orthographe : on n'épingle pas le nouveau libellé,
+    // on interdit qu'il renomme un genre. « Importer un CSV » passe, « Importer
+    // tabacs » ne passe plus, et une reformulation future reste libre.
+    const interdits = [
+      "tabac", "tobacco", "tabak", "tabacch", // tabacs, toutes langues
+      "pipe", "pfeif", "cachimbo", "pipa",     // et l'inverse : ne pas promettre
+      "accessoir", "accessor", "zubeh",        //   un genre plutôt qu'un autre
+    ];
+    for (const lg of LANGS6) {
+      const dict = readFileSync(`src/i18n/${lg}.ts`, "utf8");
+      const m = /btn_import_csv:"([^"]*)"/.exec(dict);
+      expect(m, `${lg} : btn_import_csv introuvable`).toBeTruthy();
+      const lbl = m![1]!.toLowerCase();
+      expect(lbl.length, `${lg} : libellé vide`).toBeGreaterThan(3);
+      for (const mot of interdits) {
+        expect(lbl.includes(mot), `${lg} : « ${m![1]} » nomme « ${mot} » alors que l'import porte quatre genres`).toBe(false);
+      }
+      // NON-VACUITÉ : le libellé parle bien du format, sinon la garde
+      // ci-dessus serait satisfaite par n'importe quel mot.
+      expect(lbl, `${lg} : le libellé ne dit pas CSV`).toContain("csv");
+    }
+  });
+
+  it("le guide CITE le bouton tel qu'il s'appelle, dans les six langues", () => {
+    // `helpQuotesAppLabels` garde déjà cette règle en général ; ce cas la pointe
+    // sur CE bouton, parce qu'il vient d'être renommé et que le guide le cite
+    // DEUX fois par langue — l'endroit exact où une citation survit à son
+    // libellé. Le piège rencontré en le renommant : l'espagnol et le portugais
+    // écrivaient le MÊME ancien libellé, donc un remplacement global aurait
+    // donné la formulation espagnole aux deux.
+    const help = readFileSync("public/help.html", "utf8");
+    for (const lg of LANGS6) {
+      const dict = readFileSync(`src/i18n/${lg}.ts`, "utf8");
+      const lbl = /btn_import_csv:"([^"]*)"/.exec(dict)![1]!;
+      expect(help.split(`<strong>${lbl}</strong>`).length - 1,
+        `${lg} : le guide ne cite pas « ${lbl} » deux fois`).toBe(2);
+    }
+  });
+});
