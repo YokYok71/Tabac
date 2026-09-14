@@ -264,6 +264,23 @@ async function main() {
   const browser = await chromium.launch({ executablePath: exe });
   const failures = [], warnings = [];
   let totalMeasured = 0;
+  // PAR ÉCRAN, parce qu'un TOTAL ne se diagnostique pas.
+  //
+  // Le total par palette est passé de 2564 à 2558 entre deux campagnes
+  // séparées de plusieurs semaines. Vert des deux côtés, donc rien à corriger
+  // — mais six éléments de texte avaient disparu du jeu mesuré et il était
+  // impossible de dire LESQUELS, ni même si c'était un écran qui avait maigri
+  // ou un écran devenu partiellement inatteignable. Un écran silencieusement
+  // moins mesuré est la panne que la garde `totalMeasured === 0` attrape à
+  // l'échelle de la campagne entière et pas à celle d'un écran : la campagne
+  // reste verte tant qu'il en reste UN qui mesure.
+  //
+  // Ventilé ici et versé dans le vidage JSON, qui existait déjà pour le
+  // triage : c'est la forme COMPARABLE, celle qui se diffe d'une exécution à
+  // l'autre. La console garde sa ligne unique par défaut — 36 lignes de plus
+  // à chaque déploiement seraient du bruit sur une sortie que personne ne lit
+  // quand elle est verte — et les détaille sur `THEME_CONTRAST_SCREENS=1`.
+  const perScreen = Object.create(null);
 
   for (const theme of THEMES) {
     for (const mode of MODES) {
@@ -367,6 +384,7 @@ async function main() {
         }
         const r = await page.evaluate(measureContrast);
         totalMeasured += r.measured;
+        perScreen[scr.name] = (perScreen[scr.name] || 0) + r.measured;
         for (const f of r.findings) {
           const line = `${theme}/${mode}/${scr.name}: "${f.txt}" ${f.got}:1 (needs ${f.need}:1, ${f.size}px, ${f.color} on ${f.bg})`;
           if (f.dimmed) { warnings.push(line + " [deliberately dimmed]"); continue; }
@@ -385,6 +403,13 @@ async function main() {
         "  here would mean nothing.");
   }
   console.log(`${DIM}  ${totalMeasured} text elements measured${OFF}`);
+  // Le détail seulement sur demande : trié par écran pour que deux exécutions
+  // se lisent côte à côte sans passer par le JSON.
+  if (process.env["THEME_CONTRAST_SCREENS"]) {
+    for (const name of Object.keys(perScreen).sort()) {
+      console.log(`${DIM}    ${String(perScreen[name]).padStart(5)}  ${name}${OFF}`);
+    }
+  }
 
   // De-duplicate: the same string on the same screen repeats across renders.
   const uniq = (a) => Array.from(new Set(a));
@@ -394,7 +419,7 @@ async function main() {
   // only way to see the whole warning set at once.
   if (process.env.THEME_CONTRAST_JSON) {
     fs.writeFileSync(process.env.THEME_CONTRAST_JSON,
-      JSON.stringify({ warnings: warn, failures: fail, measured: totalMeasured }, null, 1));
+      JSON.stringify({ warnings: warn, failures: fail, measured: totalMeasured, perScreen }, null, 1));
     console.log(`${DIM}  full report → ${process.env.THEME_CONTRAST_JSON}${OFF}`);
   }
 
