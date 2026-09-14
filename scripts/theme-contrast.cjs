@@ -264,6 +264,22 @@ async function main() {
   const browser = await chromium.launch({ executablePath: exe });
   const failures = [], warnings = [];
   let totalMeasured = 0;
+  // CE QU'IL N'A PAS REGARDÉ, dit à voix haute.
+  //
+  // `measureContrast` compte déjà ses `skipped` — un élément dont le premier
+  // fond opaque au-dessus est un DÉGRADÉ ou introuvable est sauté, parce qu'on
+  // ne peut pas calculer un rapport contre un fond qui varie. Le compteur
+  // existait et n'était rapporté NULLE PART. C'est ce silence qui a laissé le
+  // TITRE DE LA BARRE DU HAUT hors mesure sur 35 écrans sur 36, aussi
+  // longtemps que cette barre a porté un dégradé : la campagne annonçait un
+  // total en hausse constante et ne disait pas qu'elle fermait les yeux sur un
+  // élément par écran. MESURÉ en rendant la barre opaque : 2558 → 2593
+  // éléments, +1 sur exactement 35 écrans, le 36e (`help`) n'ayant pas de
+  // TopBar.
+  //
+  // Un total de mesures sans son total d'omissions se lit comme une
+  // couverture ; il n'en est pas une.
+  let totalSkipped = 0;
   // PAR ÉCRAN, parce qu'un TOTAL ne se diagnostique pas.
   //
   // Le total par palette est passé de 2564 à 2558 entre deux campagnes
@@ -384,6 +400,7 @@ async function main() {
         }
         const r = await page.evaluate(measureContrast);
         totalMeasured += r.measured;
+        totalSkipped += r.skipped;
         perScreen[scr.name] = (perScreen[scr.name] || 0) + r.measured;
         for (const f of r.findings) {
           const line = `${theme}/${mode}/${scr.name}: "${f.txt}" ${f.got}:1 (needs ${f.need}:1, ${f.size}px, ${f.color} on ${f.bg})`;
@@ -402,7 +419,7 @@ async function main() {
     die("measured 0 text elements — the seed or the selectors drifted, so a pass\n" +
         "  here would mean nothing.");
   }
-  console.log(`${DIM}  ${totalMeasured} text elements measured${OFF}`);
+  console.log(`${DIM}  ${totalMeasured} text elements measured, ${totalSkipped} skipped (gradient or indeterminate backdrop)${OFF}`);
   // Le détail seulement sur demande : trié par écran pour que deux exécutions
   // se lisent côte à côte sans passer par le JSON.
   if (process.env["THEME_CONTRAST_SCREENS"]) {
@@ -419,7 +436,7 @@ async function main() {
   // only way to see the whole warning set at once.
   if (process.env.THEME_CONTRAST_JSON) {
     fs.writeFileSync(process.env.THEME_CONTRAST_JSON,
-      JSON.stringify({ warnings: warn, failures: fail, measured: totalMeasured, perScreen }, null, 1));
+      JSON.stringify({ warnings: warn, failures: fail, measured: totalMeasured, skipped: totalSkipped, perScreen }, null, 1));
     console.log(`${DIM}  full report → ${process.env.THEME_CONTRAST_JSON}${OFF}`);
   }
 

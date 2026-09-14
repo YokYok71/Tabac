@@ -334,13 +334,44 @@ describe("TopBar", () => {
 
   // The top bar is sticky so it stays visible while the page scrolls
   // under it (same recipe as FormScreen). Lock the invariant.
-  it("is sticky-positioned at the top with a frosted background", () => {
+  it("is sticky-positioned at the top with an OPAQUE background", () => {
+    /**
+     * RENVERSEMENT, consigné ici plutôt qu'effacé.
+     *
+     * Ce cas s'appelait « with a frosted background » et exigeait
+     * `linear-gradient` — sous un commentaire qui affirmait « un fond assez
+     * opaque pour que le contenu défilé ne transparaisse pas ». L'assertion
+     * verrouillait donc EXACTEMENT ce qui causait le défaut, au nom de
+     * l'intention inverse : le dégradé s'arrêtait à 80 % d'opacité, si bien
+     * qu'un cinquième de ce qui passait dessous arrivait à l'écran.
+     *
+     * MESURÉ, en rendant la même barre deux fois — à vide, puis avec la liste
+     * poussée dessous — et en comparant les pixels : **2,05 % de la barre
+     * changeait, écart maximal 56**. À 92 % d'opacité il en restait 0,23 % ;
+     * opaque, 0 %. Rapporté par l'utilisateur d'un seul mot, « elle est
+     * trouble », sur un iPad où la première fiche porte une photo de boîte
+     * claire — un objet blanc sous une couche à 80 % produit un halo.
+     *
+     * CE QUE LE DÉGRADÉ COÛTAIT EN PLUS, et qui ne se voyait nulle part :
+     * `theme-contrast.cjs` SAUTE tout élément dont le premier fond opaque
+     * au-dessus est un dégradé (on ne calcule pas un rapport contre un fond
+     * qui varie). Le titre de cette barre n'était donc mesuré sur AUCUN des
+     * 35 écrans qui la portent. Fond devenu plat : 2558 → 2593 éléments
+     * mesurés, +1 sur exactement 35 écrans, le 36e (`help`) n'ayant pas de
+     * TopBar.
+     */
     const { container } = render(<TopBar title="Catalogue" />);
     const bar = container.firstChild as HTMLElement;
     expect(bar.style.position).toBe("sticky");
     expect(bar.style.top).toBe("0px");
-    // Has an opaque-ish background so scrolled content doesn't bleed through.
-    expect(bar.style.background).toContain("linear-gradient");
+    // Une COULEUR, pas un dégradé : c'est la propriété, pas l'orthographe du
+    // token. Un dégradé quelconque rouvrirait les deux défauts d'un coup.
+    expect(bar.style.background).not.toContain("gradient");
+    expect(bar.style.background).toBeTruthy();
+    // Et plus de `backdrop-filter` : inutile derrière un fond opaque, et il
+    // crée un bloc conteneur — la propriété qui a déjà fait tomber le dock
+    // fixe dans le flux sur la PWA iOS.
+    expect(bar.style.backdropFilter || "").toBe("");
   });
 });
 

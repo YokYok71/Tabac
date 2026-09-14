@@ -750,8 +750,28 @@ export function TopBar({
       // sticky (not fixed) is immune to the ancestor containing-block trap that
       // plagues the dock, and the form top bar proves it works on the iOS PWA.
       position: "sticky", top: 0, zIndex: 20,
-      background: `linear-gradient(180deg, ${C.bg}, ${alpha(C.bg, "cc")})`,
-      backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+      // OPAQUE, et le commentaire qui vivait ici affirmait le contraire de la
+      // mesure. Il annonçait « un dégradé givré + un flou pour que le contenu
+      // défilé ne transparaisse pas » ; le dégradé s'arrêtait à `cc`, soit
+      // 80 % d'opacité, donc un cinquième de ce qui passe dessous arrivait à
+      // l'écran. MESURÉ en rendant la même barre deux fois, à vide puis avec
+      // la liste poussée dessous : **2,05 % des pixels de la barre changent,
+      // écart maximal 56**. À 92 % il en reste 0,23 % ; opaque, 0 %.
+      //
+      // 2 % SEMBLE PEU ET NE L'EST PAS, parce que ce qui passe n'est pas
+      // uniforme : les listes de ce dépôt sont pleines de photos de boîtes
+      // claires, et un objet blanc sous une couche à 80 % produit un halo que
+      // l'utilisateur a rapporté d'un seul mot — « elle est trouble ». Une
+      // barre COLLANTE dont le métier est de rester lisible par-dessus un
+      // contenu quelconque n'a pas le droit de dépendre de ce qu'il y a
+      // dessous.
+      //
+      // LE FLOU PART AVEC, et ce n'est pas seulement qu'il est devenu inutile
+      // derrière un fond opaque : `backdrop-filter` crée un BLOC CONTENEUR,
+      // la propriété même qui a déjà fait tomber le dock fixe dans le flux sur
+      // la PWA iOS (voir le portail du dock dans CuratorApp.tsx). En retirer
+      // un de la colonne est un gain net, pas une simplification neutre.
+      background: C.bg,
       // Escamotage au défilement. La barre n'en décide RIEN : elle honore une
       // propriété personnalisée que la coquille pose (`--chrome-shift`), et
       // qui vaut `none` partout où l'escamotage ne s'applique pas — donc ce

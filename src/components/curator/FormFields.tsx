@@ -49,8 +49,11 @@ export function FormScreen({
         paddingLeft: 18, paddingRight: 14, paddingBottom: 8,
         display: "flex", justifyContent: "space-between", alignItems: "center",
         position: "sticky", top: 0, zIndex: 5,
-        background: `linear-gradient(180deg, ${C.bg}, ${alpha(C.bg, "cc")})`,
-        backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+        // Opaque, pour la raison mesurée sur la TopBar (voir primitives.tsx) :
+        // le dégradé s'arrêtait à 80 %, donc le contenu défilé transparaissait.
+        // Le flou part avec lui — inutile derrière un fond opaque, et
+        // `backdrop-filter` crée un bloc conteneur.
+        background: C.bg,
       }}>
         <IconBtn icon="close" onClick={onCancel} ariaLabel={cancelLbl} />
         {overline && <Lbl color={accent} size={11}>{overline}</Lbl>}
