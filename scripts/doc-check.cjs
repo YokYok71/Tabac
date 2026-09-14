@@ -790,7 +790,8 @@ for (const host of docChecks.findUndisclosedDomains(foundDomains, PRIVACY_HTML, 
 // hand-maintained approximation. Derive the real counts and WARN (never
 // fail — it's an approximate "~" figure) when the documented number has
 // drifted past a generous tolerance, so it's a nudge to refresh the line.
-// The test-FILE count is the reliable anchor (deterministic); the
+// The test-FILE count is checked EXACTLY (deterministic — the gate counts it
+// itself, so a band absorbed stale prose, not measurement noise); the
 // test-CASE count is a static it()/test() grep that necessarily UNDER-counts
 // vs Vitest (`.each` / property tests expand at runtime), hence the wider band.
 (function () {
@@ -807,6 +808,40 @@ for (const host of docChecks.findUndisclosedDomains(foundDomains, PRIVACY_HTML, 
   })(path.join(ROOT, "src"));
   const cases = docChecks.countTestCases(testFiles.map((f) => fs.readFileSync(f, "utf8")));
   docChecks.checkTestCountFreshness(CLAUDE, testFiles.length, cases).warnings.forEach(warn);
+})();
+
+// ── 14. A language section must quote ITS OWN labels ───────────────────
+// Three real mis-quotations found the day this was written, all the same
+// shape: a section naming a control by a word that language does not use
+// (pt « Selecionar itens » / « Reconectar », de « Stats »). The reader then
+// hunts the screen for something that is not there, in the document written
+// to stop them hunting. Only phrases that are VERBATIM a label somewhere are
+// judged — ordinary emphasis is left alone, which is what keeps this from
+// policing prose. MEASURED at introduction: 1020 quoted phrases match a
+// dictionary value across the guide, 2 failed. FAILS rather than warns: a
+// wrong control name is not an approximation.
+(function () {
+  const dictsForQuotes = {};
+  fs.readdirSync(I18N_DIR)
+    .filter((f) => /^[a-z]{2,3}\.ts$/.test(f))
+    .forEach((f) => {
+      dictsForQuotes[f.replace(/\.ts$/, "")] =
+        i18nChecks.parseDictSource(fs.readFileSync(path.join(I18N_DIR, f), "utf8"));
+    });
+  for (const page of ["help.html", "changelog.html", "privacy.html"]) {
+    const full = path.join(ROOT, "public", page);
+    if (!fs.existsSync(full)) continue;
+    const bad = docChecks.findForeignLabelQuotes(
+      fs.readFileSync(full, "utf8"), dictsForQuotes, [],
+    );
+    if (bad.length > 0) {
+      err(
+        page + ": " + bad.length + " quoted label(s) belong to another language:\n      • " +
+        bad.slice(0, 12).join("\n      • ") +
+        (bad.length > 12 ? "\n      • …and " + (bad.length - 12) + " more" : ""),
+      );
+    }
+  }
 })();
 
 // ── 11. Label contracts — truthfulness, not just parity ────────────────

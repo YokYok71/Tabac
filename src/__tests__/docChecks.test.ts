@@ -1728,3 +1728,61 @@ describe("findFallbackMismatches connaît les DEUX formes de repli", () => {
     expect(out).toHaveLength(1);
   });
 });
+
+describe("findForeignLabelQuotes — une section cite les libellés de SA langue", () => {
+  // TROIS DÉFAUTS RÉELS, tous de la même forme : une section nomme un contrôle
+  // par un mot que sa langue n'emploie pas — pt « Selecionar itens » et
+  // « Reconectar » (espagnol), de « Stats » quand le dock allemand dit « Stat. ».
+  // Le lecteur cherche alors à l'écran une commande qui n'y est pas, dans le
+  // document écrit pour lui éviter de chercher.
+  //
+  // ET CETTE PORTE N'EXISTAIT PAS. J'avais affirmé deux fois — à l'utilisateur
+  // et dans un message de commit — que doc:check vérifiait déjà « que le guide
+  // cite un libellé réel ». C'était faux : rien ne comparait le guide aux
+  // dictionnaires. Inventer une garde pour expliquer un défaut est la pire
+  // façon de se tromper sur son propre filet.
+  const dicts = {
+    fr: { dock_stats: "Stats", btn_go: "Valider" },
+    de: { dock_stats: "Stat.", btn_go: "Bestätigen" },
+  };
+  const page = (lang: string, body: string) =>
+    `<div id="sec-${lang}" class="section">${body}</div>`;
+
+  it("signale un libellé emprunté à une autre langue", () => {
+    const out = D.findForeignLabelQuotes(page("de", "<strong>Stats</strong>"), dicts, []);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toContain("de:");
+    expect(out[0], "le message doit donner le mot JUSTE").toContain("Stat.");
+  });
+
+  it("se tait quand la section cite SON propre libellé", () => {
+    // Non-vacuité : sans cette moitié, une fonction qui signale tout passerait
+    // le cas précédent.
+    expect(D.findForeignLabelQuotes(page("de", "<strong>Stat.</strong>"), dicts, [])).toHaveLength(0);
+    expect(D.findForeignLabelQuotes(page("fr", "<strong>Stats</strong>"), dicts, [])).toHaveLength(0);
+  });
+
+  it("IGNORE l'emphase ordinaire — c'est ce qui l'empêche de policer la prose", () => {
+    // Une phrase mise en évidence qui n'est un libellé dans AUCUNE langue n'est
+    // pas une citation. Sans cette règle, la porte exigerait que chaque langue
+    // évite les mots des autres, ce qui est intenable.
+    expect(D.findForeignLabelQuotes(page("de", "<strong>sehr wichtig</strong>"), dicts, [])).toHaveLength(0);
+  });
+
+  it("chaque section est jugée avec SA langue, pas celle de la première", () => {
+    const html = page("fr", "<strong>Stats</strong>") + page("de", "<strong>Stats</strong>");
+    const out = D.findForeignLabelQuotes(html, dicts, []);
+    expect(out, "la section allemande seule est fautive").toHaveLength(1);
+    expect(out[0]).toContain("de:");
+  });
+
+  it("l'exemption fonctionne, et elle est VIDE dans la vraie porte", () => {
+    // Elle existe pour l'emphase qui coïnciderait un jour avec le libellé d'une
+    // autre langue. Mesuré à l'introduction : 1020 citations reconnues dans le
+    // guide, 2 fautives, 0 faux positif — d'où l'absence de filtre de longueur,
+    // « Stats » (cinq caractères) étant l'un des deux vrais défauts.
+    expect(D.findForeignLabelQuotes(page("de", "<strong>Stats</strong>"), dicts, ["Stats"])).toHaveLength(0);
+    const wiring = readFileSync("scripts/doc-check.cjs", "utf8");
+    expect(wiring, "la porte n'est pas câblée").toContain("findForeignLabelQuotes(");
+  });
+});

@@ -1385,7 +1385,18 @@ function countTestCases(sources) {
 }
 
 const TEST_FIGURE_RE = /~?([\d,]+)\s*tests?\s+across\s+~?([\d,]+)\s*source/gi;
-const TEST_FILE_TOL = 0.10;   // deterministic count — tight band
+// LE COMPTE DE FICHIERS N'A PLUS DE BANDE, et c'est le cœur du correctif.
+// Il est DÉTERMINISTE : la porte le calcule elle-même, donc la « tolérance »
+// n'absorbait pas une incertitude de mesure, elle absorbait une prose périmée.
+// MESURÉ : « 305 fichiers » est resté dans CLAUDE.md pendant que le dépôt en
+// gagnait quatre — 1,3 % d'écart, invisible sous ±10 %, et faux à chaque
+// lecture. Un chiffre exact se vérifie exactement.
+const TEST_FILE_TOL = 0;      // exact — la porte connaît la vérité
+// Le compte de CAS garde sa bande, et l'asymétrie est le raisonnement, pas une
+// inconséquence : il vient d'un grep statique de `it(` / `test(`, qui
+// sous-compte structurellement les suites `.each` et les tests de propriété.
+// Exiger l'exactitude sur une mesure approchée ferait éditer le document pour
+// satisfaire la porte plutôt que pour être vrai.
 const TEST_CASE_TOL = 0.20;   // static grep under-counts — wider band
 
 /**
@@ -1408,7 +1419,7 @@ function checkTestCountFreshness(claudeMd, fileCount, caseCount) {
     matched++;
     const docTests = num(m[1]), docFiles = num(m[2]);
     if (docFiles && fileCount && Math.abs(docFiles - fileCount) / fileCount > TEST_FILE_TOL) {
-      out.push(`CLAUDE.md test-file figure "~${docFiles}" drifted from the actual ${fileCount} — refresh the "~N tests across ~M source files" line.`);
+      out.push(`CLAUDE.md test-file figure "${docFiles}" is not the actual ${fileCount} — write ${fileCount}. It is a counted number, not an estimate.`);
     }
     if (docTests && caseCount && Math.abs(docTests - caseCount) / caseCount > TEST_CASE_TOL) {
       out.push(`CLAUDE.md test-count figure "~${docTests}" drifted from ~${caseCount} static it()/test() cases (Vitest counts a bit more) — refresh the "~N tests" line.`);
@@ -1549,7 +1560,92 @@ function extractGroupLabelKeys(constantsSource) {
   return [...keys].sort();
 }
 
+/**
+ * GATE 27 — a language section of a doc must quote ITS OWN labels.
+ *
+ * WHY THIS EXISTS, AND WHAT IT REPLACES: NOTHING. I asserted twice — once to
+ * the user, once in a commit message on a public repo — that doc:check already
+ * "checks the guide quotes a real label, but not that it quotes the label of
+ * its own language". The first half was FALSE: no gate compared the guide to
+ * the dictionaries at all. The claim was invented to explain a defect, which is
+ * the worst way to be wrong about one's own safety net.
+ *
+ * THE DEFECT IS REAL AND RECURRING. Three found so far, all the same shape — a
+ * language section quoting a button by a name that language does not use:
+ *   • pt quoted « Selecionar itens » ; the app says « Selecionar os elementos »
+ *   • pt quoted « Reconectar » (SPANISH) ; pt says « Voltar a ligar »
+ *   • de quoted « Stats » ; the German dock reads « Stat. »
+ * A reader then hunts the screen for a control that is not there, in the one
+ * document written to stop them hunting.
+ *
+ * THE RULE, and the reason it is safe to apply at full strength. A quoted
+ * phrase is only judged when it is VERBATIM a label in some language: anything
+ * else is ordinary emphasis and is ignored, which is what keeps the gate from
+ * policing prose. If it is a label somewhere but NOT in this section's own
+ * language, it is a mis-quotation.
+ *
+ * MEASURED before choosing the threshold, on the real guide: 1020 quoted
+ * phrases match a dictionary value, and exactly 2 fail the rule — both genuine.
+ * That is why there is no minimum length: a five-character label ("Stats") was
+ * one of the two findings, and a length filter would have hidden it. The
+ * residual risk is a future emphasis that happens to be another language's
+ * label verbatim; `exempt` exists for that and is EMPTY today. Add an entry
+ * only with the reason, never to silence a real finding.
+ *
+ * @param {string} html      the doc, with `<div id="sec-XX" class="section">` wrappers
+ * @param {Record<string, Record<string,string>>} dicts  lang code → key → value
+ * @param {string[]} [exempt] quoted phrases to skip, each justified at its site
+ * @returns {string[]} one message per mis-quotation
+ */
+function findForeignLabelQuotes(html, dicts, exempt) {
+  const skip = new Set(exempt || []);
+  const src = String(html || "");
+  const langs = Object.keys(dicts || {});
+  // valeur → langues qui l'emploient comme libellé (et une clé, pour le message)
+  const owners = Object.create(null);
+  langs.forEach((lg) => {
+    const d = dicts[lg] || {};
+    Object.keys(d).forEach((k) => {
+      const v = d[k];
+      if (!v) return;
+      if (!owners[v]) owners[v] = { langs: new Set(), key: k };
+      owners[v].langs.add(lg);
+    });
+  });
+
+  const bounds = [];
+  const reSec = /<div id="sec-([a-z]{2})" class="section">/g;
+  let ms;
+  while ((ms = reSec.exec(src)) !== null) bounds.push({ lang: ms[1], at: ms.index });
+
+  const out = [];
+  bounds.forEach((b, i) => {
+    const end = i + 1 < bounds.length ? bounds[i + 1].at : src.length;
+    const block = src.slice(b.at, end);
+    // On ne juge QUE les phrases mises en évidence — c'est là que le guide cite
+    // un contrôle. Le reste du texte n'a pas à éviter les mots des autres
+    // langues, et le prétendre rendrait la porte insupportable.
+    const reQ = /<strong>([^<]{1,120})<\/strong>/g;
+    let mq;
+    while ((mq = reQ.exec(block)) !== null) {
+      const txt = mq[1].trim();
+      if (!txt || skip.has(txt)) continue;
+      const own = owners[txt];
+      if (!own) continue;              // pas un libellé : simple emphase
+      if (own.langs.has(b.lang)) continue; // libellé de CETTE langue : correct
+      const d = dicts[b.lang] || {};
+      const mine = d[own.key];
+      out.push(
+        `${b.lang}: the guide quotes "${txt}" — that is the ${[...own.langs].sort().join("/")} wording of `
+        + `\`${own.key}\`, while ${b.lang} says ${mine ? JSON.stringify(mine) : "(no value)"}.`,
+      );
+    }
+  });
+  return out;
+}
+
 module.exports = {
+  findForeignLabelQuotes,
   checkHelpEnumTables,
   checkHelpEnumLabels,
   checkVersions,
