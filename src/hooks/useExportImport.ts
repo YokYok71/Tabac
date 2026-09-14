@@ -821,7 +821,7 @@ export function useExportImport({
             // fiches share that brand+name, so the merge could not tell which one
             // this row was. Silence here is what let the duplication compound.
             if (_summary && (_summary.identityConflicts || 0) > 0) {
-              done += "\n\n" + String(t ? t("merge_recap_identity") : "{n} fiche(s) portent le même nom qu'une fiche existante sans pouvoir y être rattachées : ajoutée(s) séparément, à fusionner à la main si besoin.")
+              done += "\n\n" + String(t ? t("merge_recap_identity") : "{n} fiche(s) portent le même nom qu'une fiche existante sans pouvoir y être rattachées : ajoutée(s) séparément. Réimporter le même fichier les ajoutera de nouveau — Paramètres → Données → Doublons permet de les fusionner.")
                 .replace("{n}", String(_summary.identityConflicts));
             }
             // Rows left alone because they are in the trash.

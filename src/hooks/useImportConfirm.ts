@@ -691,7 +691,7 @@ export function useImportConfirm({
     // reporting it only as "N tabacs ajoutés" is how a user finds their cellar
     // doubled months later with no explanation.
     if ((summary.identityConflicts || 0) > 0) {
-      lines.push(String(t ? t("merge_recap_identity") : "{n} fiche(s) portent le même nom qu'une fiche existante sans pouvoir y être rattachées : ajoutée(s) séparément, à fusionner à la main si besoin.")
+      lines.push(String(t ? t("merge_recap_identity") : "{n} fiche(s) portent le même nom qu'une fiche existante sans pouvoir y être rattachées : ajoutée(s) séparément. Réimporter le même fichier les ajoutera de nouveau — Paramètres → Données → Doublons permet de les fusionner.")
         .replace("{n}", String(summary.identityConflicts)));
     }
     // Sessions that arrived attached to a lot and had to be
