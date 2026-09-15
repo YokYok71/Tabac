@@ -60,11 +60,18 @@
 
      VÉRIFIÉ DEPUIS : le voile disparaît, et la barre du haut est alors PIXEL
      POUR PIXEL identique à Safari (rgb(224,195,145), luminance 198 des deux
-     côtés). Ce qui n'est PAS établi, c'est le rôle de la réinstallation : le
-     test a changé deux choses à la fois — l'installation et la version
-     chargée. Ne pas répéter qu'une réinstallation est requise tant qu'un
-     appareil jamais réinstallé, passé au build >= 16 par la mise à jour
-     ordinaire, n'a pas tranché. -->
+     côtés). LA RÉINSTALLATION N'EST PAS REQUISE — tranché par le test non
+     confondu réclamé ici même : un SECOND iPhone, jamais réinstallé, passé au
+     build >= 16 par la mise à jour ordinaire, affiche la barre correcte, et
+     l'utilisateur précise n'avoir même pas eu besoin de recharger. La balise
+     est donc relue au CHARGEMENT, pas figée à l'installation. J'avais écrit
+     l'inverse par inférence, sans le prouver, et plusieurs sources secondaires
+     disaient déjà le contraire. Ce qui reste vrai du premier test, c'est qu'il
+     était confondu : il changeait l'installation ET la version chargée, et
+     c'est la VERSION qui faisait tout — « toujours trouble » après le build 16
+     décrivait un appareil qui ne l'avait pas encore reçu. (Ce que ce second
+     test suppose, écrit pour qu'on sache quoi vérifier s'il fallait y revenir :
+     que cet iPhone avait bien l'app installée AVANT le build 16.) -->
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cave Tabac">
 <meta name="theme-color" content="#0a0a0a">
