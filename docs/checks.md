@@ -256,6 +256,12 @@ npm run theme:contrast # OPT-IN contrast check across the SIX palettes (brass/st
                     #   against the ~45 it took in series (see the sharding note under i18n:layout).
                     #   The console report caps the warning list, so `THEME_CONTRAST_JSON=/tmp/c.json`
                     #   dumps the full set — that's how the triage grouped 313 warnings.
+                    #   i18n:layout ANNONCE SA PORTÉE depuis le même passage : il concluait
+                    #   « no clipped text, nothing cut off » sans jamais dire sur combien
+                    #   d'éléments — un négatif sans dénominateur. Il en imprime un (73 144 sur
+                    #   la matrice complète) et ÉCHOUE si un écran en examine zéro. Sa quatrième
+                    #   règle regarde en outre le texte PROPRE d'un nœud mixte : 13 792 éléments,
+                    #   18,9 % de la population porteuse de texte, qu'aucune règle ne voyait.
                     #   IL N'ABANDONNE PLUS DEVANT UN DÉGRADÉ : il ENCADRE le rapport contre chaque
                     #   arrêt. Trois issues — passe au pire arrêt → mesure ; échoue au meilleur →
                     #   défaut ; entre les deux → signalé avec ses DEUX bornes et jamais mis en

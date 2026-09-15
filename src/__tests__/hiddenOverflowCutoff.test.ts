@@ -76,8 +76,19 @@ describe("the checker gained the fourth failure mode", () => {
     // length-preservingly so they still occupy their span) and 44 to the
     // assignment. Budgeted with room to breathe, but far below the distance to
     // the OTHER `textOverflow` in the file, which is what must not match here.
+    //
+    // MISE À JOUR, et elle est instructive. La queue épinglait `clip = p`,
+    // l'écriture de l'époque. La marche vers l'ancêtre coupant a ensuite été
+    // EXTRAITE dans `clipAncestorOf` pour que le texte propre d'un nœud mixte
+    // soit jugé par le même code qu'une feuille (voir ce passage) : la branche
+    // rend désormais `return p`. La garde a rougi — elle a fait son travail —
+    // mais elle a rougi sur l'ORTHOGRAPHE alors que sa raison d'être, écrite
+    // ci-dessus, est POSITIONNELLE. Les deux écritures sont donc acceptées :
+    // ce qui doit rester vrai est que l'exemption se lise À L'INTÉRIEUR de la
+    // branche `hidden` et AVANT que l'élément soit accusé, pas le verbe choisi
+    // pour l'accuser.
     expect(src).toMatch(
-      /ox === "hidden"[\s\S]{0,1200}?textOverflow === "ellipsis"[\s\S]{0,200}?clip = p/,
+      /ox === "hidden"[\s\S]{0,1200}?textOverflow === "ellipsis"[\s\S]{0,200}?(?:clip = p|return p)/,
     );
   });
 

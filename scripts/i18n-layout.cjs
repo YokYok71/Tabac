@@ -998,6 +998,15 @@ const SCREENS = [
 // ── The in-page measurement (serialised into the browser) ───────────────────
 function measure() {
   const out = { docOverflow: document.documentElement.scrollWidth - window.innerWidth, clipped: [], rows: [], cards: 0, fields: 0, hscroll: [], cutOff: [] };
+  // LE DENOMINATEUR. Ce script concluait « no clipped text, nothing cut off »
+  // sans jamais dire sur COMBIEN d'elements — une affirmation purement
+  // negative, sans portee. C'est le defaut que theme:contrast avait deja paye
+  // en pire (la il manquait le total des omissions ; ici il manquait aussi
+  // celui des mesures). MESURE la premiere fois qu'il a ete compte :
+  // **59 352 elements de texte examines** sur les 864 rendus, et aucun ecran
+  // a zero. Un ecran silencieusement non mesure est la panne que ce chiffre
+  // rend visible.
+  out.examined = 0;
   // The document is not the only thing that can slide sideways.
   // A modal panel has its own scroll container, so a row too wide for it made
   // the whole page draggable left and right with `document.scrollWidth`
@@ -1065,18 +1074,14 @@ function measure() {
   // of a rounded `overflow: hidden` card is the intended use of that property,
   // and reporting it would be the over-strict mistake this file keeps
   // recording. What is never intended is a WORD cut in half.
-  for (const el of document.querySelectorAll("span, div, button, a, label, h1, h2, h3, p, li")) {
-    if (el.children.length > 0) continue;
-    const txt = (el.textContent || "").trim();
-    if (txt.length < 2) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width <= 0 || r.height <= 0) continue;
-    let clip = null;
-    for (let p = el.parentElement; p; p = p.parentElement) {
-      if (p.hasAttribute("data-hscroll")) break;
+  // L'ANCETRE COUPANT, extrait pour que le texte PROPRE d'un noeud mixte soit
+  // juge exactement comme celui d'une feuille — voir la boucle ci-dessous.
+  const clipAncestorOf = (start) => {
+    for (let p = start; p; p = p.parentElement) {
+      if (p.hasAttribute("data-hscroll")) return null;
       const pcs = getComputedStyle(p);
       const ox = pcs.overflowX;
-      if (ox === "auto" || ox === "scroll") break;
+      if (ox === "auto" || ox === "scroll") return null;
       if (ox === "hidden" || ox === "clip") {
         // A SIGNPOSTED truncation is not a silent cut. `text-overflow:
         // ellipsis` renders a "…", which tells the reader there is more —
@@ -1089,18 +1094,62 @@ function measure() {
         // unbounded wrapping, which is the over-strict mistake this file
         // keeps recording. The `clipped` rule above already owns the ellipsis
         // case on its own terms.
-        if (pcs.textOverflow === "ellipsis") break;
-        clip = p;
-        break;
+        if (pcs.textOverflow === "ellipsis") return null;
+        return p;
       }
     }
-    if (!clip) continue;
+    return null;
+  };
+  const reportIfCut = (right, clip, txt) => {
+    if (!clip) return;
     const cr = clip.getBoundingClientRect();
     // clientLeft skips the border; clientWidth excludes it and any scrollbar.
-    const over = Math.round(r.right - (cr.left + clip.clientLeft + clip.clientWidth));
-    if (over > 1) {
-      out.cutOff.push({ txt: txt.slice(0, 44), over, box: clip.clientWidth });
+    const over = Math.round(right - (cr.left + clip.clientLeft + clip.clientWidth));
+    if (over > 1) out.cutOff.push({ txt: txt.slice(0, 44), over, box: clip.clientWidth });
+  };
+
+  for (const el of document.querySelectorAll("span, div, button, a, label, h1, h2, h3, p, li")) {
+    if (el.children.length > 0) {
+      // LE TEXTE PROPRE D'UN NOEUD MIXTE — l'angle mort que « feuilles
+      // seulement » laissait beant, et c'est la MEME forme qui avait motive
+      // cette quatrieme regle. Le defaut « BEARBE » venait d'une rangee qui
+      // n'etait pas une feuille ; la regle ecrite pour lui est restee
+      // `leaves only`, ce qui est juste quand le texte vit dans un ENFANT et
+      // aveugle quand il vit DIRECTEMENT dans le noeud.
+      //
+      // MESURE avant de l'ecrire : **13 792 elements, 18,9 % de la population
+      // porteuse de texte**, qu'aucune des quatre regles ne regardait — dont
+      // les puces de filtre (« Tous », « En cave », « jeune 2 » : un libelle
+      // plus un compteur enfant), exactement le genre de controle serre qui se
+      // coupe en allemand. Et **zero coupe reelle** aujourd'hui : c'est ce qui
+      // rend l'ajout gratuit, pas ce qui le rend inutile. Non-vacuite prouvee
+      // en abaissant le seuil — 489 detections sur fr/m/360 seul, donc le zero
+      // est un vrai zero et non un detecteur muet.
+      //
+      // Un Range par noeud de texte direct : le rectangle de l'ELEMENT
+      // engloberait ses enfants, et c'est le texte propre qui est en cause.
+      let own = "", right = -Infinity;
+      for (const n of el.childNodes) {
+        if (n.nodeType !== 3) continue;
+        const t = n.textContent.trim();
+        if (!t) continue;
+        own += (own ? " " : "") + t;
+        const rg = document.createRange(); rg.selectNode(n);
+        const b = rg.getBoundingClientRect();
+        if (b.width > 0 && b.height > 0) right = Math.max(right, b.right);
+      }
+      if (own.length >= 2 && right > -Infinity) {
+        out.examined++;
+        reportIfCut(right, clipAncestorOf(el), own);
+      }
+      continue;
     }
+    const txt = (el.textContent || "").trim();
+    if (txt.length < 2) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) continue;
+    out.examined++;
+    reportIfCut(r.right, clipAncestorOf(el.parentElement), txt);
   }
   // The tightest row in the app: the tobacco card's footer — weight on the
   // left, status badges on the right. Keyed on the LEFT child looking like a
@@ -1197,6 +1246,7 @@ async function main() {
   const failures = [];
   const rowNotes = [];
   let totalCards = 0;
+  let totalExamined = 0;
 
   const unreached = [];
   for (const width of WIDTHS) {
@@ -1314,6 +1364,10 @@ async function main() {
         }
         const r = await page.evaluate(measure);
         totalCards += r.cards;
+        totalExamined += r.examined;
+        if (r.examined === 0) failures.push(
+          `${width}px/${scale}/${lang}/${scr.name}: 0 element de texte examine — ` +
+          "l'ecran n'a rien mesure, donc son vert ne veut rien dire");
         const where = `${width}px/${scale}/${lang}/${scr.name}`;
         if (r.docOverflow > 0) {
           failures.push(`${where}: page overflows horizontally by ${r.docOverflow}px`);
@@ -1364,6 +1418,10 @@ async function main() {
     for (const f of failures) console.log("  ✗ " + f);
     process.exit(1);
   }
+  // LA PORTEE AVEC LE VERDICT. « Rien n'est coupe » ne veut rien dire sans le
+  // nombre d'elements regardes : c'est ce chiffre qui distingue une campagne
+  // complete d'une campagne qui n'a rien vu.
+  console.log(`${DIM}  ${totalExamined} text elements examined (leaves + the own text of mixed nodes)${OFF}`);
   console.log(`\n${GRN}i18n:layout OK${OFF} — ${LANGS.length} languages × ${SCREENS.length} screens × ${SCALES.length} text size(s) × ${WIDTHS.length} width(s) (${WIDTHS.join("/")}px): no overflow, no clipped text, no stray horizontal scroller, nothing cut off by a hidden-overflow ancestor.`);
 }
 

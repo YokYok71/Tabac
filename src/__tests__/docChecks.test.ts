@@ -2051,3 +2051,64 @@ describe("theme:contrast encadre les dégradés au lieu de les sauter", () => {
     expect(src).not.toContain("skipped (gradient or indeterminate backdrop)");
   });
 });
+
+/**
+ * LA QUATRIÈME RÈGLE DOIT VOIR LE TEXTE PROPRE D'UN NŒUD MIXTE.
+ *
+ * Elle a été écrite pour le défaut « BEARBE » — une rangée de boutons peinte
+ * hors d'un ancêtre `overflow: hidden`, qu'aucune des trois premières règles ne
+ * pouvait voir. Elle est pourtant restée `leaves only`, ce qui est juste quand
+ * le texte vit dans un ENFANT et aveugle quand il vit DIRECTEMENT dans le
+ * nœud. MESURÉ : **13 792 éléments, 18,9 % de la population porteuse de
+ * texte**, qu'aucune des quatre règles ne regardait — dont les puces de filtre
+ * (« Tous », « En cave », « jeune 2 » : un libellé plus un compteur enfant).
+ *
+ * ZÉRO coupe réelle aujourd'hui, ce qui rend l'ajout gratuit et non inutile :
+ * la démonstration est qu'un défaut INJECTÉ dans un nœud mixte passait au vert
+ * (exit 0, aucune mention) avant, et fait échouer la campagne après, en
+ * nommant les 257 px de débordement.
+ *
+ * La garde porte sur les DEUX moitiés, car chacune sans l'autre est creuse :
+ * mesurer le texte propre par un Range (le rectangle de l'ÉLÉMENT engloberait
+ * ses enfants — ce n'est pas la bonne mesure), et compter cet élément dans le
+ * dénominateur.
+ */
+describe("i18n:layout regarde le texte propre des nœuds mixtes, et annonce sa portée", () => {
+  const src = readFileSync("scripts/i18n-layout.cjs", "utf8");
+
+  it("la branche des nœuds mixtes mesure et rapporte", () => {
+    const i = src.indexOf("if (el.children.length > 0) {");
+    expect(i, "la branche des nœuds mixtes a disparu").toBeGreaterThan(-1);
+    // Borné sur la ligne qui SUIT la branche, jamais sur un délimiteur qui
+    // apparaît À L'INTÉRIEUR : `indexOf("continue;")` tombait sur le `continue`
+    // de la boucle sur les nœuds enfants et rendait une tranche tronquée —
+    // la même erreur que la regex sur `}` qui s'arrêtait dans un `${theme}`.
+    const fin = src.indexOf('const txt = (el.textContent || "").trim();', i);
+    expect(fin, "la borne de fin de branche a disparu").toBeGreaterThan(i);
+    const branch = src.slice(i, fin);
+    // un Range par nœud de texte DIRECT, pas le rectangle de l'élément
+    expect(branch).toContain("nodeType !== 3");
+    expect(branch).toContain("createRange");
+    expect(branch).toContain("reportIfCut");
+    expect(branch).toContain("out.examined++");
+  });
+
+  it("les feuilles passent par le MÊME juge (sinon les deux chemins dérivent)", () => {
+    // `reportIfCut` + `clipAncestorOf` extraits exprès : deux copies de la
+    // marche vers l'ancêtre coupant, c'est la classe de dérive que ce dépôt a
+    // déjà payée six fois.
+    expect(src).toMatch(/const clipAncestorOf = /);
+    expect(src).toMatch(/const reportIfCut = /);
+    // Deux SITES D'APPEL — la définition s'écrit `reportIfCut = (`, donc elle
+    // ne compte pas ici ; c'est bien « les deux chemins passent par le même
+    // juge » que l'on vérifie.
+    expect((src.match(/reportIfCut\(/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("un écran qui n'examine RIEN fait échouer la campagne", () => {
+    // Un écran silencieusement non mesuré était indiscernable d'un écran
+    // propre : c'est la panne que le dénominateur rend visible.
+    expect(src).toMatch(/r\.examined === 0/);
+    expect(src).toMatch(/text elements examined/);
+  });
+});
