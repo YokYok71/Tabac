@@ -275,6 +275,25 @@ After every significant task (bug fix, feature, security change, release), alway
 
 ## Key Conventions for AI Assistants
 
+### RÈGLE ZÉRO — NE JAMAIS AFFIRMER UN FAIT SANS L'AVOIR VÉRIFIÉ À L'INSTANT
+
+**Posée par l'utilisateur, impérative, et elle prime sur l'envie de répondre vite.** Elle n'est PAS numérotée : insérer `#17b` a jadis décalé la numérotation et cassé six renvois `§N` (voir `docs/history.md`), donc rien ne s'insère dans la liste ci-dessous.
+
+**Un fait sur ce dépôt — son code, son histoire, son comportement — ne s'énonce qu'après avoir lancé la commande qui l'établit.** Pas d'après la mémoire, pas d'après ce que la documentation en dit, pas par déduction depuis autre chose de vrai. Une affirmation dans la conversation coûte exactement ce que coûte une affirmation dans un fichier : l'utilisateur agit dessus.
+
+**SIX MANQUEMENTS MESURÉS EN UNE SEULE JOURNÉE, et les six formes sont différentes — c'est pourquoi « faire attention » ne suffit pas :**
+
+1. **AFFIRMER UNE ABSENCE.** « `help.html` n'a jamais été relu contre le code » — **faux** : `7b46ce8` (27 août) porte quatre audits parallèles dont le guide utilisateur et le changelog. Une absence est la chose la plus coûteuse à affirmer et la plus facile à vérifier : `git log -- <fichier>`.
+2. **DÉDUIRE UN RISQUE D'UNE APPARTENANCE.** « Les puces de filtre sont serrées » — déduit de leur présence parmi 13 792 éléments non examinés. Or y figurer veut dire « texte propre + enfants », pas « à l'étroit ». MESURÉ ensuite : la rangée déborde DÉJÀ de 554 px et défile, aucune puce ne coupe son texte.
+3. **CHIFFRER DE MÉMOIRE.** « Fausse depuis des mois » — **18 jours** (28 août → 15 septembre). Un ordre de grandeur inventé se répète ensuite comme une donnée.
+4. **CONFONDRE CE QU'ON CHERCHE AVEC CE QU'ON TROUVE.** « 4 fichiers de `dist/` mentionnent `CLAUDE.md` » — c'était un grep sur une CHAÎNE dans des commentaires de code ; le fichier n'est pas distribué.
+5. **LIRE UN ZÉRO COMME UNE RÉPONSE.** Trois greps rendus vides (palettes, taille de texte, mention « accordée ») alors que les trois fonctionnalités existent, sous `cave-theme`, `cave-font-scale`, `home_pair_accord`. **Un grep qui ne trouve rien ne prouve rien** — c'est la sonde non appliquée, en plus dangereux, parce qu'un zéro ressemble à un résultat.
+6. **LIRE LE CODE DE SORTIE D'AUTRE CHOSE QUE LA PORTE.** Un « exit 0 » rapporté était celui du `echo` final ; la porte avait rendu **1**. Écrire le code dans son propre fichier et le lire là.
+
+**LA FORME OPÉRATOIRE, en trois gestes :** (a) avant d'écrire une phrase factuelle, lancer ce qui l'établit — et si c'est impossible, l'écrire COMME une incertitude, nommément ; (b) vérifier qu'une sonde s'est APPLIQUÉE avant de croire son résultat, vert comme rouge ; (c) quand l'utilisateur conteste un fait, aller au dépôt avant de défendre quoi que ce soit — **il a eu raison les trois fois où il l'a fait aujourd'hui** (la réinstallation, la refonte du changelog, l'audit d'août).
+
+**CE QUE CETTE RÈGLE PROTÈGE VRAIMENT.** Les six manquements ci-dessus n'ont rien cassé dans l'application — ils ont fait perdre du temps et, deux fois, envoyé vers un travail inutile (des puces à élargir qui vont très bien, un guide à relire qui l'avait été). Une affirmation fausse ne fait pas tomber une porte : elle oriente les décisions suivantes, et elle se recopie dans les fichiers, où elle survit à celui qui l'a écrite.
+
 1. **Multi-file architecture** — Code is organized across `src/views/curator/` (17 `*View.tsx` + 16 modals/overlays), `src/hooks/` (24 hooks), `src/utils/` (`lotUtils`, `imgCache`, `lotInvariants`, `diagnostic`, `cryptoBackup`, `oauthDiag`, `oauthReturn`, `stats`, `gdriveApi`, `cloudProvider`, `dropboxAuthCore`, `rotation`, `suggest`, `watchlist`, `geo`, `tobaccoDb`, `docPage`), `src/components/Charts.jsx`, and `src/components/curator/` (icons, primitives, FormFields, Modal, BottomDock, AICard). `App.tsx` is the state + hooks owner and renders `<CuratorApp />`; it delegates all business logic to hooks. Do not add code to App.tsx that belongs in a hook.
 2. **TypeScript strict mode** — `tsconfig.json` has `"strict": true`. All new code must be type-safe. Use `any` sparingly and only for genuinely dynamic values (context, external APIs, schema migrations on imported data).
 3. **Build tools** — Vite + npm. Run `npm run dev` to develop, `npm run build` to produce `dist/`. No CDN dependencies in source; all imports go through npm.

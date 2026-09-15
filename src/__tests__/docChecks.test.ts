@@ -2235,3 +2235,74 @@ describe("check-bundle-size refuse de passer à vide", () => {
     expect(src).toMatch(/eagerNames\.size\} fichier/);
   });
 });
+
+/**
+ * LES ANCRES DU CHANGELOG — la porte qui agit au MOMENT DE L'ÉCRITURE.
+ *
+ * Deux audits ont manqué le même défaut, et pour la même raison structurelle :
+ * le changelog a été refondu (avant le 25 août) puis AUDITÉ (`7b46ce8`, le
+ * 27 août) — et l'entrée fausse a été écrite le **28**. Un audit ne protège
+ * rien de ce qui s'écrit après lui ; sa valeur décroît dès qu'il tourne.
+ * Refaire un audit est donc exactement ce qui a déjà échoué deux fois.
+ *
+ * Ce n'est PAS un contrôle de vérité — aucune porte ne peut prouver qu'une
+ * phrase décrit l'application. C'est une RÈGLE D'ACQUITTEMENT : l'entrée doit
+ * DÉSIGNER le code qui la rend vraie, et ces symboles doivent exister.
+ */
+describe("checkChangelogAnchors", () => {
+  const CODE = "export var safeTop = 1; var THEME_COLOR_META = {};" + "x".repeat(2000);
+  const entry = (n: number, anchors: string | null) =>
+    `<h2><span class="tag">v1.1 · Build ${n}</span> Titre <span class="date">mai 2026</span></h2>` +
+    (anchors === null ? "" : `<!-- anchors: ${anchors} -->`) +
+    "<h3>Nouveau</h3><ul><li>Du texte</li></ul>";
+  const page = (...es: string[]) => `<div id="sec-fr">${es.join("")}</div><div id="sec-en"></div>`;
+
+  it("le cas nominal passe, et la portée est rendue", () => {
+    const r = D.checkChangelogAnchors(page(entry(2, "safeTop"), entry(1, null)), "1.1", CODE);
+    expect(r.errors).toEqual([]);
+    expect(r.anchored).toBe(1);
+    expect(r.legacy).toBe(1);   // l'ancienne est dispensée ET comptée
+  });
+
+  it("LE DÉFAUT DU 28 AOÛT : une ancre qui ne désigne plus rien", () => {
+    // `CuratorDelConfirmModal` n'existait plus quand l'entrée l'a annoncé.
+    const r = D.checkChangelogAnchors(page(entry(2, "CuratorDelConfirmModal")), "1.1", CODE);
+    expect(r.errors.length).toBe(1);
+    expect(r.errors[0]).toContain("CuratorDelConfirmModal");
+  });
+
+  it("la DERNIÈRE entrée doit être ancrée — c'est le moment de l'écriture", () => {
+    const r = D.checkChangelogAnchors(page(entry(2, null), entry(1, null)), "1.1", CODE);
+    expect(r.errors.length).toBe(1);
+    expect(r.errors[0]).toContain("Build 2");
+    expect(r.legacy).toBe(1);   // la précédente reste dispensée
+  });
+
+  it("une ancre doit nommer du CODE, pas de la prose", () => {
+    const r = D.checkChangelogAnchors(page(entry(2, "la barre est jolie")), "1.1", CODE);
+    expect(r.errors.length).toBe(1);
+    expect(r.errors[0]).toContain("n'est pas un identifiant");
+  });
+
+  it("sans code à fouiller, elle REFUSE au lieu de tout déclarer absent", () => {
+    // Non-vacuité dans les deux sens : un foin vide rendrait chaque ancre
+    // « absente » et la porte hurlerait à tort.
+    const r = D.checkChangelogAnchors(page(entry(2, "safeTop")), "1.1", "");
+    expect(r.errors.length).toBe(1);
+    expect(r.errors[0]).toContain("vide ou trop court");
+  });
+
+  it("sans entrée de la version courante, elle REFUSE de passer à vide", () => {
+    const r = D.checkChangelogAnchors(page(), "1.1", CODE);
+    expect(r.errors.length).toBe(1);
+    expect(r.errors[0]).toContain("passerait à vide");
+  });
+
+  it("et elle tourne VERT sur le vrai fichier (non-vacuité du câblage)", () => {
+    const html = readFileSync("public/changelog.html", "utf8");
+    const code = readFileSync("src/theme-curator.ts", "utf8") + readFileSync("index.html", "utf8");
+    const r = D.checkChangelogAnchors(html, "1.1", code);
+    expect(r.errors).toEqual([]);
+    expect(r.anchored).toBeGreaterThanOrEqual(1);
+  });
+});

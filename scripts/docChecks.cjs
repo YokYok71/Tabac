@@ -446,6 +446,109 @@ function findFallbackMismatches(fileText, refMap, label) {
  * keying on French would report five "missing" lines for one French-only
  * mistake, pointing every reader at the wrong five files.
  */
+/**
+ * LES ANCRES D'UNE ENTRÉE DE CHANGELOG — la porte qui manquait, et la seule
+ * qui puisse agir au BON MOMENT.
+ *
+ * POURQUOI UN AUDIT NE SUFFIT PAS, mesuré deux fois sur le même défaut :
+ * l'entrée « v1.1 Build 0 » annonce « les gestes qui effacent doivent
+ * MAINTENANT demander avant » alors que la modale de confirmation était
+ * retirée depuis trois jours. Or le changelog avait été AUDITÉ la veille
+ * (`7b46ce8`, 27 août — quatre audits parallèles dont celui-ci), et refondu
+ * intégralement quelques semaines plus tôt. **Un audit ne protège rien de ce
+ * qui s'écrit après lui** ; sa valeur décroît dès le jour où il tourne. Refaire
+ * un audit est donc précisément ce qui a déjà échoué deux fois.
+ *
+ * CE QUE FAIT CETTE PORTE, ET CE QU'ELLE NE FAIT PAS. Une entrée doit porter
+ * un commentaire `<!-- anchors: a, b, c -->` nommant les identifiants du code
+ * qui la rendent vraie, et chacun doit EXISTER. Ce n'est pas un contrôle de
+ * vérité — on ne peut pas prouver qu'une phrase décrit l'application — c'est
+ * une RÈGLE D'ACQUITTEMENT, la forme que ce dépôt emploie déjà (`// scope-ok:`,
+ * `// lang-axis-ok:`, `DOC_CHECK_SKIP_BUMP` qui exige de NOMMER les fichiers).
+ * Elle attrape deux choses : une entrée qui décrit ce qui n'existe pas —
+ * `CuratorDelConfirmModal` n'existait plus le 28 août, donc l'entrée n'aurait
+ * PAS PU être écrite — et une entrée dont le sujet disparaît ensuite. Elle
+ * n'attrape PAS une description fausse d'un symbole qui existe, et le prétendre
+ * serait le genre d'affirmation que la RÈGLE ZÉRO interdit.
+ *
+ * LES ANCIENNES ENTRÉES SONT DISPENSÉES, et leur nombre est RAPPORTÉ : une
+ * porte qui tait ce qu'elle ne regarde pas se lit comme une couverture — la
+ * leçon des 59 éléments sautés par `theme:contrast`.
+ *
+ * @param {string} changelogHtml
+ * @param {string} version        la version courante (« 1.1 »)
+ * @param {string} codeText       le code concaténé où chercher les ancres
+ * @returns {{errors: string[], anchored: number, legacy: number}}
+ */
+function checkChangelogAnchors(changelogHtml, version, codeText) {
+  const errors = [];
+  const src = String(changelogHtml || "");
+  const code = String(codeText || "");
+  // NON-VACUITÉ : sans code à fouiller, chaque ancre serait « absente » et la
+  // porte hurlerait à tort ; sans entrée, elle passerait sans rien regarder.
+  if (code.length < 1000) {
+    return { errors: ["changelog anchors: le code fourni est vide ou trop court — la porte ne peut rien vérifier"], anchored: 0, legacy: 0 };
+  }
+  const i = src.indexOf('<div id="sec-fr"');
+  if (i < 0) return { errors: ['changelog anchors: <div id="sec-fr"> introuvable'], anchored: 0, legacy: 0 };
+  const rest = src.slice(i + 10);
+  const j = rest.indexOf('<div id="sec-');
+  const sec = src.slice(i, j > -1 ? i + 10 + j : src.length);
+
+  const tag = `v${version} · Build `;
+  const re = /<h2><span class="tag">([^<]*)<\/span>([\s\S]*?)(?=<h2>|<\/div>|$)/g;
+  const entries = [];
+  let m;
+  while ((m = re.exec(sec)) !== null) {
+    const label = m[1].trim();
+    if (!label.startsWith(tag)) continue;
+    const n = parseInt(label.slice(tag.length).trim(), 10);
+    if (!Number.isFinite(n)) continue;
+    entries.push({ n, body: m[2] });
+  }
+  if (!entries.length) {
+    return { errors: [`changelog anchors: aucune entrée « ${tag}N » dans sec-fr — la porte passerait à vide`], anchored: 0, legacy: 0 };
+  }
+
+  const latest = entries.reduce((a, b) => (b.n > a.n ? b : a), entries[0]);
+  let anchored = 0, legacy = 0;
+
+  for (const e of entries) {
+    const am = /<!--\s*anchors:\s*([^>]*?)-->/.exec(e.body);
+    if (!am) {
+      // Seule la DERNIÈRE entrée est obligée : c'est le moment de l'écriture
+      // qui est le point de contrôle, pas la relecture rétrospective.
+      if (e.n === latest.n) {
+        errors.push(
+          `changelog Build ${e.n}: l'entrée ne désigne aucun code. Ajoutez, sous son <h2>, ` +
+          "un commentaire `<!-- anchors: identifiant, identifiant -->` nommant les symboles " +
+          "(clé i18n, fonction, constante) qui rendent l'entrée vraie. La porte vérifie qu'ils EXISTENT : " +
+          "une entrée décrivant ce qui n'existe pas ne peut alors pas être écrite.");
+      } else legacy++;
+      continue;
+    }
+    anchored++;
+    const names = am[1].split(",").map((x) => x.trim()).filter(Boolean);
+    if (!names.length) {
+      errors.push(`changelog Build ${e.n}: le commentaire anchors est vide.`);
+      continue;
+    }
+    for (const name of names) {
+      if (!/^[A-Za-z_$][\w$.-]*$/.test(name)) {
+        errors.push(`changelog Build ${e.n}: « ${name} » n'est pas un identifiant — les ancres nomment du code, pas de la prose.`);
+        continue;
+      }
+      if (!code.includes(name)) {
+        errors.push(
+          `changelog Build ${e.n}: l'ancre « ${name} » n'existe nulle part dans le code. ` +
+          "Soit l'entrée décrit une fonctionnalité disparue — elle est alors à corriger ou à retirer — " +
+          "soit l'ancre est mal orthographiée.");
+      }
+    }
+  }
+  return { errors, anchored, legacy };
+}
+
 function checkChangelogLanguageParity(changelogHtml, version, langs) {
   const errors = [];
   const src = String(changelogHtml || "");
@@ -1759,6 +1862,7 @@ module.exports = {
   resolveBumpSkip,
   readAppBuild,
   checkChangelogIsFunctional,
+  checkChangelogAnchors,
   checkChangelogLanguageParity,
   checkLangAssets,
   checkEnumTranslations,
