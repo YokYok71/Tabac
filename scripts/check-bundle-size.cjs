@@ -78,14 +78,40 @@ function main() {
   const errors = [];
   const rows = [];
 
+  // NON-VACUITE, et elle manquait. `eagerNames` vient d'un regex sur le HTML
+  // bati ; le jour ou Vite change la forme de ses chemins (un sous-dossier,
+  // une base differente), le regex ne matche plus rien et la boucle ci-dessous
+  // additionne ZERO. MESURE en cassant le motif : la porte imprime
+  // « [ok ] eager scripts (home) 0.0 KB / 332.0 KB » puis
+  // « check-bundle-size OK », et sort 0. Un budget respecte parce qu'on n'a
+  // rien pese n'est pas un budget respecte.
+  if (eagerNames.size === 0) {
+    console.error("check-bundle-size FAILED: aucun script /assets/*.js reference par index.html —\n" +
+      "  le motif de lecture ne correspond plus a la sortie du build, donc ce budget\n" +
+      "  serait vert en n'ayant rien pese. Corriger le motif, pas le budget.");
+    process.exit(1);
+  }
+
   // Eager total
   let eagerTotal = 0;
+  const manquants = [];
   for (const name of eagerNames) {
     const p = path.join(ASSETS, name);
-    if (!fs.existsSync(p)) continue;
+    // UN FICHIER REFERENCE ET INTROUVABLE EST UNE ERREUR, pas une omission.
+    // Le `continue` silencieux qui vivait ici retirait son poids du total :
+    // l'omission rendait la porte PLUS FACILE a passer, et ne se voyait nulle
+    // part. C'est en outre un defaut a part entiere — le navigateur, lui,
+    // demandera ce fichier et recevra un 404.
+    if (!fs.existsSync(p)) { manquants.push(name); continue; }
     eagerTotal += gz(p);
   }
-  rows.push(["eager scripts (home)", eagerTotal, BUDGETS.eagerGzip]);
+  if (manquants.length) {
+    console.error("check-bundle-size FAILED: index.html reference " + manquants.length +
+      " script(s) absent(s) de dist/assets :\n  • " + manquants.join("\n  • ") +
+      "\n  Leur poids manquerait au total ET le navigateur recevrait un 404.");
+    process.exit(1);
+  }
+  rows.push([`eager scripts (home, ${eagerNames.size} fichier(s))`, eagerTotal, BUDGETS.eagerGzip]);
   if (eagerTotal > BUDGETS.eagerGzip)
     errors.push(`eager scripts ${kb(eagerTotal)} > budget ${kb(BUDGETS.eagerGzip)} — something heavy is loading on first paint (index.html eager set: ${[...eagerNames].join(", ")})`);
 

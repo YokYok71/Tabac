@@ -2160,3 +2160,78 @@ describe("la porte de bump lit l'arbre de travail", () => {
     expect(branch).toMatch(/return !!\(atBump && now && atBump !== now\)/);
   });
 });
+
+/**
+ * « PAS ENCORE TRADUIT » ET « LE WRAPPER A DISPARU » NE SONT PAS LA MÊME CHOSE.
+ *
+ * `checkHelpAnchors` sautait en silence toute langue sans wrapper, au nom de
+ * « pas encore traduite ». Or cette porte existe précisément pour le cas où une
+ * balise malformée AUTO-FERME `<div id="sec-XX">` — un wrapper entièrement
+ * absent en est l'extrême, et la porte se taisait au lieu de crier plus fort.
+ * Le départ se lit sur les ANCRES : si les h2 de cette langue existent encore,
+ * la langue EST traduite et c'est son wrapper qui manque.
+ *
+ * MESURÉ sur le vrai `help.html` : en retirant `sec-pt`, la porte passe de
+ * **108 à 90 ancres vérifiées** et nomme les 18 orphelines. Avant, exit 0.
+ */
+describe("helpAnchorScope + le wrapper disparu", () => {
+  const IDS2 = [{ ids: { fr: "fr-tabac", en: "en-tobacco", pt: "pt-tobacco" } }];
+  const parse2 = (html: string) => new DOMParser().parseFromString(html, "text/html");
+  const base =
+    '<div id="sec-fr"><h2 id="fr-tabac">Tabac</h2></div>' +
+    '<div id="sec-en"><h2 id="en-tobacco">Tobacco</h2></div>';
+
+  it("une langue vraiment absente reste silencieuse, et est COMPTÉE", () => {
+    const doc = parse2(base);
+    expect(D.checkHelpAnchors(doc, IDS2)).toEqual([]);
+    const p = D.helpAnchorScope(doc, IDS2);
+    expect(p.verified).toBe(2);
+    expect(p.skipped).toEqual(["pt"]);
+  });
+
+  it("un wrapper absent dont les ancres SUBSISTENT est une erreur nommée", () => {
+    const doc = parse2(base + '<h2 id="pt-tobacco">Tabaco</h2>');
+    const out = D.checkHelpAnchors(doc, IDS2);
+    expect(out.length, "le wrapper disparu doit être signalé").toBe(1);
+    expect(out[0]).toContain("sec-pt");
+    expect(out[0]).toContain("1 de ses ancres");
+  });
+
+  it("la portée rétrécit quand une langue sort du périmètre", () => {
+    // C'est ce chiffre qui distingue « six langues validées » de « une seule ».
+    const complet = parse2(base + '<div id="sec-pt"><h2 id="pt-tobacco">Tabaco</h2></div>');
+    expect(D.helpAnchorScope(complet, IDS2).verified).toBe(3);
+    expect(D.helpAnchorScope(parse2(base), IDS2).verified).toBe(2);
+  });
+});
+
+/**
+ * LE BUDGET DE POIDS REFUSE DE PASSER À VIDE.
+ *
+ * `eagerNames` vient d'un regex sur le HTML bâti. MESURÉ en cassant le motif :
+ * la porte imprimait « [ok ] eager scripts (home) 0.0 KB / 332.0 KB » puis
+ * « check-bundle-size OK » et sortait 0 — un budget respecté parce qu'on n'a
+ * rien pesé. Et un fichier RÉFÉRENCÉ mais absent du disque était sauté d'un
+ * `continue` muet, ce qui retirait son poids du total : l'omission rendait la
+ * porte PLUS FACILE à passer, et c'est en outre un 404 pour le navigateur.
+ */
+describe("check-bundle-size refuse de passer à vide", () => {
+  const src = readFileSync("scripts/check-bundle-size.cjs", "utf8");
+
+  it("un jeu de scripts VIDE fait échouer la porte", () => {
+    expect(src).toMatch(/eagerNames\.size === 0/);
+    const i = src.indexOf("eagerNames.size === 0");
+    expect(src.slice(i, i + 600)).toContain("process.exit(1)");
+  });
+
+  it("un script référencé et introuvable est une erreur, pas une omission", () => {
+    expect(src).toMatch(/manquants\.push\(name\)/);
+    const i = src.indexOf("if (manquants.length)");
+    expect(i, "le refus sur fichier absent a disparu").toBeGreaterThan(-1);
+    expect(src.slice(i, i + 500)).toContain("process.exit(1)");
+  });
+
+  it("le total annonce sur COMBIEN de fichiers il porte", () => {
+    expect(src).toMatch(/eagerNames\.size\} fichier/);
+  });
+});

@@ -310,10 +310,29 @@ function checkHelpAnchors(doc, sectionIds) {
   for (const code of codes) roots[code] = doc.getElementById("sec-" + code);
   if (!roots.fr) out.push('help.html: <div id="sec-fr"> wrapper is missing');
   if (!roots.en) out.push('help.html: <div id="sec-en"> wrapper is missing');
+  // « PAS ENCORE TRADUIT » ET « LE WRAPPER A DISPARU » SE RESSEMBLENT ET NE
+  // SONT PAS LA MEME CHOSE. Le `continue` ci-dessous les confondait : une
+  // langue sans wrapper etait sautee en silence. Or cette porte existe pour le
+  // cas ou une balise malformee auto-ferme `<div id="sec-XX">` — un wrapper
+  // ENTIEREMENT absent en est l'extreme, et la porte se taisait au lieu de
+  // crier plus fort. Le depart se lit sur les ANCRES : si les h2 de cette
+  // langue existent encore dans le document, la langue EST traduite et c'est
+  // son wrapper qui manque.
+  for (const code of codes) {
+    if (roots[code]) continue;
+    const orphelines = (sectionIds || [])
+      .map((s) => s.ids[code]).filter(Boolean)
+      .filter((id) => doc.getElementById(id));
+    if (orphelines.length) {
+      out.push(`help.html: <div id="sec-${code}"> est absent alors que ${orphelines.length} de ses ancres h2 existent encore — ` +
+        "le wrapper a disparu, ces sections ne sont donc validees par personne et HelpView les rendrait comme des cartes vides.");
+    }
+  }
+
   for (const { ids } of sectionIds || []) {
     for (const code of Object.keys(ids)) {
       const root = roots[code];
-      if (!root) continue; // language not on the page → not translated yet
+      if (!root) continue; // langue absente de la page → traitee juste au-dessus
       const id = ids[code];
       const h2 = doc.getElementById(id);
       if (!h2) out.push(`help.html: ${code} h2 id="${id}" is missing`);
@@ -325,6 +344,28 @@ function checkHelpAnchors(doc, sectionIds) {
     }
   }
   return out;
+}
+
+/**
+ * LA PORTEE DE LA PORTE PRECEDENTE, parce qu'un verdict sans son perimetre se
+ * lit comme une couverture. `checkHelpAnchors` rend des ERREURS ; il ne disait
+ * pas combien d'ancres il avait regardees ni quelles langues il avait laissees
+ * de cote. Le meme defaut a ete trouve dans `theme:contrast` (59 elements
+ * sautes, jamais rapportes) et dans `i18n:layout` (aucun denominateur du tout).
+ *
+ * @returns {{verified: number, skipped: string[]}}
+ */
+function helpAnchorScope(doc, sectionIds) {
+  const codes = [...new Set((sectionIds || []).flatMap((s) => Object.keys(s.ids)))];
+  const skipped = codes.filter((c) => !doc.getElementById("sec-" + c));
+  let verified = 0;
+  for (const { ids } of sectionIds || []) {
+    for (const code of Object.keys(ids)) {
+      if (!doc.getElementById("sec-" + code)) continue;
+      if (doc.getElementById(ids[code])) verified++;
+    }
+  }
+  return { verified, skipped };
 }
 
 // ── Dev-fallback parity (gate b.2) ──────────────────────────────────────────
@@ -1722,6 +1763,7 @@ module.exports = {
   checkLangAssets,
   checkEnumTranslations,
   checkEnumCoverage,
+  helpAnchorScope,
   checkAnchorLanguage,
   findUndocumentedModules,
   extractStorageKeys,

@@ -161,6 +161,15 @@ try {
   // malformed translated section is caught. A language with no wrapper is
   // simply skipped (not yet translated).
   docChecks.checkHelpAnchors(doc, HELP_SECTION_IDS).forEach(err);
+  // LA PORTEE AVEC LE VERDICT. Sans elle, « doc:check OK » couvrait aussi bien
+  // six langues validees qu'une seule : une langue dont le wrapper disparait
+  // sortait du perimetre en silence. Meme defaut que les 59 elements sautes de
+  // theme:contrast et que l'absence totale de denominateur d'i18n:layout.
+  {
+    const p = docChecks.helpAnchorScope(doc, HELP_SECTION_IDS);
+    console.log(`doc:check — help.html : ${p.verified} ancre(s) verifiee(s)` +
+      (p.skipped.length ? `, ${p.skipped.length} langue(s) non traduite(s) : ${p.skipped.join(", ")}` : ", toutes langues presentes"));
+  }
   // Gate 22: the guide's "Type" and "Cut" tables must list the real
   // enums. They are PROSE, so nothing had ever read an enum out of them, and
   // all six had sat three categories behind the app for a long stretch —
