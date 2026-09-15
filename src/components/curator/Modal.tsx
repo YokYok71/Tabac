@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
-import { alpha, fs, C, F } from "../../theme-curator.ts";
+import { alpha, fs, C, F, safeTop } from "../../theme-curator.ts";
 import { IconBtn, Lbl } from "./primitives.tsx";
 import { pushModalClose, isTopModalClose } from "../../utils/modalStack.ts";
 
@@ -176,7 +176,7 @@ export function Modal({
         display: "flex",
         alignItems: align === "center" ? "center" : "flex-start",
         justifyContent: "center",
-        padding: `max(env(safe-area-inset-top, 0), 8%) 12px 24px`,
+        padding: `${safeTop("8%")} 12px 24px`,
         // Keep touch-scroll momentum inside the overlay so it can't
         // chain to the background page (iOS "la page bouge, pas la modale").
         overscrollBehavior: "contain",

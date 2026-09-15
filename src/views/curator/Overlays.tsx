@@ -8,7 +8,7 @@ import { useAppCtx } from "../../AppContext.tsx";
 import { pickTopBanner } from "../../utils/bannerStack.ts";
 import { pickBottomToast, BOTTOM_TOAST_OFFSET } from "../../utils/bottomToast";
 import { APP_BUILD , WELCOME_KEY} from "../../constants.ts";
-import { alpha, fs, C, F, CARD_BG } from "../../theme-curator.ts";
+import { alpha, fs, C, F, CARD_BG, safeTop } from "../../theme-curator.ts";
 import { PressCard, Spinner } from "../../components/curator/primitives.tsx";
 import { Ico } from "../../components/curator/icons.tsx";
 import { Modal } from "../../components/curator/Modal.tsx";
@@ -32,7 +32,7 @@ export function CuratorSaveErrorBanner() {
       style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 492,
         background: C.oxbloodHi, color: C.ivory,
-        paddingTop: `max(env(safe-area-inset-top, 0), 10px)`,
+        paddingTop: safeTop("10px"),
         paddingBottom: 10, paddingLeft: 16, paddingRight: 16,
         boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
       }}>
@@ -82,7 +82,7 @@ export function CuratorSaveWarnBanner() {
       style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 491,
         background: C.amber, color: C.ink,
-        paddingTop: `max(env(safe-area-inset-top, 0), 10px)`,
+        paddingTop: safeTop("10px"),
         paddingBottom: 10, paddingLeft: 16, paddingRight: 40,
         fontFamily: F.body, fontSize: fs(15), fontWeight: 600,
         boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
@@ -324,7 +324,7 @@ export function CuratorExportReminderBanner() {
       style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 489,
         background: C.sage, color: C.bg,
-        paddingTop: `max(env(safe-area-inset-top, 0), 10px)`,
+        paddingTop: safeTop("10px"),
         paddingBottom: 10, paddingLeft: 16, paddingRight: 40,
         fontFamily: F.body, fontSize: fs(15), fontWeight: 600,
         boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
@@ -766,7 +766,7 @@ export function CuratorPhotoErrorBanner() {
       style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 490,
         background: C.oxbloodHi, color: C.ivory,
-        paddingTop: `max(env(safe-area-inset-top, 0), 10px)`,
+        paddingTop: safeTop("10px"),
         paddingBottom: 10, paddingLeft: 16, paddingRight: 16,
         boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
       }}>
@@ -824,7 +824,7 @@ export function CuratorCloudNewerBanner() {
       style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 489,
         background: C.brass, color: C.bg,
-        paddingTop: `max(env(safe-area-inset-top, 0), 8px)`,
+        paddingTop: safeTop("8px"),
         paddingBottom: 8, paddingLeft: 14, paddingRight: 10,
         fontFamily: F.body, fontSize: fs(14.5), fontWeight: 600,
         display: "flex", alignItems: "center", gap: 8,

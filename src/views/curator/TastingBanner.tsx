@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
-import { alpha, fs, C, F } from "../../theme-curator.ts";
+import { alpha, fs, C, F, safeTop } from "../../theme-curator.ts";
 import { Ico } from "../../components/curator/icons.tsx";
 import { Lbl } from "../../components/curator/primitives.tsx";
 import { formatTastingTime as formatMs } from "../../hooks/useTastingSession.ts";
@@ -97,7 +97,7 @@ export function CuratorTastingBanner({ onHeight, topInset }: { onHeight?: (h: nu
         position: "fixed", top: topOffset, left: 0, right: 0, zIndex: 2001,
         background: `linear-gradient(135deg, ${C.oxblood}, ${alpha(C.oxblood, "dd")})`,
         color: C.ctaInk, fontFamily: F.body,
-        paddingTop: `max(env(safe-area-inset-top, 0), 10px)`,
+        paddingTop: safeTop("10px"),
         paddingBottom: 10, paddingLeft: 14, paddingRight: 14,
         display: "flex", alignItems: "center", gap: 10,
         boxShadow: "0 4px 18px rgba(0,0,0,0.5)",
@@ -173,7 +173,7 @@ export function CuratorTastingBanner({ onHeight, topInset }: { onHeight?: (h: nu
           ? "0 4px 14px rgba(0,0,0,0.4)"
           : `0 4px 18px ${alpha(C.oxblood, "88")}`,
         cursor: "pointer",
-        paddingTop: `max(env(safe-area-inset-top, 0), 8px)`,
+        paddingTop: safeTop("8px"),
         paddingBottom: 8, paddingLeft: 16, paddingRight: 16,
         display: "flex", alignItems: "center", gap: 12,
         fontFamily: F.body,

@@ -1895,3 +1895,52 @@ describe("docs/storage-keys.md ne peut plus mentir sur ce qui quitte l'appareil"
     expect(missing).toEqual([]);
   });
 });
+
+describe("la marge haute a UNE seule définition", () => {
+  /**
+   * QUATORZE FICHIERS ÉCRIVAIENT `max(env(safe-area-inset-top, 0), <plancher>)`
+   * à la main. C'est la classe de duplication que ce dépôt a déjà payée six
+   * fois, et elle a coûté ici exactement ce qu'elle promet : l'utilisateur
+   * demande « remonter le menu un peu » et la réponse est de toucher quatorze
+   * fichiers sans en oublier un.
+   *
+   * MESURÉ avant de choisir le retrait, sur un écran de 395 × 859 pt : les
+   * glyphes de la barre d'état s'arrêtent à 39 pt, le premier pixel du titre
+   * de l'app est à 88 pt — 50 pt d'espace libre, parce que
+   * `env(safe-area-inset-top)` mesure jusqu'au bas de l'îlot dynamique et non
+   * jusqu'au bas du texte.
+   *
+   * LA GARDE PORTE SUR L'ABSENCE, pas sur la présence : elle échoue si un
+   * quinzième site réintroduit l'expression brute. C'est le seul sens utile —
+   * compter les appels à `safeTop` ne dirait rien d'une copie ajoutée à côté.
+   */
+  const files: string[] = [];
+  const walk = (d: string) => {
+    for (const n of readdirSync(d)) {
+      const f = `${d}/${n}`;
+      if (statSync(f).isDirectory()) { if (n !== "__tests__") walk(f); }
+      else if (/\.(ts|tsx)$/.test(n)) files.push(f);
+    }
+  };
+  walk("src");
+
+  it("aucun fichier ne réécrit l'expression à la main", () => {
+    const raw = files.filter((f) => {
+      if (f.endsWith("theme-curator.ts")) return false;   // la définition elle-même
+      const s = readFileSync(f, "utf8");
+      // la vraie expression CSS, pas une mention en commentaire : elle est
+      // toujours à l'intérieur d'un littéral de gabarit ou d'une chaîne.
+      return /["'`][^"'`]*env\(safe-area-inset-top/.test(s);
+    });
+    expect(raw).toEqual([]);
+  });
+
+  it("et la définition partagée existe vraiment (non-vacuité)", () => {
+    const src = readFileSync("src/theme-curator.ts", "utf8");
+    expect(src).toContain("export function safeTop(");
+    expect(src).toMatch(/TOP_INSET_TRIM_PX\s*=\s*\d+/);
+    // le plancher doit rester un plancher : `max(...)` et non `calc(...)` seul,
+    // sinon un appareil sans encoche recevrait une valeur négative.
+    expect(src).toMatch(/return\s*`max\(calc\(env\(safe-area-inset-top/);
+  });
+});

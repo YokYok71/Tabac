@@ -5,7 +5,7 @@ import { useState } from "react";
 import { LANGUAGES } from "../../i18n/languages.ts";
 import { useAppCtx } from "../../AppContext.tsx";
 import { APP_VERSION, APP_BUILD } from "../../constants.ts";
-import { alpha, fs, C, F, CARD_BG } from "../../theme-curator.ts";
+import { alpha, fs, C, F, CARD_BG, safeTop } from "../../theme-curator.ts";
 import { Lbl, PressCard } from "../../components/curator/primitives.tsx";
 import { Ico, Orn } from "../../components/curator/icons.tsx";
 
@@ -49,7 +49,7 @@ export function CuratorTermsGate() {
           reason about. */}
       <div style={{
         width: "100%", maxWidth: 560, margin: "auto 0",
-        padding: `max(env(safe-area-inset-top, 0), 22px) 24px 24px`,
+        padding: `${safeTop("22px")} 24px 24px`,
         display: "flex", flexDirection: "column", gap: 22,
       }}>
 

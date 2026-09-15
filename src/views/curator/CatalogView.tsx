@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
-import { alpha, fs, fsInput, C, F, catColor, CARD_BG, CARD_SHADOW } from "../../theme-curator.ts";
+import { alpha, fs, fsInput, C, F, catColor, CARD_BG, CARD_SHADOW, safeTop } from "../../theme-curator.ts";
 import { CATS_EN, CUTS_EN, canonCategory, canonCut } from "../../constants.ts";
 import { pickLang } from "../../utils/docPage.ts";
 import {
@@ -470,7 +470,7 @@ export function CuratorCatalogView() {
             onClick={() => goToAdded(addedNotice.kind)}
             style={{
               position: "fixed",
-              top: "max(env(safe-area-inset-top, 0), 72px)",
+              top: safeTop("72px"),
               left: "50%", transform: "translateX(-50%)",
               zIndex: 100,
               minWidth: 220, maxWidth: "calc(100vw - 32px)",

@@ -549,3 +549,39 @@ export function fs(px: number): string {
 export function fsInput(px: number): string {
   return `max(16px, calc(${px}px * var(--cave-font-scale, 1)))`;
 }
+
+// ── Marge haute des surfaces ancrées en haut de l'écran ──────────────────────
+//
+// QUATORZE ENDROITS ÉCRIVAIENT `max(env(safe-area-inset-top, 0), <plancher>)`,
+// à la main, avec des planchers différents. C'est la classe de duplication que
+// ce dépôt paie en boucle — et elle a coûté ici exactement ce qu'elle promet :
+// impossible de remonter la chrome sans toucher quatorze fichiers et sans que
+// l'un d'eux dérive.
+//
+// CE QUE LE RETRAIT CORRIGE, MESURÉ. Sur un écran de 395 × 859 pt (iPhone,
+// îlot dynamique) : les glyphes de la barre d'état s'arrêtent à **39 pt**, et
+// le premier pixel du titre de l'app apparaît à **88 pt** — **50 pt d'espace
+// libre**. `env(safe-area-inset-top)` y vaut ~59 pt parce qu'il mesure jusqu'au
+// BAS de l'îlot, pas jusqu'au bas du texte ; une vingtaine de points sont donc
+// du dégagement pur. Le reste (~29 pt) est la hauteur de frappe des boutons et
+// ne se touche pas.
+//
+// POURQUOI 12 ET PAS DAVANTAGE : l'îlot est CENTRÉ, et le contenu des barres
+// est à gauche (titre) et à droite (boutons) — il ne passe donc jamais dessous.
+// 12 pt reprend un peu plus de la moitié du dégagement mesuré et laisse 38 pt
+// entre l'horloge et le titre, ce qui reste confortable. Monter plus haut
+// rapprocherait la chrome de l'horloge sans gain lisible.
+//
+// LE PLANCHER EST LA SÛRETÉ, et il est par site : `max(…, 14px)` ne peut jamais
+// rendre moins de 14 px, donc un appareil SANS encoche (iPad plat, ordinateur,
+// où l'inset vaut 0) reçoit `max(-12px, 14px)` = 14px — strictement inchangé.
+// Le retrait ne mord que là où il y a un inset à mordre.
+export var TOP_INSET_TRIM_PX = 12;
+
+/** `safeTop` et non `topInset` : `CuratorTastingBanner` porte déjà une prop
+ *  `topInset` qui désigne AUTRE CHOSE — la hauteur mesurée du bandeau au-dessus.
+ *  Deux concepts sous un même nom est le défaut ; le nôtre dit ce qu'il est.
+ *  `floor` est une longueur CSS (« 14px », « 8% ») — le minimum garanti. */
+export function safeTop(floor: string): string {
+  return `max(calc(env(safe-area-inset-top, 0px) - ${TOP_INSET_TRIM_PX}px), ${floor})`;
+}

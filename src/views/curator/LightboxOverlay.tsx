@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
-import { C } from "../../theme-curator.ts";
+import { C, safeTop } from "../../theme-curator.ts";
 import { IconBtn } from "../../components/curator/primitives.tsx";
 import { Ico } from "../../components/curator/icons.tsx";
 import { isSafeExternalUrl, imgCache } from "../../utils/imgCache.ts";
@@ -103,7 +103,7 @@ export function CuratorLightboxOverlay() {
         opacity: mounted ? 1 : 0,
         transition: "opacity 220ms cubic-bezier(.2,.7,.3,1)",
       }}>
-      <div style={{ position: "absolute", top: `max(env(safe-area-inset-top, 0), 14px)`, right: 14, zIndex: 260 }}>
+      <div style={{ position: "absolute", top: safeTop("14px"), right: 14, zIndex: 260 }}>
         <IconBtn icon="close" onClick={close}
           color={C.ctaInk} bg="rgba(0,0,0,0.6)" border={false}
           ariaLabel={t ? t("btn_close") : "Fermer"} />
