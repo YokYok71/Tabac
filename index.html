@@ -47,14 +47,24 @@
 
      CE QUE ÇA COÛTE, dit plutôt que découvert : l'app ne s'étend plus sous la
      barre d'état. `viewport-fit=cover` RESTE — il porte encore les côtés en
-     paysage et l'indicateur d'accueil en bas. Le `max(env(safe-area-inset-top,
-     0), 14px)` des barres s'ajuste seul : la bande étant réservée, l'inset
-     haut retombe à 0 et le plancher de 14 px reprend la main, sans double
-     marge.
+     paysage et l'indicateur d'accueil en bas. FAUX, ET MESURÉ DEPUIS : j'avais écrit ici que « l'inset
+     haut retombe à 0 une fois la bande réservée, donc le plancher de 14 px
+     reprend la main, sans double marge ». `env(safe-area-inset-top)` vaut
+     ~59 pt sur un iPhone à îlot dynamique, réservation ou non — il mesure
+     jusqu'au BAS DE L'ÎLOT, pas jusqu'au bas du texte de la barre d'état.
+     Résultat mesuré sur un écran de 395 x 859 pt : les glyphes système
+     s'arrêtent à 39 pt, le premier pixel du titre de l'app est à 88 pt,
+     soit 50 pt d'espace libre. Le build 17 en reprend 12 via `safeTop()`
+     (theme-curator.ts), qui est désormais la SEULE définition de cette marge
+     — quatorze fichiers l'écrivaient à la main.
 
-     NON VÉRIFIÉ SUR APPAREIL au moment d'écrire ceci — aucun iPad ici. iOS lit
-     ce réglage à l'ajout à l'écran d'accueil, donc il peut falloir retirer
-     puis ré-ajouter l'icône pour que le changement prenne. -->
+     VÉRIFIÉ DEPUIS : le voile disparaît, et la barre du haut est alors PIXEL
+     POUR PIXEL identique à Safari (rgb(224,195,145), luminance 198 des deux
+     côtés). Ce qui n'est PAS établi, c'est le rôle de la réinstallation : le
+     test a changé deux choses à la fois — l'installation et la version
+     chargée. Ne pas répéter qu'une réinstallation est requise tant qu'un
+     appareil jamais réinstallé, passé au build >= 16 par la mise à jour
+     ordinaire, n'a pas tranché. -->
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cave Tabac">
 <meta name="theme-color" content="#0a0a0a">
