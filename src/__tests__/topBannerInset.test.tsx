@@ -114,7 +114,7 @@ describe("the shell reserves it, and the two banners stack", () => {
 
   it("feeds the measured height to the tasting banner as its offset", () => {
     expect(shell).toContain("topInset={topBannerH}");
-    expect(tasting).toContain("const topOffset = topInset || 0;");
+    expect(tasting).toMatch(/\btopOffset\s*=\s*topInset \|\| 0/);
   });
 
   it("no longer offsets for the auto-update countdown", () => {

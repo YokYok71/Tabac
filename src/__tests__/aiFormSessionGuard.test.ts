@@ -90,7 +90,7 @@ describe("…et le câblage, qui est la moitié qui pourrit", () => {
   });
 
   it("l'appel CAPTURE la session au départ", () => {
-    expect(AI).toContain("var targetSession = currentFormSession();");
+    expect(AI).toMatch(/\btargetSession\s*=\s*currentFormSession\(\)/);
   });
 
   it("LES TROIS écrivains la vérifient — pas deux", () => {

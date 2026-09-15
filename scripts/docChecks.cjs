@@ -175,6 +175,27 @@ function findUserVisibleChanges(files, visible, never) {
  * @param {string[]} opts.offenders          User-visible files the gate found.
  * @returns {{skip: boolean, error: string|null}}
  */
+/**
+ * APP_BUILD, lu sans juger — la moitie pure de la correction ci-dessous.
+ *
+ * LA PORTE DE BUMP NE VOYAIT PAS L'ARBRE DE TRAVAIL, et le defaut est
+ * SYMETRIQUE. Elle comparait `git diff <dernier-bump> HEAD`, c'est-a-dire deux
+ * COMMITS : (a) un bump deja ecrit mais pas encore commite lui etait invisible,
+ * d'ou un faux rouge qui se resout tout seul au commit suivant — inoffensif et
+ * deroutant, et c'est le genre de bruit qui apprend a ignorer une porte ;
+ * (b) plus grave, une vue modifiee et NON commitee lui etait invisible aussi,
+ * donc elle ne pouvait pas prevenir avant le commit, seulement apres. La
+ * seconde moitie est celle qui compte : une porte qui n'avertit qu'apres coup
+ * arrive trop tard pour servir.
+ *
+ * @param {string} constantsSrc  le contenu de src/constants.ts
+ * @returns {string|null}        la valeur, ou null si la ligne a disparu
+ */
+function readAppBuild(constantsSrc) {
+  const m = String(constantsSrc == null ? "" : constantsSrc).match(/APP_BUILD\s*=\s*"([^"]+)"/);
+  return m ? m[1] : null;
+}
+
 function resolveBumpSkip(opts) {
   const o = opts || {};
   const raw = String(o.raw == null ? "" : o.raw).trim();
@@ -1695,6 +1716,7 @@ module.exports = {
   findUndisclosedDomains,
   findUserVisibleChanges,
   resolveBumpSkip,
+  readAppBuild,
   checkChangelogIsFunctional,
   checkChangelogLanguageParity,
   checkLangAssets,

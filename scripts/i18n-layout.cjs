@@ -1118,13 +1118,25 @@ function measure() {
       // aveugle quand il vit DIRECTEMENT dans le noeud.
       //
       // MESURE avant de l'ecrire : **13 792 elements, 18,9 % de la population
-      // porteuse de texte**, qu'aucune des quatre regles ne regardait — dont
-      // les puces de filtre (« Tous », « En cave », « jeune 2 » : un libelle
-      // plus un compteur enfant), exactement le genre de controle serre qui se
-      // coupe en allemand. Et **zero coupe reelle** aujourd'hui : c'est ce qui
-      // rend l'ajout gratuit, pas ce qui le rend inutile. Non-vacuite prouvee
-      // en abaissant le seuil — 489 detections sur fr/m/360 seul, donc le zero
-      // est un vrai zero et non un detecteur muet.
+      // porteuse de texte**, qu'aucune des quatre regles ne regardait. Et
+      // **zero coupe reelle** aujourd'hui : c'est ce qui rend l'ajout gratuit,
+      // pas ce qui le rend inutile. Non-vacuite prouvee en abaissant le
+      // seuil — 489 detections sur fr/m/360 seul, donc le zero est un vrai
+      // zero et non un detecteur muet ; et la demonstration qui porte est le
+      // defaut INJECTE (257 px hors d'un ancetre de 40 px), invisible avant,
+      // nomme apres.
+      //
+      // J'AVAIS ILLUSTRE CE TROU AVEC LES PUCES DE FILTRE, ET C'ETAIT FAUX.
+      // « Tous » / « En cave » figurent bien parmi les 13 792 — mais y figurer
+      // veut seulement dire « du texte propre PLUS des enfants », et ne dit
+      // RIEN d'une etroitesse. MESURE ensuite, en allemand a grande taille sur
+      // 360 px : leur rangee porte `data-hscroll` et `overflowX: auto`, elle
+      // deborde DEJA de 554 px et defile, chaque puce est dimensionnee a son
+      // contenu (75 a 176 px) et aucune ne coupe son propre texte. Un libelle
+      // plus long fait defiler un peu plus loin, rien d'autre — et cette regle
+      // les blanchit de toute facon au `data-hscroll`. Deduire un risque de
+      // l'appartenance a une population est exactement l'erreur que ce
+      // verificateur existe pour ne plus commettre.
       //
       // Un Range par noeud de texte direct : le rectangle de l'ELEMENT
       // engloberait ses enfants, et c'est le texte propre qui est en cause.

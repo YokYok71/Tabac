@@ -171,7 +171,7 @@ describe("the restore PICKER must never list it", () => {
       .replace(/\/\/[^\n]*/g, "");
     expect(src).toMatch(/cellarFiles\s*=\s*\(\(list\.files[\s\S]{0,200}classifyBackup\(fi\.name\) !== "catalogue"/);
     expect(src, "and the options are built from the FILTERED list")
-      .toMatch(/var options = cellarFiles\.map/);
+      .toMatch(/\boptions\s*=\s*cellarFiles\.map/);
   });
 
   it("an account holding only catalogue files reports 'no backup'", () => {

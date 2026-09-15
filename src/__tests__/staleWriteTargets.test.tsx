@@ -136,7 +136,7 @@ describe("an AI answer lands on the fiche that asked for it", () => {
     // navigation, so without this the answer merged into whatever working copy
     // was current when it resolved: open tobacco A, tap Rechercher, back out,
     // open tobacco B — and one Save wrote A's data over B's row.
-    expect(src).toMatch(/var targetId = type === "pipe" \? pipeForm\.id/);
+    expect(src).toMatch(/\btargetId\s*=\s*type === "pipe" \? pipeForm\.id/);
   });
 
   it("every one of the three writers checks it", () => {

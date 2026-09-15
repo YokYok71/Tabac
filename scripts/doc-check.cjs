@@ -309,6 +309,19 @@ function gitCmd(args) {
   }
 }
 
+// Le bump est-il DEJA ecrit dans l'arbre de travail ? Compare la valeur au
+// commit de bump a celle sur le disque : si elles different, le bump est fait
+// et la porte n'a rien a reclamer. Un `show` qui echoue rend null, auquel cas
+// on ne conclut RIEN (on retombe sur le comportement d'avant) plutot que de
+// blanchir la porte sur une lecture ratee.
+function bumpIsInWorkTree(sha) {
+  const atBump = docChecks.readAppBuild(gitCmd(`show ${sha}:src/constants.ts`));
+  let now = null;
+  try { now = docChecks.readAppBuild(fs.readFileSync(path.join(ROOT, "src/constants.ts"), "utf8")); }
+  catch { /* pas lisible : ne rien conclure */ }
+  return !!(atBump && now && atBump !== now);
+}
+
 if (gitCmd("rev-parse --is-inside-work-tree") === "true") {
   // Find the LATEST commit that touched the `APP_BUILD = "…"` line.
   // The `-G` flag matches the regex against the diff, so we hit exactly
@@ -322,12 +335,23 @@ if (gitCmd("rev-parse --is-inside-work-tree") === "true") {
     // No bump commit ever — first run on a fresh repo. Skip.
   } else if (lastBumpSha === headSha) {
     // HEAD itself is the bump commit. Nothing accumulated yet.
+  } else if (bumpIsInWorkTree(lastBumpSha)) {
+    // Le bump est ECRIT mais pas encore commite — voir docChecks.readAppBuild.
   } else {
-    // List files changed between lastBumpSha (exclusive) and HEAD.
-    const diffOut = gitCmd(`diff --name-only ${lastBumpSha} HEAD`);
-    const offenders = diffOut
-      ? diffOut.split("\n").filter(Boolean).filter(isUserVisible)
-      : [];
+    // L'ARBRE DE TRAVAIL COMPTE. `diff <sha> HEAD` compare deux COMMITS, donc
+    // une vue modifiee et non commitee etait invisible : la porte ne pouvait
+    // avertir qu'APRES le commit, c'est-a-dire trop tard pour servir. Omettre
+    // `HEAD` compare l'arbre de travail au commit de bump, ce qui couvre les
+    // deux. Les fichiers NON SUIVIS sont ajoutes a part : `git diff` ne les
+    // voit pas, et un fichier neuf sous `src/views/` est exactement le cas que
+    // cette porte existe pour attraper.
+    const diffOut = gitCmd(`diff --name-only ${lastBumpSha}`);
+    const untracked = gitCmd("ls-files --others --exclude-standard");
+    const changed = [
+      ...(diffOut ? diffOut.split("\n") : []),
+      ...(untracked ? untracked.split("\n") : []),
+    ].filter(Boolean);
+    const offenders = [...new Set(changed)].filter(isUserVisible).sort();
     // The skip is resolved AFTER the offenders are known, because taking it
     // now requires naming them — see docChecks.resolveBumpSkip for why the
     // rule is a mechanism rather than a sentence.

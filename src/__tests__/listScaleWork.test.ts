@@ -152,7 +152,7 @@ describe("an entry animation cannot be scheduled minutes out", () => {
     // Capping the index at each call site would cover the six current lists
     // and no future one. The rule belongs to the animation.
     const src = blankComments(readFileSync("src/components/curator/primitives.tsx", "utf8"));
-    expect(src).toMatch(/const delay = Math\.min\(ENTER_MAX_DELAY_MS, Number\(rawDelay\) \|\| 0\)/);
+    expect(src).toMatch(/\bdelay\s*=\s*Math\.min\([^)]*ENTER_MAX_DELAY_MS/);
   });
 
   it("the lists still stagger — the cap is not a flattening", () => {

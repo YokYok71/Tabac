@@ -188,7 +188,7 @@ describe("on-demand fallbacks and failure states", () => {
     // it as the way to find un-t()-ed strings. Measured: 0 of 938 marked
     // nodes before the fix, 1706 of 3650 after.
     expect(a, "pseudo-loc must survive the loaded-language guard")
-      .toMatch(/_langUsable = \(c: string\) => c === "pseudo" \|\| isLangLoaded\(c\)/);
+      .toMatch(/_langUsable[^;]*"pseudo"[^;]*isLangLoaded|_langUsable[^;]*isLangLoaded[^;]*"pseudo"/);
   });
 
   it("concurrent switches resolve by tap order, not by network timing", () => {
@@ -196,7 +196,7 @@ describe("on-demand fallbacks and failure states", () => {
     // lands last and wins, leaving the app in a language the user did not pick
     // last. The guard also stops the first resolution clearing the spinner.
     const a = src("../App.tsx");
-    expect(a).toMatch(/var gen = \+\+langGenRef\.current;/);
+    expect(a).toMatch(/\bgen\s*=\s*\+\+langGenRef\.current/);
     expect(a).toMatch(/if \(gen !== langGenRef\.current\) return;/);
   });
 

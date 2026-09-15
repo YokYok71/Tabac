@@ -2112,3 +2112,51 @@ describe("i18n:layout regarde le texte propre des nœuds mixtes, et annonce sa p
     expect(src).toMatch(/text elements examined/);
   });
 });
+
+/**
+ * LA PORTE DE BUMP VOIT L'ARBRE DE TRAVAIL, DANS LES DEUX SENS.
+ *
+ * Elle comparait `git diff <dernier-bump> HEAD`, c'est-à-dire deux COMMITS.
+ * Le défaut est symétrique et la seconde moitié est la grave : (a) un bump
+ * écrit mais pas encore commité lui était invisible — faux rouge qui se résout
+ * seul au commit, inoffensif et déroutant, le genre de bruit qui apprend à
+ * ignorer une porte ; (b) une vue modifiée et NON commitée lui était invisible
+ * aussi, donc elle n'avertissait qu'APRÈS le commit — trop tard pour servir.
+ *
+ * Sondé dans les deux sens : une vue modifiée non commitée sans bump la fait
+ * échouer en la nommant ; la même chose AVEC le bump écrit passe. Le second
+ * essai a d'abord rougi pour une AUTRE raison (`version.json` resté à l'ancien
+ * numéro, une porte différente qui avait raison) — vérifier LAQUELLE a tiré
+ * avant de conclure, sinon on attribue un rouge au mauvais gardien.
+ */
+describe("la porte de bump lit l'arbre de travail", () => {
+  it("readAppBuild lit la valeur, et rend null plutôt que de deviner", () => {
+    expect(D.readAppBuild('export var APP_BUILD = "42";')).toBe("42");
+    expect(D.readAppBuild("aucune ligne de ce genre")).toBeNull();
+    expect(D.readAppBuild(null)).toBeNull();
+    // Non-vacuité : la vraie source doit se lire, sinon la garde ci-dessous
+    // vérifierait un extracteur qui ne trouve jamais rien.
+    expect(D.readAppBuild(readFileSync("src/constants.ts", "utf8"))).toMatch(/^\d+$/);
+  });
+
+  it("le script compare l'arbre de travail, pas HEAD", () => {
+    const src = readFileSync("scripts/doc-check.cjs", "utf8");
+    expect(src).toContain("function bumpIsInWorkTree(");
+    // `diff --name-only <sha>` SANS HEAD : c'est ce qui fait entrer les
+    // modifications non commitées dans le jeu des offenders.
+    expect(src).toMatch(/diff --name-only \$\{lastBumpSha\}`/);
+    expect(src).not.toMatch(/diff --name-only \$\{lastBumpSha\} HEAD/);
+    // et les fichiers neufs, que `git diff` ne voit pas du tout
+    expect(src).toContain("ls-files --others --exclude-standard");
+  });
+
+  it("une lecture ratée ne blanchit pas la porte", () => {
+    // `show` peut échouer (clone superficiel) ; dans ce cas on ne conclut RIEN
+    // et on retombe sur le comportement d'avant, plutôt que de déclarer le
+    // bump fait sur une lecture manquée.
+    const src = readFileSync("scripts/doc-check.cjs", "utf8");
+    const i = src.indexOf("function bumpIsInWorkTree(");
+    const branch = src.slice(i, src.indexOf("\n}", i));
+    expect(branch).toMatch(/return !!\(atBump && now && atBump !== now\)/);
+  });
+});
