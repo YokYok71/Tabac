@@ -2,7 +2,7 @@ import React from "react";
 // Curator form field primitives. All styles inline.
 
 import { useAppCtx } from "../../AppContext.tsx";
-import { alpha, fs, fsInput, C, F, CARD_BG, safeTop } from "../../theme-curator.ts";
+import { alpha, fs, fsInput, C, F, CARD_BG, safeTop, HEADER_TOP_FLOOR } from "../../theme-curator.ts";
 import { Stars, Lbl, IconBtn, PressCard } from "./primitives.tsx";
 import { Ico } from "./icons.tsx";
 import { safeImgSrc } from "../../utils/imgCache.ts";
@@ -45,7 +45,7 @@ export function FormScreen({
 
       {/* Top bar */}
       <div style={{
-        paddingTop: safeTop("14px"),
+        paddingTop: safeTop(HEADER_TOP_FLOOR),
         paddingLeft: 18, paddingRight: 14, paddingBottom: 8,
         display: "flex", justifyContent: "space-between", alignItems: "center",
         position: "sticky", top: 0, zIndex: 5,

@@ -1943,4 +1943,44 @@ describe("la marge haute a UNE seule définition", () => {
     // sinon un appareil sans encoche recevrait une valeur négative.
     expect(src).toMatch(/return\s*`max\(calc\(env\(safe-area-inset-top/);
   });
+
+  /**
+   * RECENSEMENT DES PLANCHERS. La garde précédente interdit de réécrire
+   * l'expression CSS à la main ; elle ne dit RIEN d'un quinzième `safeTop("14px")`
+   * ajouté à côté, qui est exactement la dérive qui a suivi — les trois en-têtes
+   * de page portaient le même littéral en trois exemplaires, et « remonter le
+   * menu » demandait de les retrouver tous les trois.
+   *
+   * La garde est DÉRIVÉE : elle lit les arguments réels au lieu de les redire.
+   * Ajouter un calque avec un nouveau plancher la fait rougir en NOMMANT la
+   * valeur — c'est une ligne à mettre à jour, et c'est voulu : un plancher est
+   * une décision visuelle, pas un détail.
+   */
+  it("les trois en-têtes de page partagent UN seul plancher, et les autres sont recensés", () => {
+    const calls: Record<string, string[]> = {};
+    for (const f of files) {
+      if (f.endsWith("theme-curator.ts")) continue;
+      const s = readFileSync(f, "utf8");
+      for (const m of s.matchAll(/safeTop\(([^)]*)\)/g)) {
+        const arg = (m[1] ?? "").trim();
+        (calls[arg] ||= []).push(f);
+      }
+    }
+
+    // Les trois en-têtes — la « barre de menu du haut » — passent par la
+    // constante, jamais par un littéral.
+    expect((calls["HEADER_TOP_FLOOR"] ?? []).sort()).toEqual([
+      "src/components/curator/FormFields.tsx",
+      "src/components/curator/primitives.tsx",
+      "src/views/curator/HomeViewV2.tsx",
+    ]);
+    // et le littéral qu'ils portaient a bien disparu du dépôt.
+    expect(calls['"14px"'] ?? []).toEqual(["src/views/curator/LightboxOverlay.tsx"]);
+
+    // Recensement complet : tout autre plancher est un calque (bandeaux,
+    // modales, portail de conditions), pas une barre de menu.
+    expect(Object.keys(calls).sort()).toEqual([
+      "HEADER_TOP_FLOOR", '"10px"', '"14px"', '"22px"', '"72px"', '"8%"', '"8px"',
+    ].sort());
+  });
 });

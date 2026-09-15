@@ -585,3 +585,38 @@ export var TOP_INSET_TRIM_PX = 12;
 export function safeTop(floor: string): string {
   return `max(calc(env(safe-area-inset-top, 0px) - ${TOP_INSET_TRIM_PX}px), ${floor})`;
 }
+
+// Le plancher des TROIS en-têtes de page (la « barre de menu du haut » : le
+// `TopBar` des listes et des fiches, l'en-tête de `FormScreen`, celui de
+// l'accueil). Une constante et non trois littéraux : c'était déjà trois copies
+// à la main de « 14px », et ce dépôt a payé six fois la dérive de ce motif.
+//
+// 14 px → 6 px, et le RAISONNEMENT tient au changement de régime de la barre
+// d'état. MESURÉ dans Chromium sur la barre réelle : hauteur 66 px = 14 (ce
+// plancher) + 44 (la rangée de cible tactile) + 8 (bas), et le pavé de glyphes
+// du titre tombe à **28 px sous le haut de la barre** — 14 de plancher, plus
+// 13,5 parce qu'un libellé de 17 px est centré dans une rangée de 44. Ces
+// 27,5 px sont TOUT ce que l'application dessine au-dessus du titre ; ce qu'il
+// y a par-dessus appartient à iOS et aucune CSS n'y entre.
+//
+// APRÈS, mesuré de la même façon sur la barre reconstruite : hauteur **58 px**
+// et titre à **19,5 px** — les 8 px annoncés, et 6 + 13,5 qui retombe sur la
+// décomposition ci-dessus, ce qui la confirme plutôt que de la supposer.
+//
+// POURQUOI 14 ÉTAIT JUSTE ET NE L'EST PLUS : il protégeait d'une collision avec
+// l'horloge du régime `black-translucent`, où iOS superposait ses glyphes au
+// contenu web. Depuis le build 16 le manifeste déclare `default` : iOS place la
+// vue web SOUS la barre d'état, `env(safe-area-inset-top)` vaut 0 en autonome,
+// et il n'y a plus rien à heurter. Le plancher ne gouverne d'ailleurs QUE ce
+// cas-là — dès qu'un inset existe, `safeTop` rend l'inset moins le retrait, et
+// un retour éventuel à `black-translucent` reprendrait la protection tout seul.
+// C'est pourquoi la baisse porte sur le plancher et NON sur TOP_INSET_TRIM_PX :
+// on relâche la garde là où la menace a disparu, pas là où elle dort.
+//
+// 13,5 DES 27,5 NE SONT PAS RÉCUPÉRABLES, et il vaut mieux l'écrire que de le
+// redécouvrir : ils viennent du centrage dans la rangée de 44 px. Réduire le
+// `padding` du bouton ne les rend pas (le `minHeight: 44` tient la hauteur, le
+// centrage recentre) ; seul un alignement en haut les prendrait, au prix d'un
+// titre décollé du milieu de sa propre cible tactile. 44 px est le minimum
+// d'accessibilité — il ne se négocie pas contre 13 px de marge.
+export var HEADER_TOP_FLOOR = "6px";

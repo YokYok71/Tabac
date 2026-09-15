@@ -7,7 +7,7 @@
 import React from "react";
 import { lowStockThreshold } from "../../utils/shopping.ts";
 import { useAppCtx } from "../../AppContext.tsx";
-import { alpha, fs, C, F, catColor, CARD_BG, CARD_SHADOW, safeTop } from "../../theme-curator.ts";
+import { alpha, fs, C, F, catColor, CARD_BG, CARD_SHADOW, safeTop, HEADER_TOP_FLOOR } from "../../theme-curator.ts";
 import { CATS_EN, monthsShort } from "../../constants.ts";
 import { fmtDate, fmtNum, parseLocalDate, today, softBreakSlashes } from "../../utils.ts";
 import { safeBgUrl } from "../../utils/imgCache.ts";
@@ -586,7 +586,7 @@ export function CuratorHomeViewV2() {
             primitive), so the row never slides under the iOS notch. It is
             STICKY (same frosted recipe as the shared TopBar / FormScreen) so
             the masthead stays visible while the Home scrolls under it. */}
-        <div style={{ paddingTop: safeTop("14px"), paddingLeft: 18, paddingRight: 14, paddingBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 20, background: C.bg, transform: "var(--chrome-shift, none)", transition: "transform var(--chrome-ms, 220ms) cubic-bezier(0.22, 1, 0.36, 1)" }}>
+        <div style={{ paddingTop: safeTop(HEADER_TOP_FLOOR), paddingLeft: 18, paddingRight: 14, paddingBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 20, background: C.bg, transform: "var(--chrome-shift, none)", transition: "transform var(--chrome-ms, 220ms) cubic-bezier(0.22, 1, 0.36, 1)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <Orn color={C.brass} />
             <span style={{ fontFamily: F.display, fontStyle: "italic", fontSize: fs(17), color: C.title, letterSpacing: 0.2 }}>{t ? t("app_name") : "Ma Cave à Tabac"}</span>
