@@ -60,18 +60,37 @@
 
      VÉRIFIÉ DEPUIS : le voile disparaît, et la barre du haut est alors PIXEL
      POUR PIXEL identique à Safari (rgb(224,195,145), luminance 198 des deux
-     côtés). LA RÉINSTALLATION N'EST PAS REQUISE — tranché par le test non
-     confondu réclamé ici même : un SECOND iPhone, jamais réinstallé, passé au
-     build >= 16 par la mise à jour ordinaire, affiche la barre correcte, et
-     l'utilisateur précise n'avoir même pas eu besoin de recharger. La balise
-     est donc relue au CHARGEMENT, pas figée à l'installation. J'avais écrit
-     l'inverse par inférence, sans le prouver, et plusieurs sources secondaires
-     disaient déjà le contraire. Ce qui reste vrai du premier test, c'est qu'il
-     était confondu : il changeait l'installation ET la version chargée, et
-     c'est la VERSION qui faisait tout — « toujours trouble » après le build 16
-     décrivait un appareil qui ne l'avait pas encore reçu. (Ce que ce second
-     test suppose, écrit pour qu'on sache quoi vérifier s'il fallait y revenir :
-     que cet iPhone avait bien l'app installée AVANT le build 16.) -->
+     côtés).
+
+     LA RÉINSTALLATION EST REQUISE, ET J'AI ÉCRIT DEUX FOIS LE CONTRAIRE ICI.
+     Mesure qui tranche, sur l'iPad de l'utilisateur : **build 20 affiché dans
+     Réglages, Safari NET sur le même appareil, app installée TROUBLE, jamais
+     réinstallée**. Trois faits au même instant, sur la même machine : la
+     balise n'est donc PAS relue au chargement — elle est figée au moment où
+     l'app est ajoutée à l'écran d'accueil. Une mise à jour ordinaire ne la
+     change pas.
+
+     CE QUI M'A FAIT ÉCRIRE L'INVERSE, parce que l'erreur est instructive : un
+     SECOND iPhone montrait la barre correcte sans réinstallation, et j'en ai
+     conclu « la réinstallation n'est pas requise ». Ce test reposait sur une
+     hypothèse que j'avais SIGNALÉE en l'écrivant — que cet iPhone avait l'app
+     installée AVANT le build 16 — et que je n'avais pas vérifiée. Une
+     installation neuve reçoit `default` d'emblée et ne prouve donc rien.
+     **Signaler une hypothèse ne la vérifie pas**, et écrire la conclusion
+     comme établie par-dessus une hypothèse ouverte est l'erreur, pas le fait
+     de l'avoir eue. Voir la RÈGLE ZÉRO de CLAUDE.md.
+
+     CONSÉQUENCE UTILISATEUR, ET ELLE EST RÉELLE : toute installation
+     antérieure au build 16 garde le voile jusqu'à ce que l'icône soit retirée
+     et remise. Le changelog le dit désormais dans les six langues — avec
+     « sauvegardez d'abord », parce qu'il n'est PAS établi que retirer l'icône
+     préserve le stockage du site (les sources secondaires divergent, et ce
+     n'est pas une chose à faire supposer à quelqu'un sur sa vraie cave).
+     UNE PISTE NON PRISE, énoncée pour qu'on ne la redécouvre pas : l'app POURRAIT
+     détecter ce cas et le dire. En standalone, une installation encore figée sur
+     `black-translucent` garde un `env(safe-area-inset-top)` non nul là où
+     `default` le met à 0 — le signal est donc mesurable depuis la page. Non
+     construit, non mesuré sur appareil : c'est une hypothèse, pas un fait. -->
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cave Tabac">
 <meta name="theme-color" content="#0a0a0a">
