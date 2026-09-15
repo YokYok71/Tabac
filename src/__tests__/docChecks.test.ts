@@ -1984,3 +1984,70 @@ describe("la marge haute a UNE seule définition", () => {
     ].sort());
   });
 });
+
+/**
+ * L'ENCADREMENT SUR DÉGRADÉ ne doit pas redevenir un abandon.
+ *
+ * `theme-contrast.cjs` portait `if (gradient || !bg) { skipped++; continue; }`
+ * sous un raisonnement à moitié juste : un rapport calculé contre la couleur
+ * de REPLI serait une fiction — d'où il concluait, à tort, qu'on ne peut rien
+ * calculer. Les ARRÊTS du dégradé bornent le vrai rapport où que le texte
+ * tombe. MESURÉ : **59 éléments sautés par palette, 100 % des dégradés** (zéro
+ * fond indéterminable, alors que la ligne de rapport annonçait les deux), et
+ * 54 d'entre eux se sont révélés des mesures DÉFINITIVES. Elles cachaient deux
+ * défauts réels : le texte d'aide de la carte IA à 3,15:1 et le CTA de
+ * dégustation à 2,76:1.
+ *
+ * La garde porte sur la DÉCISION À TROIS BRANCHES, qui est ce qui rend
+ * l'encadrement honnête : passe-partout → mesure, échoue-partout → défaut,
+ * entre-deux → signalé avec ses deux bornes et JAMAIS mis en échec. Retirer la
+ * branche du milieu ferait échouer sur une borne basse, c'est-à-dire supprimer
+ * du travail correct ; retirer les deux autres ramènerait l'abandon.
+ */
+describe("theme:contrast encadre les dégradés au lieu de les sauter", () => {
+  const src = readFileSync("scripts/theme-contrast.cjs", "utf8");
+
+  it("il lit les arrêts du dégradé (non-vacuité)", () => {
+    expect(src).toMatch(/rgba\?\\\(\[\^\)\]\*\\\)/);      // l'extraction des arrêts
+    expect(src).toMatch(/stops\.map\(/);                   // un rapport par arrêt
+    expect(src).toMatch(/Math\.min\(\.\.\.rs\)/);
+    expect(src).toMatch(/Math\.max\(\.\.\.rs\)/);
+  });
+
+  it("les trois branches existent, celle du milieu comprise", () => {
+    expect(src).toMatch(/if \(lo >= need0\)/);             // passe partout
+    expect(src).toMatch(/if \(hi < need0\)/);              // échoue partout
+    expect(src).toMatch(/boundedOnly: true/);              // dépend de l'endroit
+  });
+
+  it("un encadrement ne fait JAMAIS échouer — il part en avertissement", () => {
+    // La branche `boundedOnly` doit pousser dans `warnings` et retourner avant
+    // d'atteindre le tri `failures`. Sans ce `continue`, une borne basse
+    // ferait tomber la porte sur une mesure qui n'en est pas une.
+    // Découpé PAR INDEX et non par accolade : une regex non gourmande sur `}`
+    // s'arrête à la première accolade venue, qui est celle d'un `${theme}` À
+    // L'INTÉRIEUR du littéral de gabarit — la branche paraissait alors vide.
+    const i = src.indexOf("if (f.boundedOnly) {");
+    expect(i, "la branche boundedOnly a disparu du tri des findings").toBeGreaterThan(-1);
+    const j = src.indexOf("continue;", i);
+    expect(j, "la branche boundedOnly ne sort plus par continue").toBeGreaterThan(i);
+    const branch = src.slice(i, j);
+    expect(branch).toContain("warnings.push");
+    expect(branch).not.toContain("failures");
+  });
+
+  it("les garde-fous de l'extraction restent (un seul calque, arrêts opaques)", () => {
+    // Deux `gradient(` = superposition : on ne sait pas lequel peint, donc on
+    // ne borne pas. Un arrêt translucide devrait être fondu sur ce qu'il y a
+    // dessous — non fait, donc non borné.
+    expect(src).toMatch(/gradient\\\(\/g\).*length === 1|length === 1/);
+    expect(src).toMatch(/every\(\(c\) => c\.a > 0\.95\)/);
+  });
+
+  it("le décompte des omissions est ventilé par raison, pas agrégé", () => {
+    // L'ancienne ligne disait « gradient or indeterminate backdrop » en
+    // agrégeant les deux — et MESURÉ, la seconde classe était VIDE.
+    expect(src).toContain("skipReasons");
+    expect(src).not.toContain("skipped (gradient or indeterminate backdrop)");
+  });
+});

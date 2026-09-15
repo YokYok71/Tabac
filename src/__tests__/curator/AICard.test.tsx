@@ -252,4 +252,49 @@ describe("AICard — provider tag stays on one line", () => {
     expect(tag, "the '· provider' tag should render").toBeTruthy();
     expect((tag as HTMLElement).style.whiteSpace).toBe("nowrap");
   });
+
+  /**
+   * LA NOTICE QUI DIT COMMENT SORTIR DE L'ÉTAT DÉSACTIVÉ N'EST PAS DÉSACTIVÉE.
+   *
+   * Le conteneur de la carte portait `opacity: hasKey ? 1 : 0.7`, qui éteignait
+   * TOUT son contenu — y compris `ai_no_key_hint`, « Ajoute une clé API dans
+   * Paramètres → IA », la seule phrase expliquant comment réactiver la
+   * fonction. MESURÉ par `theme:contrast` une fois les dégradés encadrés (ils
+   * étaient SAUTÉS, donc cette carte n'avait jamais été mesurée) : **3,15:1
+   * pour 4,5 requis** en sombre sur les six palettes et cinq écrans, et
+   * « Auto-compléter » à 3,31–3,34:1 en clair.
+   *
+   * Le signal « inactif » n'a jamais été porté par cette ligne : les DEUX
+   * commandes déclarent `aria-disabled`, portent leur propre `opacity` réduite
+   * et un curseur `not-allowed`. WCAG 1.4.3 exempte les composants INACTIFS —
+   * elles seules le sont. La garde tient les deux moitiés, car ne tenir que la
+   * première rendrait acceptable une carte qui ne signale plus rien du tout.
+   */
+  describe("sans clé API", () => {
+    const render = () => renderWithCtx(
+      <AICard kind="tobacco" apiKey="" aiLoad={false} aiErr="" aiAutoFill={vi.fn()} t={(k: string) => k} />,
+    );
+
+    it("le conteneur n'éteint pas son propre texte d'aide", () => {
+      const { container } = render();
+      const card = container.querySelector("div[style*='border-radius: 10px'], div[style*='borderRadius']")
+        || container.firstElementChild;
+      expect(card, "la carte doit se rendre").toBeTruthy();
+      const op = (card as HTMLElement).style.opacity;
+      expect(op === "" || Number(op) >= 0.99,
+        `le conteneur de la carte porte opacity: ${op} — il assombrit la notice qui explique comment activer l'IA`).toBe(true);
+    });
+
+    it("mais les COMMANDES, elles, se déclarent bien inactives", () => {
+      const { container } = render();
+      const off = container.querySelectorAll('[aria-disabled="true"]');
+      expect(off.length, "aucune commande ne se déclare inactive — le signal a disparu au lieu de se déplacer")
+        .toBeGreaterThanOrEqual(1);
+      // et chacune le dit AUSSI visuellement, ce qui est ce que l'exemption
+      // WCAG suppose : un composant inactif, pas un texte simplement pâle.
+      for (const el of Array.from(off) as HTMLElement[]) {
+        expect(el.style.cursor, "une commande inactive garde son curseur not-allowed").toBe("not-allowed");
+      }
+    });
+  });
 });

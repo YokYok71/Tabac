@@ -256,6 +256,13 @@ npm run theme:contrast # OPT-IN contrast check across the SIX palettes (brass/st
                     #   against the ~45 it took in series (see the sharding note under i18n:layout).
                     #   The console report caps the warning list, so `THEME_CONTRAST_JSON=/tmp/c.json`
                     #   dumps the full set — that's how the triage grouped 313 warnings.
+                    #   IL N'ABANDONNE PLUS DEVANT UN DÉGRADÉ : il ENCADRE le rapport contre chaque
+                    #   arrêt. Trois issues — passe au pire arrêt → mesure ; échoue au meilleur →
+                    #   défaut ; entre les deux → signalé avec ses DEUX bornes et jamais mis en
+                    #   échec. MESURÉ : 59 sautés par palette → 0, et 2593 → 2652 mesurés (voir
+                    #   docs/history.md). La ligne de rapport ventile désormais les omissions PAR
+                    #   RAISON : elle disait « gradient or indeterminate backdrop » alors que la
+                    #   seconde classe était vide.
                     #   **It runs ONE language (fr) on purpose** — the reason is written down so the
                     #   subset stops looking frozen: a contrast ratio is a property of the colour TOKENS,
                     #   not of the words, so the same element measures identically in six languages and

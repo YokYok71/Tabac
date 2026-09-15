@@ -88,7 +88,27 @@ export function AICard({
       // missed it — they grepped `${C.x}AA` (suffix inline) and `C.x + "AA"`.
       border: `1px solid ${alpha(C.brass, hasKey ? "55" : "25")}`, borderRadius: 10,
       position: "relative", overflow: "hidden",
-      opacity: hasKey ? 1 : 0.7,
+      // PAS d'`opacity` globale ici, et ce n'est pas un allègement : elle
+      // portait `hasKey ? 1 : 0.7` et éteignait TOUT le contenu de la carte,
+      // y compris `ai_no_key_hint` — « Ajoute une clé API dans Paramètres →
+      // IA », c'est-à-dire la seule phrase qui dit comment réactiver la
+      // fonction. MESURÉ par `theme:contrast` une fois les dégradés encadrés
+      // (voir ce script) : le texte d'aide tombait à **3,15:1 pour 4,5
+      // requis** en sombre sur les six palettes et cinq écrans de formulaire,
+      // « Auto-compléter » à 3,31-3,34:1 en clair. Le message le plus utile
+      // de la carte en était le moins lisible.
+      //
+      // RIEN NE SE PERD DU SIGNAL « inactif », parce qu'il n'a jamais été
+      // porté par cette ligne : les deux commandes déclarent `ariaDisabled`,
+      // portent leur propre `opacity: 0.6` et un curseur `not-allowed` — WCAG
+      // 1.4.3 exempte les composants INACTIFS, et elles seules le sont. La
+      // bordure de la carte s'assourdit déjà (`"25"` au lieu de `"55"`). Ce
+      // 0.7 se multipliait d'ailleurs avec le 0.6 des boutons (0,42), ce que
+      // la doc décrivait comme « 0.7 × 0.6 » sans relever qu'il s'appliquait
+      // aussi au texte d'information.
+      //
+      // Un état désactivé se signale sur la COMMANDE, pas sur la notice qui
+      // explique comment en sortir.
     }}>
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, height: 2,

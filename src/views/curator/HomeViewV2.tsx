@@ -692,7 +692,17 @@ export function CuratorHomeViewV2() {
               <div style={{ fontFamily: F.display, fontSize: fs(18), fontWeight: 600, fontStyle: "italic" }}>
                 {tastingRunning ? (t ? t("tasting_resume_home") : "▶ Reprendre la séance") : (t ? t("tasting_title") : "Démarrer une dégustation")}
               </div>
-              <div style={{ fontSize: fs(13.5), opacity: 0.85, marginTop: 1 }}>
+              {/* PAS d'`opacity` de mise en retrait. C'est le motif que
+                  `theme-contrast.cjs` a deja fait payer une fois : « une
+                  opacite reduite n'est pas une preuve de desactivation », les
+                  badges POT / CAVE portaient 0.75 comme emphase typographique
+                  et passaient pour « volontairement attenues ». Ici 0.85
+                  suffisait a faire echouer cette ligne la ou le titre, meme
+                  couleur sur le meme degrade, passait : 3,73-5,65:1 contre
+                  4,52-7,16:1. La hierarchie est deja portee par la taille
+                  (13,5 contre 18), la graisse et l'italique du titre —
+                  l'opacite n'ajoutait rien et retirait de la lisibilite. */}
+              <div style={{ fontSize: fs(13.5), marginTop: 1 }}>
                 {tastingRunning ? (t ? t("home_tasting_resume_hint") : "Reprenez où vous en êtes") : (t ? t("home_tasting_start_hint") : "Choisir tabac + pipe · chronomètre")}
               </div>
             </div>

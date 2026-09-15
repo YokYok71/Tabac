@@ -138,7 +138,7 @@ function measureContrast() {
     a: 1,
   });
 
-  const out = { findings: [], measured: 0, skipped: 0 };
+  const out = { findings: [], measured: 0, skipped: 0, bounded: 0, skipDetail: [] };
   for (const el of document.querySelectorAll("span, div, button, a, label, h1, h2, h3, p, td, th, li")) {
     if (el.children.length > 0) continue;                 // leaf text only
     const txt = (el.textContent || "").trim();
@@ -165,10 +165,22 @@ function measureContrast() {
 
     // First opaque background colour above. A gradient / image makes the
     // backdrop non-uniform, so we cannot honestly compute a ratio.
-    let bg = null, gradient = false;
+    let bg = null, gradient = false, stops = null;
     for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
       const ncs = getComputedStyle(n);
-      if (ncs.backgroundImage && ncs.backgroundImage !== "none") { gradient = true; break; }
+      if (ncs.backgroundImage && ncs.backgroundImage !== "none") {
+        gradient = true;
+        // LES ARRETS DU DEGRADE, plutot que rien. Voir le bloc « CE QU'IL
+        // N'A PAS REGARDE » : le repli serait une fiction, les arrets n'en
+        // sont pas une. Un seul calque (deux `gradient(` = superposition,
+        // dont on ne sait pas lequel peint) et des arrets tous opaques.
+        const raw = String(ncs.backgroundImage);
+        if ((raw.match(/gradient\(/g) || []).length === 1) {
+          const cols = (raw.match(/rgba?\([^)]*\)/g) || []).map(parse).filter(Boolean);
+          if (cols.length >= 2 && cols.every((c) => c.a > 0.95)) stops = cols;
+        }
+        break;
+      }
       const c = parse(ncs.backgroundColor);
       if (c && c.a > 0.95) { bg = c; break; }
       if (c && c.a > 0) {
@@ -183,7 +195,39 @@ function measureContrast() {
         if (under) { bg = over(c, under); break; }
       }
     }
-    if (gradient || !bg) { out.skipped++; continue; }
+    const size0 = parseFloat(cs.fontSize) || 16;
+    const weight0 = parseInt(cs.fontWeight, 10) || 400;
+    const need0 = (size0 >= 24 || (size0 >= 18.66 && weight0 >= 700)) ? 3 : 4.5;
+
+    if (gradient) {
+      if (!stops) { out.skipped++; out.skipDetail.push({ txt: txt.slice(0, 34), raison: "degrade-illisible" }); continue; }
+      // ENCADREMENT. Le pire arret et le meilleur bornent le vrai rapport,
+      // ou que le texte tombe sur le degrade.
+      const rs = stops.map((st) => ratio(over(fg, st), st));
+      const lo = Math.min(...rs), hi = Math.max(...rs);
+      if (lo >= need0) { out.measured++; continue; }          // passe partout
+      if (hi < need0) {                                        // echoue partout
+        out.measured++;
+        out.findings.push({
+          txt: txt.slice(0, 34), got: Math.round(lo * 100) / 100, need: need0,
+          size: Math.round(size0 * 10) / 10, color: cs.color,
+          bg: `gradient ${stops.map((c) => `rgb(${Math.round(c.r)},${Math.round(c.g)},${Math.round(c.b)})`).join("→")}`,
+          dimmed: alpha < 0.99 && inactive,
+        });
+        continue;
+      }
+      // Entre les deux : depend vraiment de l'endroit. Signale, ne fait pas
+      // echouer — c'est la seule classe que ce script ne peut pas trancher.
+      out.bounded++;
+      out.findings.push({
+        txt: txt.slice(0, 34), got: Math.round(lo * 100) / 100, need: need0,
+        size: Math.round(size0 * 10) / 10, color: cs.color,
+        bg: `gradient ${stops.map((c) => `rgb(${Math.round(c.r)},${Math.round(c.g)},${Math.round(c.b)})`).join("→")}`,
+        hi: Math.round(hi * 100) / 100, boundedOnly: true, dimmed: alpha < 0.99 && inactive,
+      });
+      continue;
+    }
+    if (!bg) { out.skipped++; out.skipDetail.push({ txt: txt.slice(0, 34), raison: "pas-de-fond-opaque" }); continue; }
 
     const size = parseFloat(cs.fontSize) || 16;
     const weight = parseInt(cs.fontWeight, 10) || 400;
@@ -280,6 +324,8 @@ async function main() {
   // Un total de mesures sans son total d'omissions se lit comme une
   // couverture ; il n'en est pas une.
   let totalSkipped = 0;
+  let totalBounded = 0;
+  const skipReasons = {};
   // PAR ÉCRAN, parce qu'un TOTAL ne se diagnostique pas.
   //
   // Le total par palette est passé de 2564 à 2558 entre deux campagnes
@@ -401,10 +447,21 @@ async function main() {
         const r = await page.evaluate(measureContrast);
         totalMeasured += r.measured;
         totalSkipped += r.skipped;
+        totalBounded += r.bounded;
+        for (const d of (r.skipDetail || [])) skipReasons[d.raison] = (skipReasons[d.raison] || 0) + 1;
         perScreen[scr.name] = (perScreen[scr.name] || 0) + r.measured;
         for (const f of r.findings) {
           const line = `${theme}/${mode}/${scr.name}: "${f.txt}" ${f.got}:1 (needs ${f.need}:1, ${f.size}px, ${f.color} on ${f.bg})`;
           if (f.dimmed) { warnings.push(line + " [deliberately dimmed]"); continue; }
+          // ENCADRE : le rapport depend de l'endroit ou le texte tombe sur le
+          // degrade. Signale avec ses DEUX bornes, ne fait jamais echouer —
+          // une borne basse n'est pas une mesure, et faire echouer dessus
+          // ferait supprimer du travail correct.
+          if (f.boundedOnly) {
+            warnings.push(`${theme}/${mode}/${scr.name}: "${f.txt}" ${f.got}–${f.hi}:1 `
+              + `(needs ${f.need}:1, ${f.size}px, ${f.color} on ${f.bg}) [encadre sur degrade]`);
+            continue;
+          }
           (f.got < FAIL_BELOW ? failures : warnings).push(line);
         }
       }
@@ -419,7 +476,13 @@ async function main() {
     die("measured 0 text elements — the seed or the selectors drifted, so a pass\n" +
         "  here would mean nothing.");
   }
-  console.log(`${DIM}  ${totalMeasured} text elements measured, ${totalSkipped} skipped (gradient or indeterminate backdrop)${OFF}`);
+  // LE DETAIL DES OMISSIONS, pas seulement leur nombre. L'ancienne ligne
+  // disait « gradient or indeterminate backdrop » en agregeant les deux, et
+  // MESURE : les 59 etaient a 100 % des degrades, zero fond indeterminable —
+  // la moitie de la phrase decrivait une classe vide.
+  const reasons = Object.keys(skipReasons).sort().map((k) => `${k}=${skipReasons[k]}`).join(", ");
+  console.log(`${DIM}  ${totalMeasured} text elements measured, ${totalBounded} bounded over a gradient, `
+    + `${totalSkipped} skipped${reasons ? ` (${reasons})` : ""}${OFF}`);
   // Le détail seulement sur demande : trié par écran pour que deux exécutions
   // se lisent côte à côte sans passer par le JSON.
   if (process.env["THEME_CONTRAST_SCREENS"]) {
@@ -436,7 +499,7 @@ async function main() {
   // only way to see the whole warning set at once.
   if (process.env.THEME_CONTRAST_JSON) {
     fs.writeFileSync(process.env.THEME_CONTRAST_JSON,
-      JSON.stringify({ warnings: warn, failures: fail, measured: totalMeasured, skipped: totalSkipped, perScreen }, null, 1));
+      JSON.stringify({ warnings: warn, failures: fail, measured: totalMeasured, bounded: totalBounded, skipped: totalSkipped, skipReasons, perScreen }, null, 1));
     console.log(`${DIM}  full report → ${process.env.THEME_CONTRAST_JSON}${OFF}`);
   }
 

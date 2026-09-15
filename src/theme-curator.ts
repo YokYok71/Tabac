@@ -91,8 +91,27 @@ export const C = {
   // (In light mode the themed ember/oxblood/ivory all darken for text-on-cream
   // legibility, which made this filled button read muddy/too-dark.) Fixed hex,
   // NOT mode-flipped — a filled focal has its own contrast, not the text rule.
-  ctaFrom:   "#a8453f", // gradient start (bright oxblood-red)
-  ctaTo:     "#df6a40", // gradient end (bright ember-orange)
+  // ASSOMBRI x0.75, et « le filled focal a son propre contraste » ne tenait
+  // pas la mesure. Le commentaire ci-dessus dit que ce bouton « n'est pas
+  // soumis a la regle du texte » — mais il PORTE du texte, un titre et une
+  // sous-ligne, et ce texte se lit ou ne se lit pas.
+  //
+  // MESURE une fois `theme:contrast` capable d'encadrer un degrade (il les
+  // SAUTAIT, donc ce CTA n'avait jamais ete mesure) : le creme donnait
+  // **4,83:1 sur l'extremite oxblood et 2,76:1 sur l'ember** pour 4,5 requis,
+  // et la sous-ligne (opacity 0.85) **2,39:1**. Le titre passait donc sur une
+  // moitie du bouton et echouait sur l'autre.
+  //
+  // AUCUNE COULEUR DE TEXTE NE LE SAUVAIT, et c'est ce qui a decide de la
+  // forme du correctif : la luminance du creme est 0,816, celle de l'ember
+  // d'origine 0,264, et il faut un fond <= 0,143 pour 4,5:1 — un BLANC PUR
+  // plafonnait a 3,35:1. Le probleme etait le fond, pas l'encre.
+  //
+  // x0.75 sur les deux arrets : creme a **7,16:1 sur ctaFrom et 4,52:1 sur
+  // ctaTo**, conforme sur toute la longueur du degrade. La teinte et la
+  // direction sont conservees — un orange plus brule, pas une autre couleur.
+  ctaFrom:   "#7e342f", // gradient start (deep oxblood-red)
+  ctaTo:     "#a75030", // gradient end (burnt ember-orange)
   ctaInk:    "#f1e9d2", // light cream text/icons on the flame
 
   // The ambient top-of-page wash (ScreenWash). On the dark vault a

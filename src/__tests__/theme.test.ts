@@ -161,3 +161,58 @@ describe("applyTheme()", () => {
   });
 });
 
+
+/**
+ * LE CTA DE DÉGUSTATION, verrouillé PAR LE CALCUL et non par les hex.
+ *
+ * Ce bouton portait `#a8453f → #df6a40` sous un commentaire disant qu'« un
+ * filled focal a son propre contraste, pas la règle du texte » — alors qu'il
+ * PORTE un titre et une sous-ligne. `theme:contrast` SAUTAIT tout élément sur
+ * un dégradé, donc ce CTA n'avait jamais été mesuré : une fois l'encadrement
+ * écrit, le crème donnait 4,83:1 sur un arrêt et **2,76:1** sur l'autre, la
+ * sous-ligne 2,39:1. Aucune encre ne le sauvait (un blanc pur plafonnait à
+ * 3,35:1) — c'était le FOND.
+ *
+ * La garde recalcule le rapport WCAG au lieu d'épingler les hex : elle laisse
+ * la teinte évoluer et n'accepte que ce qui reste lisible. Épingler
+ * `"#7e342f"` aurait figé une couleur en laissant repasser le défaut à la
+ * première retouche.
+ */
+describe("le CTA de dégustation reste lisible sur toute la longueur du dégradé", () => {
+  const lum = (hex: string) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+    if (!m) throw new Error(`pas un hex à 6 chiffres : ${hex}`);
+    const h = m[1]!;
+    const ch = [0, 2, 4].map((i) => {
+      const v = parseInt(h.slice(i, i + 2), 16) / 255;
+      return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0]! + 0.7152 * ch[1]! + 0.0722 * ch[2]!;
+  };
+  const ratio = (a: string, b: string) => {
+    const x = lum(a), y = lum(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  };
+  // Les jetons sont des hex FIXES (non basculés par le mode) — c'est ce qui
+  // rend ce calcul possible hors navigateur. Non-vacuité : si l'un devenait
+  // un `var(...)`, `lum` jetterait plutôt que de rendre un vert silencieux.
+  const src = readFileSync(resolve("src/theme-curator.ts"), "utf8");
+  const tok = (name: string) => {
+    const m = new RegExp(`\\b${name}:\\s*"(#[0-9a-fA-F]{6})"`).exec(src);
+    if (!m) throw new Error(`jeton ${name} introuvable ou non hex`);
+    return m[1]!;
+  };
+
+  it("l'encre atteint 4,5:1 sur les DEUX arrêts, pas seulement sur le plus sombre", () => {
+    const ink = tok("ctaInk");
+    for (const stop of ["ctaFrom", "ctaTo"] as const) {
+      const r = ratio(ink, tok(stop));
+      expect(r, `${stop} (${tok(stop)}) contre ctaInk (${ink}) : ${r.toFixed(2)}:1`)
+        .toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("et les deux arrêts diffèrent (sinon la garde ne vérifierait qu'une couleur)", () => {
+    expect(tok("ctaFrom")).not.toBe(tok("ctaTo"));
+  });
+});
