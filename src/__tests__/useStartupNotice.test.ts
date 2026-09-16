@@ -346,4 +346,36 @@ describe("audienceMatches", () => {
     // Non-vacuité : une boucle qui ne tourne pas est verte pour rien.
     expect(verifies).toBe(42);
   });
+
+  // « ON NE PEUT PAS SCROLLER », rapporté depuis un iPhone, capture à l'appui.
+  //
+  // MESURÉ dans Chromium à 390×664 (UA iPhone, navigator.standalone), avec
+  // l'avis réel : le panneau faisait 1328 px pour une fenêtre de 664, son haut
+  // était à −328 et son bas à 1000 — coupé DES DEUX CÔTÉS — le fond n'offrait
+  // que 360 px de défilement pour 664 px de débordement, et le bouton « C'est
+  // noté » n'était pas visible. Le mécanisme : le fond de `Modal` porte
+  // `overflowY:auto` ET `alignItems:center`, or un conteneur qui défile ne peut
+  // pas atteindre ce qui déborde AVANT son origine. Le centrage perd le haut.
+  //
+  // Après `capHeight` + région interne : panneau 609 px, rien de coupé, 751 px
+  // de défilement DANS la modale, bouton visible, début du texte atteignable.
+  //
+  // La garde est STRUCTURELLE parce que jsdom ne fait pas de mise en page —
+  // elle ne peut pas re-mesurer, elle peut empêcher la forme de repartir. Même
+  // forme que « scrolls INSIDE the modal » dans CatalogView.test.tsx.
+  it("la modale d'avis borne sa hauteur et défile en interne", () => {
+    const src = readFileSync("src/views/curator/StartupNoticeModal.tsx", "utf8");
+    // Tranché plutôt que regexé à travers la balise : elle contient des
+    // accolades JSX, et un `[^>]*` s'arrête au premier `>` venu.
+    const openTag = src.slice(src.indexOf("<Modal"), src.indexOf("ariaLabel={heading}"));
+    expect(openTag, "le panneau doit borner sa hauteur").toContain("capHeight");
+    expect(src, "la région interne possède le défilement")
+      .toMatch(/flex:\s*1,\s*minHeight:\s*0,\s*overflowY:\s*"auto"/);
+    expect(src, "le défilement ne doit pas se propager à la page derrière")
+      .toContain('overscrollBehavior: "contain"');
+    // Un `vh` ne connaît pas le rembourrage du fond — c'est la supposition que
+    // `capHeight` remplace.
+    expect(src, "une supposition en vh ne peut pas connaître le fond")
+      .not.toMatch(/maxHeight:\s*"\d+vh"/);
+  });
 });

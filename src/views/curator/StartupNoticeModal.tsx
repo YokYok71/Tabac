@@ -57,14 +57,31 @@ export function CuratorStartupNoticeModal() {
   const heading = notice.title || (t ? t("notice_default_title") : "Information");
 
   return (
+    // `capHeight` + un corps `flex:1; minHeight:0; overflowY:auto` — la forme
+    // maison pour toute modale dont le contenu peut dépasser l'écran.
+    //
+    // ELLE MANQUAIT ICI, ET LE SYMPTÔME N'EST PAS « ça déborde » MAIS « on ne
+    // peut pas scroller », signalé depuis un iPhone. Le fond de `Modal` porte
+    // `overflowY:auto` ET `alignItems:center` : un enfant plus haut que son
+    // conteneur centré déborde des DEUX côtés, et un conteneur qui défile ne
+    // peut pas atteindre ce qui dépasse AVANT son origine. Le haut du texte
+    // devenait donc inatteignable — pas seulement inconfortable, illisible.
+    // C'est la raison d'être de `capHeight`, et cet appelant ne l'utilisait pas.
+    //
+    // Un avis diffusé est précisément le contenu dont la longueur n'est PAS
+    // connue à l'écriture du composant : il vient de notice.json et peut
+    // changer sans rebuild. Cette modale doit donc supposer le débordement,
+    // jamais en dépendre. En-tête et bouton restent hors du défilement — le
+    // « C'est noté » doit rester atteignable sans avoir à parcourir le texte.
     <Modal
       open={open}
       onClose={close}
       maxWidth={460}
       align="center"
+      capHeight
       ariaLabel={heading}
     >
-      <div style={{ padding: "26px 24px 22px", textAlign: "center" }}>
+      <div style={{ padding: "26px 24px 4px", textAlign: "center", flexShrink: 0 }}>
         <div style={{
           display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 14,
         }}>
@@ -75,11 +92,18 @@ export function CuratorStartupNoticeModal() {
           <Orn color={accent} />
         </div>
 
+        {/* `flex` + `margin: 0 auto`, PAS `inline-flex`. MESURÉ dans Chromium :
+            en inline-flex la pastille se posait à x=212 alors que le bandeau
+            « ◆ NOTICE ◆ » finissait à x=212 — les deux sur la MÊME ligne,
+            collées, la pastille mordant le losange de droite. Deux frères
+            inline s'enchaînent, et le `marginBottom` que chacun portait dit
+            bien qu'ils étaient pensés empilés. Antérieur à ce correctif : les
+            deux `display` sont identiques dans la version précédente. */}
         <div style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          display: "flex", alignItems: "center", justifyContent: "center",
           width: 52, height: 52, borderRadius: 26,
           background: alpha(accent, "1f"), border: `1px solid ${alpha(accent, "55")}`,
-          color: accent, marginBottom: 14,
+          color: accent, margin: "0 auto 14px",
         }}>
           <Ico name={glyph} size={22} sw={1.7} />
         </div>
@@ -91,17 +115,34 @@ export function CuratorStartupNoticeModal() {
         }}>
           {heading}
         </div>
+      </div>
 
-        {notice.body && (
+      {notice.body && (
+        // `minHeight:0` est porteur : un enfant flex vaut `min-height:auto` et
+        // refuse de descendre sous la hauteur de son contenu — sans lui, la
+        // région ne défile pas et le débordement revient tel quel.
+        <div style={{
+          flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain",
+          padding: "0 24px",
+        }}>
           <div style={{
             fontSize: fs(15), color: C.tx2, lineHeight: 1.55,
-            maxWidth: 380, margin: "0 auto 22px",
+            maxWidth: 380, margin: "0 auto",
             fontFamily: F.body, whiteSpace: "pre-wrap",
+            // ALIGNÉ À GAUCHE, contre le centrage du titre. Un avis peut être
+            // une phrase — centrée, elle allait bien — mais celui-ci porte
+            // quatre étapes numérotées, et des lignes centrées font perdre le
+            // début de chacune. Le composant ne connaît pas la longueur de ce
+            // qu'il affiche : la gauche est le seul alignement correct pour
+            // les deux cas.
+            textAlign: "left",
           }}>
             {notice.body}
           </div>
-        )}
+        </div>
+      )}
 
+      <div style={{ padding: "18px 24px 22px", flexShrink: 0 }}>
         <PressCard onClick={close} style={{
           padding: "12px 14px", textAlign: "center",
           background: `linear-gradient(135deg, ${accent}, ${alpha(accent, "cc")})`,
