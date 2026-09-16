@@ -36,15 +36,36 @@ import React from "react";
 import type { NoticeTone } from "../components/curator/Notice.tsx";
 import { LANGUAGES } from "../i18n/languages.ts";
 import { lsGet, lsSet } from "../utils/appStorage.ts";
+import { IS_IOS_STANDALONE } from "../utils/platform.ts";
 
 var useState = React.useState,
   useEffect = React.useEffect;
 
 export interface NoticeSlot { title?: string; body?: string }
+/** À QUI un avis s'adresse. Absent = tout le monde, le comportement d'avant.
+ *
+ *  Écrit pour un cas précis et réel : `apple-mobile-web-app-status-bar-style`
+ *  est LU AU MOMENT OÙ l'app est ajoutée à l'écran d'accueil, pas au
+ *  chargement. MESURÉ sur l'iPad de l'utilisateur — build 20 affiché, Safari
+ *  net, app installée trouble, jamais réinstallée. Une installation antérieure
+ *  au build 16 garde donc le voile d'iOS jusqu'à ce que l'icône soit retirée
+ *  et remise, et AUCUN bump ne peut rien y faire (une mise à jour est un
+ *  rechargement, et ce rechargement a déjà eu lieu). Il faut le DIRE à ces
+ *  utilisateurs-là, et seulement à eux. */
+export interface NoticeAudience {
+  /** L'avis ne s'affiche que dans l'app ajoutée à l'écran d'accueil sur iOS. */
+  iosStandalone?: boolean;
+  /** …et seulement si l'installation EXISTAIT DÉJÀ au premier lancement de ce
+   *  build. Une installation neuve reçoit le bon réglage d'emblée : lui
+   *  montrer l'avis serait du bruit. */
+  existingInstallOnly?: boolean;
+}
+
 export interface RawNotice {
   id?: string;
   tone?: NoticeTone;
   expiresAt?: string;
+  audience?: NoticeAudience;
   // One optional slot per LANGUAGES code. `pt` was once missing here even
   // though the language shipped: the type refused a Portuguese slot
   // outright, so a broadcast could not be authored in it without a cast.
@@ -65,6 +86,33 @@ export interface ActiveNotice {
 }
 
 export var NOTICE_SEEN_KEY = "cave-notice-seen";
+
+/** « Cette installation existait-elle avant ce lancement ? »
+ *
+ *  ÉVALUÉ À L'IMPORT, et c'est la seule chose qui rende la lecture fiable :
+ *  `useAppUpdate` lit `cave-last-build` puis le RÉÉCRIT immédiatement avec
+ *  `APP_BUILD`, dans un effet. Les effets React tournent après l'évaluation
+ *  des modules, donc une constante de module voit la valeur d'AVANT
+ *  l'écrasement, là où un `lsGet` fait depuis un effet verrait déjà la
+ *  nouvelle. Ne pas transformer ceci en fonction appelée plus tard.
+ *
+ *  Absent = première exécution de cette installation (ou données effacées).
+ *  Présent = l'installation avait déjà tourné au moins une fois. */
+export var INSTALL_PREEXISTED: boolean = (function () {
+  try { return lsGet("cave-last-build") != null; } catch { return false; }
+})();
+
+/** Pure, donc éprouvable sans navigateur : l'avis s'adresse-t-il à cet
+ *  environnement ? Un champ absent ne restreint rien. */
+export function audienceMatches(
+  audience: NoticeAudience | undefined,
+  env: { iosStandalone: boolean; installPreexisted: boolean },
+): boolean {
+  if (!audience) return true;
+  if (audience.iosStandalone === true && !env.iosStandalone) return false;
+  if (audience.existingInstallOnly === true && !env.installPreexisted) return false;
+  return true;
+}
 
 function pickContent(
   raw: RawNotice,
@@ -156,6 +204,13 @@ export function useStartupNotice(lang: string) {
         })
         .then(function (raw: any) {
           if (cancelled) return;
+          // Le PUBLIC avant la langue et avant le rejet : un avis qui ne
+          // s'adresse pas à cet appareil ne doit ni s'afficher ni consommer
+          // son identifiant de rejet.
+          if (!audienceMatches(raw && raw.audience, {
+            iosStandalone: IS_IOS_STANDALONE,
+            installPreexisted: INSTALL_PREEXISTED,
+          })) return;
           var parsed = parseNoticeForLang(raw, lang);
           if (!parsed) return;
           if (readSeen() === parsed.id) return;

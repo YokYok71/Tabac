@@ -4,7 +4,9 @@ import {
   parseNoticeForLang,
   useStartupNotice,
   NOTICE_SEEN_KEY,
+  audienceMatches,
 } from "../hooks/useStartupNotice";
+import { readFileSync } from "node:fs";
 
 // ── parseNoticeForLang (pure) ─────────────────────────────────────────────────
 
@@ -226,5 +228,82 @@ describe("useStartupNotice", () => {
     const url = firstCall[0];
     expect(url).toContain("notice.json");
     expect(url).toContain("?_v=");
+  });
+});
+
+/**
+ * LE PUBLIC D'UN AVIS — écrit pour un cas réel, pas pour la généralité.
+ *
+ * `apple-mobile-web-app-status-bar-style` est lue AU MOMENT où l'app est
+ * ajoutée à l'écran d'accueil, pas au chargement. MESURÉ sur l'iPad de
+ * l'utilisateur : build 20 affiché, Safari NET, app installée TROUBLE, jamais
+ * réinstallée. Une installation antérieure au build 16 garde donc le voile, et
+ * AUCUN bump ne peut rien y faire — une mise à jour est un rechargement, et ce
+ * rechargement a déjà eu lieu. Il faut le dire à ces utilisateurs-là, et
+ * SEULEMENT à eux : une installation neuve reçoit le bon réglage d'emblée.
+ */
+describe("audienceMatches", () => {
+  const ios = { iosStandalone: true, installPreexisted: true };
+  const neuf = { iosStandalone: true, installPreexisted: false };
+  const navigateur = { iosStandalone: false, installPreexisted: true };
+
+  it("sans public, l'avis s'adresse à tout le monde (comportement d'avant)", () => {
+    for (const env of [ios, neuf, navigateur]) {
+      expect(audienceMatches(undefined, env)).toBe(true);
+      expect(audienceMatches({}, env)).toBe(true);
+    }
+  });
+
+  it("iosStandalone écarte le navigateur, pas l'app installée", () => {
+    expect(audienceMatches({ iosStandalone: true }, ios)).toBe(true);
+    expect(audienceMatches({ iosStandalone: true }, navigateur)).toBe(false);
+  });
+
+  it("existingInstallOnly écarte une installation NEUVE — elle n'a pas le défaut", () => {
+    expect(audienceMatches({ existingInstallOnly: true }, ios)).toBe(true);
+    expect(audienceMatches({ existingInstallOnly: true }, neuf)).toBe(false);
+  });
+
+  it("les deux ensemble : le seul public visé est l'installation iOS préexistante", () => {
+    const a = { iosStandalone: true, existingInstallOnly: true };
+    expect(audienceMatches(a, ios)).toBe(true);
+    expect(audienceMatches(a, neuf)).toBe(false);
+    expect(audienceMatches(a, navigateur)).toBe(false);
+    expect(audienceMatches(a, { iosStandalone: false, installPreexisted: false })).toBe(false);
+  });
+
+  it("`false` explicite ne restreint rien — seul `true` filtre", () => {
+    // Un champ à false dit « je ne me prononce pas », pas « l'inverse ».
+    expect(audienceMatches({ iosStandalone: false }, navigateur)).toBe(true);
+  });
+
+  it("l'avis RÉEL de public/notice.json vise bien ce public (non-vacuité)", () => {
+    // Sans ceci, la garde ci-dessus vérifierait une fonction que le fichier
+    // livré n'utilise pas.
+    const n = JSON.parse(readFileSync("public/notice.json", "utf8"));
+    expect(n.audience, "l'avis livré doit cibler").toBeTruthy();
+    expect(audienceMatches(n.audience, ios)).toBe(true);
+    expect(audienceMatches(n.audience, neuf)).toBe(false);
+    expect(audienceMatches(n.audience, navigateur)).toBe(false);
+    // et il parle les six langues
+    for (const code of ["fr", "en", "es", "de", "it", "pt"]) {
+      expect(n[code] && n[code].title && n[code].body, `slot ${code}`).toBeTruthy();
+    }
+    // LA CONSIGNE DE SAUVEGARDE EST LA PREMIÈRE ÉTAPE, et la garde porte sur
+    // CETTE ligne-là. Première version : un `toMatch(/[Ss]auvegard/)` sur tout
+    // le corps — SONDÉ, il restait VERT après avoir remplacé « Sauvegardez
+    // d'abord » par « Allez-y », parce que le texte mentionne la sauvegarde une
+    // SECONDE fois plus bas. Une garde satisfaite par la prose qui l'entoure ne
+    // garde rien. Ce qui compte n'est pas que le mot figure, c'est que le
+    // PREMIER geste demandé soit de sauvegarder : il n'est pas garanti que
+    // retirer l'icône préserve les données.
+    const etape1 = (body: string) =>
+      String(body).split("\n").find((l) => l.trim().startsWith("1.")) || "";
+    expect(etape1(n.fr.body), "étape 1 fr").toMatch(/[Ss]auvegard/);
+    expect(etape1(n.en.body), "étape 1 en").toMatch(/[Bb]ack up/);
+    expect(etape1(n.es.body), "étape 1 es").toMatch(/copia de seguridad/i);
+    expect(etape1(n.de.body), "étape 1 de").toMatch(/[Ss]ichern/);
+    expect(etape1(n.it.body), "étape 1 it").toMatch(/backup/i);
+    expect(etape1(n.pt.body), "étape 1 pt").toMatch(/c[óo]pia de seguran/i);
   });
 });
