@@ -306,4 +306,44 @@ describe("audienceMatches", () => {
     expect(etape1(n.it.body), "étape 1 it").toMatch(/backup/i);
     expect(etape1(n.pt.body), "étape 1 pt").toMatch(/c[óo]pia de seguran/i);
   });
+
+  // UN CHEMIN CITÉ DOIT EXISTER DANS LA LANGUE OÙ IL EST CITÉ.
+  //
+  // La première version de cet avis disait « Réglages → Données ». MESURÉ
+  // ensuite : aucune section ne s'appelle ainsi — c'est « ☁️ Sauvegarde
+  // cloud » et « Export & Import ». Un utilisateur qui suit une consigne
+  // d'urgence cherchait donc un écran inexistant, et rien dans le dépôt ne
+  // pouvait le signaler : le texte vit dans un JSON, les libellés dans les
+  // dictionnaires, et les deux ne se parlaient pas.
+  //
+  // Cette garde les fait se parler. Elle ne juge pas la prose — elle vérifie
+  // que les libellés CITÉS sont ceux que l'app affiche DANS CETTE LANGUE,
+  // donc elle rougit aussi bien si l'avis invente un chemin que si un
+  // renommage de section laisse l'avis derrière lui.
+  it("les chemins cités dans l'avis existent dans le dictionnaire de leur langue", () => {
+    const n = JSON.parse(readFileSync("public/notice.json", "utf8"));
+    const CITES = [
+      "sec_cloud", "sec_export_import", "btn_export_json",
+      // LE CATALOGUE EST UN AUTRE STOCKAGE, donc une autre sauvegarde.
+      // Il vit dans sa PROPRE base IndexedDB (`cave-catalogue`, voir
+      // utils/catalogueStore.ts) et son propre flux cloud : un export JSON de
+      // la cave ne le contient pas. Un avis qui dit « sauvegardez » sans le
+      // nommer laisserait l'utilisateur supprimer l'app en croyant tout tenir.
+      "sec_catalogue", "cat_cloud_save", "cat_cloud_restore", "btn_cat_export",
+    ];
+    let verifies = 0;
+    for (const code of ["fr", "en", "es", "de", "it", "pt"]) {
+      const dico = readFileSync(`src/i18n/${code}.ts`, "utf8");
+      const body = String(n[code].body);
+      for (const cle of CITES) {
+        const m = dico.match(new RegExp(`\\b${cle}: *"([^"]*)"`));
+        expect(m, `${cle} introuvable dans src/i18n/${code}.ts`).toBeTruthy();
+        const libelle = m![1]!;
+        expect(body, `${code} doit citer ${cle} = « ${libelle} »`).toContain(libelle);
+        verifies++;
+      }
+    }
+    // Non-vacuité : une boucle qui ne tourne pas est verte pour rien.
+    expect(verifies).toBe(42);
+  });
 });
