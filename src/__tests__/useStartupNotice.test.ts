@@ -357,6 +357,33 @@ describe("audienceMatches", () => {
     expect(verifies).toBe(48);
   });
 
+  // L'AVIS AFFIRME UN ITINÉRAIRE ; CELUI-CI LE TIENT AU CODE.
+  //
+  // Il dit « touchez l'icône ☁️ en haut de l'accueil : elle ouvre directement
+  // l'onglet Données ». C'est vrai aujourd'hui — l'IconBtn "cloud" de
+  // HomeViewV2 appelle setSettingsTab("data") — et rien d'autre ne le garantit
+  // demain. La garde des libellés ci-dessus ne peut pas le voir : elle vérifie
+  // que « Données » est CITÉ, pas que le bouton y mène.
+  //
+  // C'EST EXACTEMENT LE DÉFAUT QUI VIENT D'ÊTRE COMMIS. L'avis avait été
+  // réécrit autour de l'ENGRENAGE, dont les sections nommées ne dépendent pas :
+  // il ouvre sur « prefs », où aucune d'elles ne figure. Des noms exacts au
+  // bout d'un itinéraire faux restent un itinéraire faux ; une porte qui ne
+  // regarde que les noms laisse passer précisément ça.
+  it("l'icône nuage de l'accueil mène bien à l'onglet que l'avis nomme", () => {
+    const home = readFileSync("src/views/curator/HomeViewV2.tsx", "utf8");
+    const i = home.indexOf('icon="cloud"');
+    expect(i, "l'IconBtn nuage doit exister sur l'accueil").toBeGreaterThan(-1);
+    // Tranché vers l'AVANT sur ce qui SUIT l'ancre — un regex à travers la
+    // balise s'arrête au premier `>` d'une lambda (la leçon de CatalogView).
+    const bouton = home.slice(i, i + 400);
+    expect(bouton, "le nuage doit ouvrir l'onglet des sauvegardes")
+      .toContain('setSettingsTab("data")');
+    // Non-vacuité : une tranche tronquée pourrait contenir l'appel par hasard
+    // sans être le bouton ; on exige qu'elle porte aussi son libellé.
+    expect(bouton, "la tranche doit bien être CE bouton").toContain("sec_cloud");
+  });
+
   // « ON NE PEUT PAS SCROLLER », rapporté depuis un iPhone, capture à l'appui.
   //
   // MESURÉ dans Chromium à 390×664 (UA iPhone, navigator.standalone), avec
