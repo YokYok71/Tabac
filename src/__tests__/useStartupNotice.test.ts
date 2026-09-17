@@ -323,6 +323,16 @@ describe("audienceMatches", () => {
   it("les chemins cités dans l'avis existent dans le dictionnaire de leur langue", () => {
     const n = JSON.parse(readFileSync("public/notice.json", "utf8"));
     const CITES = [
+      // L'ONGLET, ET IL EST EN PREMIER PARCE QUE C'EST LUI QUI A MANQUÉ.
+      // Les Réglages ont quatre onglets (tab_data / tab_prefs / tab_app /
+      // tab_help) et l'engrenage de l'accueil ouvre sur « prefs » — VÉRIFIÉ
+      // ligne 604 de HomeViewV2. Or les trois sections citées ci-dessous
+      // vivent toutes sous `activeTab === "data"` (lignes 189, 711, 811 de
+      // SettingsModal). Un avis qui dit « touchez l'engrenage puis la section
+      // ☁️ Sauvegarde cloud » envoie donc l'utilisateur sur un onglet où elle
+      // n'est pas. Nommer des sections vraies ne suffit pas : c'est le CHEMIN
+      // qui doit être complet.
+      "tab_data",
       "sec_cloud", "sec_export_import", "btn_export_json",
       // LE CATALOGUE EST UN AUTRE STOCKAGE, donc une autre sauvegarde.
       // Il vit dans sa PROPRE base IndexedDB (`cave-catalogue`, voir
@@ -344,7 +354,7 @@ describe("audienceMatches", () => {
       }
     }
     // Non-vacuité : une boucle qui ne tourne pas est verte pour rien.
-    expect(verifies).toBe(42);
+    expect(verifies).toBe(48);
   });
 
   // « ON NE PEUT PAS SCROLLER », rapporté depuis un iPhone, capture à l'appui.
