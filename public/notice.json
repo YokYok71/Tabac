@@ -1,6 +1,7 @@
 {
  "id": "ios-reinstall-statusbar-2026-09-b",
  "tone": "warn",
+ "expiresAt": "2027-03-31T00:00:00Z",
  "audience": {
   "iosStandalone": true,
   "existingInstallOnly": true

@@ -1524,6 +1524,33 @@ describe("checkHelpPaths (gate 27)", () => {
     expect(out.length, "une valeur qui CONTIENT la citation ne doit pas l'absoudre").toBe(1);
   });
 
+  it("nomme la page qu'on lui donne, pas « help.html » par défaut", () => {
+    // Écrit après coup : la porte a été étendue à privacy.html et
+    // changelog.html, et son premier jet codait « help.html » en dur dans
+    // CHAQUE message. Un défaut de privacy.html aurait envoyé le lecteur
+    // chercher dans le guide — une porte qui désigne le mauvais fichier coûte
+    // plus de temps qu'elle n'en fait gagner.
+    const out = D.checkHelpPaths(
+      page("Paramètres → Données → Sauvegarde cloud.", "Impostazioni → Dati → Backup su cloud."),
+      DICTS, { file: "privacy.html" },
+    );
+    expect(out.length).toBe(1);
+    expect(out[0]).toContain("privacy.html (it)");
+    expect(out[0], "plus aucune mention du guide").not.toContain("help.html");
+  });
+
+  it("`requirePaths: false` laisse passer une page qui n'en contient aucun", () => {
+    // changelog.html est un HISTORIQUE : il ne guide personne et n'a aucun
+    // itinéraire. Exiger la non-vacuité là aussi rendrait la porte rouge sans
+    // qu'il y ait de défaut, et une porte rouge sans défaut se fait
+    // désactiver. L'exigence reste sur les deux pages qui en ont vraiment.
+    const vide = page("Rien à signaler.", "Niente da segnalare.");
+    expect(D.checkHelpPaths(vide, DICTS, { file: "changelog.html", requirePaths: false }))
+      .toEqual([]);
+    expect(D.checkHelpPaths(vide, DICTS, { file: "changelog.html" }).length,
+      "l'exigence reste le DÉFAUT — il faut la lever explicitement").toBe(1);
+  });
+
   it("échoue plutôt que de passer à vide — dictionnaires absents", () => {
     expect(D.checkHelpPaths(JUSTE, {})[0]).toContain("vacuously");
   });

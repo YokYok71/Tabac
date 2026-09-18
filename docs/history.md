@@ -488,3 +488,13 @@ Je tenais à côté un `AUTO_HIDE_VIEWS` écrit à la main. **En trois commits, 
 **`WelcomeModal` est saine, MESURÉ : 0 débordement sur 24 combinaisons.** Chromium, UA iPhone, 2 écrans × 6 langues × 2 tailles de texte. Pire cas : iPhone SE (375×553), français, taille L → **488 px de panneau pour 553 px de fenêtre**, 65 px de marge. Le fond n'a jamais eu à défiler (`fondDefilable = 0` partout).
 
 **Pourquoi elle tient là où l'avis tombait**, et c'est le vrai enseignement : son texte est COURT et surtout **FIXE** — il vient des dictionnaires, donc sa longueur est connue quand le composant est écrit. Celui de l'avis vient de `notice.json`, éditable sans rebuild, donc inconnue par construction. **Ce n'est pas la longueur qui distingue les deux cas, c'est de savoir ou non ce qu'on affiche.** Une modale dont le contenu peut changer sans passer par le code doit supposer le débordement ; une modale dont le contenu est figé peut se contenter d'être mesurée. La mesure ci-dessus est donc valable tant que ces textes ne s'allongent pas — et une traduction plus verbeuse est exactement ce qui la périmerait. La sonde vit dans le scratchpad de la session ; elle se refait en changeant les clés de `localStorage` qu'elle pose (`cave-terms-accepted`, `cave-curator-welcomed` absent, `cave-lang`, `cave-font-scale`).
+
+## L'avis de lancement porte enfin sa propre fin
+
+`public/notice.json` a une `expiresAt` (**2027-03-31**), et il n'en avait pas.
+
+**Ce que coûte son absence est documenté deux écrans plus haut dans ce dépôt** : `ThemeModeNoticeModal` est resté monté des MOIS après la fermeture de sa fenêtre de diffusion, en coquille vide, parce que sa date vivait dans le CODE (`EXPIRY_MS`) et qu'y revenir demandait un build. Ici la date vit dans les DONNÉES, donc elle se change sans build — encore faut-il qu'elle existe, et rien ne l'imposait.
+
+**La garde exige qu'une fin ait été DÉCIDÉE, pas qu'elle soit dans le futur.** La seconde formulation serait une bombe à retardement : la suite rougirait le jour de l'échéance, pour un avis que `parseNoticeForLang` aura déjà cessé de montrer tout seul (il rend `null` sur une date passée). Un avis périmé dans le fichier est inerte ; un avis sans fin ne l'est jamais. Sondée deux fois — date retirée, date illisible — rouge les deux fois, la seconde parce qu'une date que `Date.parse` ne lit pas est ignorée par le hook et vaut donc exactement pas de fin.
+
+**Six mois est un choix, pas une mesure.** Le public visé — une icône posée entre le 25 août et le 14 septembre 2026 — ne rétrécit que lorsque les gens réinstallent, et quelqu'un qui n'ouvre pas l'app pendant un trimestre a encore besoin du message. Assez long pour l'usager épisodique, assez court pour que l'avis ne devienne pas du mobilier.

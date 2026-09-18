@@ -498,10 +498,21 @@ try {
   // languages — all outside French, which is the point: the original gets
   // proof-read and the translations drift. See checkHelpPaths for what it
   // deliberately does NOT check.
-  {
-    const f = path.join(ROOT, "public/help.html");
+  // Les TROIS pages documentaires, pas seulement le guide. Étendre la porte
+  // a immédiatement trouvé deux citations dérivées de plus dans
+  // `privacy.html` — es et it, encore, et encore sur la même section — sur la
+  // page qu'un relecteur OAuth de Google lit. `requirePaths: false` pour le
+  // changelog : c'est un historique, il n'a aucun itinéraire aujourd'hui et
+  // en exiger serait rouge sans défaut. Les deux autres restent tenues à la
+  // non-vacuité, donc une reconnaissance qui se casserait ne passerait pas
+  // pour une page propre.
+  for (const [page, requirePaths] of [
+    ["help.html", true], ["privacy.html", true], ["changelog.html", false],
+  ]) {
+    const f = path.join(ROOT, "public", page);
     if (fs.existsSync(f)) {
-      docChecks.checkHelpPaths(fs.readFileSync(f, "utf8"), dicts).forEach(err);
+      docChecks.checkHelpPaths(fs.readFileSync(f, "utf8"), dicts, { file: page, requirePaths })
+        .forEach(err);
     }
   }
   // Gate 21: an internal anchor must stay inside its own language

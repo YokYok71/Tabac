@@ -1882,12 +1882,20 @@ function findForeignLabelQuotes(html, dicts, exempt) {
  * zero paths examined. A checker that looks at nothing reports exactly what a
  * clean file reports.
  */
-function checkHelpPaths(html, dicts) {
+function checkHelpPaths(html, dicts, opts) {
   const out = [];
+  const file = (opts && opts.file) || "help.html";
+  // Une page peut légitimement n'en contenir AUCUN — changelog.html est un
+  // historique, pas un mode d'emploi. Exiger la non-vacuité partout rendrait
+  // la porte rouge pour une raison qui n'est pas un défaut, et une porte
+  // rouge sans défaut se fait désactiver. Elle reste EXIGÉE là où des
+  // itinéraires existent aujourd'hui (help.html, privacy.html) : c'est là que
+  // le silence mentirait.
+  const requirePaths = !(opts && opts.requirePaths === false);
   const src = String(html || "");
   const codes = Object.keys(dicts || {});
   if (!codes.length) {
-    out.push("help.html paths: no dictionary was supplied — the gate would pass vacuously");
+    out.push(file + " paths: no dictionary was supplied — the gate would pass vacuously");
     return out;
   }
   const norm = (s) =>
@@ -1906,7 +1914,7 @@ function checkHelpPaths(html, dicts) {
   const RE = new RegExp(ROOTS + "\\s*→\\s*([^<>\\n→]{1,30})→\\s*([^<>\\n→,.;)]{1,45})", "g");
   const opens = [...src.matchAll(/<div id="sec-([a-z-]+)"/g)].map((m) => ({ code: m[1], at: m.index }));
   if (!opens.length) {
-    out.push('help.html: no <div id="sec-…"> block found — paths cannot be located');
+    out.push(file + ': no <div id="sec-…"> block found — paths cannot be located');
     return out;
   }
   let examined = 0;
@@ -1917,7 +1925,7 @@ function checkHelpPaths(html, dicts) {
     const chunk = src.slice(opens[i].at, i + 1 < opens.length ? opens[i + 1].at : src.length);
     const tabs = new Set(TAB_KEYS.map((k) => dict[k]).filter(Boolean).map(norm));
     if (!tabs.size) {
-      out.push(`help.html (${code}): no tab label could be read — paths cannot be anchored`);
+      out.push(`${file} (${code}): no tab label could be read — paths cannot be anchored`);
       continue;
     }
     const values = new Set(Object.values(dict).filter((v) => String(v).trim()).map(norm));
@@ -1939,14 +1947,14 @@ function checkHelpPaths(html, dicts) {
       // its own text gets worked around instead of obeyed.
       if (values.has(norm(m[2]))) continue;
       out.push(
-        `help.html (${code}): « ${m[1].trim()} → ${m[2].trim()} » names no section the app has. ` +
+        `${file} (${code}): « ${m[1].trim()} → ${m[2].trim()} » names no section the app has. ` +
         `Use the label from src/i18n/${code}.ts, end the path with a comma or a full stop ` +
         "if the sentence continues, or drop the arrow.",
       );
     }
   }
-  if (!examined) {
-    out.push("help.html paths: zero itineraries examined — the gate would pass vacuously");
+  if (!examined && requirePaths) {
+    out.push(file + " paths: zero itineraries examined — the gate would pass vacuously");
   }
   return out;
 }

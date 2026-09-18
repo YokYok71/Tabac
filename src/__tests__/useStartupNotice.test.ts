@@ -282,6 +282,21 @@ describe("audienceMatches", () => {
     // livré n'utilise pas.
     const n = JSON.parse(readFileSync("public/notice.json", "utf8"));
     expect(n.audience, "l'avis livré doit cibler").toBeTruthy();
+    // UN AVIS DOIT PORTER SA FIN. Sans `expiresAt` il n'en a aucune : il
+    // s'affiche jusqu'à ce que quelqu'un pense à vider le fichier, et
+    // personne n'y pense — `ThemeModeNoticeModal` est resté monté DES MOIS
+    // après la fermeture de sa fenêtre, en coquille, parce que sa date était
+    // dans le code et non dans les données. Ici elle est dans les données,
+    // donc modifiable sans build ; encore faut-il qu'elle existe.
+    //
+    // La garde n'exige PAS qu'elle soit dans le futur : ce serait une bombe à
+    // retardement qui rougirait la suite le jour de l'échéance, pour un avis
+    // que le hook aura déjà cessé de montrer tout seul (parseNoticeForLang
+    // rend null sur une date passée). Ce qu'elle exige, c'est qu'une fin ait
+    // été DÉCIDÉE.
+    expect(n.expiresAt, "l'avis livré doit porter une date de fin").toBeTruthy();
+    expect(Number.isFinite(Date.parse(n.expiresAt)),
+      "une date illisible est ignorée par le hook — donc équivaut à pas de fin").toBe(true);
     expect(audienceMatches(n.audience, ios)).toBe(true);
     expect(audienceMatches(n.audience, neuf)).toBe(false);
     expect(audienceMatches(n.audience, navigateur)).toBe(false);
