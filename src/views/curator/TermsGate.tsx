@@ -17,7 +17,7 @@ export function CuratorTermsGate() {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 1000,
-      background: `radial-gradient(circle at 30% 15%, ${C.washMoss}, ${C.bg} 70%), ${C.bg}`,
+      background: `radial-gradient(circle at 30% 55%, ${C.washMoss}, ${C.bg} 70%), ${C.bg}`,
       display: "flex", justifyContent: "center", alignItems: "stretch",
       fontFamily: F.body, color: C.tx, overflow: "auto",
     }}>

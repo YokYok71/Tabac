@@ -147,7 +147,7 @@ export function CuratorApp() {
         // the fixed dock on iOS PWA. See index.html overflow-x:clip + the
         // iOS-PWA dock guardrail in docs/ui.md (restored after a roll-back undid it).
         width: "100%", minHeight: "100vh",
-        background: `radial-gradient(circle at 30% 15%, ${C.washMoss}, ${C.bg} 70%), ${C.bg}`,
+        background: `radial-gradient(circle at 30% 55%, ${C.washMoss}, ${C.bg} 70%), ${C.bg}`,
         display: "flex", justifyContent: "center",
         fontFamily: F.body, color: C.tx,
       }}>

@@ -387,6 +387,42 @@ describe("index.html — la barre d'état iOS ne doit plus se superposer", () =>
       .toHaveLength(1);
   });
 
+  // LE HALO DE LA COQUILLE NE DOIT PAS CULMINER DANS LA BANDE DU HAUT.
+  //
+  // Rapporté depuis un iPad : « il y a quand même encore un léger voile sur le
+  // haut », APRÈS que les deux replis de `--c-bg` eurent été alignés. MESURÉ en
+  // retirant les couches une à une dans Chromium : le sommet passait de
+  // `#131816` à `#0d1110` — le fond exact — dès que le radial de la coquille
+  // était ôté, et retirer `ScreenWash` en plus ne changeait RIEN. Le halo
+  // était donc le seul coupable, avec son foyer à 15 % de la hauteur,
+  // c'est-à-dire juste sous l'heure.
+  //
+  // Déplacé à 55 % : le sommet lit `#0d1110`, identique à « aucun halo », et
+  // l'ambiance subsiste à mi-page (`#121714`). Le commentaire de `ScreenWash`
+  // avait déjà nommé ce défaut — « a radial whose % geometry put the peak
+  // mid-page » — mais seules les VUES en avaient tiré les conséquences ; la
+  // coquille avait gardé le sien.
+  //
+  // La garde est structurelle : jsdom ne peint pas, elle ne peut pas
+  // re-mesurer. Elle empêche seulement le foyer de remonter dans le quart
+  // haut, où il redeviendrait visible contre la barre d'état.
+  it("le halo de fond ne culmine pas sous la barre d'état", () => {
+    const fichiers = ["src/CuratorApp.tsx", "src/views/curator/TermsGate.tsx"];
+    const foyers = [];
+    for (const f of fichiers) {
+      const src = readFileSync(join(process.cwd(), f), "utf8");
+      for (const m of src.matchAll(/radial-gradient\(circle at \d+% (\d+)%/g)) {
+        foyers.push({ f, y: parseInt(m[1] || "0", 10) });
+      }
+    }
+    expect(foyers.length, "non-vacuité : aucun halo trouvé, la garde ne verrait rien")
+      .toBeGreaterThanOrEqual(2);
+    for (const { f, y } of foyers) {
+      expect(y, `${f} : un foyer dans le quart haut se voit contre la barre d'état`)
+        .toBeGreaterThanOrEqual(40);
+    }
+  });
+
   it("le manifeste peint ce qu'une installation NEUVE affiche", async () => {
     // Statique, il ne peut pas suivre le thème choisi — mais il portait une
     // TROISIÈME couleur, qui n'était ni celle de la bande ni celle d'un fond.
