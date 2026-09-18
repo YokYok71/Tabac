@@ -315,4 +315,87 @@ describe("index.html — la barre d'état iOS ne doit plus se superposer", () =>
     // `theme-color` en phase avec le mode choisi (THEME_COLOR_META).
     expect(html).toMatch(/<meta\s+name="theme-color"\s+content="#[0-9a-fA-F]{6}"/);
   });
+
+  // LA BANDE D'ÉTAT DOIT PEINDRE CE QUE L'APP PEINT, ET ELLE NE LE FAISAIT PAS.
+  //
+  // Rapporté depuis un iPad APRÈS la réinstallation qui corrige le voile : la
+  // bande n'était plus grise, mais elle formait une COUTURE — `#0a0a0a`, un
+  // noir neutre écrit à la main, au-dessus d'un fond légèrement verdi. Une
+  // seule constante pour TROIS thèmes aux fonds différents ne pouvait être
+  // juste que par accident, et ne l'était pour aucun.
+  //
+  // Le test ci-dessus ne voyait rien : il épingle un FORMAT (`#` + six chiffres
+  // hexadécimaux), pas une valeur. Un format correct sur une couleur orpheline
+  // le laisse vert — la garde creuse dans sa forme la plus pure.
+  it("la teinte de la bande suit le fond RÉEL de chaque thème", async () => {
+    const { themeColorFor, THEMES, C } = await import("../theme-curator.ts");
+    const replis = /var\([^,]+,\s*([^)]+)\)/.exec(C.bg);
+    const parDefaut = (replis && replis[1] || "").trim();
+    expect(parDefaut, "le repli de C.bg doit être lisible").toMatch(/^#[0-9a-f]{6}$/i);
+
+    let verifies = 0;
+    for (const id of Object.keys(THEMES)) {
+      const vars = (THEMES as any)[id]?.vars as Record<string, string> | undefined;
+      // Le thème par défaut ne DÉFINIT pas `--c-bg` : il s'appuie sur le repli
+      // du token, qui est donc la bonne réponse pour lui.
+      const attendu = (vars && vars["--c-bg"]) || parDefaut;
+      expect(themeColorFor(id, "dark"), `thème ${id}`).toBe(attendu);
+      verifies++;
+    }
+    expect(verifies, "non-vacuité : une boucle vide serait verte pour rien")
+      .toBeGreaterThanOrEqual(3);
+
+    // Un thème inconnu ne doit pas rendre `undefined` dans un attribut HTML.
+    expect(themeColorFor("inexistant", "dark")).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+
+  // UNE VARIABLE, UN SEUL REPLI — la cause du voile, et la seule garde qui
+  // vaille ici.
+  //
+  // MESURÉ sur la capture d'un iPad : la bande sous l'heure était `#0b0b0b`,
+  // NEUTRE, puis l'app reprenait en `#0e1211`, VERDI, avec une rampe entre les
+  // deux. Reproduit dans Chromium : `getComputedStyle(document.body)` rendait
+  // `rgb(10,10,10)` alors que l'app peignait par-dessus — parce que `--c-bg`
+  // portait DEUX replis, `#0e1311` dans theme-curator et `#0a0a0a` dans
+  // index.html et EB.tsx. Le thème par défaut ne DÉFINIT jamais `--c-bg`, donc
+  // c'est le repli qui peint : deux replis pour une variable, ce sont deux
+  // couleurs à l'écran, sur la frontière exacte que l'utilisateur regarde.
+  //
+  // Le contrôle ne fige aucune valeur : il exige seulement que toutes les
+  // écritures s'accordent. Un futur changement de fond reste libre, tant qu'il
+  // est fait partout.
+  it("`--c-bg` n'a qu'UN repli dans tout le dépôt", () => {
+    const fichiers = [
+      "index.html",
+      "src/theme-curator.ts",
+      "src/components/EB.tsx",
+    ];
+    const replis = new Map();
+    let vus = 0;
+    for (const f of fichiers) {
+      const src = readFileSync(join(process.cwd(), f), "utf8");
+      for (const m of src.matchAll(/var\(\s*--c-bg\s*,\s*(#[0-9a-fA-F]{3,8})\s*\)/g)) {
+        const v = (m[1] || "").toLowerCase();
+        if (!replis.has(v)) replis.set(v, []);
+        replis.get(v).push(f);
+        vus++;
+      }
+    }
+    expect(vus, "non-vacuité : aucun `var(--c-bg, …)` trouvé, la garde ne verrait rien")
+      .toBeGreaterThanOrEqual(3);
+    expect([...replis.keys()], "un seul repli, sinon deux couleurs à l'écran")
+      .toHaveLength(1);
+  });
+
+  it("le manifeste peint ce qu'une installation NEUVE affiche", async () => {
+    // Statique, il ne peut pas suivre le thème choisi — mais il portait une
+    // TROISIÈME couleur, qui n'était ni celle de la bande ni celle d'un fond.
+    const { themeColorFor } = await import("../theme-curator.ts");
+    const mf = JSON.parse(
+      readFileSync(join(process.cwd(), "public/manifest.json"), "utf8"),
+    );
+    const defautSombre = themeColorFor("brass", "dark");
+    expect(mf.theme_color, "la bande au lancement").toBe(defautSombre);
+    expect(mf.background_color, "l'écran de lancement").toBe(defautSombre);
+  });
 });

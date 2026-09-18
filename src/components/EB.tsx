@@ -167,7 +167,7 @@ export class EB extends React.Component<
     if (this.state.recovering) {
       return (
         <div style={{
-          minHeight: "100vh", background: "#0a0a0a",
+          minHeight: "100vh", background: "#0e1311",
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: 24, color: "#d4a661",
           fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
@@ -194,7 +194,7 @@ export class EB extends React.Component<
     if (isChunk) {
       return (
         <div style={{
-          minHeight: "100vh", background: "#0a0a0a",
+          minHeight: "100vh", background: "#0e1311",
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: 24,
           fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
@@ -242,7 +242,7 @@ export class EB extends React.Component<
     }
     return (
       <div style={{
-        minHeight: "100vh", background: "#0a0a0a",
+        minHeight: "100vh", background: "#0e1311",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 24,
       }}>

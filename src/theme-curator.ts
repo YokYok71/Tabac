@@ -429,10 +429,42 @@ export const MODE_LIGHT: Record<string, string> = {
 // DARK is deliberately NOT `C.bg`'s #0e1311: it is a darker neutral letterbox,
 // a separate decision, so it stays an explicit constant here (this file owns
 // the palette literals and is exempt from the no-hex rule for that reason).
+/** Le repli d'un token `var(--x, VALEUR)`, LU dans le token.
+ *
+ *  Le thème par défaut ne définit pas `--c-bg` : il s'appuie sur ce repli, qui
+ *  n'existe donc qu'ici. Le recopier aurait été une quatrième valeur à faire
+ *  dériver — ce fichier en portait déjà trois pour une seule couleur. */
+function tokenFallback(token: string): string {
+  var m = /var\([^,]+,\s*([^)]+)\)/.exec(token);
+  return m && m[1] ? String(m[1]).trim() : "#000000";
+}
+
 export const THEME_COLOR_META = {
   light: MODE_LIGHT["--c-bg"] as string,
-  dark: "#0a0a0a",
+  dark: tokenFallback(C.bg),
 } as const;
+
+/** La teinte de la bande d'état iOS, pour le thème ET le mode ACTIFS.
+ *
+ *  **ELLE ÉTAIT FIGÉE À `#0a0a0a`, UNE COULEUR QU'AUCUN THÈME NE PEINT.**
+ *  Rapporté depuis un iPad, capture à l'appui, APRÈS la réinstallation qui
+ *  corrige le voile : la bande n'était plus grise, mais elle formait une
+ *  COUTURE — un noir neutre au-dessus d'un fond légèrement verdi (`#0e1311`
+ *  par défaut), donc deux noirs différents à quelques pixels l'un de l'autre.
+ *
+ *  Le côté CLAIR dérivait déjà sa valeur de `MODE_LIGHT["--c-bg"]` ; seul le
+ *  côté sombre portait une constante écrite à la main, et elle ne
+ *  correspondait à aucun des trois thèmes — laiton `#0e1311`, acier `#0c1017`,
+ *  anglais `#0a120c`. Une seule valeur pour trois fonds différents ne pouvait
+ *  être juste que par accident, et ne l'était pour aucun.
+ *
+ *  Dérivée, donc un futur thème est couvert sans toucher à cette fonction. */
+export function themeColorFor(themeId: string, mode?: string): string {
+  if (mode === "light") return THEME_COLOR_META.light;
+  var t = THEMES[themeId] || THEMES.brass!;
+  var bg = (t.vars as Record<string, string> | undefined)?.["--c-bg"];
+  return bg || THEME_COLOR_META.dark;
+}
 
 export const THEME_VARS: string[] = [
   "--c-cat-lakeland",

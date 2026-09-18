@@ -39,7 +39,7 @@ import {
   GDRIVE_PENDING_STALE_MS,
   xlValue,
 } from "./constants.ts";
-import { applyTheme, THEMES, THEME_COLOR_META } from "./theme-curator.ts";
+import { applyTheme, THEMES, themeColorFor } from "./theme-curator.ts";
 import { pickJarLot } from "./utils/lotUtils.ts";
 import { buildTobaccoAromaIndex, tobaccoMatchesAromas } from "./utils/aromas.ts";
 import { lotMaturityBucket, isRecentPurchase, scopeFromStatusFilter, lotInScope, scopedHeldWeight, scopedOldestAgeDays } from "./utils/cellarInsights.ts";
@@ -829,9 +829,10 @@ function App() {
     // is a non-layout element, so this is safe unlike an <html> attribute).
     try {
       var m = document.querySelector('meta[name="theme-color"]');
-      // Derived from theme-curator (THEME_COLOR_META) — the light
-      // value was this file's own copy of MODE_LIGHT["--c-bg"].
-      if (m) m.setAttribute("content", themeMode === "light" ? THEME_COLOR_META.light : THEME_COLOR_META.dark);
+      // Dérivée du thème ACTIF, pas seulement du mode. La branche sombre
+      // était figée à une couleur qu'aucun thème ne peint, ce qui faisait une
+      // COUTURE visible entre la bande d'état et le fond — vu sur iPad.
+      if (m) m.setAttribute("content", themeColorFor(themeId, themeMode));
     } catch (_e) { /* ignore */ }
   }, [themeId, themeMode]);
 
