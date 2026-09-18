@@ -1465,6 +1465,89 @@ describe("checkHelpEnumTables (gate 22)", () => {
 // dropdown reads (de "Flüssigbrennstoff" vs the app's "Benzin", pt "Charuto"
 // vs "Cigarro", four languages keeping the French "Ivoirite" against
 // "Ivorite"). Cardinality is blind to a rename: the count was right every time.
+describe("checkHelpPaths (gate 27)", () => {
+  // Deux langues suffisent à éprouver la règle : l'une dont l'itinéraire est
+  // juste, l'autre dont la section a dérivé — la forme de TOUS les défauts que
+  // l'audit a trouvés (six citations, quatre langues, aucune en français).
+  const DICTS = {
+    fr: { tab_data: "Données", tab_prefs: "Préférences", tab_app: "Application",
+          tab_help: "Aide", sec_cloud: "☁️ Sauvegarde cloud" },
+    it: { tab_data: "Dati", tab_prefs: "Preferenze", tab_app: "App",
+          tab_help: "Aiuto", sec_cloud: "☁️ Backup cloud" },
+  };
+  const page = (fr: string, it: string) =>
+    `<div id="sec-fr"><p>${fr}</p></div><div id="sec-it"><p>${it}</p></div>`;
+  const JUSTE = page(
+    "Paramètres → Données → Sauvegarde cloud, puis enregistrez.",
+    "Impostazioni → Dati → Backup cloud, e salva.",
+  );
+
+  it("accepte un itinéraire dont la section existe, emoji et accents mis à part", () => {
+    // « Sauvegarde cloud » cité contre « ☁️ Sauvegarde cloud » stocké : la
+    // normalisation doit laisser passer, sinon le guide devrait recopier les
+    // emojis et personne ne le ferait.
+    expect(D.checkHelpPaths(JUSTE, DICTS)).toEqual([]);
+  });
+
+  it("attrape une section qui a dérivé, dans la langue qui l'a citée", () => {
+    const out = D.checkHelpPaths(
+      page("Paramètres → Données → Sauvegarde cloud.", "Impostazioni → Dati → Backup su cloud."),
+      DICTS,
+    );
+    expect(out.length).toBe(1);
+    expect(out[0], "le message doit nommer la langue fautive").toContain("(it)");
+    expect(out[0]).toContain("Backup su cloud");
+  });
+
+  it("IGNORE un chemin vers les réglages du SYSTÈME — ce n'est pas notre ressort", () => {
+    // « Safari » n'est pas l'un de nos quatre onglets. Sans cette exclusion la
+    // porte crierait au loup sur chaque instruction iOS ou Android du guide,
+    // et une porte qui crie au loup finit désactivée.
+    const out = D.checkHelpPaths(
+      page("Réglages → Safari → Avancé → Données de sites web.", "Impostazioni → Dati → Backup cloud."),
+      DICTS,
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("une section EXACTE, pas contenue : la règle lâche absorbait les vrais défauts", () => {
+    // Éprouvé pendant l'audit : avec une comparaison par sous-chaîne,
+    // « Backup su cloud » trouvait un autre libellé quelconque et passait.
+    const avecBruit = {
+      ...DICTS,
+      it: { ...DICTS.it, une_autre_cle: "Backup su cloud remoto" },
+    };
+    const out = D.checkHelpPaths(
+      page("Paramètres → Données → Sauvegarde cloud.", "Impostazioni → Dati → Backup su cloud."),
+      avecBruit,
+    );
+    expect(out.length, "une valeur qui CONTIENT la citation ne doit pas l'absoudre").toBe(1);
+  });
+
+  it("échoue plutôt que de passer à vide — dictionnaires absents", () => {
+    expect(D.checkHelpPaths(JUSTE, {})[0]).toContain("vacuously");
+  });
+
+  it("échoue plutôt que de passer à vide — aucun bloc de langue", () => {
+    expect(D.checkHelpPaths("<p>Paramètres → Données → Sauvegarde cloud</p>", DICTS)[0])
+      .toContain("sec-");
+  });
+
+  it("échoue plutôt que de passer à vide — aucun itinéraire examiné", () => {
+    // Le cas qui compte le plus : si la reconnaissance se met à ne rien
+    // trouver (flèche changée, balisage réécrit), le silence ressemble trait
+    // pour trait à un fichier propre.
+    const out = D.checkHelpPaths(page("Rien à signaler.", "Niente da segnalare."), DICTS);
+    expect(out.length).toBe(1);
+    expect(out[0]).toContain("zero itineraries");
+  });
+
+  it("signale une langue dont aucun onglet ne se lit, au lieu de la sauter", () => {
+    const out = D.checkHelpPaths(JUSTE, { ...DICTS, it: { sec_cloud: "☁️ Backup cloud" } });
+    expect(out.some((e: string) => e.includes("(it)") && e.includes("tab label"))).toBe(true);
+  });
+});
+
 describe("checkHelpEnumLabels (gate 23)", () => {
   const ENUMS = { FINISHES: ["Lisse", "Autre"] };
   const MAPS = { FINISHES: { fr: {}, de: { Lisse: "Glatt", Autre: "Andere" } } };

@@ -1844,8 +1844,116 @@ function findForeignLabelQuotes(html, dicts, exempt) {
   return out;
 }
 
+/**
+ * A cited ITINERARY must lead where it says, in the language that cites it.
+ *
+ * WHY THIS EXISTS, in one sentence: an assistant removed « Réglages →
+ * Données » from a launch notice on the grounds that no such section existed,
+ * replaced it with the gear icon plus three REAL section names — and the gear
+ * opens on a DIFFERENT tab, so the instruction led nowhere. Exact names at the
+ * end of a wrong route are still a wrong route. Nothing could see it: the
+ * prose lives in HTML, the labels in `src/i18n/`, and the two never met.
+ *
+ * Auditing help.html the same way then found SIX drifted citations across
+ * four languages — Italian said « Backup su cloud » for « ☁️ Backup cloud »,
+ * German « Abschnitte » for « Bereiche », Portuguese « Lista de vigilância »
+ * for « A vigiar » — every one of them outside French. That is the shape of
+ * the risk: the original is proof-read, the translations drift, and a guide
+ * that names a section nobody can find is worse than one that stays vague.
+ *
+ * SCOPE, deliberately narrow so the gate never cries wolf:
+ *   • only `<root> → <tab> → <section>`, where <tab> is one of THIS
+ *     language's four tab labels. A path through an OS settings app
+ *     (« Safari → Avancé → … ») fails that test and is skipped — it is not
+ *     ours to check, and flagging it would teach the reader to ignore this.
+ *   • the section must equal SOME value of that language's dictionary, after
+ *     normalisation (emoji, punctuation and accents dropped, case folded) —
+ *     the guide may write « Sauvegarde cloud » for « ☁️ Sauvegarde cloud ».
+ *   • EQUALITY, not containment. A loose substring rule was tried first and
+ *     it silently absorbed the Italian and Portuguese defects by matching
+ *     some unrelated value; a gate that can be satisfied by an accident is
+ *     the hollow-guard failure this repository keeps paying for.
+ *
+ * It cannot tell whether the section is the RIGHT one for the sentence — only
+ * that the app has a label by that name. That limit is stated so nobody reads
+ * a green run as "the guide's navigation is correct".
+ *
+ * Vacuity is failure at three points: no dictionaries, no language block, or
+ * zero paths examined. A checker that looks at nothing reports exactly what a
+ * clean file reports.
+ */
+function checkHelpPaths(html, dicts) {
+  const out = [];
+  const src = String(html || "");
+  const codes = Object.keys(dicts || {});
+  if (!codes.length) {
+    out.push("help.html paths: no dictionary was supplied — the gate would pass vacuously");
+    return out;
+  }
+  const norm = (s) =>
+    String(s)
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .normalize("NFKD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  const TAB_KEYS = ["tab_data", "tab_prefs", "tab_app", "tab_help"];
+  // Every root word that opens a path, in every shipped language. A path whose
+  // root is an OS settings app shares these words, which is exactly why the
+  // TAB test below — and not this list — decides what the gate looks at.
+  const ROOTS = "(?:Paramètres|Réglages|Settings|Ajustes|Einstellungen|Impostazioni|Definições)";
+  const RE = new RegExp(ROOTS + "\\s*→\\s*([^<>\\n→]{1,30})→\\s*([^<>\\n→,.;)]{1,45})", "g");
+  const opens = [...src.matchAll(/<div id="sec-([a-z-]+)"/g)].map((m) => ({ code: m[1], at: m.index }));
+  if (!opens.length) {
+    out.push('help.html: no <div id="sec-…"> block found — paths cannot be located');
+    return out;
+  }
+  let examined = 0;
+  for (let i = 0; i < opens.length; i++) {
+    const code = opens[i].code;
+    const dict = dicts[code];
+    if (!dict) continue;
+    const chunk = src.slice(opens[i].at, i + 1 < opens.length ? opens[i + 1].at : src.length);
+    const tabs = new Set(TAB_KEYS.map((k) => dict[k]).filter(Boolean).map(norm));
+    if (!tabs.size) {
+      out.push(`help.html (${code}): no tab label could be read — paths cannot be anchored`);
+      continue;
+    }
+    const values = new Set(Object.values(dict).filter((v) => String(v).trim()).map(norm));
+    for (const m of chunk.matchAll(RE)) {
+      if (!tabs.has(norm(m[1]))) continue; // not one of OUR tabs: OS path, skip
+      examined++;
+      // WHOLE-TAIL EQUALITY, and the alternative was TRIED AND REJECTED here.
+      // Accepting a tail that merely BEGINS with a known label reads better —
+      // « → Sauvegarde cloud puis enregistrez » is ordinary writing — but it
+      // was PROBED and it let the Italian defect through: « Backup su cloud »
+      // begins with « Backup », which exists on its own elsewhere in the
+      // dictionary, so a short unrelated label absolved a citation that names
+      // no section. A gate that can be satisfied by an accident is the hollow
+      // guard this repository keeps paying for.
+      //
+      // The cost is a WRITING RULE, and it is a small one: end the path with
+      // punctuation — a comma is enough — before the sentence continues. The
+      // message below says so, because a gate whose fix is not obvious from
+      // its own text gets worked around instead of obeyed.
+      if (values.has(norm(m[2]))) continue;
+      out.push(
+        `help.html (${code}): « ${m[1].trim()} → ${m[2].trim()} » names no section the app has. ` +
+        `Use the label from src/i18n/${code}.ts, end the path with a comma or a full stop ` +
+        "if the sentence continues, or drop the arrow.",
+      );
+    }
+  }
+  if (!examined) {
+    out.push("help.html paths: zero itineraries examined — the gate would pass vacuously");
+  }
+  return out;
+}
+
 module.exports = {
   findForeignLabelQuotes,
+  checkHelpPaths,
   checkHelpEnumTables,
   checkHelpEnumLabels,
   checkVersions,

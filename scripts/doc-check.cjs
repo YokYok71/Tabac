@@ -491,6 +491,19 @@ try {
   // Gate 14: and its enum labels, or that language reads the stored
   // French on every card, fiche and filter chip.
   docChecks.checkEnumTranslations(CONSTANTS, codes).forEach(err);
+  // Gate 27: a cited ITINERARY must lead where it says. The guide
+  // walks the reader through `Paramètres → <onglet> → <section>`; those
+  // section names live in src/i18n and nothing tied the two together. The
+  // audit that motivated this found six drifted citations across FOUR
+  // languages — all outside French, which is the point: the original gets
+  // proof-read and the translations drift. See checkHelpPaths for what it
+  // deliberately does NOT check.
+  {
+    const f = path.join(ROOT, "public/help.html");
+    if (fs.existsSync(f)) {
+      docChecks.checkHelpPaths(fs.readFileSync(f, "utf8"), dicts).forEach(err);
+    }
+  }
   // Gate 21: an internal anchor must stay inside its own language
   // block. Adding Portuguese shipped all 30 of its help links pointing at
   // #en-* — invisible to reading, fatal to navigation.
