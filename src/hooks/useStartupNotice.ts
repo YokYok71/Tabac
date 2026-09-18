@@ -36,6 +36,7 @@ import React from "react";
 import type { NoticeTone } from "../components/curator/Notice.tsx";
 import { LANGUAGES } from "../i18n/languages.ts";
 import { lsGet, lsSet } from "../utils/appStorage.ts";
+import { APP_BUILD } from "../constants.ts";
 import { IS_IOS_STANDALONE } from "../utils/platform.ts";
 
 var useState = React.useState,
@@ -59,6 +60,12 @@ export interface NoticeAudience {
    *  build. Une installation neuve reçoit le bon réglage d'emblée : lui
    *  montrer l'avis serait du bruit. */
   existingInstallOnly?: boolean;
+  /** …et, quand on le sait, seulement si elle est NÉE AVANT ce build.
+   *
+   *  `existingInstallOnly` seul ne distingue pas « ancienne » de « lancée deux
+   *  fois » — voir `INSTALL_FIRST_BUILD`. Ce champ resserre lorsque la donnée
+   *  existe et ne change rien lorsqu'elle manque. */
+  installedBefore?: string;
 }
 
 export interface RawNotice {
@@ -102,15 +109,65 @@ export var INSTALL_PREEXISTED: boolean = (function () {
   try { return lsGet("cave-last-build") != null; } catch { return false; }
 })();
 
+/** Le build auquel cette installation a été vue pour la PREMIÈRE fois.
+ *
+ *  `INSTALL_PREEXISTED` NE SUFFIT PAS, ET UN AUDIT L'A ÉTABLI. Il dit « cette
+ *  installation a déjà tourné au moins une fois », pas « elle est antérieure au
+ *  correctif » — `useAppUpdate` écrit `cave-last-build` INCONDITIONNELLEMENT au
+ *  premier montage. Donc une icône posée aujourd'hui, saine puisqu'elle a lu la
+ *  balise corrigée, échappait à l'avis au lancement 1 et le recevait au
+ *  lancement 2 : on lui demandait de sauvegarder et de réinstaller pour rien,
+ *  jusqu'à l'expiration de l'avis.
+ *
+ *  Cette clé-ci est écrite UNE SEULE FOIS, à la première exécution, et ne bouge
+ *  plus. Elle répond donc à la vraie question.
+ *
+ *  CE QU'ELLE NE RATTRAPE PAS, dit d'emblée : les installations créées AVANT
+ *  son introduction n'ont rien d'enregistré, et aucune donnée du passé ne peut
+ *  le leur redonner. Elles retombent sur `INSTALL_PREEXISTED`, c'est-à-dire sur
+ *  le comportement d'avant — le filtre ne se resserre que vers l'avant. C'est
+ *  la seule forme honnête : mieux vaut un avis de trop sur une fenêtre fermée
+ *  qu'un avis manquant à quelqu'un qui en a besoin. */
+export var INSTALL_FIRST_BUILD_KEY = "cave-first-build";
+export var INSTALL_FIRST_BUILD: string | null = (function () {
+  try { return lsGet(INSTALL_FIRST_BUILD_KEY); } catch { return null; }
+})();
+
+/** Pose la marque si elle manque ET si l'installation est neuve.
+ *
+ *  LA CONDITION `!INSTALL_PREEXISTED` EST TOUT L'INTÉRÊT : sans elle, une
+ *  installation ancienne se verrait tamponner le build d'AUJOURD'HUI au premier
+ *  lancement qui suit la mise à jour, et passerait pour neuve — l'avis
+ *  disparaîtrait précisément pour ceux à qui il s'adresse. Une installation qui
+ *  a déjà tourné garde donc la clé absente, et son cas reste indécidable, ce
+ *  qui est la vérité. */
+export function markFirstBuild(build: string): void {
+  if (INSTALL_PREEXISTED) return;
+  if (INSTALL_FIRST_BUILD != null) return;
+  try { lsSet(INSTALL_FIRST_BUILD_KEY, build); INSTALL_FIRST_BUILD = build; } catch { /* rien */ }
+}
+
 /** Pure, donc éprouvable sans navigateur : l'avis s'adresse-t-il à cet
  *  environnement ? Un champ absent ne restreint rien. */
 export function audienceMatches(
   audience: NoticeAudience | undefined,
-  env: { iosStandalone: boolean; installPreexisted: boolean },
+  env: { iosStandalone: boolean; installPreexisted: boolean; firstBuild?: string | null },
 ): boolean {
   if (!audience) return true;
   if (audience.iosStandalone === true && !env.iosStandalone) return false;
-  if (audience.existingInstallOnly === true && !env.installPreexisted) return false;
+  if (audience.existingInstallOnly === true) {
+    if (!env.installPreexisted) return false;
+    // Une installation qui SAIT être née à ce build ou après n'a pas le défaut
+    // que l'avis décrit. `installedBefore` reste facultatif : un avis qui ne le
+    // porte pas se comporte comme avant.
+    var seuil = audience.installedBefore;
+    var ne = env.firstBuild;
+    if (seuil != null && ne != null) {
+      var n = parseInt(String(ne), 10), s = parseInt(String(seuil), 10);
+      // Une valeur illisible ne doit RIEN exclure : dans le doute on montre.
+      if (isFinite(n) && isFinite(s) && n >= s) return false;
+    }
+  }
   return true;
 }
 
@@ -196,6 +253,11 @@ export function useStartupNotice(lang: string) {
   useEffect(
     function () {
       var cancelled = false;
+      // POSÉE AVANT LE FETCH, et non dans sa réponse : la marque doit exister
+      // même quand il n'y a aucun avis à montrer, sans quoi une installation
+      // née pendant une période calme resterait indécidable pour le PROCHAIN
+      // avis. C'est un no-op sur toute installation qui a déjà tourné.
+      markFirstBuild(APP_BUILD);
       var url = "./notice.json?_v=" + Date.now();
       fetch(url, { cache: "no-store" })
         .then(function (r) {
@@ -210,6 +272,7 @@ export function useStartupNotice(lang: string) {
           if (!audienceMatches(raw && raw.audience, {
             iosStandalone: IS_IOS_STANDALONE,
             installPreexisted: INSTALL_PREEXISTED,
+            firstBuild: INSTALL_FIRST_BUILD,
           })) return;
           var parsed = parseNoticeForLang(raw, lang);
           if (!parsed) return;

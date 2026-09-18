@@ -247,6 +247,95 @@ describe("audienceMatches", () => {
   const neuf = { iosStandalone: true, installPreexisted: false };
   const navigateur = { iosStandalone: false, installPreexisted: true };
 
+  // LE DEUXIÈME LANCEMENT D'UNE INSTALLATION NEUVE — le défaut qu'un audit a
+  // trouvé. `installPreexisted` vaut « a déjà tourné une fois », pas
+  // « ancienne », parce que useAppUpdate écrit `cave-last-build`
+  // inconditionnellement au premier montage. Une icône posée aujourd'hui
+  // ressemblait donc à une ancienne dès son deuxième lancement, et recevait un
+  // avis lui demandant de sauvegarder et de réinstaller pour rien.
+  describe("installedBefore — distinguer « ancienne » de « lancée deux fois »", () => {
+    const AVIS = { iosStandalone: true, existingInstallOnly: true, installedBefore: "16" };
+
+    it("écarte une installation qui se SAIT née au build du correctif ou après", () => {
+      expect(audienceMatches(AVIS, { ...ios, firstBuild: "16" })).toBe(false);
+      expect(audienceMatches(AVIS, { ...ios, firstBuild: "22" })).toBe(false);
+    });
+
+    it("garde une installation qui se sait née AVANT", () => {
+      expect(audienceMatches(AVIS, { ...ios, firstBuild: "15" })).toBe(true);
+      expect(audienceMatches(AVIS, { ...ios, firstBuild: "0" })).toBe(true);
+    });
+
+    it("ne restreint RIEN quand la marque manque — c'est le cas des anciennes", () => {
+      // Les installations antérieures à l'introduction de la clé n'ont rien
+      // d'enregistré et aucune donnée ne peut le leur redonner. Elles doivent
+      // retomber sur le comportement d'avant : mieux vaut un avis de trop sur
+      // une fenêtre fermée qu'un avis manquant à qui en a besoin.
+      expect(audienceMatches(AVIS, ios)).toBe(true);
+      expect(audienceMatches(AVIS, { ...ios, firstBuild: null })).toBe(true);
+    });
+
+    it("une valeur illisible n'exclut personne — dans le doute on montre", () => {
+      expect(audienceMatches(AVIS, { ...ios, firstBuild: "bientôt" })).toBe(true);
+      expect(audienceMatches(AVIS, { ...ios, firstBuild: "" })).toBe(true);
+    });
+
+    it("un avis SANS `installedBefore` se comporte exactement comme avant", () => {
+      const sansSeuil = { iosStandalone: true, existingInstallOnly: true };
+      expect(audienceMatches(sansSeuil, { ...ios, firstBuild: "22" })).toBe(true);
+      expect(audienceMatches(sansSeuil, { ...neuf, firstBuild: "22" })).toBe(false);
+    });
+
+    it("le seuil ne sauve pas une installation qui n'a jamais tourné", () => {
+      // `existingInstallOnly` reste la première condition : l'ordre compte.
+      expect(audienceMatches(AVIS, { ...neuf, firstBuild: "0" })).toBe(false);
+    });
+  });
+
+  // `markFirstBuild` LIT DEUX CONSTANTES DE MODULE, évaluées à l'import — on ne
+  // peut donc pas l'éprouver sans recharger le module avec un stockage préparé.
+  //
+  // CE BLOC EXISTE PARCE QU'UNE SONDE EST RESTÉE VERTE. Retirer le garde
+  // `if (INSTALL_PREEXISTED) return;` ne cassait AUCUN test, alors que c'est la
+  // ligne dont tout dépend : sans elle, une installation ancienne se fait
+  // tamponner le build du jour au premier lancement qui suit la mise à jour,
+  // `installedBefore` l'écarte, et l'avis disparaît pour exactement ceux à qui
+  // il s'adresse. Une garde que personne n'a vue rougir ne garde rien.
+  describe("markFirstBuild — qui reçoit la marque, et qui ne la reçoit pas", () => {
+    async function chargerAvec(graine: Record<string, string>) {
+      localStorage.clear();
+      for (const [k, v] of Object.entries(graine)) localStorage.setItem(k, v);
+      vi.resetModules();
+      return await import("../hooks/useStartupNotice");
+    }
+
+    it("marque une installation VRAIMENT neuve", async () => {
+      const m = await chargerAvec({});
+      m.markFirstBuild("22");
+      expect(localStorage.getItem("cave-first-build")).toBe("22");
+    });
+
+    it("ne marque PAS une installation qui a déjà tourné — le cœur du garde", async () => {
+      const m = await chargerAvec({ "cave-last-build": "20" });
+      m.markFirstBuild("22");
+      expect(localStorage.getItem("cave-first-build"),
+        "la tamponner la ferait passer pour neuve et lui retirerait l'avis").toBeNull();
+    });
+
+    it("n'écrase jamais une marque existante", async () => {
+      const m = await chargerAvec({ "cave-first-build": "9" });
+      m.markFirstBuild("22");
+      expect(localStorage.getItem("cave-first-build")).toBe("9");
+    });
+
+    it("est idempotente : deux appels ne changent rien au résultat", async () => {
+      const m = await chargerAvec({});
+      m.markFirstBuild("22");
+      m.markFirstBuild("23");
+      expect(localStorage.getItem("cave-first-build")).toBe("22");
+    });
+  });
+
   it("sans public, l'avis s'adresse à tout le monde (comportement d'avant)", () => {
     for (const env of [ios, neuf, navigateur]) {
       expect(audienceMatches(undefined, env)).toBe(true);
