@@ -5,7 +5,7 @@
 // LE SEUL IMPORT DE CE FICHIER, et il est sûr : `utils/platform.ts` n'importe
 // rien lui-même, donc aucun cycle. Il sert au plancher d'en-tête, qui doit
 // distinguer l'autonome iOS (voir HEADER_TOP_FLOOR) du reste du monde.
-import { IS_IOS_STANDALONE, IS_IPHONE } from "./utils/platform.ts";
+import { IS_IOS_STANDALONE } from "./utils/platform.ts";
 
 export const C = {
   // The surface tokens (page grounds + card + borders) are
@@ -750,62 +750,45 @@ export function safeTop(floor: string): string {
 // liseré et de tous les glyphes est inchangée — c'est cela qui avait été
 // rapporté comme corrigé, et c'est cela qui est préservé.
 //
-// ── ET LE TÉLÉPHONE A SA PROPRE VALEUR, PARCE QUE SON VOILE EST PLUS COURT ──
+// ── TROIS DESCENTES ONT ÉTÉ FAITES SUR DES SONDES QUI NE S'APPLIQUAIENT PAS ──
 //
-// « Très bas encore non ? » — sur l'iPhone, après le build 28. La mesure qui
-// répond est dans la capture de ce build-là, et elle dit quelque chose que
-// j'avais SUPPOSÉ identique aux deux appareils.
+// CE QUI A ÉTÉ CRU. Après le build 28 puis le 29, trois captures — deux iPhone,
+// une iPad — montraient le liseré des boutons SANS la moindre atténuation à des
+// dégagements de plus en plus courts. J'en ai tiré, à chaque fois, que le voile
+// était plus court que je ne le croyais : 38 → 28 côté iPad, 28 → 18 puis moins
+// côté iPhone, et le dégagement est descendu avec.
 //
-// LE LISERÉ DU BOUTON N'EST PAS FLOU SUR IPHONE, à 28 px de dégagement. Profil
-// de luminance du liseré, de son premier rang à son dernier :
-// `51, 50, 50, 49, 50, 52, 51, 51, 51, 51` en haut et `51 … 49, 49, 49, 49` en
-// bas — aucune atténuation. Or le bouton commence à 89,3 pt et la vue web à
-// 61,3 pt (89,3 − 28) : si le voile descendait de 38 px comme sur l'iPad, il
-// finirait à 99,3 pt et mangerait les dix premiers rangs du liseré. Il ne les
-// mange pas. **Le voile de l'iPhone est donc au plus 28 pt — pas 38.**
+// CE QUI CLOCHE, ET C'EST ARITHMÉTIQUE. Le seul couple de captures où le voile
+// est DÉMONTRÉ actif est celui des builds 25/26 (iPad). Il donne, en profondeur
+// sous le haut de la vue web : **26 px → 36 % de netteté, 32 px → 50 %,
+// 38 px → 100 %**. La capture iPad du build 29 place le haut du liseré à 28 px
+// de profondeur et le trouve à 100 %. Les deux ne peuvent pas décrire la même
+// bande : à 28 px, la première prédit environ 40 %.
 //
-// LA MÊME RÈGLE, AVEC LA BORNE DE L'APPAREIL : `dégagement + 14 ≥ voile`. Sur
-// l'iPad, 28 + 14 ≥ 38. Sur l'iPhone, 18 + 14 ≥ 28 — mêmes 4 pt de marge, 10 pt
-// rendus. Ce n'est pas un chiffre choisi, c'est la formule appliquée à une
-// seconde mesure.
+// L'EXPLICATION EST DANS LE COMPORTEMENT MÊME DU VOILE, ET ELLE ÉTAIT CONNUE
+// DEPUIS LA PREMIÈRE PAIRE : **il n'apparaît qu'APRÈS une navigation.** Au
+// lancement, l'écran est net — c'est très exactement ce que la paire 25/26
+// montrait. Une capture prise sur une app fraîchement ouverte ne contient donc
+// aucune bande à mesurer, et une sonde qui ne s'applique pas ne prouve rien,
+// verte comme rouge. Les trois « resserrements » mesuraient probablement son
+// ABSENCE.
 //
-// LA BORNE DE L'IPHONE EST UN MAJORANT, dit plutôt que découvert : 28 était ce
-// que la capture EXCLUAIT, pas ce qu'elle établissait — le voile pouvait y être
-// bien plus court. Seule une descente supplémentaire le dirait.
+// CE QUI RESTE VRAI, ET C'EST TOUT : le voile de l'iPad descend entre **32 et
+// 38 px CSS** dans la vue web (seule mesure prise avec le voile actif), donc il
+// faut `dégagement + 14 ≥ 38`, soit **24 au minimum**. C'est la valeur qui est
+// livrée, et elle n'a aucune marge au-delà du pire cas.
 //
-// LA DESCENTE A EU LIEU, ET ELLE A RESSERRÉ LA BORNE À 18. Capture du build 29,
-// même appareil : le liseré commence à 78,7 pt (la vue web à 60,7) et son profil
-// de luminance vaut `47, 50, 50, 49, 49, 49, 49, 49, 49, 49, 50, 51` en haut
-// contre `51, 51, 48, 50, 49, 50, 48, 49, 50, 50, 50, 51` en bas — toujours
-// aucune atténuation, le 47 initial étant l'angle arrondi. Le voile de l'iPhone
-// fait donc **au plus 18 pt**, et non 28.
+// LA DISTINCTION TÉLÉPHONE / TABLETTE TOMBE AVEC LES SONDES QUI L'AVAIENT
+// PRODUITE. Aucune capture iPhone n'a jamais montré le voile actif — on n'a donc
+// AUCUNE mesure de sa profondeur là-bas, et lui donner une valeur plus courte
+// était une conclusion tirée d'un écran où il n'y avait rien à voir. `IS_IPHONE`
+// est retiré avec elle.
 //
-// ── ET LA MÊME CHOSE S'EST PRODUITE SUR L'IPAD : 38 ÉTAIT AUSSI UN MAJORANT ──
-//
-// Capture iPad du build 29 : liseré à 60..103 px CSS (donc vue web à 32), profil
-// `48, 48, 49, 48, 48, 47, 48, 48, 49, 49` en haut contre
-// `48, 48, 48, 47, 49, 48, 47, 48, 50, 49` en bas. Aucune atténuation. Un voile
-// de 38 px finirait à 70 et mangerait le haut du liseré : il ne le mange pas,
-// donc **le voile de l'iPad fait au plus 28 px CSS**, et non 38.
-//
-// C'EST UNE DICHOTOMIE VERS LE BAS, et il faut la lire comme telle : chaque
-// descente qui ne floute rien PROUVE que le majorant précédent était trop
-// large. Trois fois de suite, la mesure a dit « moins que ça ». Ce que ces
-// captures établissent est toujours une BORNE SUPÉRIEURE, jamais la profondeur
-// réelle — qui reste inconnue et peut être nulle.
-//
-// LA MARGE DE SÉCURITÉ EST TOMBÉE À ZÉRO, À LA DEMANDE DE L'UTILISATEUR
-// (« la marge est aussi un peu grande non ? »). `dégagement + 14 = majorant`
-// exactement, des deux côtés : 14 + 14 = 28 sur l'iPad, 4 + 14 = 18 sur
-// l'iPhone. L'encre se pose donc au bord de ce que les captures EXCLUENT — pas
-// au-delà, mais sans coussin. Si un mot-symbole s'adoucit, c'est que le
-// majorant de cet appareil-là était atteint : remonter ce seul nombre d'un
-// cran, et la borne du fichier avec lui.
-export var HEADER_BAND_CLEARANCE_PX = 14;
-export var HEADER_BAND_CLEARANCE_PHONE_PX = 4;
-export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE
-  ? `${IS_IPHONE ? HEADER_BAND_CLEARANCE_PHONE_PX : HEADER_BAND_CLEARANCE_PX}px`
-  : "6px";
+// POUR MESURER POUR DE BON, la capture doit être prise APRÈS avoir quitté
+// l'accueil et y être revenu. C'est la seule condition qui rend la sonde
+// applicable, et elle ne se voit pas sur l'image — d'où cette note.
+export var HEADER_BAND_CLEARANCE_PX = 24;
+export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE ? `${HEADER_BAND_CLEARANCE_PX}px` : "6px";
 
 /** Le haut des TROIS en-têtes de page. Un `max(inset − retrait, plancher)`
  *  partout, SAUF en autonome iOS où le plancher gouverne seul.

@@ -28,32 +28,23 @@ import { readFileSync } from "node:fs";
 
 const SRC = "src/theme-curator.ts";
 
-/** Le MAJORANT du voile DANS la vue web sur tablette, en px CSS — resserré deux
- *  fois, comme celui du téléphone.
+/** LA SEULE MESURE VALIDE du voile : profondeur, sous le haut de la vue web,
+ *  en px CSS — et elle vient du SEUL couple de captures où le voile est
+ *  DÉMONTRÉ actif, celui des builds 25/26 sur iPad.
  *
- *  Build 25, dégagement 6 : le voile agit encore à `y = 128` px écran (contraste
- *  56 contre 113) et plus du tout à `y = 140` (28 contre 28) ; vue web à 64,
- *  donc (140−64)/2 = 38.
- *  Build 29, dégagement 28 : liseré du bouton à 60..103 px CSS (vue web à 32),
- *  profil `48, 48, 49, 48, 48, 47, 48, 48, 49, 49` en haut contre
- *  `48, 48, 48, 47, 49, 48, 47, 48, 50, 49` en bas — aucune atténuation. Un
- *  voile de 38 finirait à 70 et mangerait le haut du liseré → voile ≤ 28.
+ *  26 px de profondeur → 36 % de netteté, 32 px → 50 %, 38 px → 100 %. On prend
+ *  le pire cas : 38.
  *
- *  Comme pour le téléphone, c'est ce que les captures EXCLUENT, pas la
- *  profondeur réelle. */
-const VOILE_PX = 28;
-
-/** Le même majorant pour l'iPhone, et il est PLUS COURT — resserré deux fois,
- *  par deux captures du même appareil.
- *
- *  Build 28, dégagement 28 : liseré non atténué (`51, 50, 50, 49, 50, 52, …`
- *  en haut comme en bas), bouton à 89,3 pt, vue web à 61,3 → voile ≤ 28.
- *  Build 29, dégagement 18 : liseré toujours non atténué (`47, 50, 50, 49, …`,
- *  le 47 étant l'angle arrondi), bouton à 78,7 pt, vue web à 60,7 → voile ≤ 18.
- *
- *  C'est un MAJORANT — ce que les captures EXCLUENT, pas la profondeur réelle,
- *  qui reste inconnue et peut être bien moindre. */
-const VOILE_PHONE_PX = 18;
+ *  TROIS « RESSERREMENTS » DE CETTE BORNE ONT ÉTÉ ANNULÉS, et il faut savoir
+ *  pourquoi pour ne pas les refaire. Des captures ultérieures (iPhone 28 puis
+ *  18, iPad 28) montraient le liseré parfaitement net et j'en ai conclu que le
+ *  voile était plus court. Or la capture iPad du build 29 place le haut du
+ *  liseré à 28 px de profondeur et le trouve à 100 %, quand la mesure ci-dessus
+ *  y prédit ~40 % : les deux ne décrivent pas la même bande. L'explication est
+ *  dans le voile lui-même — **il n'apparaît qu'après une navigation**, donc une
+ *  capture prise sur une app fraîchement ouverte ne contient rien à mesurer.
+ *  Une sonde qui ne s'applique pas ne prouve rien, verte comme rouge. */
+const VOILE_PX = 38;
 
 /** De combien l'ENCRE descend sous le haut de sa cible tactile — le centrage
  *  dans la rangée de 44 px. MESURÉ sur la capture du build 26 : le bouton
@@ -63,13 +54,14 @@ const ENCRE_SOUS_LE_BOUTON_PX = 14;
 describe("le plancher d'en-tête dégage la bande floue d'iOS", () => {
   it("aucun GLYPHE n'entre dans le voile, sur CHAQUE classe d'appareil", async () => {
     const m = await import("../theme-curator.ts");
-    // UNE TABLE, PAS DEUX CAS RECOPIÉS : la règle est la même des deux côtés
-    // (`dégagement + encre ≥ voile`), seule la borne change — et c'est le
-    // constat qui a produit la seconde valeur. Une troisième classe d'appareil
-    // s'ajoute ici en une ligne, avec sa mesure.
+    // UNE TABLE POUR UNE SEULE CLASSE, ET C'EST VOULU. Il y en a eu deux — une
+    // valeur plus courte pour le téléphone — retirée avec les sondes qui
+    // l'avaient produite : aucune capture iPhone n'a jamais montré le voile
+    // ACTIF, donc sa profondeur y est inconnue et la tablette est la borne
+    // prudente. La forme reste une table pour qu'une classe mesurée pour de
+    // bon s'y ajoute en une ligne, avec sa mesure.
     const classes: Array<[string, number, number]> = [
-      ["tablette", m.HEADER_BAND_CLEARANCE_PX, VOILE_PX],
-      ["téléphone", m.HEADER_BAND_CLEARANCE_PHONE_PX, VOILE_PHONE_PX],
+      ["tous appareils", m.HEADER_BAND_CLEARANCE_PX, VOILE_PX],
     ];
     let vus = 0;
     for (const [nom, degagement, voile] of classes) {
@@ -90,17 +82,7 @@ describe("le plancher d'en-tête dégage la bande floue d'iOS", () => {
       ).toBeLessThanOrEqual(voile);
       vus++;
     }
-    expect(vus, "aucune classe examinée — la garde est vide").toBe(2);
-  });
-
-  it("le téléphone ne paie pas la géométrie de la tablette", async () => {
-    // La raison d'être de la seconde valeur. Si les deux redeviennent égales,
-    // c'est qu'on a « simplifié » en reperdant les 10 pt que la mesure iPhone
-    // a rendus — ou, dans l'autre sens, qu'on a appliqué au iPad une borne qui
-    // n'est pas la sienne.
-    const m = await import("../theme-curator.ts");
-    expect(m.HEADER_BAND_CLEARANCE_PHONE_PX, "les deux classes ont refusionné")
-      .toBeLessThan(m.HEADER_BAND_CLEARANCE_PX);
+    expect(vus, "aucune classe examinée — la garde est vide").toBe(1);
   });
 
   it("le plancher est GATÉ, et lu depuis la source", () => {
@@ -119,8 +101,6 @@ describe("le plancher d'en-tête dégage la bande floue d'iOS", () => {
       .toContain("IS_IOS_STANDALONE");
     expect(String(ligne), "le plancher n'utilise plus la constante de dégagement mesurée")
       .toContain("HEADER_BAND_CLEARANCE_PX");
-    expect(String(ligne), "le plancher ne distingue plus le téléphone de la tablette")
-      .toContain("IS_IPHONE");
   });
 
   it("hors autonome iOS, le plancher reste compact", async () => {
