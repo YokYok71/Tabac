@@ -28,10 +28,20 @@ import { readFileSync } from "node:fs";
 
 const SRC = "src/theme-curator.ts";
 
-/** La profondeur du voile DANS la vue web, en px CSS, prise au PIRE CAS. Il agit
- *  encore à `y = 128` px écran (contraste 56 contre 113) et plus du tout à
- *  `y = 140` (28 contre 28) ; la vue web commence à `y = 64`, donc (140−64)/2. */
-const VOILE_PX = 38;
+/** Le MAJORANT du voile DANS la vue web sur tablette, en px CSS — resserré deux
+ *  fois, comme celui du téléphone.
+ *
+ *  Build 25, dégagement 6 : le voile agit encore à `y = 128` px écran (contraste
+ *  56 contre 113) et plus du tout à `y = 140` (28 contre 28) ; vue web à 64,
+ *  donc (140−64)/2 = 38.
+ *  Build 29, dégagement 28 : liseré du bouton à 60..103 px CSS (vue web à 32),
+ *  profil `48, 48, 49, 48, 48, 47, 48, 48, 49, 49` en haut contre
+ *  `48, 48, 48, 47, 49, 48, 47, 48, 50, 49` en bas — aucune atténuation. Un
+ *  voile de 38 finirait à 70 et mangerait le haut du liseré → voile ≤ 28.
+ *
+ *  Comme pour le téléphone, c'est ce que les captures EXCLUENT, pas la
+ *  profondeur réelle. */
+const VOILE_PX = 28;
 
 /** Le même majorant pour l'iPhone, et il est PLUS COURT — resserré deux fois,
  *  par deux captures du même appareil.

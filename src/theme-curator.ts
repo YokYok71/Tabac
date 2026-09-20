@@ -780,14 +780,29 @@ export function safeTop(floor: string): string {
 // aucune atténuation, le 47 initial étant l'angle arrondi. Le voile de l'iPhone
 // fait donc **au plus 18 pt**, et non 28.
 //
-// CE QUE ÇA LAISSERAIT ENCORE : `dégagement + 14 ≥ 18` autorise jusqu'à 4. Le
-// dégagement n'est donc plus ce qui borne la hauteur sur iPhone — les 14 pt de
-// centrage suffiraient presque à eux seuls. On s'arrête ici parce que
-// l'utilisateur a jugé le résultat bon, PAS parce que la mesure l'impose : si
-// la question revient, c'est ce chiffre-là qu'il faut descendre, et la borne
-// n'est toujours qu'un majorant.
-export var HEADER_BAND_CLEARANCE_PX = 28;
-export var HEADER_BAND_CLEARANCE_PHONE_PX = 18;
+// ── ET LA MÊME CHOSE S'EST PRODUITE SUR L'IPAD : 38 ÉTAIT AUSSI UN MAJORANT ──
+//
+// Capture iPad du build 29 : liseré à 60..103 px CSS (donc vue web à 32), profil
+// `48, 48, 49, 48, 48, 47, 48, 48, 49, 49` en haut contre
+// `48, 48, 48, 47, 49, 48, 47, 48, 50, 49` en bas. Aucune atténuation. Un voile
+// de 38 px finirait à 70 et mangerait le haut du liseré : il ne le mange pas,
+// donc **le voile de l'iPad fait au plus 28 px CSS**, et non 38.
+//
+// C'EST UNE DICHOTOMIE VERS LE BAS, et il faut la lire comme telle : chaque
+// descente qui ne floute rien PROUVE que le majorant précédent était trop
+// large. Trois fois de suite, la mesure a dit « moins que ça ». Ce que ces
+// captures établissent est toujours une BORNE SUPÉRIEURE, jamais la profondeur
+// réelle — qui reste inconnue et peut être nulle.
+//
+// LA MARGE DE SÉCURITÉ EST TOMBÉE À ZÉRO, À LA DEMANDE DE L'UTILISATEUR
+// (« la marge est aussi un peu grande non ? »). `dégagement + 14 = majorant`
+// exactement, des deux côtés : 14 + 14 = 28 sur l'iPad, 4 + 14 = 18 sur
+// l'iPhone. L'encre se pose donc au bord de ce que les captures EXCLUENT — pas
+// au-delà, mais sans coussin. Si un mot-symbole s'adoucit, c'est que le
+// majorant de cet appareil-là était atteint : remonter ce seul nombre d'un
+// cran, et la borne du fichier avec lui.
+export var HEADER_BAND_CLEARANCE_PX = 14;
+export var HEADER_BAND_CLEARANCE_PHONE_PX = 4;
 export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE
   ? `${IS_IPHONE ? HEADER_BAND_CLEARANCE_PHONE_PX : HEADER_BAND_CLEARANCE_PX}px`
   : "6px";
