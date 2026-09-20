@@ -33,13 +33,17 @@ const SRC = "src/theme-curator.ts";
  *  `y = 140` (28 contre 28) ; la vue web commence à `y = 64`, donc (140−64)/2. */
 const VOILE_PX = 38;
 
-/** Le même majorant pour l'iPhone, et il est PLUS COURT. À 28 px de dégagement
- *  (build 28) le liseré du bouton n'est pas atténué d'un rang — `51, 50, 50,
- *  49, 50, 52, …` en haut comme en bas — alors que le bouton commence à 89,3 pt
- *  et la vue web à 61,3 pt : un voile de 38 px finirait à 99,3 pt et mangerait
- *  ses dix premiers rangs. C'est donc un MAJORANT (ce que la capture exclut),
- *  pas une mesure de la profondeur réelle. */
-const VOILE_PHONE_PX = 28;
+/** Le même majorant pour l'iPhone, et il est PLUS COURT — resserré deux fois,
+ *  par deux captures du même appareil.
+ *
+ *  Build 28, dégagement 28 : liseré non atténué (`51, 50, 50, 49, 50, 52, …`
+ *  en haut comme en bas), bouton à 89,3 pt, vue web à 61,3 → voile ≤ 28.
+ *  Build 29, dégagement 18 : liseré toujours non atténué (`47, 50, 50, 49, …`,
+ *  le 47 étant l'angle arrondi), bouton à 78,7 pt, vue web à 60,7 → voile ≤ 18.
+ *
+ *  C'est un MAJORANT — ce que les captures EXCLUENT, pas la profondeur réelle,
+ *  qui reste inconnue et peut être bien moindre. */
+const VOILE_PHONE_PX = 18;
 
 /** De combien l'ENCRE descend sous le haut de sa cible tactile — le centrage
  *  dans la rangée de 44 px. MESURÉ sur la capture du build 26 : le bouton

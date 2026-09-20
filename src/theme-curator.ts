@@ -769,10 +769,23 @@ export function safeTop(floor: string): string {
 // rendus. Ce n'est pas un chiffre choisi, c'est la formule appliquée à une
 // seconde mesure.
 //
-// LA BORNE DE L'IPHONE EST UN MAJORANT, dit plutôt que découvert : 28 est ce
-// que la capture EXCLUT, pas ce qu'elle établit — le voile peut y être bien
-// plus court. Seule une descente supplémentaire le dirait, et elle se paierait
-// d'un aller-retour sur l'appareil.
+// LA BORNE DE L'IPHONE EST UN MAJORANT, dit plutôt que découvert : 28 était ce
+// que la capture EXCLUAIT, pas ce qu'elle établissait — le voile pouvait y être
+// bien plus court. Seule une descente supplémentaire le dirait.
+//
+// LA DESCENTE A EU LIEU, ET ELLE A RESSERRÉ LA BORNE À 18. Capture du build 29,
+// même appareil : le liseré commence à 78,7 pt (la vue web à 60,7) et son profil
+// de luminance vaut `47, 50, 50, 49, 49, 49, 49, 49, 49, 49, 50, 51` en haut
+// contre `51, 51, 48, 50, 49, 50, 48, 49, 50, 50, 50, 51` en bas — toujours
+// aucune atténuation, le 47 initial étant l'angle arrondi. Le voile de l'iPhone
+// fait donc **au plus 18 pt**, et non 28.
+//
+// CE QUE ÇA LAISSERAIT ENCORE : `dégagement + 14 ≥ 18` autorise jusqu'à 4. Le
+// dégagement n'est donc plus ce qui borne la hauteur sur iPhone — les 14 pt de
+// centrage suffiraient presque à eux seuls. On s'arrête ici parce que
+// l'utilisateur a jugé le résultat bon, PAS parce que la mesure l'impose : si
+// la question revient, c'est ce chiffre-là qu'il faut descendre, et la borne
+// n'est toujours qu'un majorant.
 export var HEADER_BAND_CLEARANCE_PX = 28;
 export var HEADER_BAND_CLEARANCE_PHONE_PX = 18;
 export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE
