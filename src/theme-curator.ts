@@ -5,7 +5,7 @@
 // LE SEUL IMPORT DE CE FICHIER, et il est sûr : `utils/platform.ts` n'importe
 // rien lui-même, donc aucun cycle. Il sert au plancher d'en-tête, qui doit
 // distinguer l'autonome iOS (voir HEADER_TOP_FLOOR) du reste du monde.
-import { IS_IOS_STANDALONE } from "./utils/platform.ts";
+import { IS_IOS_STANDALONE, IS_IPHONE } from "./utils/platform.ts";
 
 export const C = {
   // The surface tokens (page grounds + card + borders) are
@@ -809,7 +809,35 @@ export function safeTop(floor: string): string {
 // de l'encre appartient à iOS (la bande d'état réservée) et aux 14 px de
 // centrage dans la cible tactile de 44 px, qui est un minimum d'accessibilité.
 export var HEADER_BAND_CLEARANCE_PX = 24;
-export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE ? `${HEADER_BAND_CLEARANCE_PX}px` : "6px";
+
+// ── L'IPHONE REPREND SA VALEUR, CETTE FOIS SUR UNE SONDE QUI S'APPLIQUE ──────
+//
+// Une première distinction téléphone/tablette a été retirée parce qu'elle
+// reposait sur des captures prises sans navigation, donc sans voile à mesurer.
+// Celle-ci repose sur la capture iPhone du build 31, dont l'utilisateur
+// CONFIRME avoir quitté l'accueil avant de la prendre — c'est la condition qui
+// manquait, et elle ne peut venir que de lui.
+//
+// CE QUE LA CAPTURE MONTRE. Dégagement 24, vue web à 60,7 pt, donc le liseré
+// des boutons commence à 24 pt de profondeur. Son profil :
+// `50, 49, 48, 48, 47, 50, 49, 51, 52, 52, 52, 52` — plat dès le premier rang,
+// à la même valeur que son bas. Sur l'iPad, au même build et au même endroit,
+// il montait de 33 à 46 : une rampe de 39 %. **Le voile de l'iPhone finit donc
+// AVANT 24 pt**, là où celui de l'iPad finit à 38.
+//
+// CE QUE ÇA VAUT, ET C'EST MOINS QUE CÔTÉ IPAD — dit ici parce que la nuance
+// est exactement celle qui a produit l'erreur précédente. Sur l'iPad, la rampe
+// est sa PROPRE preuve d'applicabilité : on voit le voile agir. Sur l'iPhone il
+// n'y a rien à voir, et l'applicabilité repose sur une déclaration. C'est une
+// BORNE SUPÉRIEURE (≤ 24), pas la profondeur : elle peut être bien moindre.
+//
+// `dégagement + 14 ≥ 24` donne **10**, et l'encre se pose au premier rang dont
+// on sait qu'il est propre — même règle que l'iPad, sans marge, comme demandé.
+export var HEADER_BAND_CLEARANCE_PHONE_PX = 10;
+
+export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE
+  ? `${IS_IPHONE ? HEADER_BAND_CLEARANCE_PHONE_PX : HEADER_BAND_CLEARANCE_PX}px`
+  : "6px";
 
 /** Le haut des TROIS en-têtes de page. Un `max(inset − retrait, plancher)`
  *  partout, SAUF en autonome iOS où le plancher gouverne seul.

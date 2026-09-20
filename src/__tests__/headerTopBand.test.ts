@@ -56,6 +56,23 @@ const SRC = "src/theme-curator.ts";
  *  minimum EXACT — un pixel de moins fait rentrer l'encre dans le voile. */
 const VOILE_PX = 38;
 
+/** LE MAJORANT DU VOILE SUR TÉLÉPHONE, et il vaut moins que sur tablette — mais
+ *  il est établi PLUS FAIBLEMENT, ce qu'il faut dire puisque c'est la nuance
+ *  qui a produit l'erreur précédente.
+ *
+ *  Capture iPhone du build 31 (dégagement 24, vue web à 60,7 pt) : le liseré
+ *  des boutons commence donc à 24 pt de profondeur, et son profil est
+ *  `50, 49, 48, 48, 47, 50, 49, 51, 52, 52, 52, 52` — PLAT dès le premier rang,
+ *  à la valeur de son bas. Au même build et au même endroit, l'iPad monte de
+ *  33 à 46 : une rampe de 39 %. Le voile du téléphone finit donc avant 24 pt.
+ *
+ *  LA DIFFÉRENCE DE FORCE : côté iPad, la rampe est sa propre preuve que le
+ *  voile était actif. Côté iPhone il n'y a rien à voir, et l'applicabilité de
+ *  la sonde repose sur la déclaration de l'utilisateur (« oui j'ai quitté
+ *  l'accueil »). C'est ce qui rend 24 une BORNE SUPÉRIEURE et non une mesure :
+ *  la profondeur réelle peut être bien moindre. */
+const VOILE_PHONE_PX = 24;
+
 /** De combien l'ENCRE descend sous le haut de sa cible tactile — le centrage
  *  dans la rangée de 44 px. MESURÉ sur la capture du build 26 : le bouton
  *  occupe `y = 144..228` px écran, l'encre `y = 172..200`, soit 28 px écran. */
@@ -64,14 +81,15 @@ const ENCRE_SOUS_LE_BOUTON_PX = 14;
 describe("le plancher d'en-tête dégage la bande floue d'iOS", () => {
   it("aucun GLYPHE n'entre dans le voile, sur CHAQUE classe d'appareil", async () => {
     const m = await import("../theme-curator.ts");
-    // UNE TABLE POUR UNE SEULE CLASSE, ET C'EST VOULU. Il y en a eu deux — une
-    // valeur plus courte pour le téléphone — retirée avec les sondes qui
-    // l'avaient produite : aucune capture iPhone n'a jamais montré le voile
-    // ACTIF, donc sa profondeur y est inconnue et la tablette est la borne
-    // prudente. La forme reste une table pour qu'une classe mesurée pour de
-    // bon s'y ajoute en une ligne, avec sa mesure.
+    // DEUX CLASSES, ET LA SECONDE A ÉTÉ RETIRÉE PUIS REMISE. La règle est la
+    // même des deux côtés (`dégagement + encre ≥ voile`), seule la borne
+    // change. La première version de la ligne « téléphone » reposait sur des
+    // captures sans voile actif et a été supprimée ; celle-ci repose sur une
+    // capture dont l'utilisateur atteste la navigation préalable — plus faible
+    // que la rampe auto-démonstrative de l'iPad, et dit comme tel au-dessus.
     const classes: Array<[string, number, number]> = [
-      ["tous appareils", m.HEADER_BAND_CLEARANCE_PX, VOILE_PX],
+      ["tablette", m.HEADER_BAND_CLEARANCE_PX, VOILE_PX],
+      ["téléphone", m.HEADER_BAND_CLEARANCE_PHONE_PX, VOILE_PHONE_PX],
     ];
     let vus = 0;
     for (const [nom, degagement, voile] of classes) {
@@ -92,7 +110,16 @@ describe("le plancher d'en-tête dégage la bande floue d'iOS", () => {
       ).toBeLessThanOrEqual(voile);
       vus++;
     }
-    expect(vus, "aucune classe examinée — la garde est vide").toBe(1);
+    expect(vus, "aucune classe examinée — la garde est vide").toBe(2);
+  });
+
+  it("le téléphone ne paie pas la géométrie de la tablette", async () => {
+    // Si les deux valeurs se rejoignent, c'est soit qu'on a reperdu les 14 pt
+    // que la capture iPhone a rendus, soit qu'on a appliqué au iPad une borne
+    // qui n'est pas la sienne. Les deux méritent de rougir.
+    const m = await import("../theme-curator.ts");
+    expect(m.HEADER_BAND_CLEARANCE_PHONE_PX, "les deux classes ont refusionné")
+      .toBeLessThan(m.HEADER_BAND_CLEARANCE_PX);
   });
 
   it("le plancher est GATÉ, et lu depuis la source", () => {
@@ -111,6 +138,8 @@ describe("le plancher d'en-tête dégage la bande floue d'iOS", () => {
       .toContain("IS_IOS_STANDALONE");
     expect(String(ligne), "le plancher n'utilise plus la constante de dégagement mesurée")
       .toContain("HEADER_BAND_CLEARANCE_PX");
+    expect(String(ligne), "le plancher ne distingue plus le téléphone de la tablette")
+      .toContain("IS_IPHONE");
   });
 
   it("hors autonome iOS, le plancher reste compact", async () => {

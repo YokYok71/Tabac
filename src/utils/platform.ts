@@ -15,11 +15,23 @@ export var IS_IOS =
   (/iPhone|iPad|iPod/.test(navigator.userAgent) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
-// IL Y A EU UN `IS_IPHONE` ICI, ET IL A ÉTÉ RETIRÉ — tombstone, pour que la
-// prochaine session ne le réinvente pas sur le même raisonnement. Il donnait au
-// téléphone un dégagement d'en-tête plus court que la tablette, au motif que le
-// voile d'iOS 26/27 y était moins profond. Cette « mesure » venait de captures
-// iPhone où le voile n'était pas actif : il n'apparaît qu'après une navigation,
-// et rien sur une image ne dit si elle a eu lieu. On n'a donc AUCUNE mesure de
-// sa profondeur sur téléphone — voir `HEADER_BAND_CLEARANCE_PX` dans
-// `theme-curator.ts` pour l'arithmétique qui a démasqué la contradiction.
+// `IS_IPHONE` A ÉTÉ RETIRÉ PUIS REMIS, ET LES DEUX FOIS COMPTENT.
+//
+// Il donne au téléphone un dégagement d'en-tête plus court que la tablette,
+// parce que le voile d'iOS 26/27 y est moins profond. Une PREMIÈRE version l'a
+// été sur des captures iPhone où le voile n'était PAS actif — il n'apparaît
+// qu'après une navigation, et rien sur une image ne le dit — donc elle mesurait
+// son absence. Elle a été supprimée.
+//
+// LA SECONDE REPOSE SUR UNE CAPTURE DONT L'APPLICABILITÉ EST ÉTABLIE : celle du
+// build 31, dont l'utilisateur confirme avoir quitté l'accueil avant de la
+// prendre. Voir `HEADER_BAND_CLEARANCE_PHONE_PX` dans `theme-curator.ts` pour
+// la mesure et pour ce qu'elle établit exactement — qui est moins que sur
+// l'iPad, et dit comme tel.
+//
+// La forme est volontairement l'inverse de `IS_IOS` : on ne teste QUE le
+// téléphone, parce que l'iPad se déclare « MacIntel » depuis iPadOS 13 et
+// qu'une liste qui l'énumère se trompe au premier modèle suivant. Tout ce qui
+// n'est pas un iPhone retombe sur la valeur tablette, qui est la prudente.
+export var IS_IPHONE =
+  typeof navigator !== "undefined" && /iPhone|iPod/.test(navigator.userAgent);
