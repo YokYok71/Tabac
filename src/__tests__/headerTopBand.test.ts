@@ -114,11 +114,34 @@ describe("en autonome iOS, le plancher prend le dégagement", () => {
   });
 
   it("les trois en-têtes reçoivent la valeur gatée par la MÊME constante", async () => {
-    // Elles passent toutes par `safeTop(HEADER_TOP_FLOOR)` — recensé par
-    // docChecks — donc il suffit que l'expression produite porte la valeur.
-    const { safeTop, HEADER_TOP_FLOOR } = await import("../theme-curator.ts");
-    const css = safeTop(HEADER_TOP_FLOOR);
-    expect(css, "l'expression CSS ne porte plus le plancher").toContain(HEADER_TOP_FLOOR);
-    expect(css, "le plancher doit rester un plancher : `max(...)`").toMatch(/^max\(/);
+    // Elles passent toutes par `headerTop()` — recensé par docChecks — donc il
+    // suffit que l'expression produite porte la valeur.
+    const { headerTop, HEADER_TOP_FLOOR } = await import("../theme-curator.ts");
+    expect(headerTop(), "l'expression ne porte plus le plancher").toContain(HEADER_TOP_FLOOR);
+  });
+
+  /**
+   * L'INSET DOUBLE-COMPTE LA BANDE D'ÉTAT, ET C'EST CE QUE CETTE GARDE TIENT.
+   *
+   * Depuis le build 16, `apple-mobile-web-app-status-bar-style: default` fait
+   * RÉSERVER la bande par iOS — et `env(safe-area-inset-top)` continue de la
+   * mesurer depuis le haut de l'écran. MESURÉ sur l'iPhone de l'utilisateur
+   * (capture du build 27, 1184 × 2576 à 3×) : glyphes système jusqu'à 39 pt,
+   * bouton d'icône à 101 pt, encre à 115 pt — contre ~74 pt sur l'iPad, dont
+   * l'inset vaut ~0. L'écart, 47 pt, est exactement `59 − 12` : une marge
+   * ajoutée pour un espace déjà reçu.
+   *
+   * La garde exige donc qu'en autonome AUCUN `env()` ne subsiste dans la valeur
+   * — c'est la seule chose qui distingue « le plancher gouverne » de « le
+   * plancher est un minimum ».
+   */
+  it("en autonome, l'en-tête n'ajoute PAS l'inset déjà réservé", async () => {
+    const src = readFileSync(SRC, "utf8");
+    const corps = (src.match(/export function headerTop\(\)[^}]*\}/) || [])[0];
+    expect(corps, "headerTop introuvable — la garde ne s'applique plus").toBeTruthy();
+    expect(String(corps), "headerTop ne distingue plus l'autonome iOS")
+      .toContain("IS_IOS_STANDALONE");
+    expect(String(corps), "la branche autonome doit rendre le plancher NU, sans safeTop")
+      .toMatch(/\?\s*HEADER_TOP_FLOOR\s*:/);
   });
 });

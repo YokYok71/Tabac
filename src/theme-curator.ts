@@ -739,8 +739,10 @@ export function safeTop(floor: string): string {
 // LA BORNE DU VOILE, honnêtement : il agit encore à `y = 128` (contraste 56
 // contre 113) et plus du tout à `y = 140` (28 contre 28). On prend donc le pire
 // cas, 140. La vue web commençant à 64, il faut `clearance + 14 ≥ 38` px CSS,
-// soit 24 au minimum. 28 laisse **20 px écran de marge** sur l'encre et rend
-// 12 px de hauteur à chaque écran.
+// soit 24 au minimum. 28 laisse **4 px CSS (8 px écran) de marge** sur l'encre
+// et rend 12 px de hauteur à chaque écran. (Ce chiffre a d'abord été écrit
+// « 20 px écran » : c'était l'écart entre la fin du voile et le HAUT DU BOUTON,
+// pas l'encre — la cote même dont ce paragraphe dit qu'elle est la mauvaise.)
 //
 // CE QUE ÇA CONCÈDE, dit plutôt que découvert : entre 28 et 38, le HAUT DU
 // LISERÉ des boutons trempe dans la queue du voile et s'adoucit un peu. C'est
@@ -749,3 +751,37 @@ export function safeTop(floor: string): string {
 // rapporté comme corrigé, et c'est cela qui est préservé.
 export var HEADER_BAND_CLEARANCE_PX = 28;
 export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE ? `${HEADER_BAND_CLEARANCE_PX}px` : "6px";
+
+/** Le haut des TROIS en-têtes de page. Un `max(inset − retrait, plancher)`
+ *  partout, SAUF en autonome iOS où le plancher gouverne seul.
+ *
+ *  POURQUOI : EN AUTONOME, L'INSET DOUBLE-COMPTE LA BANDE D'ÉTAT. Depuis le
+ *  build 16 le manifeste déclare `apple-mobile-web-app-status-bar-style:
+ *  default`, donc iOS RÉSERVE la bande et démarre la vue web dessous — et
+ *  `env(safe-area-inset-top)` continue pourtant de la mesurer, depuis le haut
+ *  de l'ÉCRAN. `index.html` le dit déjà, mesuré : « ~59 pt sur un iPhone à îlot
+ *  dynamique, RÉSERVATION OU NON ». L'app ajoutait donc une marge pour un
+ *  espace qu'elle avait déjà reçu.
+ *
+ *  MESURÉ SUR L'iPhone DE L'UTILISATEUR (capture du build 27, 1184 × 2576 à 3×,
+ *  soit 394,7 × 858,7 pt) : les glyphes du système s'arrêtent à **39 pt**, le
+ *  bouton d'icône commence à **101 pt** et l'encre à **115 pt**. Sur l'iPad, la
+ *  même encre est à ~74 pt. L'écart n'est pas un choix de maquette : c'est
+ *  59 − 12 = 47 pt d'inset ajoutés par-dessus une bande déjà réservée.
+ *
+ *  L'iPad NE CHANGE PAS : son inset y vaut ~0, donc `max()` y rendait déjà le
+ *  plancher. Cette fonction ne déplace que les appareils dont l'inset est non
+ *  nul, c'est-à-dire exactement ceux qui payaient deux fois.
+ *
+ *  CE QUI N'EST PAS TOUCHÉ, et c'est délibéré : les six autres planchers
+ *  (bandeaux, modales, visionneuse, portail de conditions) passent toujours par
+ *  `safeTop`. Mettre la règle DANS `safeTop` aurait remonté d'un coup sept
+ *  calques dont aucun n'a été mesuré — un rayon d'action que rien ne justifie.
+ *
+ *  LE RISQUE, dit plutôt que découvert : la profondeur du voile (38 px CSS) a
+ *  été mesurée sur l'iPad et est ici SUPPOSÉE identique sur iPhone. Si elle y
+ *  est plus grande, le haut du mot-symbole s'adoucira et c'est
+ *  `HEADER_BAND_CLEARANCE_PX` — un seul nombre — qu'il faudra remonter. */
+export function headerTop(): string {
+  return IS_IOS_STANDALONE ? HEADER_TOP_FLOOR : safeTop(HEADER_TOP_FLOOR);
+}

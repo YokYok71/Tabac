@@ -2077,20 +2077,30 @@ describe("la marge haute a UNE seule définition", () => {
       }
     }
 
-    // Les trois en-têtes — la « barre de menu du haut » — passent par la
-    // constante, jamais par un littéral.
-    expect((calls["HEADER_TOP_FLOOR"] ?? []).sort()).toEqual([
+    // Les trois en-têtes — la « barre de menu du haut » — passent par
+    // `headerTop()`, jamais par `safeTop` ni par un littéral. Elles s'en sont
+    // détachées le jour où l'on a mesuré que l'inset DOUBLE-COMPTE la bande
+    // d'état en autonome iOS (voir le commentaire de `headerTop`) : ce que
+    // `safeTop` ajoute là-bas a déjà été donné par le système.
+    const enTetes: string[] = [];
+    for (const f of files) {
+      if (f.endsWith("theme-curator.ts")) continue;
+      if (/headerTop\(\)/.test(readFileSync(f, "utf8"))) enTetes.push(f);
+    }
+    expect(enTetes.sort()).toEqual([
       "src/components/curator/FormFields.tsx",
       "src/components/curator/primitives.tsx",
       "src/views/curator/HomeViewV2.tsx",
     ]);
-    // et le littéral qu'ils portaient a bien disparu du dépôt.
+    // et le littéral qu'elles portaient a bien disparu du dépôt.
     expect(calls['"14px"'] ?? []).toEqual(["src/views/curator/LightboxOverlay.tsx"]);
 
-    // Recensement complet : tout autre plancher est un calque (bandeaux,
-    // modales, portail de conditions), pas une barre de menu.
+    // Recensement complet : tout ce qui passe ENCORE par `safeTop` est un
+    // calque (bandeaux, modales, visionneuse, portail de conditions), pas une
+    // barre de menu — et aucun d'eux n'a été mesuré contre le voile, ce qui est
+    // précisément pourquoi la règle n'est pas entrée dans `safeTop`.
     expect(Object.keys(calls).sort()).toEqual([
-      "HEADER_TOP_FLOOR", '"10px"', '"14px"', '"22px"', '"72px"', '"8%"', '"8px"',
+      '"10px"', '"14px"', '"22px"', '"72px"', '"8%"', '"8px"',
     ].sort());
   });
 });

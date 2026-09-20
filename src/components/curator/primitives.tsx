@@ -2,7 +2,7 @@
 // 100% inline styles. Looping animations use the Web Animations API.
 
 import React, { useState, useEffect, useRef } from "react";
-import { alpha, fs, C, F, safeTop, HEADER_TOP_FLOOR } from "../../theme-curator.ts";
+import { alpha, fs, C, F, headerTop } from "../../theme-curator.ts";
 import { Ico, IcoName } from "./icons.tsx";
 import { useAppCtx } from "../../AppContext.tsx";
 import { langAssets } from "../../i18n/languages.ts";
@@ -741,7 +741,7 @@ export function TopBar({
     // number would be wrong on most devices. See InventoryListView's wish
     // reveal.
     <div data-topbar="" style={{
-      paddingTop: safeTop(HEADER_TOP_FLOOR),
+      paddingTop: headerTop(),
       paddingLeft: 12, paddingRight: 12, paddingBottom: 8,
       display: "flex", justifyContent: "space-between", alignItems: "center",
       // Sticky so the top bar stays visible on every page while the
