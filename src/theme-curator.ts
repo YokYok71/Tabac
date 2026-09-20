@@ -2,6 +2,11 @@
 // Imported as `C` (palette) + `F` (fonts) everywhere a colour or typeface
 // is needed. Inline styles only — no className, no CSS file.
 
+// LE SEUL IMPORT DE CE FICHIER, et il est sûr : `utils/platform.ts` n'importe
+// rien lui-même, donc aucun cycle. Il sert au plancher d'en-tête, qui doit
+// distinguer l'autonome iOS (voir HEADER_TOP_FLOOR) du reste du monde.
+import { IS_IOS_STANDALONE } from "./utils/platform.ts";
+
 export const C = {
   // The surface tokens (page grounds + card + borders) are
   // themeable too — var-with-fallback so first paint / SSR shows the classic
@@ -670,4 +675,50 @@ export function safeTop(floor: string): string {
 // centrage recentre) ; seul un alignement en haut les prendrait, au prix d'un
 // titre décollé du milieu de sa propre cible tactile. 44 px est le minimum
 // d'accessibilité — il ne se négocie pas contre 13 px de marge.
-export var HEADER_TOP_FLOOR = "6px";
+//
+// ── ET IL REMONTE, SUR UN SEUL RÉGIME : iOS AUTONOME ────────────────────────
+//
+// CE QUI A ÉTÉ MESURÉ. Deux captures du même iPad — au lancement, puis après
+// un aller-retour de navigation — sur 1640 × 2360 px : **177 lignes diffèrent,
+// toutes dans la bande `y = 0..136`**, et le reste de la page, dock compris,
+// est identique au pixel près. Le titre passe de `#bd9558` à `#302c1e` : la
+// même encre étalée sur plus de pixels, donc un FLOU, pas un voile de couleur.
+//
+// LE DÉTAIL QUI DÉSIGNE LA CAUSE, et qui a fait jeter la première hypothèse.
+// Sur le liseré gauche d'un bouton d'icône — UN SEUL élément, haut de 44 px —
+// le contraste du bord vaut, de haut en bas : `0, 5, 9, 52, 56, 28, 28` contre
+// `26, 28, 28, 144, 113, 28, 28` au lancement. Le HAUT du bouton est effacé, le
+// BAS du MÊME bouton est identique octet pour octet. Une couche de rendu
+// dégradée abîme un élément UNIFORMÉMENT ; seul un voile progressif ancré au
+// BORD HAUT DE L'ÉCRAN fait cela. Il s'annule à ~69 px CSS du haut de l'écran.
+//
+// CE QUE C'EST. L'effet « scroll edge » de Liquid Glass, qu'iOS 26/27 peint sur
+// le bord supérieur des web-apps INSTALLÉES. Aucune CSS ni aucune balise ne le
+// désactive, et `env(safe-area-inset-*)` ne s'agrandit pas pour le compenser.
+// La parade documentée — abandonner `black-translucent` — est DÉJÀ en place
+// depuis le build 16 : elle a retiré le voile du lancement, pas cette bande-ci.
+// Rapporté par l'utilisateur : le flou NE PART PAS en revenant en haut de page,
+// et il touche TOUTES les pages. Il n'y a donc pas d'état à réinitialiser.
+//
+// LE SEUL LEVIER EST LA PLACE, et il suffit parce que le fond de l'en-tête est
+// PLAT : flouter un aplat ne se voit pas. On ne retire donc pas la bande, on
+// cesse d'y mettre du texte. Le contenu de l'en-tête commençait 6 px sous le
+// haut de la vue web, laquelle commence elle-même ~32 px sous le haut de
+// l'écran : titre et icônes vivaient entièrement dedans. 40 px les en sortent
+// avec ~6 px de marge sur les 37 nécessaires.
+//
+// POURQUOI C'EST GATÉ (asymétrie voulue, cf. CLAUDE.md « iOS / Android »). La
+// bande n'existe qu'en autonome sur iOS — le MÊME iPad dans Safari est net, et
+// c'est cette paire-là qui avait déjà tranché au build 16. Faire payer 34 px de
+// hauteur à Android, au navigateur et au bureau pour un effet qu'ils n'ont pas
+// serait exactement l'asymétrie que cet invariant interdit, prise à l'envers.
+// Le plancher ne gouverne d'ailleurs QUE les appareils dont l'inset vaut 0 :
+// là où un inset existe, `safeTop` rend l'inset moins le retrait et cette
+// valeur ne s'applique jamais.
+//
+// CE QUI RESTE DANS LA BANDE, dit plutôt que découvert : les bandeaux fixes du
+// haut (mise à jour, dégustation, erreurs) ont leurs propres planchers — 8, 10,
+// 22 px — et restent donc flous sur ce régime. Ils sont transitoires et écrits
+// gros ; les remonter aussi est une décision séparée, pas un oubli.
+export var HEADER_BAND_CLEARANCE_PX = 40;
+export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE ? `${HEADER_BAND_CLEARANCE_PX}px` : "6px";

@@ -62,6 +62,17 @@
      POUR PIXEL identique à Safari (rgb(224,195,145), luminance 198 des deux
      côtés).
 
+     ET L'HISTOIRE NE S'ARRÊTE PAS LÀ — dit ici parce que c'est ici qu'on vient
+     la lire. `default` a retiré LE VOILE ; il reste, sur iOS 26/27, une BANDE
+     FLOUE au bord haut de l'écran (l'effet « scroll edge » de Liquid Glass),
+     qui n'apparaît qu'après un premier défilement et ne repart plus. Elle est
+     d'une autre nature : le voile teintait uniformément, celle-ci FLOUTE en
+     dégradé — mesurée sur le liseré d'un seul bouton, elle en efface le haut et
+     laisse le bas identique octet pour octet. Aucune CSS ne la désactive.
+     La parade est dans `theme-curator.ts` (HEADER_TOP_FLOOR) : on ne retire pas
+     la bande, on cesse d'y mettre du texte. Voir le commentaire de cette
+     constante pour les mesures et le raisonnement.
+
      LA RÉINSTALLATION EST REQUISE, ET J'AI ÉCRIT DEUX FOIS LE CONTRAIRE ICI.
      Mesure qui tranche, sur l'iPad de l'utilisateur : **build 20 affiché dans
      Réglages, Safari NET sur le même appareil, app installée TROUBLE, jamais
