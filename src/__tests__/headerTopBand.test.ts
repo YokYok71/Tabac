@@ -33,34 +33,60 @@ const SRC = "src/theme-curator.ts";
  *  `y = 140` (28 contre 28) ; la vue web commence à `y = 64`, donc (140−64)/2. */
 const VOILE_PX = 38;
 
+/** Le même majorant pour l'iPhone, et il est PLUS COURT. À 28 px de dégagement
+ *  (build 28) le liseré du bouton n'est pas atténué d'un rang — `51, 50, 50,
+ *  49, 50, 52, …` en haut comme en bas — alors que le bouton commence à 89,3 pt
+ *  et la vue web à 61,3 pt : un voile de 38 px finirait à 99,3 pt et mangerait
+ *  ses dix premiers rangs. C'est donc un MAJORANT (ce que la capture exclut),
+ *  pas une mesure de la profondeur réelle. */
+const VOILE_PHONE_PX = 28;
+
 /** De combien l'ENCRE descend sous le haut de sa cible tactile — le centrage
  *  dans la rangée de 44 px. MESURÉ sur la capture du build 26 : le bouton
  *  occupe `y = 144..228` px écran, l'encre `y = 172..200`, soit 28 px écran. */
 const ENCRE_SOUS_LE_BOUTON_PX = 14;
 
 describe("le plancher d'en-tête dégage la bande floue d'iOS", () => {
-  it("aucun GLYPHE n'entre dans le voile", async () => {
-    const { HEADER_BAND_CLEARANCE_PX } = await import("../theme-curator.ts");
-    expect(typeof HEADER_BAND_CLEARANCE_PX, "le dégagement n'est plus un nombre").toBe("number");
-    // Le critère porte sur l'encre, PAS sur la boîte du bouton : exiger que le
-    // liseré entier sorte du voile coûtait 12 px de hauteur pour un filet à
-    // contraste 28/765, et c'est ce que l'utilisateur a renvoyé comme « bien
-    // trop bas ».
-    expect(
-      HEADER_BAND_CLEARANCE_PX + ENCRE_SOUS_LE_BOUTON_PX,
-      `l'encre de l'en-tête retomberait dans le voile, qui descend jusqu'à ${VOILE_PX} px CSS dans la vue web (pire cas mesuré)`,
-    ).toBeGreaterThanOrEqual(VOILE_PX);
+  it("aucun GLYPHE n'entre dans le voile, sur CHAQUE classe d'appareil", async () => {
+    const m = await import("../theme-curator.ts");
+    // UNE TABLE, PAS DEUX CAS RECOPIÉS : la règle est la même des deux côtés
+    // (`dégagement + encre ≥ voile`), seule la borne change — et c'est le
+    // constat qui a produit la seconde valeur. Une troisième classe d'appareil
+    // s'ajoute ici en une ligne, avec sa mesure.
+    const classes: Array<[string, number, number]> = [
+      ["tablette", m.HEADER_BAND_CLEARANCE_PX, VOILE_PX],
+      ["téléphone", m.HEADER_BAND_CLEARANCE_PHONE_PX, VOILE_PHONE_PX],
+    ];
+    let vus = 0;
+    for (const [nom, degagement, voile] of classes) {
+      expect(typeof degagement, `${nom} : le dégagement n'est plus un nombre`).toBe("number");
+      // Le critère porte sur l'encre, PAS sur la boîte du bouton : exiger que
+      // le liseré entier sorte du voile coûtait 12 px de hauteur pour un filet
+      // à contraste 28/765, et c'est ce que l'utilisateur a renvoyé comme
+      // « bien trop bas ».
+      expect(
+        degagement + ENCRE_SOUS_LE_BOUTON_PX,
+        `${nom} : l'encre retomberait dans le voile, qui descend jusqu'à ${voile} px CSS dans la vue web`,
+      ).toBeGreaterThanOrEqual(voile);
+      // L'autre bord, gagné par un retour utilisateur : chaque pixel au-delà du
+      // voile est de la hauteur prise pour rien.
+      expect(
+        degagement,
+        `${nom} : au-delà de ${voile} px le dégagement ne protège plus rien, il ne fait que baisser l'en-tête`,
+      ).toBeLessThanOrEqual(voile);
+      vus++;
+    }
+    expect(vus, "aucune classe examinée — la garde est vide").toBe(2);
   });
 
-  it("le dégagement ne dépasse pas ce que la mesure justifie", async () => {
-    const { HEADER_BAND_CLEARANCE_PX } = await import("../theme-curator.ts");
-    // L'autre bord de la garde, et il a été gagné par un retour utilisateur :
-    // chaque pixel au-delà du voile est de la hauteur prise à tous les écrans
-    // pour rien. Le voile lui-même borne ce qui se justifie.
-    expect(
-      HEADER_BAND_CLEARANCE_PX,
-      `au-delà de ${VOILE_PX} px le dégagement ne protège plus rien : il ne fait que baisser l'en-tête`,
-    ).toBeLessThanOrEqual(VOILE_PX);
+  it("le téléphone ne paie pas la géométrie de la tablette", async () => {
+    // La raison d'être de la seconde valeur. Si les deux redeviennent égales,
+    // c'est qu'on a « simplifié » en reperdant les 10 pt que la mesure iPhone
+    // a rendus — ou, dans l'autre sens, qu'on a appliqué au iPad une borne qui
+    // n'est pas la sienne.
+    const m = await import("../theme-curator.ts");
+    expect(m.HEADER_BAND_CLEARANCE_PHONE_PX, "les deux classes ont refusionné")
+      .toBeLessThan(m.HEADER_BAND_CLEARANCE_PX);
   });
 
   it("le plancher est GATÉ, et lu depuis la source", () => {
@@ -69,12 +95,18 @@ describe("le plancher d'en-tête dégage la bande floue d'iOS", () => {
     // Android, le navigateur et le bureau paieraient 34 px de hauteur pour un
     // effet qu'ils n'ont pas.
     const src = readFileSync(SRC, "utf8");
-    const ligne = (src.match(/export var HEADER_TOP_FLOOR\s*=\s*([^\n;]+)/) || [])[1];
+    // Jusqu'au point-virgule, PAS jusqu'au saut de ligne : l'expression est
+    // devenue un ternaire sur deux axes et tient sur trois lignes. Une garde
+    // qui s'arrête au premier `\n` cesserait de voir la moitié de ce qu'elle
+    // vérifie — sans rien dire, ce qui est la forme la plus coûteuse.
+    const ligne = (src.match(/export var HEADER_TOP_FLOOR\s*=\s*([^;]+);/) || [])[1];
     expect(ligne, "HEADER_TOP_FLOOR introuvable — la garde ne s'applique plus").toBeTruthy();
     expect(String(ligne), "le plancher n'est plus conditionné à l'autonome iOS")
       .toContain("IS_IOS_STANDALONE");
     expect(String(ligne), "le plancher n'utilise plus la constante de dégagement mesurée")
       .toContain("HEADER_BAND_CLEARANCE_PX");
+    expect(String(ligne), "le plancher ne distingue plus le téléphone de la tablette")
+      .toContain("IS_IPHONE");
   });
 
   it("hors autonome iOS, le plancher reste compact", async () => {

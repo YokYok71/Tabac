@@ -5,7 +5,7 @@
 // LE SEUL IMPORT DE CE FICHIER, et il est sûr : `utils/platform.ts` n'importe
 // rien lui-même, donc aucun cycle. Il sert au plancher d'en-tête, qui doit
 // distinguer l'autonome iOS (voir HEADER_TOP_FLOOR) du reste du monde.
-import { IS_IOS_STANDALONE } from "./utils/platform.ts";
+import { IS_IOS_STANDALONE, IS_IPHONE } from "./utils/platform.ts";
 
 export const C = {
   // The surface tokens (page grounds + card + borders) are
@@ -749,8 +749,35 @@ export function safeTop(floor: string): string {
 // un filet à contraste 28 ; aucun texte n'y entre. La netteté du bas du même
 // liseré et de tous les glyphes est inchangée — c'est cela qui avait été
 // rapporté comme corrigé, et c'est cela qui est préservé.
+//
+// ── ET LE TÉLÉPHONE A SA PROPRE VALEUR, PARCE QUE SON VOILE EST PLUS COURT ──
+//
+// « Très bas encore non ? » — sur l'iPhone, après le build 28. La mesure qui
+// répond est dans la capture de ce build-là, et elle dit quelque chose que
+// j'avais SUPPOSÉ identique aux deux appareils.
+//
+// LE LISERÉ DU BOUTON N'EST PAS FLOU SUR IPHONE, à 28 px de dégagement. Profil
+// de luminance du liseré, de son premier rang à son dernier :
+// `51, 50, 50, 49, 50, 52, 51, 51, 51, 51` en haut et `51 … 49, 49, 49, 49` en
+// bas — aucune atténuation. Or le bouton commence à 89,3 pt et la vue web à
+// 61,3 pt (89,3 − 28) : si le voile descendait de 38 px comme sur l'iPad, il
+// finirait à 99,3 pt et mangerait les dix premiers rangs du liseré. Il ne les
+// mange pas. **Le voile de l'iPhone est donc au plus 28 pt — pas 38.**
+//
+// LA MÊME RÈGLE, AVEC LA BORNE DE L'APPAREIL : `dégagement + 14 ≥ voile`. Sur
+// l'iPad, 28 + 14 ≥ 38. Sur l'iPhone, 18 + 14 ≥ 28 — mêmes 4 pt de marge, 10 pt
+// rendus. Ce n'est pas un chiffre choisi, c'est la formule appliquée à une
+// seconde mesure.
+//
+// LA BORNE DE L'IPHONE EST UN MAJORANT, dit plutôt que découvert : 28 est ce
+// que la capture EXCLUT, pas ce qu'elle établit — le voile peut y être bien
+// plus court. Seule une descente supplémentaire le dirait, et elle se paierait
+// d'un aller-retour sur l'appareil.
 export var HEADER_BAND_CLEARANCE_PX = 28;
-export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE ? `${HEADER_BAND_CLEARANCE_PX}px` : "6px";
+export var HEADER_BAND_CLEARANCE_PHONE_PX = 18;
+export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE
+  ? `${IS_IPHONE ? HEADER_BAND_CLEARANCE_PHONE_PX : HEADER_BAND_CLEARANCE_PX}px`
+  : "6px";
 
 /** Le haut des TROIS en-têtes de page. Un `max(inset − retrait, plancher)`
  *  partout, SAUF en autonome iOS où le plancher gouverne seul.
