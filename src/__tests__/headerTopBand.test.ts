@@ -8,9 +8,14 @@
  * le contraste du bord vaut de haut en bas `0, 5, 9, 52, 56, 28, 28` contre
  * `26, 28, 28, 144, 113, 28, 28` au lancement : le HAUT du bouton est effacé, le
  * BAS du MÊME bouton est intact. Un flou qui varie DANS un élément n'est pas
- * produit par cet élément — c'est un voile ancré au bord haut de l'écran, qui
- * s'annule à ~69 px CSS. La vue web commençant ~32 px sous ce bord, il faut
- * **37 px** de dégagement à l'intérieur pour en sortir.
+ * produit par cet élément — c'est un voile ancré au bord haut de l'écran.
+ *
+ * CE QUI DOIT EN SORTIR, ET QUI A ÉTÉ CORRIGÉ APRÈS COUP : les GLYPHES, pas la
+ * boîte du bouton. Le premier chiffre livré (40) demandait que le liseré entier
+ * échappe au voile — un filet dont le pic de gradient vaut 28 sur 765 — et
+ * l'utilisateur a répondu « ça fonctionne mais c'est bien trop bas ». L'encre
+ * est 14 px CSS SOUS le haut de sa cible tactile, par le centrage dans la
+ * rangée de 44 px : ces 14 px comptent dans le dégagement.
  *
  * CE QU'ELLE NE GARDE PAS, et il faut le dire : aucun test ne peut reproduire
  * l'effet, qui est peint par iOS après toute la composition de la page. La
@@ -23,18 +28,39 @@ import { readFileSync } from "node:fs";
 
 const SRC = "src/theme-curator.ts";
 
-/** Le dégagement mesuré nécessaire, en px CSS. La valeur livrée doit le
- *  couvrir ; elle a le droit d'être plus grande, jamais plus petite. */
-const DEGAGEMENT_MESURE = 37;
+/** La profondeur du voile DANS la vue web, en px CSS, prise au PIRE CAS. Il agit
+ *  encore à `y = 128` px écran (contraste 56 contre 113) et plus du tout à
+ *  `y = 140` (28 contre 28) ; la vue web commence à `y = 64`, donc (140−64)/2. */
+const VOILE_PX = 38;
+
+/** De combien l'ENCRE descend sous le haut de sa cible tactile — le centrage
+ *  dans la rangée de 44 px. MESURÉ sur la capture du build 26 : le bouton
+ *  occupe `y = 144..228` px écran, l'encre `y = 172..200`, soit 28 px écran. */
+const ENCRE_SOUS_LE_BOUTON_PX = 14;
 
 describe("le plancher d'en-tête dégage la bande floue d'iOS", () => {
-  it("la valeur livrée couvre le dégagement mesuré", async () => {
+  it("aucun GLYPHE n'entre dans le voile", async () => {
     const { HEADER_BAND_CLEARANCE_PX } = await import("../theme-curator.ts");
     expect(typeof HEADER_BAND_CLEARANCE_PX, "le dégagement n'est plus un nombre").toBe("number");
+    // Le critère porte sur l'encre, PAS sur la boîte du bouton : exiger que le
+    // liseré entier sorte du voile coûtait 12 px de hauteur pour un filet à
+    // contraste 28/765, et c'est ce que l'utilisateur a renvoyé comme « bien
+    // trop bas ».
+    expect(
+      HEADER_BAND_CLEARANCE_PX + ENCRE_SOUS_LE_BOUTON_PX,
+      `l'encre de l'en-tête retomberait dans le voile, qui descend jusqu'à ${VOILE_PX} px CSS dans la vue web (pire cas mesuré)`,
+    ).toBeGreaterThanOrEqual(VOILE_PX);
+  });
+
+  it("le dégagement ne dépasse pas ce que la mesure justifie", async () => {
+    const { HEADER_BAND_CLEARANCE_PX } = await import("../theme-curator.ts");
+    // L'autre bord de la garde, et il a été gagné par un retour utilisateur :
+    // chaque pixel au-delà du voile est de la hauteur prise à tous les écrans
+    // pour rien. Le voile lui-même borne ce qui se justifie.
     expect(
       HEADER_BAND_CLEARANCE_PX,
-      `mesuré sur l'appareil : le voile s'annule à ~69 px CSS du haut de l'écran et la vue web commence ~32 px plus bas, donc ${DEGAGEMENT_MESURE} px sont nécessaires`,
-    ).toBeGreaterThanOrEqual(DEGAGEMENT_MESURE);
+      `au-delà de ${VOILE_PX} px le dégagement ne protège plus rien : il ne fait que baisser l'en-tête`,
+    ).toBeLessThanOrEqual(VOILE_PX);
   });
 
   it("le plancher est GATÉ, et lu depuis la source", () => {

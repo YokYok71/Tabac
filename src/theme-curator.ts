@@ -720,5 +720,32 @@ export function safeTop(floor: string): string {
 // haut (mise à jour, dégustation, erreurs) ont leurs propres planchers — 8, 10,
 // 22 px — et restent donc flous sur ce régime. Ils sont transitoires et écrits
 // gros ; les remonter aussi est une décision séparée, pas un oubli.
-export var HEADER_BAND_CLEARANCE_PX = 40;
+//
+// ── 40 EST DEVENU 28, PARCE QUE LE CRITÈRE ÉTAIT TROP EXIGEANT ─────────────
+//
+// « Ça fonctionne mais c'est bien trop bas. » La première valeur sortait de la
+// BOÎTE du bouton d'icône : je demandais que son liseré entier échappe au
+// voile. Or ce liseré est un filet à très faible contraste — MESURÉ, son pic de
+// gradient vaut 28 sur 765 — tandis que ce que l'utilisateur lit, ce sont les
+// GLYPHES : le mot-symbole et les trois icônes.
+//
+// LA CAPTURE DU BUILD 26 DONNE LA COTE QUI MANQUAIT. Le bouton occupe
+// `y = 144..228`, et l'encre — mot-symbole comme icônes — `y = 172..200` : elle
+// est donc **28 px écran (14 px CSS) SOUS le haut de sa cible tactile**, par le
+// centrage dans la rangée de 44 px que ce fichier documente plus haut comme
+// non récupérable. Ces 14 px comptent dans le dégagement, et ils n'étaient pas
+// comptés.
+//
+// LA BORNE DU VOILE, honnêtement : il agit encore à `y = 128` (contraste 56
+// contre 113) et plus du tout à `y = 140` (28 contre 28). On prend donc le pire
+// cas, 140. La vue web commençant à 64, il faut `clearance + 14 ≥ 38` px CSS,
+// soit 24 au minimum. 28 laisse **20 px écran de marge** sur l'encre et rend
+// 12 px de hauteur à chaque écran.
+//
+// CE QUE ÇA CONCÈDE, dit plutôt que découvert : entre 28 et 38, le HAUT DU
+// LISERÉ des boutons trempe dans la queue du voile et s'adoucit un peu. C'est
+// un filet à contraste 28 ; aucun texte n'y entre. La netteté du bas du même
+// liseré et de tous les glyphes est inchangée — c'est cela qui avait été
+// rapporté comme corrigé, et c'est cela qui est préservé.
+export var HEADER_BAND_CLEARANCE_PX = 28;
 export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE ? `${HEADER_BAND_CLEARANCE_PX}px` : "6px";
