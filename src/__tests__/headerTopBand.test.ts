@@ -43,7 +43,17 @@ const SRC = "src/theme-curator.ts";
  *  y prédit ~40 % : les deux ne décrivent pas la même bande. L'explication est
  *  dans le voile lui-même — **il n'apparaît qu'après une navigation**, donc une
  *  capture prise sur une app fraîchement ouverte ne contient rien à mesurer.
- *  Une sonde qui ne s'applique pas ne prouve rien, verte comme rouge. */
+ *  Une sonde qui ne s'applique pas ne prouve rien, verte comme rouge.
+ *
+ *  CONFIRMÉ DEPUIS, PAR UNE SECONDE SONDE VALIDE. Capture du build 30
+ *  (dégagement 14) : l'encre du mot-symbole monte en RAMPE — `94, 140, 136,
+ *  160, 172, 174` — au lieu du plateau `170, 175, 173, 175, 174, 175` du
+ *  build 29. Le voile était donc actif. Profondeurs : 28 → 54 %, 32 → 78 %,
+ *  36 → 99 %, 38 → 100 %. Même valeur que la paire 25/26, et 54 % à 28 px là
+ *  où la capture invalide donnait 100 %.
+ *
+ *  38 n'est donc plus un pire cas mais LA profondeur, et 24 le dégagement
+ *  minimum EXACT — un pixel de moins fait rentrer l'encre dans le voile. */
 const VOILE_PX = 38;
 
 /** De combien l'ENCRE descend sous le haut de sa cible tactile — le centrage

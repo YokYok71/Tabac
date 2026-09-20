@@ -787,6 +787,27 @@ export function safeTop(floor: string): string {
 // POUR MESURER POUR DE BON, la capture doit être prise APRÈS avoir quitté
 // l'accueil et y être revenu. C'est la seule condition qui rend la sonde
 // applicable, et elle ne se voit pas sur l'image — d'où cette note.
+//
+// ── ET C'EST FAIT : UNE SECONDE SONDE VALIDE CONFIRME 38, ET FIGE 24 ────────
+//
+// Capture iPad du build 30 (dégagement 14), rapportée d'un mot — « ça déborde
+// un peu ». L'encre du mot-symbole y monte en RAMPE au lieu du plateau :
+// `94, 140, 136, 160, 172, 174` contre `170, 175, 173, 175, 174, 175` au
+// build 29. C'est la signature du voile, la même que sur la toute première
+// paire — donc cette capture-ci a bien été prise avec le voile ACTIF.
+//
+// En profondeur sous le haut de la vue web : **28 px → 54 %, 32 → 78 %,
+// 36 → 99 %, 38 → 100 %**. Le voile finit donc à 38, exactement ce que la paire
+// 25/26 donnait — et il vaut 54 % à 28, là où la capture du build 29 le
+// donnait à 100 %. Les deux sondes invalides sont réfutées point par point,
+// pas seulement soupçonnées.
+//
+// CONSÉQUENCE : 24 N'EST PLUS UN PIRE CAS, C'EST LE MINIMUM EXACT. `24 + 14`
+// pose le premier rang d'encre à 38, le premier rang où le voile n'agit plus.
+// Un pixel de moins le fait rentrer dedans ; un pixel de plus est de la hauteur
+// prise pour rien. Il n'y a plus de descente à tenter — ce qui reste au-dessus
+// de l'encre appartient à iOS (la bande d'état réservée) et aux 14 px de
+// centrage dans la cible tactile de 44 px, qui est un minimum d'accessibilité.
 export var HEADER_BAND_CLEARANCE_PX = 24;
 export var HEADER_TOP_FLOOR = IS_IOS_STANDALONE ? `${HEADER_BAND_CLEARANCE_PX}px` : "6px";
 
