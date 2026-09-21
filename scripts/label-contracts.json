@@ -766,7 +766,7 @@
         "LICENSE + public/licenses.html — JSZip attribution"
       ],
       "why": "The policy discloses cdnjs.cloudflare.com as a one-off, on-demand download with an integrity check, and states no user data transits it. If the URL, the pinned version or the SRI hash changes — or the library stops being CDN-loaded — the disclosure and the licence attribution both need re-reading.",
-      "fingerprint": "8f49a1e43f3c1ae2",
+      "fingerprint": "3518ec0df2b2fa2b",
       "domains": [
         "cdnjs.cloudflare.com"
       ]

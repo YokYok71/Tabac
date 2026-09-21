@@ -40,7 +40,7 @@ The Curator UI (`src/CuratorApp.tsx` + `src/views/curator/` + `src/components/cu
 | Cloud backup | Google Drive API v3 |
 | AI | Anthropic / OpenAI / Google Gemini (multi-provider) |
 | Image proxy | *(removed)* — the app is local-photos-only; no external image fetching, no corsproxy/allorigins |
-| ZIP export | JSZip 3.10.1 (loaded dynamically on demand) |
+| ZIP export | JSZip 3.10.2 (loaded dynamically on demand) |
 
 ## AppContext Pattern
 

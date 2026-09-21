@@ -1077,9 +1077,25 @@ export function useExportImport({
     setBackupStatus(t("loading"));
     var script = document.createElement("script");
     script.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+      "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.2/jszip.min.js";
+    // LE HASH A ÉTÉ DÉRIVÉ DU PAQUET npm, PAS DE cdnjs, ET C'EST VÉRIFIABLE.
+    // L'environnement de travail n'atteint ni `cdnjs.cloudflare.com` ni
+    // `api.cdnjs.com` (le proxy de sortie refuse le CONNECT, 403), donc la
+    // recette habituelle — télécharger le fichier et le hacher — n'était pas
+    // possible. cdnjs sert le `dist/jszip.min.js` du paquet npm, joignable lui ;
+    // le hash ci-dessous en vient (`npm pack jszip@3.10.2`, sha384, base64).
+    //
+    // CE QUI LE VALIDE : la MÊME opération sur `jszip@3.10.1` rend
+    // `sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG`,
+    // c'est-à-dire exactement le hash qui était épinglé ici et qui fonctionne en
+    // production contre cdnjs. npm et cdnjs servent donc le même octet pour
+    // cette bibliothèque, et la dérivation est bonne pour 3.10.2 aussi.
+    //
+    // SI CE HASH EST FAUX, L'EXPORT ZIP NE DÉGRADE PAS : le SRI échoue FERMÉ,
+    // le navigateur refuse le script, `onerror` tire et l'utilisateur voit
+    // `err_jszip`. C'est pourquoi on ne devine jamais cette valeur.
     script.integrity =
-      "sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG";
+      "sha384-DdGlNq+wVXAn83gXqwyeFHB7iyXy6L0rLrNzgDmhKWPjiJLg9vj6qosYmZmkMfQ+";
     script.crossOrigin = "anonymous";
     // LABEL-CONTRACT:end jszip-cdn
     script.onload = _runZip;
