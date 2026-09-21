@@ -1094,6 +1094,14 @@ export function useExportImport({
     // SI CE HASH EST FAUX, L'EXPORT ZIP NE DÉGRADE PAS : le SRI échoue FERMÉ,
     // le navigateur refuse le script, `onerror` tire et l'utilisateur voit
     // `err_jszip`. C'est pourquoi on ne devine jamais cette valeur.
+    //
+    // ET C'EST CE QUI REND LA CONFIRMATION CONCLUANTE : un export ZIP réussi a
+    // été rapporté sur appareil après le déploiement du build 33. Comme le SRI
+    // échoue fermé, un export qui produit un fichier prouve que le navigateur a
+    // accepté le script servi par cdnjs SOUS ce hash — donc que la dérivation
+    // par npm donnait bien l'octet de cdnjs. La chaîne n'est plus « dérivée et
+    // recoupée » mais vérifiée de bout en bout, ce que l'environnement de
+    // développement ne pouvait pas faire.
     script.integrity =
       "sha384-DdGlNq+wVXAn83gXqwyeFHB7iyXy6L0rLrNzgDmhKWPjiJLg9vj6qosYmZmkMfQ+";
     script.crossOrigin = "anonymous";
