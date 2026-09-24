@@ -235,24 +235,12 @@ try {
     .sort();
   docChecks.checkChangelogLanguageParity(CHANGELOG, VERSION_JSON.version, clLangs).forEach(err);
   // LES ANCRES — voir docChecks.checkChangelogAnchors pour le raisonnement.
-  // Le foin est TOUT ce qui peut porter un symbole : src/, index.html et les
-  // scripts servis. Le construire ici plutôt que dans la fonction garde
-  // celle-ci pure, donc testable sans toucher au disque.
+  // Le foin (tout ce qui peut porter un symbole) est assemblé par
+  // docChecks.changelogAnchorHaystack, que le test de câblage appelle AUSSI :
+  // il tenait sa propre liste de fichiers et l'a vue diverger au build 34.
   {
-    const hay = [];
-    const walk = (d) => {
-      for (const n of fs.readdirSync(d)) {
-        const f = path.join(d, n);
-        if (fs.statSync(f).isDirectory()) { if (n !== "__tests__") walk(f); }
-        else if (/\.(ts|tsx|js|jsx)$/.test(n)) hay.push(fs.readFileSync(f, "utf8"));
-      }
-    };
-    walk(path.join(ROOT, "src"));
-    for (const extra of ["index.html", "public/sw.js", "public/manifest.json"]) {
-      const f = path.join(ROOT, extra);
-      if (fs.existsSync(f)) hay.push(fs.readFileSync(f, "utf8"));
-    }
-    const a = docChecks.checkChangelogAnchors(CHANGELOG, VERSION_JSON.version, hay.join("\n"));
+    const a = docChecks.checkChangelogAnchors(
+      CHANGELOG, VERSION_JSON.version, docChecks.changelogAnchorHaystack(ROOT));
     a.errors.forEach(err);
     console.log(`doc:check — changelog : ${a.anchored} entrée(s) ancrée(s) vérifiée(s)`
       + (a.legacy ? `, ${a.legacy} antérieure(s) dispensée(s)` : ""));

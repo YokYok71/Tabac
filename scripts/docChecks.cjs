@@ -549,6 +549,41 @@ function checkChangelogAnchors(changelogHtml, version, codeText) {
   return { errors, anchored, legacy };
 }
 
+/** Fichiers hors de `src/` qui peuvent porter un symbole cité en ancre. */
+const ANCHOR_HAY_EXTRAS = ["index.html", "public/sw.js", "public/manifest.json"];
+
+/**
+ * LE FOIN DES ANCRES — tout ce qui peut porter un symbole : `src/` (tests
+ * exclus), plus `ANCHOR_HAY_EXTRAS`. Partagé par la porte ET par le test de
+ * câblage, parce que ce test tenait sa PROPRE liste, recopiée à la main :
+ * deux fichiers, choisis pour les ancres du build 33. Le build 34 a ancré son
+ * entrée dans `useAiAutoFill.ts`, la porte l'y a trouvée, et le test a rougi
+ * sur un fichier juste — une énumération recopiée diverge de sa source,
+ * comme toutes celles que ce dépôt a payées. `fs` est requis ICI, pas en tête
+ * de module : `checkChangelogAnchors` reste pur, et ce fichier ne touche
+ * toujours pas au disque en se chargeant (même précédent que `typescript`).
+ * @param {string} root  racine du dépôt
+ * @returns {string}
+ */
+function changelogAnchorHaystack(root) {
+  const fs = require("fs");
+  const path = require("path");
+  const hay = [];
+  const walk = (d) => {
+    for (const n of fs.readdirSync(d)) {
+      const f = path.join(d, n);
+      if (fs.statSync(f).isDirectory()) { if (n !== "__tests__") walk(f); }
+      else if (/\.(ts|tsx|js|jsx)$/.test(n)) hay.push(fs.readFileSync(f, "utf8"));
+    }
+  };
+  walk(path.join(root, "src"));
+  for (const extra of ANCHOR_HAY_EXTRAS) {
+    const f = path.join(root, extra);
+    if (fs.existsSync(f)) hay.push(fs.readFileSync(f, "utf8"));
+  }
+  return hay.join("\n");
+}
+
 function checkChangelogLanguageParity(changelogHtml, version, langs) {
   const errors = [];
   const src = String(changelogHtml || "");
@@ -1979,6 +2014,7 @@ module.exports = {
   readAppBuild,
   checkChangelogIsFunctional,
   checkChangelogAnchors,
+  changelogAnchorHaystack,
   checkChangelogLanguageParity,
   checkLangAssets,
   checkEnumTranslations,

@@ -2420,7 +2420,10 @@ describe("checkChangelogAnchors", () => {
 
   it("et elle tourne VERT sur le vrai fichier (non-vacuité du câblage)", () => {
     const html = readFileSync("public/changelog.html", "utf8");
-    const code = readFileSync("src/theme-curator.ts", "utf8") + readFileSync("index.html", "utf8");
+    // Le MÊME foin que la porte : ce test tenait sa propre liste (deux
+    // fichiers, choisis pour les ancres du build 33) et a rougi au build 34
+    // sur un changelog juste, dont les ancres vivent dans useAiAutoFill.ts.
+    const code = D.changelogAnchorHaystack(process.cwd());
     const r = D.checkChangelogAnchors(html, "1.1", code);
     expect(r.errors).toEqual([]);
     expect(r.anchored).toBeGreaterThanOrEqual(1);
