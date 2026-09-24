@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import {
   computeCellarMaturity, computeYearConsumption, computeActivityHeatmap,
   lotMaturityBucket, activityHeatmapMonths, computeCellarDepletion,
@@ -9,6 +9,20 @@ import { heldWeight } from "../utils/lotUtils";
 
 // A fixed "now" so age-based buckets are deterministic.
 const NOW = Date.parse("2026-07-01T12:00:00Z");
+// …AND THE CLOCK IS FROZEN THERE, which is what makes the line above true.
+// For a long time it was not: the fixtures were built from `NOW`, but several
+// helpers under test (scopedOldestAgeDays, computeCellarMaturity,
+// lotMaturityBucket…) take no "now" and read `Date.now()`, so every fixture
+// aged by one day per calendar day. MEASURED by re-running this file under a
+// shifted clock: green on 2026-09-24 only after a patch, red again on
+// 2026-12-01 (1 test), 2027-03-01 (4), 2027-09-24 (5), 2028-06-01 (6). The
+// first detonation was the day the build-34 sweep ran — `scopedOldestAgeDays`
+// read a "1-year-old" lot as 450 days, exactly its `< 450` bound, with no code
+// change at all. Freezing only `Date` (not timers) keeps the fixtures and the
+// helpers on the same clock for ever; the isRecentPurchase block's
+// `Date.now()`-relative dates stay coherent because they read the same one.
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"], now: NOW }); });
+afterAll(() => { vi.useRealTimers(); });
 // ms arithmetic so fractional years (4.5) are handled correctly.
 const yearsAgo = (y: number) => new Date(NOW - Math.round(y * 365.25 * 86400000)).toISOString().slice(0, 10);
 
