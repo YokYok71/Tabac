@@ -231,7 +231,7 @@ export var AI_MODEL_OPTIONS: Record<string, Array<{ id: string; label: string }>
     { id: AI_MODEL_AUTO, label: "Auto" },
     { id: "claude-haiku-4-5", label: "Haiku 4.5" },
     { id: "claude-sonnet-5", label: "Sonnet 5" },
-    { id: "claude-opus-5", label: "Opus 5" },
+    { id: "claude-opus-5-5", label: "Opus 5.5" },
   ],
   openai: [
     { id: AI_MODEL_AUTO, label: "Auto" },
@@ -244,7 +244,7 @@ export var AI_MODEL_OPTIONS: Record<string, Array<{ id: string; label: string }>
     // consumer app must not point at a preview endpoint.
     { id: AI_MODEL_AUTO, label: "Auto" },
     { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite" },
-    { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+    { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
   ],
 });
 // Legacy → current model ids. The chosen model lives in
@@ -267,14 +267,25 @@ export var AI_MODEL_OPTIONS: Record<string, Array<{ id: string; label: string }>
 export var AI_MODEL_ALIASES: Record<string, string> = Object.assign(Object.create(null), {
   // same-tier
   "claude-haiku-4-5-20251001": "claude-haiku-4-5", // dated snapshot → canonical id
-  "claude-opus-4-8": "claude-opus-5",              // same price + 1M context
+  "claude-opus-4-8": "claude-opus-5-5",            // 1M context, CHEAPER ($4/$20 vs $5/$25)
+  "claude-opus-5": "claude-opus-5-5",              // idem — alive until ≥ 2027-07-24, but a
+                                                   // cheaper same-tier successor is exactly
+                                                   // the kind of alias allowed here
   // retired upstream → nearest current tier (cheap slot / balanced slot)
   "gpt-4o-mini": "gpt-5.6-luna",
   "gpt-4o": "gpt-5.6-terra",
   "gemini-2.0-flash": "gemini-3.5-flash-lite",     // shut down 2026-03-03
   "gemini-2.5-flash": "gemini-3.5-flash-lite",
   "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
-  "gemini-2.5-pro": "gemini-3.6-flash",
+  "gemini-2.5-pro": "gemini-3.8-flash",
+  // DELIBERATELY NOT ALIASED: "gemini-3.6-flash". It left the list for 3.8
+  // Flash on 2026-09-24 but is still GA with no retirement date, and although
+  // the two cost the same PER TOKEN, Google says 3.8 Flash "works harder … and
+  // can use more tokens … by design" — so moving a user who PINNED 3.6 onto it
+  // could be a costlier call they never chose, which is the one thing the rule
+  // above forbids. They keep 3.6 (the picker shows an off-list id as its raw
+  // id); the day it is retired, the liveness probe says so and this becomes a
+  // retired-model alias like the ones above.
 });
 // LABEL-CONTRACT:end ai-model-catalogue
 // One-shot migration of an EXISTING device onto "auto".

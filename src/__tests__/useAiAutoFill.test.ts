@@ -869,7 +869,7 @@ describe("AI model catalogue", () => {
       { id: "auto", label: "Auto" },
       { id: "claude-haiku-4-5", label: "Haiku 4.5" },
       { id: "claude-sonnet-5", label: "Sonnet 5" },
-      { id: "claude-opus-5", label: "Opus 5" },
+      { id: "claude-opus-5-5", label: "Opus 5.5" },
     ]);
     for (const o of AI_MODEL_OPTIONS.anthropic!) {
       expect(o.id).not.toMatch(/-\d{8}$/);
@@ -883,7 +883,7 @@ describe("AI model catalogue", () => {
     expect(AI_MODEL_OPTIONS.openai!.map((o) => o.id))
       .toEqual(["auto", "gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"]);
     expect(AI_MODEL_OPTIONS.gemini!.map((o) => o.id))
-      .toEqual(["auto", "gemini-3.5-flash-lite", "gemini-3.6-flash"]);
+      .toEqual(["auto", "gemini-3.5-flash-lite", "gemini-3.8-flash"]);
     // No retired id may be OFFERED any more, in any provider list.
     const retired = ["gpt-4o", "gpt-4o-mini", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro"];
     const offered = Object.keys(AI_MODEL_OPTIONS)
@@ -917,14 +917,15 @@ describe("AI model catalogue", () => {
 
   it("normalizeAiModel maps the shipped legacy ids and passes everything else through", () => {
     expect(normalizeAiModel("claude-haiku-4-5-20251001")).toBe("claude-haiku-4-5");
-    expect(normalizeAiModel("claude-opus-4-8")).toBe("claude-opus-5");
+    expect(normalizeAiModel("claude-opus-4-8")).toBe("claude-opus-5-5");
+    expect(normalizeAiModel("claude-opus-5")).toBe("claude-opus-5-5");   // cheaper same-tier successor
     expect(normalizeAiModel("claude-sonnet-5")).toBe("claude-sonnet-5");
     expect(normalizeAiModel("gpt-5.6-terra")).toBe("gpt-5.6-terra");
     // Empty / garbage → "" so the caller falls back to the provider default.
     expect(normalizeAiModel("")).toBe("");
     expect(normalizeAiModel(null)).toBe("");
     expect(normalizeAiModel(undefined)).toBe("");
-    expect(normalizeAiModel("  claude-opus-4-8  ")).toBe("claude-opus-5");
+    expect(normalizeAiModel("  claude-opus-4-8  ")).toBe("claude-opus-5-5");
   });
 
   it("maps every retired OpenAI / Gemini id onto a current tier", () => {
@@ -933,7 +934,19 @@ describe("AI model catalogue", () => {
     expect(normalizeAiModel("gemini-2.0-flash")).toBe("gemini-3.5-flash-lite");
     expect(normalizeAiModel("gemini-2.5-flash")).toBe("gemini-3.5-flash-lite");
     expect(normalizeAiModel("gemini-2.5-flash-lite")).toBe("gemini-3.5-flash-lite");
-    expect(normalizeAiModel("gemini-2.5-pro")).toBe("gemini-3.6-flash");
+    expect(normalizeAiModel("gemini-2.5-pro")).toBe("gemini-3.8-flash");
+  });
+
+  it("a LIVE model that left the list is aliased only onto a successor that can't cost more", () => {
+    // Opus 5 → 5.5 IS aliased: same tier, 1M context, and cheaper per token
+    // ($4/$20 against $5/$25). Gemini 3.6 Flash → 3.8 Flash is NOT: the per-token
+    // price is equal, but Google says 3.8 "can use more tokens … by design", so
+    // a user who pinned 3.6 would be moved to a possibly costlier call they
+    // never chose. 3.6 is still GA; it passes through untouched and keeps
+    // working. Turn this into an alias only once 3.6 is RETIRED.
+    expect(normalizeAiModel("claude-opus-5")).toBe("claude-opus-5-5");
+    expect(normalizeAiModel("gemini-3.6-flash")).toBe("gemini-3.6-flash");
+    expect(resolveAiModel("gemini", "gemini-3.6-flash")).toBe("gemini-3.6-flash");
   });
 
   it("never aliases across providers — a swap must stay in its own family", () => {
@@ -958,7 +971,7 @@ describe("AI model catalogue", () => {
     localStorage.setItem("ai-provider", "anthropic");
     localStorage.setItem("ai-model-anthropic", "claude-opus-4-8");
     const { result } = renderHook(() => useAiAutoFill(defaultProps()));
-    expect(result.current.aiModel).toBe("claude-opus-5");
+    expect(result.current.aiModel).toBe("claude-opus-5-5");
   });
 
   it("a legacy stored id is normalised when switching back to that provider", () => {
@@ -969,15 +982,15 @@ describe("AI model catalogue", () => {
     localStorage.setItem("ai-model-anthropic", "claude-opus-4-8");
     const { result } = renderHook(() => useAiAutoFill(defaultProps()));
     act(() => { result.current.saveAiProvider("anthropic"); });
-    expect(result.current.aiModel).toBe("claude-opus-5");
+    expect(result.current.aiModel).toBe("claude-opus-5-5");
   });
 
   it("saveAiModel persists the canonical id, not the legacy one", () => {
     localStorage.setItem("ai-provider", "anthropic");
     const { result } = renderHook(() => useAiAutoFill(defaultProps()));
     act(() => { result.current.saveAiModel("claude-opus-4-8"); });
-    expect(result.current.aiModel).toBe("claude-opus-5");
-    expect(localStorage.getItem("ai-model-anthropic")).toBe("claude-opus-5");
+    expect(result.current.aiModel).toBe("claude-opus-5-5");
+    expect(localStorage.getItem("ai-model-anthropic")).toBe("claude-opus-5-5");
     // Blank still falls back to the provider default (pre-existing contract),
     // which is the auto sentinel.
     act(() => { result.current.saveAiModel("   "); });
@@ -1000,7 +1013,7 @@ describe("AI model catalogue", () => {
       await new Promise((r) => setTimeout(r, 10));
     });
     const body = JSON.parse(fetchSpy.mock.calls[0]![1].body);
-    expect(body.model).toBe("claude-opus-5");
+    expect(body.model).toBe("claude-opus-5-5");
     vi.unstubAllGlobals();
   });
 });
@@ -1216,16 +1229,16 @@ describe("auto model selection", () => {
 
   it("skips a known-dead model and steps to the next tier", () => {
     expect(resolveAiModel("gemini", AI_MODEL_AUTO, ["gemini-3.5-flash-lite"]))
-      .toBe("gemini-3.6-flash");
+      .toBe("gemini-3.8-flash");
     expect(resolveAiModel("anthropic", AI_MODEL_AUTO, ["claude-haiku-4-5"]))
       .toBe("claude-sonnet-5");
     expect(resolveAiModel("anthropic", AI_MODEL_AUTO, ["claude-haiku-4-5", "claude-sonnet-5"]))
-      .toBe("claude-opus-5");
+      .toBe("claude-opus-5-5");
   });
 
   it("a PINNED model wins over auto and is still normalised", () => {
     expect(resolveAiModel("anthropic", "claude-sonnet-5")).toBe("claude-sonnet-5");
-    expect(resolveAiModel("anthropic", "claude-opus-4-8")).toBe("claude-opus-5");
+    expect(resolveAiModel("anthropic", "claude-opus-4-8")).toBe("claude-opus-5-5");
     // a pinned choice is NOT overridden by the dead list — the user asked for
     // that model, so they must see the real error, not a silent substitution.
     expect(resolveAiModel("anthropic", "claude-sonnet-5", ["claude-sonnet-5"]))
@@ -1277,7 +1290,7 @@ describe("auto model selection", () => {
       .toContain("gemini-3.5-flash-lite");
     // A fresh mount now resolves past the dead tier — self-healed.
     const { result: r2 } = renderHook(() => useAiAutoFill(defaultProps()));
-    expect(r2.current.aiModelResolved).toBe("gemini-3.6-flash");
+    expect(r2.current.aiModelResolved).toBe("gemini-3.8-flash");
     vi.unstubAllGlobals();
   });
 

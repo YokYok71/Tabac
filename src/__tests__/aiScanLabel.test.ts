@@ -136,8 +136,8 @@ describe("buildScanRequest", () => {
 
   it("honours an explicit model per provider", () => {
     // Anthropic + OpenAI carry the model in the body; Gemini in the URL.
-    expect(JSON.parse(buildScanRequest("anthropic", "k", B64, PROMPT, "claude-opus-5").init.body).model)
-      .toBe("claude-opus-5");
+    expect(JSON.parse(buildScanRequest("anthropic", "k", B64, PROMPT, "claude-opus-5-5").init.body).model)
+      .toBe("claude-opus-5-5");
     expect(JSON.parse(buildScanRequest("openai", "k", B64, PROMPT, "gpt-5.6-sol").init.body).model)
       .toBe("gpt-5.6-sol");
     expect(buildScanRequest("gemini", "k", B64, PROMPT, "gemini-3.6-flash").url)
