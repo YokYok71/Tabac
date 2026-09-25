@@ -40,7 +40,7 @@ import {
   xlValue,
 } from "./constants.ts";
 import { applyTheme, THEMES, themeColorFor } from "./theme-curator.ts";
-import { pickJarLot, detailAfterLotUndo } from "./utils/lotUtils.ts";
+import { pickJarLot, detailAfterLotUndo, markLotDisposed } from "./utils/lotUtils.ts";
 import { buildTobaccoAromaIndex, tobaccoMatchesAromas } from "./utils/aromas.ts";
 import { lotMaturityBucket, isRecentPurchase, scopeFromStatusFilter, lotInScope, scopedHeldWeight, scopedOldestAgeDays } from "./utils/cellarInsights.ts";
 import { isLowStock, lowStockThreshold } from "./utils/shopping.ts";
@@ -3165,17 +3165,22 @@ function App() {
     opts?: {
       hint?: (snapshot: any, ...args: A) => string;
       afterRestore?: (snapshot: any, ...args: A) => void;
+      // A second button beside Undo: a DIFFERENT way back from the delete.
+      // Null means "not for this row" (e.g. a lot already disposed).
+      action?: (snapshot: any, label: string, ...args: A) => { label: string; run: () => void } | null;
     },
   ) {
     return function (...args: A) {
       var snapshot = JSON.parse(JSON.stringify(data));
       var label = labelFn(snapshot, ...args);
       var hint = opts && opts.hint ? opts.hint(snapshot, ...args) : "";
+      var action = opts && opts.action ? opts.action(snapshot, label, ...args) : null;
       deleteFn(...args);
       setUndoToast({
         kind: kind,
         label: label,
         ...(hint ? { hint: hint } : {}),
+        ...(action ? { action: action } : {}),
         ts: Date.now(),
         restoreFn: function () {
           save(snapshot);
@@ -3262,6 +3267,35 @@ function App() {
     },
     afterRestore: function (d: any, tobId: any) {
       setDetail(function (cur: any) { return detailAfterLotUndo(cur, d, tobId); });
+    },
+    // « Marquer éliminé »: undo the delete AND record what actually happened
+    // to the tin, in one tap. Built on the PRE-delete snapshot. The toast is
+    // then REPLACED by a confirmation — without it the lot would simply vanish
+    // from the fiche (finished lots are hidden by default) with nothing saying
+    // where it went — and that confirmation's Undo puts the lot back exactly
+    // as it was before the delete.
+    action: function (d: any, label: string, tobId: any, lotId: any) {
+      var tb = findById(d.tobaccos, tobId);
+      var lot = tb ? findById((tb as any).lots, lotId) : null;
+      if (!lot || (lot as any).disposed) return null;
+      return {
+        label: String(t("btn_mark_disposed")),
+        run: function () {
+          var next = markLotDisposed(d, tobId, lotId);
+          save(next);
+          setDetail(function (cur: any) { return detailAfterLotUndo(cur, next, tobId); });
+          setUndoToast({
+            kind: "lot_disposed",
+            label: label,
+            ts: Date.now(),
+            restoreFn: function () {
+              save(d);
+              setDetail(function (cur: any) { return detailAfterLotUndo(cur, d, tobId); });
+              setUndoToast(null);
+            },
+          });
+        },
+      };
     },
   });
   var deleteTobaccoU = withUndo(deleteTobacco, "tobacco", _tobName);

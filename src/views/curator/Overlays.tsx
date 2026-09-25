@@ -409,6 +409,8 @@ const UNDO_KIND: Record<string, { kind: string; verb: string }> =
     maintenance: { kind: "kind_maintenance", verb: "lbl_deleted" },
     // A lot delete had NO toast at all (removeLot reached ctx raw) — see removeLotU.
     lot:       { kind: "kind_lot",       verb: "lbl_deleted" },
+    // The confirmation after « Marquer éliminé » (removeLotU's action).
+    lot_disposed: { kind: "kind_lot",    verb: "lbl_marked_disposed" },
     catalogue: { kind: "kind_catalogue", verb: "lbl_updated" },
   });
 
@@ -463,6 +465,24 @@ export function CuratorUndoToast() {
             color: C.tx2, fontSize: fs(13), lineHeight: 1.35,
             maxWidth: 240, whiteSpace: "normal", marginTop: 3,
           }}>{undoToast.hint}</span>
+        ) : null}
+        {/* The answer to the hint, so it sits under it rather than beside Undo:
+            a second way back from the delete (removeLotU's `action`). 36 px
+            minimum, the documented floor for compact secondary buttons. */}
+        {undoToast.action ? (
+          <button
+            type="button"
+            onClick={() => undoToast.action.run()}
+            style={{
+              alignSelf: "flex-start", marginTop: 6, minHeight: 36,
+              background: "transparent", color: C.tx,
+              border: `1px solid ${C.rule2}`, borderRadius: 8,
+              padding: "6px 12px", cursor: "pointer",
+              fontFamily: F.mono, fontSize: fs(12.5), letterSpacing: 1.2,
+              textTransform: "uppercase", fontWeight: 700,
+            }}>
+            {undoToast.action.label}
+          </button>
         ) : null}
       </div>
       <button

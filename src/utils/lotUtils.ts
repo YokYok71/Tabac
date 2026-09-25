@@ -170,6 +170,37 @@ export function detailAfterLotUndo(cur: any, snapshot: any, tobId: any): any {
   });
 }
 
+/**
+ * « Marquer éliminé » from the lot-delete toast (pure): take the cellar as it
+ * was BEFORE the delete and mark that lot Finished + 🚮 Disposed instead — the
+ * same state the lot form produces (status → finished through
+ * `applyLifecycleDates`, which stamps `dateFinished` only when it is empty,
+ * then `disposed: true`). The remaining weight is left as it is, exactly like
+ * the form: what was thrown away is not rewritten as smoked.
+ *
+ * Built on the pre-delete snapshot rather than by clearing `deletedAt` on the
+ * current data, so it cannot resurrect anything else the delete touched.
+ * Returns the input unchanged when the tobacco or the lot is not found.
+ */
+export function markLotDisposed(dat: any, tobId: any, lotId: any): any {
+  var tobs = (dat && Array.isArray(dat.tobaccos)) ? dat.tobaccos : null;
+  if (!tobs) return dat;
+  var hit = false;
+  var next = tobs.map(function (t: any) {
+    if (!t || String(t.id) !== String(tobId) || !Array.isArray(t.lots)) return t;
+    return Object.assign({}, t, {
+      lots: t.lots.map(function (l: any) {
+        if (!l || String(l.id) !== String(lotId)) return l;
+        hit = true;
+        var out = Object.assign(applyLifecycleDates(l, "finished"), { disposed: true });
+        delete out.deletedAt;
+        return out;
+      }),
+    });
+  });
+  return hit ? Object.assign({}, dat, { tobaccos: next }) : dat;
+}
+
 export function lotWillClose(lot: any, sessionWeight: number, restoreWeight: number = 0): boolean {
   if (!lot || lot.status === "finished") return false;
   if (!(sessionWeight > 0)) return false;
