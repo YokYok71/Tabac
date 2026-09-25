@@ -147,6 +147,29 @@ export function heldWeight(tob: any): number {
 // banner. Shared so the two projections stay in step. `restoreWeight` is
 // the OLD session weight being given back on an editJ (0 on a fresh add /
 // live tasting). Skips finished lots + zero session weight (no warning).
+/**
+ * The tobacco fiche to show after UNDOING a lot delete (pure).
+ *
+ * The fiche does not read `data`: it renders `detail`, a COPY, and
+ * `removeLot` rewrote that copy without the lot. The undo restores `data`
+ * wholesale (`save(snapshot)`) and nothing resyncs the copy — measured: of the
+ * 132 effects in `src/`, none sets `detail`. So without this, « Annuler »
+ * brought the lot back in storage while the open fiche kept showing it gone.
+ *
+ * Only the fiche OF THAT TOBACCO is refreshed: the user may have navigated to
+ * another one during the 8 s, and swapping their screen would be worse than a
+ * stale one. Trashed lots are stripped, as `liveData` does.
+ */
+export function detailAfterLotUndo(cur: any, snapshot: any, tobId: any): any {
+  if (!cur || String(cur.id) !== String(tobId)) return cur;
+  var tobs = (snapshot && Array.isArray(snapshot.tobaccos)) ? snapshot.tobaccos : [];
+  var tb = tobs.find(function (x: any) { return x && String(x.id) === String(tobId); });
+  if (!tb) return cur;
+  return Object.assign({}, tb, {
+    lots: (Array.isArray(tb.lots) ? tb.lots : []).filter(function (l: any) { return !l || !l.deletedAt; }),
+  });
+}
+
 export function lotWillClose(lot: any, sessionWeight: number, restoreWeight: number = 0): boolean {
   if (!lot || lot.status === "finished") return false;
   if (!(sessionWeight > 0)) return false;

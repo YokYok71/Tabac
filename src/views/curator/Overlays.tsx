@@ -407,6 +407,8 @@ const UNDO_KIND: Record<string, { kind: string; verb: string }> =
     // The maintenance log was the app's ONLY delete with no
     // undo, no trash and no confirm — on an entry carrying free-text notes.
     maintenance: { kind: "kind_maintenance", verb: "lbl_deleted" },
+    // A lot delete had NO toast at all (removeLot reached ctx raw) — see removeLotU.
+    lot:       { kind: "kind_lot",       verb: "lbl_deleted" },
     catalogue: { kind: "kind_catalogue", verb: "lbl_updated" },
   });
 
@@ -454,6 +456,14 @@ export function CuratorUndoToast() {
           color: C.ivory, overflow: "hidden", textOverflow: "ellipsis",
           whiteSpace: "nowrap", maxWidth: 240,
         }}>{undoToast.label}</span>
+        {/* A SENTENCE, unlike the label above: it wraps instead of truncating,
+            within the same 240 px so the toast does not widen on a phone. */}
+        {undoToast.hint ? (
+          <span style={{
+            color: C.tx2, fontSize: fs(13), lineHeight: 1.35,
+            maxWidth: 240, whiteSpace: "normal", marginTop: 3,
+          }}>{undoToast.hint}</span>
+        ) : null}
       </div>
       <button
         type="button"

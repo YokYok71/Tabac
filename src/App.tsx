@@ -40,7 +40,7 @@ import {
   xlValue,
 } from "./constants.ts";
 import { applyTheme, THEMES, themeColorFor } from "./theme-curator.ts";
-import { pickJarLot } from "./utils/lotUtils.ts";
+import { pickJarLot, detailAfterLotUndo } from "./utils/lotUtils.ts";
 import { buildTobaccoAromaIndex, tobaccoMatchesAromas } from "./utils/aromas.ts";
 import { lotMaturityBucket, isRecentPurchase, scopeFromStatusFilter, lotInScope, scopedHeldWeight, scopedOldestAgeDays } from "./utils/cellarInsights.ts";
 import { isLowStock, lowStockThreshold } from "./utils/shopping.ts";
@@ -3154,21 +3154,32 @@ function App() {
   // so only one undo slot is ever pending. The auto-clear timer fires
   // from a useEffect anchored on `undoToast.ts` so it resets on
   // replacement too.
+  // Two optional hooks, both absent for every delete that predates them:
+  // `hint` adds a second line under the label (a sentence, so it WRAPS — the
+  // label slot is a nowrap subject), and `afterRestore` runs once the snapshot
+  // is back, for a screen that renders a COPY of the data (see removeLotU).
   function withUndo<A extends any[]>(
     deleteFn: (...args: A) => void,
     kind: string,
     labelFn: (snapshot: any, ...args: A) => string,
+    opts?: {
+      hint?: (snapshot: any, ...args: A) => string;
+      afterRestore?: (snapshot: any, ...args: A) => void;
+    },
   ) {
     return function (...args: A) {
       var snapshot = JSON.parse(JSON.stringify(data));
       var label = labelFn(snapshot, ...args);
+      var hint = opts && opts.hint ? opts.hint(snapshot, ...args) : "";
       deleteFn(...args);
       setUndoToast({
         kind: kind,
         label: label,
+        ...(hint ? { hint: hint } : {}),
         ts: Date.now(),
         restoreFn: function () {
           save(snapshot);
+          if (opts && opts.afterRestore) opts.afterRestore(snapshot, ...args);
           setUndoToast(null);
         },
       });
@@ -3221,6 +3232,38 @@ function App() {
     return [dateStr, pipeName].filter(Boolean).join(" · ") || "—";
   }
   var removeMaintenanceU = withUndo(removeMaintenance, "maintenance", _maintLabel);
+  // A LOT DELETE HAD NO UNDO AT ALL, while the help (« juste après chaque
+  // suppression, un toast… »), the fiche's own comment (« the 8 s undo toast
+  // still catches accidents ») and CLAUDE.md all said it had one: `removeLot`
+  // reached ctx raw. The label is a SUBJECT like the trash row's (tobacco name,
+  // box number when there is one).
+  //
+  // The HINT is the reason this was opened. Deleting is right for a lot
+  // created by mistake; a tin that was thrown or given away should be marked
+  // 🚮 Disposed instead, which keeps its sessions in Cost per session and
+  // Rating by age and its price in Spending (help, section 6). Shown for every
+  // lot delete except one already disposed, where it would say nothing.
+  //
+  // `afterRestore` is not optional here: the fiche renders `detail`, a copy
+  // that removeLot rewrote, and nothing resyncs it (detailAfterLotUndo).
+  function _lotLabel(d: any, tobId: any, lotId: any): string {
+    var tb = findById(d.tobaccos, tobId);
+    var lot = tb ? findById((tb as any).lots, lotId) : null;
+    var tobName = tb ? entityLabel(tb, "") : "";
+    var box = lot && (lot as any).boxNumber
+      ? String(t("lbl_box_short")) + (lot as any).boxNumber : "";
+    return [tobName, box].filter(Boolean).join(" · ") || "—";
+  }
+  var removeLotU = withUndo(removeLot, "lot", _lotLabel, {
+    hint: function (d: any, tobId: any, lotId: any) {
+      var tb = findById(d.tobaccos, tobId);
+      var lot = tb ? findById((tb as any).lots, lotId) : null;
+      return lot && (lot as any).disposed ? "" : String(t("undo_hint_lot_disposed"));
+    },
+    afterRestore: function (d: any, tobId: any) {
+      setDetail(function (cur: any) { return detailAfterLotUndo(cur, d, tobId); });
+    },
+  });
   var deleteTobaccoU = withUndo(deleteTobacco, "tobacco", _tobName);
   var deletePipeU    = withUndo(deletePipe,    "pipe",    _pipeName);
   var deleteAccessoryU = withUndo(deleteAccessory, "accessory", _accName);
@@ -3734,7 +3777,8 @@ function App() {
     setSaveWarn,
     dismissQuotaWarn,
     changeLotStatus,
-    removeLot,
+    // The WRAPPED variant — the undo toast and its hint live in the wrapper.
+    removeLot: removeLotU,
     updatePillDismissed,
     setUpdatePillDismissed,
     justUpdated,
