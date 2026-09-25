@@ -1359,14 +1359,15 @@ describe("SettingsModal — the active tab is scrolled into view", () => {
     const prev = proto.scrollTo;
     proto.scrollTo = function () { calls.push(1); };
     try {
-      for (const tab of ["prefs", "data", "app", "help"]) {
+      const ORDER = ["prefs", "data", "help", "app"]; // the strip's order, left to right
+      for (const tab of ORDER) {
         const s = strip(open(tab));
         const active = [...s.children].findIndex((b) => b.getAttribute("aria-selected") === "true");
         // The selected tab must exist and be the one the strip is pointed at —
         // the index is derived from `active`, so a hardcoded 0 would fail here
         // for three of the four.
         expect(active).toBeGreaterThanOrEqual(0);
-        expect(["prefs", "data", "app", "help"][active]).toBe(tab);
+        expect(ORDER[active]).toBe(tab);
       }
     } finally {
       if (had) proto.scrollTo = prev; else delete proto.scrollTo;

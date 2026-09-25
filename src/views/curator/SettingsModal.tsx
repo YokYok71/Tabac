@@ -1996,8 +1996,11 @@ function SettingsTabs({
   const tabs: { id: SettingsTabId; label: string; icon: IcoName }[] = [
     { id: "prefs", label: tr("tab_prefs", "Préférences"), icon: "settings" },
     { id: "data",  label: tr("tab_data",  "Données"),     icon: "cloud" },
-    { id: "app",   label: tr("tab_app",   "Application"), icon: "diamond" },
+    // Aide before Application, on the user's request: it is the tab used
+    // more often, and in fourth place it sat past the right edge of the
+    // scrolling strip on a phone, out of sight.
     { id: "help",  label: tr("tab_help",  "Aide"),        icon: "book" },
+    { id: "app",   label: tr("tab_app",   "Application"), icon: "diamond" },
   ];
   return (
     // Scroll horizontally instead of clipping (the four tab labels
