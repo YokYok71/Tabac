@@ -220,10 +220,64 @@ export function stampNewCellarRev(): string {
  *  Kept, they made each device read the OTHER's upload of its discarded cellar
  *  as its own echo — two crossed replaces left the devices on different
  *  cellars with neither one offered anything (simulation cases 10 and 7c). */
-export function adoptCellarRev(rev: string | null | undefined, discardHistory?: boolean): void {
+export function adoptCellarRev(rev: string | null | undefined, discardHistory?: boolean, lineage?: string[]): void {
   if (!rev || !REV_RE.test(rev)) return;
   if (discardHistory) lsSet(CELLAR_REVS_KEY, "[]");
+  if (lineage && lineage.length) rememberAncestors(lineage);
   rememberCellarRev(rev);
+}
+/** Add revisions to the history WITHOUT moving the current one — what a
+ *  merge does: its result contains the file, but it is a cellar of its own. */
+export function rememberAncestors(revs: string[]): void {
+  var have = knownCellarRevs();
+  var seen: Record<string, true> = Object.create(null);
+  for (var i = 0; i < have.length; i++) seen[have[i]!] = true;
+  var add = revs.filter(function (x) {
+    if (typeof x !== "string" || !REV_RE.test(x) || seen[x]) return false;
+    seen[x] = true;
+    return true;
+  });
+  if (!add.length) return;
+  // Ancestors go BEFORE this device's own entries: past the bound, the oldest
+  // fall out first, and an ancestor is older than anything held here since.
+  var list = add.concat(have);
+  if (list.length > CELLAR_REVS_MAX) list = list.slice(list.length - CELLAR_REVS_MAX);
+  lsSet(CELLAR_REVS_KEY, JSON.stringify(list));
+}
+
+/**
+ * THE LINEAGE A BACKUP CARRIES (`_revs`, build 46) — the answer to « why
+ * upload right after a restore? », which the user asked and which builds 41–45
+ * had no way to answer.
+ *
+ * Every cloud backup carries the revisions its cellar descends from. When the
+ * device restoring it finds ITS OWN current revision in that list, the file
+ * already contains everything this device holds: the restore brings this
+ * device level with the other one and leaves it nothing the other lacks — so
+ * it uploads nothing. Before, every merge stamped a fresh revision (a merge
+ * detaches incoming sessions, so its result never equals the file) and sent
+ * it straight back: the other device was then offered its own data, which is
+ * the echo reported from the iPhone after a session merged on the iPad.
+ */
+export function readLineage(d: any): string[] {
+  var v = d && d._revs;
+  if (!Array.isArray(v)) return [];
+  var out = v.filter(function (x: any) { return typeof x === "string" && REV_RE.test(x); });
+  return out.length > CELLAR_REVS_MAX ? out.slice(out.length - CELLAR_REVS_MAX) : out;
+}
+export function fileDescendsFrom(lineage: string[], rev: string): boolean {
+  return !!rev && lineage.indexOf(rev) >= 0;
+}
+/** `preRev` was read when the file was staged. Still describing this cellar
+ *  at apply time means: current, or the one the import's own save() just
+ *  replaced. Anything more and an edit landed in between, which the file
+ *  cannot contain. */
+export function revUntouchedSince(preRev: string): boolean {
+  if (!preRev) return false;
+  var cur = currentCellarRev();
+  if (cur === preRev) return true;
+  var h = knownCellarRevs();
+  return h.length >= 2 && h[h.length - 1] === cur && h[h.length - 2] === preRev;
 }
 
 /** Everything the guard honours: dismissed OR restored. */
@@ -696,7 +750,7 @@ export function useGdriveSync({
     // `onApplied` fires once the import is COMMITTED (either mode), never on
     // cancel — the cloud-newer banner acks the backup there rather than at
     // stage time, so backing out of the picker leaves the warning armed.
-    options?: { autoApply?: "replace" | "merge"; onApplied?: (mode: "replace" | "merge", info?: { sameAsFile: boolean }) => void },
+    options?: { autoApply?: "replace" | "merge"; replaceIsLossless?: boolean; onApplied?: (mode: "replace" | "merge", info?: { sameAsFile: boolean }) => void },
   ) => void;
   markExported?: () => void;
   t: (k: string) => string;
@@ -1544,9 +1598,7 @@ export function useGdriveSync({
         // import pending with NOTHING on screen, a worse defect than the one
         // being fixed. Verified in CuratorApp's mount gate.
         setImportModal(true);
-        stageImport(d, "drive", {
-          onApplied: function (mode: "replace" | "merge", info?: { sameAsFile: boolean }) { cloudRestoreApplied(mode, ackTs, ackName, info); },
-        });
+        stageCloudRestore(d, ackTs, ackName);
         finishBusy();
       })
       .catch(function (e: any) {
@@ -2179,6 +2231,8 @@ export function useGdriveSync({
               _schemaVersion: SCHEMA_VERSION,
               // Preferences ride along (allowlist — utils/appSettings).
               _settings: collectSettings(),
+              // The revisions this cellar descends from — see readLineage.
+              _revs: knownCellarRevs(),
             });
             // The MANUAL cloud save is attended but it is still the
             // safety net, not an archive file — so it degrades like the auto
@@ -2628,6 +2682,7 @@ export function useGdriveSync({
     // Read WITH the snapshot: save() writes both synchronously, so the name
     // carries the revision of exactly the cellar being uploaded.
     var revAtSnap = currentCellarRev();
+    var revsAtSnap = knownCellarRevs();
     if (!rawSnap) { releaseQuietLock(); return; }
     var snap: any;
     try {
@@ -2675,6 +2730,8 @@ export function useGdriveSync({
         _schemaVersion: SCHEMA_VERSION,
         // Preferences ride along (allowlist — utils/appSettings).
         _settings: collectSettings(),
+        // Read with the snapshot, like its revision — see readLineage.
+        _revs: revsAtSnap,
       });
       if (Object.keys(imgMap as object).length)
         bk = Object.assign({}, bk, { _imageData: imgMap });
@@ -2998,7 +3055,7 @@ export function useGdriveSync({
             // Replace / Cancel choice via the same UI as the JSON file
             // import — keeps the two restore paths consistent.
             // See `ackOnApplied`: acknowledged once APPLIED, not downloaded.
-            stageImport(d, "drive", { onApplied: ackOnApplied(opt) });
+            stageCloudRestore(d, optAckTs(opt), opt && opt.name);
           })
           .catch(function (e) {
             setGdriveStatus(t("err_prefix") + ": " + String((e && e.message) || e).substring(0, 150));
@@ -3018,7 +3075,7 @@ export function useGdriveSync({
     setGdriveConfirm(null);
     // See comment in the lazy-download branch above —
     // the staged payload flows through useImportConfirm's picker.
-    stageImport(opt.d, "drive", { onApplied: ackOnApplied(opt) });
+    stageCloudRestore(opt.d, optAckTs(opt), opt && opt.name);
   }
   // RESTORING COUNTS AS ACKNOWLEDGING THE NEWER CLOUD BACKUP — but only once
   // it is restored. The acknowledgement used to be written when the file was
@@ -3026,29 +3083,64 @@ export function useGdriveSync({
   // there silenced that backup's multi-device banner for ever while none of
   // its data had arrived. `restoreCloudNewerBackup` already waited for
   // `onApplied`; the picker path now does the same.
-  function ackOnApplied(opt: any): (mode: "replace" | "merge", info?: { sameAsFile: boolean }) => void {
-    var ts = opt && opt.modifiedTime ? new Date(opt.modifiedTime).getTime() : undefined;
-    var name = opt && opt.name;
-    return function (mode: "replace" | "merge", info?: { sameAsFile: boolean }) { cloudRestoreApplied(mode, ts, name, info); };
+  function optAckTs(opt: any): number | undefined {
+    return opt && opt.modifiedTime ? new Date(opt.modifiedTime).getTime() : undefined;
+  }
+  // Both restore doors (the banner and the backups panel) stage through here.
+  // The lineage and this device's revision are read NOW, before the import's
+  // own save() stamps a new one; `replaceIsLossless` lets the picker say that
+  // Replace is the right choice (see readLineage).
+  function stageCloudRestore(d: any, ackTs?: number, ackName?: string) {
+    var lineage = readLineage(d);
+    var preRev = currentCellarRev();
+    stageImport(d, "drive", {
+      replaceIsLossless: fileDescendsFrom(lineage, preRev),
+      onApplied: function (mode: "replace" | "merge", info?: { sameAsFile: boolean }) {
+        cloudRestoreApplied(mode, ackTs, ackName, info, { preRev: preRev, lineage: lineage });
+      },
+    });
   }
   // A CLOUD REPLACE ADOPTS THE RESTORED FILE'S REVISION (see
-  // CELLAR_REV_KEY). The restored cellar IS uploaded again, as before build
-  // 41 — that keeps this device's cloud file on its real state instead of the
-  // one it just discarded — and the other device recognises the revision as
-  // its own and stays quiet. A merge keeps the fresh revision save() stamped:
-  // its result is new to everybody.
-  // A MERGE whose result is exactly the file (`info.sameAsFile`, computed by
-  // useImportConfirm) is the same cellar as a replace would give, so it takes
-  // the file's revision the same way. Without `info` (an older caller), only
-  // a replace adopts.
-  function cloudRestoreApplied(mode: "replace" | "merge", ackTs?: number, ackName?: string, info?: { sameAsFile: boolean }) {
+  // CELLAR_REV_KEY), and so does a MERGE whose result is exactly the file
+  // (`info.sameAsFile`, computed by useImportConfirm). Without `info` (an older
+  // caller), only a replace adopts.
+  //
+  // WHAT IS UPLOADED AFTERWARDS is decided by the lineage (build 46):
+  //   • the file DESCENDS from this device's cellar → nothing. This device
+  //     held nothing the file lacks, so its upload could only offer the other
+  //     device its own data back — the echo. A merge that came out different
+  //     (detached sessions) keeps its own revision but stays silent too.
+  //   • otherwise, as before: a replace re-sends this device's file under the
+  //     adopted revision (so the other device recognises it), and a merge
+  //     with something of its own uploads that.
+  // Every restore that applied also records the file's revision and lineage
+  // as ANCESTORS: the result contains them, so a later upload from here tells
+  // the other device that it, in turn, holds nothing new — which is what ends
+  // a ping-pong after the two devices genuinely diverged.
+  function cloudRestoreApplied(
+    mode: "replace" | "merge", ackTs?: number, ackName?: string,
+    info?: { sameAsFile: boolean },
+    lin?: { preRev: string; lineage: string[] },
+  ) {
     ackCloudNewerBackup(ackTs, ackName);
-    if (mode !== "replace" && !(info && info.sameAsFile)) return;
     var rev = backupRev(ackName || "");
-    if (!rev) return;
-    // A merge equal to the file kept everything this device held, so its
-    // history stays; a replace discarded it.
-    adoptCellarRev(rev, mode === "replace");
+    var lineage = (lin && lin.lineage) || [];
+    var descends = !!lin && fileDescendsFrom(lineage, lin.preRev) && revUntouchedSince(lin.preRev);
+    var exact = mode === "replace" || !!(info && info.sameAsFile);
+    if (exact && rev) {
+      // A replace discarded the cellar every earlier revision described —
+      // unless the file descends from it, in which case they are ancestors of
+      // what is here now and stay true.
+      adoptCellarRev(rev, mode === "replace" && !descends, lineage);
+    } else if (rev) {
+      rememberAncestors(lineage.concat([rev]));
+    }
+    if (descends) {
+      lsRemove("cave-pending-sync");
+      setPendingSync(false);
+      return;
+    }
+    if (!exact || !rev) return;
     // Send this device's file again under the ADOPTED revision, even when the
     // replace changed nothing (save() then raised no flag — build 44). Left
     // alone, this device's cloud file keeps its OLD revision, which the other

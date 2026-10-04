@@ -254,6 +254,43 @@ describe("SettingsModal — le panneau d'import", () => {
     } finally { spy.mockRestore(); }
   });
 
+  // Build 46 : un fichier qui DESCEND de la cave de l'appareil (sa généalogie
+  // contient la révision d'ici) n'efface rien qui ne revienne. Le panneau le
+  // dit, recommande « Remplacer », et la confirmation ne crie plus « effacés »
+  // — mais elle reste, fail-closed.
+  it("fichier descendant : note, « Recommandé », et une confirmation qui ne parle pas d'effacer", () => {
+    const spy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    try {
+      const base = renderPanel();
+      expect(base.container.textContent).not.toContain(trFr("import_lossless_note"));
+      base.unmount();
+      const { container, applyImport } = renderPanel({
+        importConfirm: {
+          parsed, imgData: {}, replaceIsLossless: true,
+          dupCounts: { tobaccos: 0, pipes: 0, wishlist: 0, accessories: 0 },
+          incoming: { tobaccos: 2, pipes: 1, wishlist: 0, accessories: 0, sessions: 0 },
+        },
+      });
+      expect(container.textContent).toContain(trFr("import_lossless_note"));
+      const card = findCard(container as HTMLElement, trFr("import_replace"));
+      expect(card.textContent).toContain(trFr("import_recommended"));
+      fireEvent.click(card);
+      expect(spy.mock.calls[0]![0]).toBe(trFr("import_replace_confirm_lossless"));
+      expect(applyImport, "un refus n'importe toujours rien").not.toHaveBeenCalled();
+    } finally { spy.mockRestore(); }
+  });
+
+  it("fusion seule (CSV) : pas de recommandation de « Remplacer » absent", () => {
+    const { container } = renderPanel({
+      importConfirm: {
+        parsed, imgData: {}, replaceIsLossless: true, mergeOnly: true,
+        dupCounts: { tobaccos: 0, pipes: 0, wishlist: 0, accessories: 0 },
+        incoming: { tobaccos: 2, pipes: 1, wishlist: 0, accessories: 0, sessions: 0 },
+      },
+    });
+    expect(container.textContent).not.toContain(trFr("import_lossless_note"));
+  });
+
   it("« Annuler » ne touche à rien", () => {
     // Troisième issue du même panneau : elle doit renoncer, pas importer.
     const { container, applyImport, cancelImport } = renderPanel();

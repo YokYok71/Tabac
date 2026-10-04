@@ -458,17 +458,21 @@ describe("harness", () => {
 });
 
 describe("1 — an edit on A reaches B", () => {
-  it("1a REPLACE on B: B gets the edit, its file carries A's revision, then A (launch and resume) and B are silent", async () => {
+  it("1a REPLACE on B: B gets the edit and uploads NOTHING (A's file descends from B's cellar), then A (launch and resume) and B are silent", async () => {
     const { A, B } = await pairedDevices();
     const aFile = await aEditsAlpha(A);
     expect(tobNames(contentOf(aFile))).toContain("Alpha");
     await launch(B);
     expect(offered(), "B is offered A's edit").toBe(aFile.name);
+    const bFileBefore = autoFileOf("ipad1")!.name;
     await restoreOffered("replace");
     expect(tobNames(stored())).toContain("Alpha");
     expect(offered(), "B, after its own restore").toBeNull();
     await close();
-    expect(backupRev(autoFileOf("ipad1")!.name)).toBe(backupRev(aFile.name));
+    // Build 46: B held nothing A's file lacks, so B sends nothing back. Its
+    // file keeps a revision A has HELD — which is why A stays silent below.
+    expect(autoFileOf("ipad1")!.name, "no upload from B").toBe(bFileBefore);
+    expect(JSON.parse(A.ls.get("cave-cellar-revs")!)).toContain(backupRev(bFileBefore));
     wait(5 * 60000);
     await launch(A);
     expect(offered(), "A is not offered its own cellar back (launch)").toBeNull();
@@ -481,7 +485,6 @@ describe("1 — an edit on A reaches B", () => {
     await close();
   });
 
-  // Converges, but through ONE echo — see the it.fails 1b below.
   it("1c MERGE on B: both end with the edit and the loop ends within two offers", async () => {
     const { A, B } = await pairedDevices();
     await aEditsAlpha(A);
@@ -490,6 +493,119 @@ describe("1 — an edit on A reaches B", () => {
     expect(offers.length).toBeLessThanOrEqual(2);
     expect(tobNames(storedOf(A))).toEqual(tobNames(storedOf(B)));
     expect(tobNames(storedOf(B))).toContain("Alpha");
+  });
+});
+
+/** A smokes a session on lot-1 through the real save(), the way the session
+ *  store writes it: the session row, and the lot debited. */
+async function aSmokesSession(A: Device) {
+  await launch(A);
+  const d = JSON.parse(JSON.stringify(CTX.dataRaw));
+  d.sessions.push({
+    id: d.nxJ, uid: "sess-a1", date: "2026-10-04", tobaccoId: 1, pipeId: 1,
+    lotId: "lot-1", weightG: "3", duration: 45, rating: 4, notes: "",
+  });
+  d.nxJ += 1;
+  const lot = d.tobaccos[0].lots[0];
+  lot.weightG = Number(lot.weightG) - 3;
+  await act(async () => { CTX.save(d); });
+  await advance(100);
+  await close();
+  wait(5 * 60000);
+  return autoFileOf("iphone1")!;
+}
+
+// THE USER'S CASE, reported from the iPhone after builds 41–45: a session on
+// one device, MERGED on the other, and the first device is offered its own
+// data back. A merge detaches incoming sessions from their lot, so its result
+// never equals the file and save() stamps a fresh revision — which B then
+// uploaded. B held nothing A lacked: the file's lineage says so (build 46).
+describe("11 — a session smoked on A, then restored on B", () => {
+  for (const mode of ["merge", "replace"] as const) {
+    it("11 " + mode + ": the picker recommends Replace, B uploads nothing, A is not offered anything", async () => {
+      const { A, B } = await pairedDevices();
+      const aFile = await aSmokesSession(A);
+      expect(contentOf(aFile)._revs, "the backup carries its lineage").toContain(B.ls.get("cave-cellar-rev"));
+      const bFileBefore = autoFileOf("ipad1")!.name;
+      await launch(B);
+      expect(offered()).toBe(aFile.name);
+      await act(async () => { CTX.restoreCloudNewerBackup(); });
+      await advance(500);
+      expect(CTX.importConfirm.replaceIsLossless, "Replace is recommended").toBe(true);
+      expect(CTX.importConfirm.parsed._revs, "the lineage is not staged into the cellar").toBeUndefined();
+      await act(async () => { CTX.applyImport(mode); });
+      await advance(100);
+      await reloadIfAsked();
+      await advance(8000);
+      expect((stored().sessions || []).length, "B has the session").toBe(1);
+      expect(stored()._revs).toBeUndefined();
+      expect(localStorage.getItem("cave-pending-sync"), "nothing left to send").toBeNull();
+      expect(offered()).toBeNull();
+      await resume();
+      await close();
+      expect(autoFileOf("ipad1")!.name, "B uploaded nothing").toBe(bFileBefore);
+      if (mode === "replace") {
+        // A faithful copy: the session keeps its lot, the lot keeps its debit.
+        expect(storedOf(B).sessions[0].lotId).toBe("lot-1");
+        expect(Number(storedOf(B).tobaccos[0].lots[0].weightG)).toBe(97);
+      }
+      wait(5 * 60000);
+      await launch(A);
+      expect(offered(), "A is not offered its own session back (launch)").toBeNull();
+      await resume();
+      expect(offered(), "…nor on resume").toBeNull();
+      await close();
+      wait(5 * 60000);
+      await launch(B);
+      expect(offered()).toBeNull();
+      await close();
+    });
+  }
+
+  it("11 B's next edit reaches A, and A's restore of it sends nothing back either", async () => {
+    const { A, B } = await pairedDevices();
+    await aSmokesSession(A);
+    const offers = await settle(B, A, "merge");
+    expect(offers.length, offers.join("\n")).toBe(1);
+    await launch(B); await addTobacco("Beta"); await close(); wait(5 * 60000);
+    const bFile = autoFileOf("ipad1")!;
+    const aFileBefore = autoFileOf("iphone1")!.name;
+    await launch(A);
+    expect(offered(), "B's edit is genuinely new for A").toBe(bFile.name);
+    expect(contentOf(bFile)._revs, "B's lineage holds A's revision").toContain(A.ls.get("cave-cellar-rev"));
+    await act(async () => { CTX.restoreCloudNewerBackup(); });
+    await advance(500);
+    expect(CTX.importConfirm.replaceIsLossless).toBe(true);
+    await act(async () => { CTX.applyImport("merge"); });
+    await advance(8000);
+    await close();
+    expect(autoFileOf("iphone1")!.name, "A uploaded nothing").toBe(aFileBefore);
+    expect(tobNames(storedOf(A))).toContain("Beta");
+    wait(5 * 60000);
+    await launch(B);
+    expect(offered(), "B is not offered A's copy of B's edit").toBeNull();
+    await close();
+  });
+
+  it("11 a device with an edit of its own still uploads after the restore (the file does not contain it)", async () => {
+    const { A, B } = await pairedDevices();
+    const aFile = await aSmokesSession(A);
+    offline = true;
+    await launch(B); await addTobacco("Beta"); await close(); wait(60000);
+    offline = false;
+    await launch(B);
+    expect(offered()).toBe(aFile.name);
+    await act(async () => { CTX.restoreCloudNewerBackup(); });
+    await advance(500);
+    expect(CTX.importConfirm.replaceIsLossless, "Beta is not in A's file").toBeFalsy();
+    await act(async () => { CTX.applyImport("merge"); });
+    await advance(8000);
+    await close();
+    expect(tobNames(contentOf(autoFileOf("ipad1")))).toContain("Beta");
+    wait(5 * 60000);
+    await launch(A);
+    expect(offered(), "A is offered B's Beta").toBe(autoFileOf("ipad1")!.name);
+    await close();
   });
 });
 
@@ -524,8 +640,7 @@ describe("2 — identical cellars under different revisions (the state builds 42
 });
 
 describe("3 — divergence: both edit offline, then merge", () => {
-  // Converges with no loss, but in THREE offers — see the it.fails 3 below.
-  it("3 both end with both edits and the loop terminates (three offers)", async () => {
+  it("3 both end with both edits and the loop terminates", async () => {
     const { A, B } = await pairedDevices();
     offline = true;
     await launch(A); await addTobacco("Alpha"); await close(); wait(60000);
@@ -535,7 +650,7 @@ describe("3 — divergence: both edit offline, then merge", () => {
     dbg("3", { offers });
     expect(tobNames(storedOf(A))).toEqual(["Alpha", "Beta", "Duskfall", "Seed"]);
     expect(tobNames(storedOf(B))).toEqual(["Alpha", "Beta", "Duskfall", "Seed"]);
-    expect(offers.length, offers.join("\n")).toBeLessThanOrEqual(3);
+    expect(offers.length, offers.join("\n")).toBeLessThanOrEqual(2);
   });
 });
 
@@ -597,7 +712,7 @@ describe("5 — a backup written before revisions existed (no -r in the name)", 
 });
 
 describe("6 — a REPLACE carrying _settings reloads the page", () => {
-  it("the adopted revision and the unsynced flag survive the reload, and the upload carries the adopted revision", async () => {
+  it("the adopted revision survives the reload, and nothing is uploaded (the file descends from B's cellar)", async () => {
     const { A, B } = await pairedDevices();
     const aFile = await aEditsAlpha(A);
     expect(contentOf(aFile)._settings, "every auto backup carries preferences").toBeTruthy();
@@ -609,11 +724,12 @@ describe("6 — a REPLACE carrying _settings reloads the page", () => {
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
     expect(reloadSpy, "the replace asks for a reload").toHaveBeenCalled();
     expect(localStorage.getItem("cave-cellar-rev")).toBe(backupRev(aFile.name));
-    expect(localStorage.getItem("cave-pending-sync")).toBe("1");
-    await reloadIfAsked();               // remount + 8 s: auto-save and launch check
+    expect(localStorage.getItem("cave-pending-sync"), "nothing to send: B had nothing A lacks").toBeNull();
+    const bFileBefore = autoFileOf("ipad1")!.name;
+    await reloadIfAsked();               // remount + 8 s: launch check
     expect(localStorage.getItem("cave-cellar-rev")).toBe(backupRev(aFile.name));
-    expect(localStorage.getItem("cave-pending-sync"), "uploaded after the reload").toBeNull();
-    expect(backupRev(autoFileOf("ipad1")!.name)).toBe(backupRev(aFile.name));
+    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
+    expect(autoFileOf("ipad1")!.name, "no upload across the reload").toBe(bFileBefore);
     expect(offered()).toBeNull();
     await close();
   });
@@ -728,7 +844,7 @@ describe("9 — other paths", () => {
 // says what happens instead. When one is fixed it turns red: drop `.fails`.
 // ═════════════════════════════════════════════════════════════════════════
 
-describe("was FAILING, fixed in build 45 (except 3) — the merge echo", () => {
+describe("was FAILING, fixed in build 45 (1b) and build 46 (3) — the merge echo", () => {
   // OBSERVED: B's merge of A's file yields a cellar byte-identical
   // (stableStringify) to A's — B had nothing A lacked — but save() sees a
   // change on B, so it stamps a FRESH revision and B uploads under it. A has
@@ -749,12 +865,13 @@ describe("was FAILING, fixed in build 45 (except 3) — the merge echo", () => {
     expect(aOffer, "A must not be offered B's copy of A's own cellar").toBeNull();
   });
 
-  // OBSERVED: iPad ← A(Alpha); iPhone ← B(union); iPad ← A(union, again).
-  // A's merge result has the same content as B's file but other local ids
-  // (Alpha 3/Beta 4 on A, Beta 3/Alpha 4 on B), so a fresh revision is
-  // stamped and B is offered A's union: an echo. B's merge then changes
-  // nothing and the loop stops.
-  it.fails("3 divergence + merges: at most two offers (no echo)", async () => {
+  // WAS: iPad ← A(Alpha); iPhone ← B(union); iPad ← A(union, again). A's
+  // merge result had the same content as B's file but other local ids, so a
+  // fresh revision was stamped and B was offered A's union: an echo. Fixed by
+  // the lineage (build 46): B's merge records A's revision as an ANCESTOR, so
+  // A finds its own revision in B's file, holds nothing B lacks, and uploads
+  // nothing after its merge.
+  it("3 divergence + merges: at most two offers (no echo)", async () => {
     const { A, B } = await pairedDevices();
     offline = true;
     await launch(A); await addTobacco("Alpha"); await close(); wait(60000);

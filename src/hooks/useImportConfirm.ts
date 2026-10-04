@@ -406,6 +406,13 @@ export interface ImportConfirmState {
    *  CSV ne remplace jamais ; cette option est ce qui tient la promesse
    *  maintenant que les deux chemins partagent un panneau. */
   mergeOnly?: boolean | undefined;
+  /** Le fichier DESCEND de la cave de cet appareil (sa généalogie `_revs`
+   *  contient la révision actuelle d'ici — voir `readLineage` dans
+   *  useGdriveSync) : il contient déjà tout ce que l'appareil possède, donc
+   *  « Remplacer » est le bon choix et le panneau le recommande. « Fusionner »
+   *  y donnerait une copie moins fidèle — les séances entrantes y perdent leur
+   *  lot. */
+  replaceIsLossless?: boolean | undefined;
   /** Le récapitulatif de LECTURE, propre au CSV, affiché avant d'appliquer.
    *
    *  Le panneau sait dire ce qui va ENTRER (compteurs, doublons) ; il ne sait
@@ -510,6 +517,8 @@ export function useImportConfirm({
        *  import. Default false — the historical behaviour. See `_runImport`. */
       keepModalOpen?: boolean;
       mergeOnly?: boolean;
+      /** See `ImportConfirmState.replaceIsLossless`. */
+      replaceIsLossless?: boolean;
       csvSummary?: { rows: number; lots: number; issues: number; ignoredColumns: string[] };
     },
   ) {
@@ -561,6 +570,9 @@ export function useImportConfirm({
     // will consume it here before stripping; for the current schema
     // (v6) it's informational only.
     delete staged._schemaVersion;
+    // The backup's lineage (build 46) is read by the cloud restore BEFORE
+    // staging; it describes the file, not the cellar, so it is not kept.
+    delete staged._revs;
     // The app's PREFERENCES, carried by every export and backup.
     // Extracted here so they never bleed into the saved data structure, and
     // applied only on REPLACE — see _runImport.
@@ -650,6 +662,7 @@ export function useImportConfirm({
           settings: pendingSettings,
       onApplied: (options && options.onApplied) || undefined,
       mergeOnly: (options && options.mergeOnly) || undefined,
+      replaceIsLossless: (options && options.replaceIsLossless) || undefined,
       csvSummary: (options && options.csvSummary) || undefined,
     });
   }

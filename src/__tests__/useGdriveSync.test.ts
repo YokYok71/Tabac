@@ -36,6 +36,10 @@ import {
   knownCellarRevs,
   stampNewCellarRev,
   adoptCellarRev,
+  rememberAncestors,
+  readLineage,
+  fileDescendsFrom,
+  revUntouchedSince,
   CELLAR_REV_KEY,
   CELLAR_REVS_KEY,
   cloudRestoredKeys,
@@ -178,7 +182,7 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     const payload = { tobaccos: [{ id: 1, name: "Balkan" }], _apiKey: "sk-x" };
     const { stageImport } = renderAndConfirm({}, payload);
     expect(stageImport).toHaveBeenCalledTimes(1);
-    expect(stageImport).toHaveBeenCalledWith(payload, "drive", { onApplied: expect.any(Function) });
+    expect(stageImport).toHaveBeenCalledWith(payload, "drive", { onApplied: expect.any(Function), replaceIsLossless: false });
   });
 
   // The acknowledgement used to be written at DOWNLOAD time, before the
@@ -373,7 +377,7 @@ describe("doGdriveConfirm — lazy download validates before it stages", () => {
     const name = "cave-tabac-auto-abc123-20260102-030405-t1-p0-w0-a0-j0.json";
     const { stageImport } = pick({ id: "f1", name, modifiedTime });
     await settleRestore();
-    expect(stageImport).toHaveBeenCalledWith(payload, "drive", { onApplied: expect.any(Function) });
+    expect(stageImport).toHaveBeenCalledWith(payload, "drive", { onApplied: expect.any(Function), replaceIsLossless: false });
     expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBeNull(); // not before it is applied
     act(() => { stageImport.mock.calls[0]![2].onApplied(); });
     // Same rule the pre-loaded branch already had: the dismissed floor is
@@ -3528,6 +3532,45 @@ describe("gdriveSaveQuiet — a skipped save retries after the lock expires", ()
     const bUpload = { id: "b", name: "cave-tabac-auto-ipadid-20261004-120000-raaa1-t1-p0-w0-a0-j0.json", modifiedTime: new Date().toISOString() };
     expect(findNewerCloudBackup([bUpload], 0, 0, 120000, null, "iphoneid", 1, knownCellarRevs())?.name)
       .toBe(bUpload.name);
+  });
+
+  // Build 46 — the lineage a backup carries (`_revs`).
+  it("readLineage keeps well-formed revisions only, bounded at 1000", () => {
+    expect(readLineage(null)).toEqual([]);
+    expect(readLineage({ _revs: "abc" })).toEqual([]);
+    expect(readLineage({ _revs: ["ok1", "bad-rev!", 3, "", "ok2"] })).toEqual(["ok1", "ok2"]);
+    const many = Array.from({ length: 1200 }, (_, i) => "r" + i);
+    const l = readLineage({ _revs: many });
+    expect(l.length).toBe(1000);
+    expect(l[l.length - 1]).toBe("r1199");
+    expect(fileDescendsFrom(["a1", "b2"], "b2")).toBe(true);
+    expect(fileDescendsFrom(["a1", "b2"], "c3")).toBe(false);
+    expect(fileDescendsFrom(["a1"], ""), "a device with no revision descends from nothing").toBe(false);
+  });
+
+  it("rememberAncestors adds to the history without moving the current revision", () => {
+    adoptCellarRev("mine1");
+    rememberAncestors(["anc1", "mine1", "anc2", "anc1", "bad-rev!"]);
+    expect(currentCellarRev()).toBe("mine1");
+    // ancestors go first (they fall out of the bound first), no duplicates
+    expect(knownCellarRevs()).toEqual(["anc1", "anc2", "mine1"]);
+  });
+
+  it("adoptCellarRev with a lineage: a replace keeps the file's ancestors, not its own discarded ones", () => {
+    adoptCellarRev("old1");
+    adoptCellarRev("file9", true, ["f1", "f2"]);
+    expect(knownCellarRevs()).toEqual(["f1", "f2", "file9"]);
+    expect(currentCellarRev()).toBe("file9");
+  });
+
+  it("revUntouchedSince: current, or replaced by exactly one stamp — never two", () => {
+    adoptCellarRev("pre1");
+    expect(revUntouchedSince("pre1")).toBe(true);
+    stampNewCellarRev();                 // the import's own save()
+    expect(revUntouchedSince("pre1")).toBe(true);
+    stampNewCellarRev();                 // an edit landed in between
+    expect(revUntouchedSince("pre1"), "the file cannot contain that edit").toBe(false);
+    expect(revUntouchedSince("")).toBe(false);
   });
 
   it("refuses a malformed revision rather than storing it", () => {

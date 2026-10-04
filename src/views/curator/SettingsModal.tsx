@@ -1499,6 +1499,7 @@ function ImportConfirmPanel({
     dupCounts: { tobaccos: number; pipes: number; wishlist: number; accessories: number };
     incoming: { tobaccos: number; pipes: number; wishlist: number; accessories: number; sessions: number };
     mergeOnly?: boolean | undefined;
+    replaceIsLossless?: boolean | undefined;
     csvSummary?: { rows: number; lots: number; issues: number; ignoredColumns: string[] } | undefined;
   };
   applyImport: (mode: "replace" | "merge", selection?: Set<string>) => void;
@@ -1506,7 +1507,9 @@ function ImportConfirmPanel({
   dateFormat?: "fr" | "en";
   t?: (k: string) => string;
 }) {
-  const { incoming, dupCounts, parsed, mergeOnly, csvSummary } = importConfirm;
+  const { incoming, dupCounts, parsed, mergeOnly, csvSummary, replaceIsLossless } = importConfirm;
+  // Only when Replace is actually on offer.
+  const lossless = !!replaceIsLossless && !mergeOnly;
   const tr = (k: string, frFallback: string) => (t ? t(k) : frFallback);
   // Optional second pane — a checkbox picker that lets
   // the user merge only a chosen subset of the imported payload.
@@ -1617,6 +1620,22 @@ function ImportConfirmPanel({
           </div>
         )}
 
+        {/* LE FICHIER DESCEND DE CETTE CAVE (build 46). Sa généalogie contient
+            la révision actuelle de l'appareil : il a déjà tout ce qui est ici.
+            « Remplacer » rend les deux appareils identiques, alors que
+            « Fusionner » détacherait de leur lot les séances venues de l'autre
+            appareil — d'où la recommandation. Dans les deux cas rien ne repart
+            vers le cloud : c'est ce qui coupe l'écho. */}
+        {lossless && !selectMode && (
+          <div style={{
+            padding: "8px 12px", marginBottom: 12, borderRadius: 8,
+            background: alpha(C.sage, "1f"), border: `1px solid ${alpha(C.sage, "88")}`,
+            color: C.tx, fontSize: fs(13.5), lineHeight: 1.45,
+          }}>
+            {tr("import_lossless_note", "Ce fichier contient déjà tout ce que cet appareil possède. « Remplacer » est le choix recommandé : les deux appareils redeviennent identiques, et rien ne repart vers le cloud.")}
+          </div>
+        )}
+
         {selectMode ? (
           /* Selection picker. Lists every importable
              entity grouped by kind, each with a checkbox. Per-section
@@ -1711,7 +1730,13 @@ function ImportConfirmPanel({
               // `confirm` refusé — ou supprimé par le navigateur, qui rend
               // alors `false` — ne remplace rien. Ouvrir par défaut serait la
               // pire des deux erreurs sur une action irréversible.
-              if (window.confirm(tr("import_replace_confirm",
+              // Le texte d'alarme ne s'applique pas à un fichier qui contient
+              // déjà tout : il dirait « effacés » de données qui reviennent.
+              // La confirmation, elle, reste — fail-closed dans les deux cas.
+              if (window.confirm(lossless
+                ? tr("import_replace_confirm_lossless",
+                  "Remplacer votre cave par ce fichier ? Il contient déjà tout ce que cet appareil possède.")
+                : tr("import_replace_confirm",
                 "Remplacer toute votre cave par ce fichier ? Vos tabacs, pipes, accessoires, envies et séances actuels seront effacés — la corbeille ne les garde pas. Cette action est irréversible."))) {
                 applyImport("replace");
               }
@@ -1722,6 +1747,7 @@ function ImportConfirmPanel({
             }}>
               <div style={{ color: C.oxbloodHi, fontFamily: F.mono, fontSize: fs(12.5), letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 700, marginBottom: 3 }}>
                 {tr("import_replace", "Remplacer")}
+                {lossless && <span style={{ color: C.sageHi, marginLeft: 8 }}>· {tr("import_recommended", "Recommandé")}</span>}
               </div>
               <div style={{ color: C.tx, fontSize: fs(15), lineHeight: 1.4 }}>
                 {tr("import_replace_desc", "Effacer les données locales et utiliser le fichier importé. À utiliser pour une restauration propre depuis une sauvegarde.")}
