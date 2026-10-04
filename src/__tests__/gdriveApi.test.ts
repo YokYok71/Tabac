@@ -569,7 +569,10 @@ describe("explainCloudBackups (read-only diagnostic)", () => {
 
   it("classifies every reason: own_legacy, older, dismissed_name, bad_date", () => {
     const legacy = { id: "l", name: "cave-tabac-auto-20260705-120000-t1-p1-w1-a1-j1.json", modifiedTime: "2026-07-05T12:00:00.000Z" };
-    const older = AUTO("foreign", "010000", "2026-07-04T01:00:00.000Z");
+    // A MANUAL backup: no device id, so it may be this device's own and the
+    // local cut still applies. It was a foreign AUTO file here, and that case
+    // was the defect — see the next test.
+    const older = { id: "o", name: "cave-tabac-20260704-010000-t1-p1-w1-a1-j1.json", modifiedTime: "2026-07-04T01:00:00.000Z" };
     const dismissedByName = AUTO("foreign", "030000", "2026-07-05T03:00:00.000Z");
     const bad = AUTO("foreign", "040000", "not-a-date");
     const rows = explainCloudBackups(
@@ -599,6 +602,45 @@ describe("explainCloudBackups (read-only diagnostic)", () => {
     const proposed = rows.find(r => r.status === "proposed");
     expect(proposed?.name).toBe(hit?.name);
     expect(proposed?.name).toBe(files[1]!.name); // qsekqav94e is newest foreign
+  });
+
+  // THE iPhone/iPad DEFECT. The iPhone saved a session (its stamped auto
+  // file); the iPad then saved on launch, before its check ran. Its last
+  // upload was now newer than the iPhone's file, which was cut as "older" —
+  // and stayed cut for ever, with none of its data on the iPad.
+  it("another device's file is NOT hidden because this device saved after it", () => {
+    const iphone = AUTO("qsekqav94e", "100000", "2026-07-05T10:00:00.000Z");
+    const ipadLastSave = new Date("2026-07-05T10:05:00.000Z").getTime();
+    const files = [iphone];
+    const args = [files, ipadLastSave, 0, 120000, null, "8udtad7", OLD_STAMP] as const;
+    expect(findNewerCloudBackup(...args)?.name).toBe(iphone.name);
+    expect(explainCloudBackups(...args)[0]!.status).toBe("proposed");
+  });
+
+  it("only the acknowledgement silences it — a dismiss or an applied restore", () => {
+    const iphone = AUTO("qsekqav94e", "100000", "2026-07-05T10:00:00.000Z");
+    const ts = new Date(iphone.modifiedTime).getTime();
+    const ipadLastSave = ts + 300000;
+    expect(findNewerCloudBackup([iphone], ipadLastSave, ts, 120000, null, "8udtad7", OLD_STAMP)).toBeNull();
+    expect(findNewerCloudBackup([iphone], ipadLastSave, 0, 120000, iphone.name, "8udtad7", OLD_STAMP)).toBeNull();
+    expect(explainCloudBackups([iphone], ipadLastSave, ts, 120000, null, "8udtad7", OLD_STAMP)[0]!.reason).toBe("dismissed_ts");
+  });
+
+  it("an older foreign file is never proposed over a newer one, and is silenced with it", () => {
+    // An abandoned device's year-old file does not nag: the newest foreign
+    // file is the one offered, and acknowledging it floors everything older.
+    const oldPhone = AUTO("oldphone", "100000", "2025-07-05T10:00:00.000Z");
+    const iphone = AUTO("qsekqav94e", "100000", "2026-07-05T10:00:00.000Z");
+    const later = new Date("2026-07-06T00:00:00.000Z").getTime();
+    expect(findNewerCloudBackup([oldPhone, iphone], later, 0, 120000, null, "8udtad7", OLD_STAMP)?.name).toBe(iphone.name);
+    const ack = new Date(iphone.modifiedTime).getTime();
+    expect(findNewerCloudBackup([oldPhone, iphone], later, ack, 120000, null, "8udtad7", OLD_STAMP)).toBeNull();
+  });
+
+  it("without this device's own id nothing can be called foreign — the local cut stays", () => {
+    const iphone = AUTO("qsekqav94e", "100000", "2026-07-05T10:00:00.000Z");
+    const ipadLastSave = new Date("2026-07-05T10:05:00.000Z").getTime();
+    expect(findNewerCloudBackup([iphone], ipadLastSave, 0, 120000, null, null, OLD_STAMP)).toBeNull();
   });
 
   it("no proposal when nothing is eligible (all older / own)", () => {

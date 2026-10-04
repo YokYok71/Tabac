@@ -31,6 +31,7 @@ import {
   resumeCheckDue,
   RESUME_CHECK_MIN_GAP_MS,
   QUIET_LOCK_TTL_MS,
+  pickLiveToken,
 } from "../hooks/useGdriveSync";
 import { readFileSync } from "node:fs";
 import { INIT } from "../constants";
@@ -169,7 +170,29 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     const payload = { tobaccos: [{ id: 1, name: "Balkan" }], _apiKey: "sk-x" };
     const { stageImport } = renderAndConfirm({}, payload);
     expect(stageImport).toHaveBeenCalledTimes(1);
-    expect(stageImport).toHaveBeenCalledWith(payload, "drive");
+    expect(stageImport).toHaveBeenCalledWith(payload, "drive", { onApplied: expect.any(Function) });
+  });
+
+  // The acknowledgement used to be written at DOWNLOAD time, before the
+  // Merge / Replace / Cancel choice: cancelling silenced that backup's
+  // multi-device banner for ever with none of its data restored.
+  it("does NOT acknowledge the backup until the import is applied — a cancel leaves the banner armed", () => {
+    const stageImport = vi.fn();
+    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport }) as any));
+    act(() => {
+      result.current.setGdriveConfirm({
+        options: [{ d: { tobaccos: [] }, ds: "", name: "cave-tabac-auto-x-20260705-161000.json", modifiedTime: "2026-07-05T16:10:00.000Z" }],
+        sel: 0,
+      });
+    });
+    act(() => { result.current.doGdriveConfirm(); });
+    expect(stageImport).toHaveBeenCalledTimes(1);
+    // Staged, and the user has not chosen yet (or cancels): nothing acked.
+    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBeNull();
+    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBeNull();
+    // Applied: acked.
+    act(() => { stageImport.mock.calls[0]![2].onApplied(); });
+    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe("cave-tabac-auto-x-20260705-161000.json");
   });
 
   it("forwards the full payload (metadata and _imageData included) so useImportConfirm can strip and filter them", () => {
@@ -199,7 +222,8 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     const fileModifiedTime = "2026-07-05T16:10:00.000Z"; // device 1's own file
     const fileTs = new Date(fileModifiedTime).getTime();
     const fileName = "cave-tabac-auto-8udtad7-20260705-161000-t5-p2-w14-a2-j22.json";
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    const stageImport = vi.fn();
+    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport }) as any));
     act(() => {
       result.current.setGdriveConfirm({
         options: [{ d: { tobaccos: [] }, ds: "", name: fileName, modifiedTime: fileModifiedTime }],
@@ -207,6 +231,8 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
       });
     });
     act(() => { result.current.doGdriveConfirm(); });
+    // The user applies the import (the ack waits for that — see above).
+    act(() => { stageImport.mock.calls[0]![2].onApplied(); });
 
     // The dismissed floor is the ACKED FILE's ts — never the wall-clock
     // restore moment (which the old code wrote via Date.now()).
@@ -302,7 +328,9 @@ describe("doGdriveConfirm — lazy download validates before it stages", () => {
     const name = "cave-tabac-auto-abc123-20260102-030405-t1-p0-w0-a0-j0.json";
     const { stageImport } = pick({ id: "f1", name, modifiedTime });
     await settleRestore();
-    expect(stageImport).toHaveBeenCalledWith(payload, "drive");
+    expect(stageImport).toHaveBeenCalledWith(payload, "drive", { onApplied: expect.any(Function) });
+    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBeNull(); // not before it is applied
+    act(() => { stageImport.mock.calls[0]![2].onApplied(); });
     // Same rule the pre-loaded branch already had: the dismissed floor is
     // the restored FILE's moment. `Date.now()` here is newer than every
     // cloud file, so it would silence a second device's newer backup.
@@ -2465,7 +2493,8 @@ describe("cloudNewerBackup — launch check", () => {
   });
 
   it("a restore confirm acks the banner via the by-name marker (no Date.now() ts floor)", () => {
-    renderAndConfirm({}, { tobaccos: [], pipes: [], wishlist: [], accessories: [], sessions: [] });
+    const { stageImport } = renderAndConfirm({}, { tobaccos: [], pipes: [], wishlist: [], accessories: [], sessions: [] });
+    act(() => { stageImport.mock.calls[0]![2].onApplied(); });
     // The ack records the restored option's NAME (the primary
     // skew-proof dedup) — here "cave-tabac-backup.json" from renderAndConfirm.
     expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe("cave-tabac-backup.json");
@@ -3173,6 +3202,28 @@ describe("cloudNewerBackup — resume check (app back in the foreground)", () =>
     expect(readCloudCheckDiag()!.stage).toBe("found");
   });
 
+  // The reported case, end to end. The iPhone's stamped auto file is OLDER
+  // than the iPad's own last upload (the iPad saved after it, without having
+  // seen it). That used to hide it for ever.
+  it("offers the iPhone's backup even though the iPad uploaded after it", async () => {
+    vi.useFakeTimers();
+    dropboxDevice();
+    localStorage.setItem("cave-device-id", "ipadid");
+    const iphoneTs = Date.now() - 10 * 60000;
+    localStorage.setItem("cave-autosave-ts-dropbox", String(iphoneTs + 5 * 60000));
+    cloudHolds([{
+      ".tag": "file", id: "id:iphone",
+      name: "cave-tabac-auto-iphoneid-20260612-101010-t5-p2-w0-a1-j9.json",
+      server_modified: new Date(iphoneTs).toISOString(),
+    }]);
+    const { result } = renderHook(() =>
+      useGdriveSync(makeProps({ cloudProviderId: "dropbox" }) as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    vi.useRealTimers();
+    expect(result.current.cloudNewerBackup?.id).toBe("id:iphone");
+    expect(readCloudCheckDiag()!.stage).toBe("found");
+  });
+
   it("does not hit the cloud again on a quick app switch (throttled)", async () => {
     vi.useFakeTimers();
     dropboxDevice();
@@ -3234,6 +3285,76 @@ describe("gdriveSaveQuiet — a skipped save retries after the lock expires", ()
     expect(readAutosaveDiag()?.stage).not.toBe("skip-locked");
   });
 
+  it("a MANUAL save that syncs the data clears the stale « reportée » line", async () => {
+    // Only quiet saves wrote this slot, so after a manual save the iPad kept
+    // showing « sauvegarde reportée — nouvel essai automatique » across a
+    // relaunch, for a retry that had nothing left to send.
+    localStorage.setItem("cave-pending-sync", "1");
+    recordAutosaveDiag("skip-locked");
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSave("quiet-token"); });
+    await waitFor(() => expect(uploads()).toBeGreaterThan(0));
+    await waitFor(() => expect(readAutosaveDiag()?.stage).toBe("ok"));
+    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
+  });
+
+  it("a failed save is retried when the app comes back, while data is unsynced", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("cave-pending-sync", "1");
+    renderHook(() => useGdriveSync(makeProps() as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    const before = uploads();
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    // Pretend the save on hiding failed and left the flag set.
+    localStorage.setItem("cave-pending-sync", "1");
+    localStorage.removeItem("cave-autosave-lock");
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    const afterHide = uploads();
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    vi.useRealTimers();
+    expect(afterHide).toBeGreaterThanOrEqual(before);
+    expect(uploads(), "the return to the app must push the unsynced data").toBeGreaterThan(afterHide);
+  });
+
+  it("does not save on return when nothing is unsynced", async () => {
+    vi.useFakeTimers();
+    renderHook(() => useGdriveSync(makeProps() as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    vi.useRealTimers();
+    expect(uploads()).toBe(0);
+  });
+
+  it("an auto backup that went up WITHOUT its photos keeps saying so", async () => {
+    vi.mocked(imgCache.get).mockImplementation(() => Promise.reject(new Error("InvalidStateError")));
+    localStorage.setItem("pipe-cellar-v6", JSON.stringify({
+      ...INIT, tobaccos: [{ id: 1, name: "A", brand: "B", imageUrl: "local-photo-1", lots: [] }],
+    }));
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await waitFor(() => expect(uploads()).toBeGreaterThan(0));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    // It used to be overwritten by « uploaded » then « ok » in the same attempt.
+    expect(readAutosaveDiag()?.stage).toBe("photos-unreadable");
+  });
+
+  it("both auto-save triggers call the CURRENT render's save, through the ref", () => {
+    // The going-to-background listener is rebuilt only when `pendingSync`
+    // changes, so a direct call kept the settings of that render: encryption
+    // turned on afterwards, or a provider switch, was ignored by that save.
+    const src = readFileSync("src/hooks/useGdriveSync.ts", "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    const onHide = src.slice(src.indexOf("function onHide()"), src.indexOf("function onHide()") + 300);
+    expect(onHide).toContain("gdriveSaveQuietRef.current()");
+    expect(onHide).not.toMatch(/[^.]gdriveSaveQuiet\(\)/);
+    expect(src).toMatch(/setTimeout\(function \(\) \{ gdriveSaveQuietRef\.current\(\); \}, 1200\)/);
+  });
+
   it("does not retry when the data was synced in the meantime", async () => {
     vi.useFakeTimers();
     // no cave-pending-sync: whatever held the lock landed and cleared it
@@ -3243,5 +3364,115 @@ describe("gdriveSaveQuiet — a skipped save retries after the lock expires", ()
     await act(async () => { await vi.advanceTimersByTimeAsync(QUIET_LOCK_TTL_MS + 1000); });
     vi.useRealTimers();
     expect(uploads()).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// A TOKEN PAST ITS EXPIRY IS NEVER SENT. The token held in memory had no
+// expiry of its own, so an app left open — or resumed, the normal iPad case —
+// kept sending a token Google had expired after an hour and Dropbox after
+// four. The multi-device check recorded "list-error" on every resume and the
+// trigger build 38 added went silent a few hours into a session.
+//
+// The mock answers BY URL (token endpoint vs listing), for the reason the
+// block above gives: the launch check and a renewal share one fetch mock.
+describe("cloud tokens — a token past its expiry is never sent", () => {
+  function setHidden(v: boolean) {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => v });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+  afterEach(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+  });
+  const bearer = (c: any[]) => String((c[1] && c[1].headers && (c[1].headers.Authorization || c[1].headers.authorization)) || "");
+  const listingCalls = () => mockFetch.mock.calls.filter((c: any[]) => String(c[0]).indexOf("/oauth2/token") < 0);
+  function dropboxCloud(opts: { refused?: (tok: string) => boolean } = {}) {
+    mockFetch.mockImplementation((url: any, init: any) => {
+      if (String(url).indexOf("/oauth2/token") >= 0) {
+        return Promise.resolve({ ok: true, status: 200,
+          json: () => Promise.resolve({ access_token: "dbx-renewed", expires_in: 14400 }) });
+      }
+      const tok = String((init && init.headers && init.headers.Authorization) || "").replace("Bearer ", "");
+      if (opts.refused && opts.refused(tok)) {
+        return Promise.resolve({ ok: false, status: 401,
+          text: () => Promise.resolve(JSON.stringify({ error_summary: "expired_access_token/" })) });
+      }
+      return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify({ entries: [] })) });
+    });
+  }
+
+  it("Dropbox: on resume after the token's four hours, it is renewed — the dead one is not sent", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("dropbox-rt", "rt-abc");
+    localStorage.setItem("dropbox-tk", JSON.stringify({ t: "dbx-old", x: Date.now() + 4 * 3600000 - 300000 }));
+    dropboxCloud();
+    renderHook(() => useGdriveSync(makeProps({ cloudProviderId: "dropbox" }) as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(listingCalls().map(bearer), "the launch check used the live token").toContain("Bearer dbx-old");
+    const before = mockFetch.mock.calls.length;
+
+    await act(async () => { setHidden(true); await vi.advanceTimersByTimeAsync(5 * 3600000); });
+    await act(async () => { setHidden(false); await vi.advanceTimersByTimeAsync(2000); });
+    vi.useRealTimers();
+    const after = mockFetch.mock.calls.slice(before);
+    expect(after.filter((c) => String(c[0]).indexOf("/oauth2/token") >= 0).length, "renewed by the refresh grant").toBe(1);
+    const resumedListings = after.filter((c) => String(c[0]).indexOf("/oauth2/token") < 0);
+    expect(resumedListings.length).toBeGreaterThan(0);
+    expect(resumedListings.map(bearer)).not.toContain("Bearer dbx-old");
+    expect(readCloudCheckDiag()!.stage).toBe("none");
+  });
+
+  it("Dropbox: a REFUSED token is dropped and renewed once, then the check completes", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("dropbox-rt", "rt-abc");
+    // Live by its envelope, refused by the server (revoked, clock skew).
+    localStorage.setItem("dropbox-tk", JSON.stringify({ t: "dbx-revoked", x: Date.now() + 3600000 }));
+    dropboxCloud({ refused: (tok) => tok === "dbx-revoked" });
+    renderHook(() => useGdriveSync(makeProps({ cloudProviderId: "dropbox" }) as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    vi.useRealTimers();
+    expect(listingCalls().map(bearer)).toEqual(["Bearer dbx-revoked", "Bearer dbx-renewed"]);
+    expect(readCloudCheckDiag()!.stage).toBe("none");
+  });
+
+  it("Dropbox: a token refused even after renewal is not retried in a loop", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("dropbox-rt", "rt-abc");
+    localStorage.setItem("dropbox-tk", JSON.stringify({ t: "dbx-revoked", x: Date.now() + 3600000 }));
+    dropboxCloud({ refused: () => true });
+    renderHook(() => useGdriveSync(makeProps({ cloudProviderId: "dropbox" }) as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    vi.useRealTimers();
+    expect(listingCalls().length).toBe(2);
+    expect(readCloudCheckDiag()!.stage).toBe("list-error");
+  });
+
+  it("Drive: on resume after the hour, the expired token is not sent (no silent renewal on Drive)", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("cave-autosave", "1");
+    sessionStorage.setItem("gdrive-tk", JSON.stringify({ t: "drive-old", x: Date.now() + 3500000 }));
+    mockFetch.mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ files: [] }) });
+    renderHook(() => useGdriveSync(makeProps() as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(mockFetch.mock.calls.map(bearer)).toContain("Bearer drive-old");
+    const before = mockFetch.mock.calls.length;
+    await act(async () => { setHidden(true); await vi.advanceTimersByTimeAsync(2 * 3600000); });
+    await act(async () => { setHidden(false); await vi.advanceTimersByTimeAsync(2000); });
+    vi.useRealTimers();
+    expect(mockFetch.mock.calls.slice(before).map(bearer)).not.toContain("Bearer drive-old");
+    expect(readCloudCheckDiag()!.stage).toBe("no-drive-token");
+  });
+
+  it("pickLiveToken: the stored envelope is the clock", () => {
+    const now = 1_000_000_000_000;
+    const env = (t: string, x: number) => JSON.stringify({ t, x });
+    expect(pickLiveToken("a", env("a", now + 3600000), now)).toBe("a");
+    expect(pickLiveToken("a", env("a", now + 30000), now), "inside the 60 s margin").toBeNull();
+    expect(pickLiveToken("a", env("a", now - 1), now), "the same token, expired").toBeNull();
+    expect(pickLiveToken(null, env("b", now + 3600000), now)).toBe("b");
+    expect(pickLiveToken("a", env("b", now + 3600000), now), "a live envelope is newer than memory").toBe("b");
+    expect(pickLiveToken("a", null, now), "no envelope: memory is the only copy").toBe("a");
+    expect(pickLiveToken("a", "{not json", now)).toBe("a");
+    expect(pickLiveToken(null, null, now)).toBeNull();
   });
 });

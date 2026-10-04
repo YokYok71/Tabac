@@ -187,6 +187,14 @@ export function pickKeepAuto(autoFiles: any[], deviceId: string): string | null 
 // disagree about where the counts end and the name begins. Returns "" when the
 // file carries no slug (a legacy backup, or one written before the device was
 // named) — never a guess.
+/** An auto file stamped with a device id that is not ours. Without our own
+ *  id nothing can be called foreign. See findNewerCloudBackup. */
+export function isForeignStamped(name: string, ownDeviceId?: string | null): boolean {
+  if (!ownDeviceId) return false;
+  var did = autoFileDeviceId(name);
+  return did !== null && did !== ownDeviceId;
+}
+
 export function backupDeviceName(name: string): string {
   if (!name) return "";
   var m = String(name).match(/-t\d+-p\d+-w\d+-a\d+-j\d+-([a-z0-9]+)(?: \(\d+\))?\.json$/);
@@ -339,6 +347,20 @@ export function fetchRetry(url: any, opts: any, n: any): any {
 //                    device still on a pre-device-id release won't trip the
 //                    banner until it updates and re-saves a stamped file
 //                    (self-correcting, no data loss).
+//   - FOREIGN FILES ARE NOT CUT BY localRefTs. That rung compared another
+//                    device's backup with THIS device's last upload, so any
+//                    save here — an auto-save fired 1.2 s after launch, before
+//                    the 4.5 s check had even looked — hid every earlier
+//                    backup from the other device for ever, though none of its
+//                    data had arrived. The iPhone saved a session, the iPad
+//                    saved on launch, and the iPad was never told. A file
+//                    stamped with ANOTHER device's id cannot be this device's
+//                    own upload, which is all the cut was for, so for it only
+//                    the acknowledgement counts (dismissedTs / dismissedName,
+//                    written by a dismiss or an APPLIED restore). Safe to
+//                    surface: the banner opens the Merge / Replace picker.
+//                    Unstamped files keep the cut — a manual backup carries no
+//                    device id and may be this device's own.
 // Returns the newest qualifying file ({name, modifiedTime, ts}) or null.
 export function findNewerCloudBackup(
   files: any[] | null | undefined,
@@ -376,7 +398,7 @@ export function findNewerCloudBackup(
     // our own pre-stamping leftover. See the ownStampedSince note above.
     if (ownStampedSince && classifyBackup(f.name) === "auto"
         && autoFileDeviceId(f.name) === null && ts <= ownStampedSince) return;
-    if (ts <= (localRefTs || 0) + marginMs) return;
+    if (!isForeignStamped(f.name, ownDeviceId) && ts <= (localRefTs || 0) + marginMs) return;
     if (ts <= (dismissedTs || 0)) return;
     if (!best || ts > best.ts) {
       best = {
@@ -527,7 +549,7 @@ export function explainCloudBackups(
     if (ownDeviceId && did === ownDeviceId) { rows.push(mk("ignored", "own_device")); return; }
     if (ownStampedSince && kind === "auto" && did === null
         && !isNaN(parsed) && parsed <= ownStampedSince) { rows.push(mk("ignored", "own_legacy")); return; }
-    if (parsed <= (localRefTs || 0) + marginMs) { rows.push(mk("ignored", "older")); return; }
+    if (!isForeignStamped(name, ownDeviceId) && parsed <= (localRefTs || 0) + marginMs) { rows.push(mk("ignored", "older")); return; }
     if (parsed <= (dismissedTs || 0)) { rows.push(mk("ignored", "dismissed_ts")); return; }
     rows.push(mk("candidate", "candidate"));
   });

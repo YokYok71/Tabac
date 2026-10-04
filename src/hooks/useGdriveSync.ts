@@ -428,6 +428,43 @@ export function resumeCheckDue(nowMs: number, lastRunMs: number, minGapMs: numbe
 /** How long a quiet save's lock is honoured (see gdriveSaveQuiet). */
 export var QUIET_LOCK_TTL_MS = 12000;
 
+/**
+ * THE TOKEN HELD IN MEMORY HAD NO EXPIRY, SO IT OUTLIVED ITSELF.
+ *
+ * `getCachedCloudToken` returned `driveTokenRef` / `dbxTokenRef` as soon as
+ * they were set, and only checked the stored envelope's `x` when memory was
+ * empty. An app left open — or resumed from the background, which is the
+ * normal iPad case — kept handing out a token Google had expired after an hour
+ * and Dropbox after four. The multi-device check then got a 401, recorded
+ * "list-error" and stopped there, on every resume, until the app was killed:
+ * the resume trigger build 38 added went silent a few hours into a session.
+ * Restores answered « HTTP 401 » the same way.
+ *
+ * Every write of a token into memory also writes its envelope `{t, x}`, so
+ * the envelope is the clock. A live envelope wins (it is never older than
+ * memory). Memory holding the SAME token as an expired envelope is dead. Only
+ * memory with no envelope at all (storage refused the write) is returned
+ * unchecked, because it is the only copy; the 401 paths cover it.
+ */
+export function pickLiveToken(
+  memTok: string | null | undefined,
+  envelopeRaw: string | null | undefined,
+  nowMs: number,
+  marginMs: number = 60000,
+): string | null {
+  var env: any;
+  try { env = JSON.parse(envelopeRaw || "null"); } catch (_e) { env = null; }
+  var envTok = env && typeof env.t === "string" && env.t ? env.t : null;
+  if (envTok && typeof env.x === "number" && env.x > nowMs + marginMs) return envTok;
+  if (!memTok) return null;
+  if (envTok && envTok === memTok) return null;
+  if (!envTok) return memTok;
+  // An expired envelope for a DIFFERENT token: memory is newer than a write
+  // that did not land, so it is kept; its expiry is unknown, the 401 path
+  // covers it.
+  return memTok;
+}
+
 export function recordCloudCheckDiag(stage: string): void {
   lsSet("cave-cloudcheck-diag", JSON.stringify({ ts: Date.now(), stage: stage }));
 }
@@ -743,23 +780,29 @@ export function useGdriveSync({
   // stale GOOGLE token to content.dropboxapi.com, which answered
   // HTTP 400 (invalid authorization). Routes per provider and checks
   // the same 60s expiry margin as before.
+  // Memory is checked against the stored envelope's expiry — see
+  // `pickLiveToken`. A dead token is also dropped from memory, so the quiet
+  // save's no-token branch (silent renewal) runs instead of a doomed request.
   function getCachedCloudToken(): string | null {
     if (isDbx) {
-      var dtk = dbxTokenRef.current;
-      if (dtk) return dtk;
-      try {
-        var _dls = JSON.parse(lsGet("dropbox-tk") || "null");
-        if (_dls && _dls.t && _dls.x > Date.now() + 60000) return _dls.t;
-      } catch (_e) {}
-      return null;
+      var dtk = pickLiveToken(dbxTokenRef.current, lsGet("dropbox-tk"), Date.now());
+      dbxTokenRef.current = dtk;
+      return dtk;
     }
-    var gtk = driveTokenRef.current;
-    if (gtk) return gtk;
-    try {
-      var _gls = JSON.parse(tkGet() || "null");
-      if (_gls && _gls.x > Date.now() + 60000) return _gls.t;
-    } catch (_e) {}
-    return null;
+    var gtk = pickLiveToken(driveTokenRef.current, tkGet(), Date.now());
+    driveTokenRef.current = gtk;
+    return gtk;
+  }
+  // The same, plus Dropbox's silent refresh grant when nothing cached is
+  // live. Never interactive: Drive without a live cached token answers null.
+  function getLiveCloudTokenSilent(): Promise<string | null> {
+    var c = getCachedCloudToken();
+    if (c) return Promise.resolve(c);
+    if (!isDbx) return Promise.resolve(null);
+    return dbx.getTokenSilent().then(function (t) {
+      dbxTokenRef.current = t;
+      return t;
+    }, function () { return null; });
   }
   function cloudTokenInvalidate() {
     if (isDbx) {
@@ -878,58 +921,66 @@ export function useGdriveSync({
                   : !!lsGet("gdrive-account-hint"));
     } catch (_e) { /* storage blocked → stay silent */ }
     if (!engaged) { recordCloudCheckDiag("not-engaged"); return; }
-    var cached = getCachedCloudToken();
-    var tokenPromise: Promise<string | null>;
-    if (cached) tokenPromise = Promise.resolve(cached);
-    else if (isDbx) tokenPromise = dbx.getTokenSilent().catch(function () { return null; });
-    else { recordCloudCheckDiag("no-drive-token"); return; } // no popups from mount
-    tokenPromise.then(function (tk) {
-      if (!tk) { recordCloudCheckDiag("no-token"); return; }
-      return cloud.list(tk, {
-        fields: SYNC_DIAG_FIELDS,
-        orderBy: "modifiedTime+desc",
-      })
-        .then(function (r) { return r.json(); })
-        .then(function (list: any) {
-          if (!list || list.error) { recordCloudCheckDiag("list-error"); return; }
-          // The multi-device guard compares against THIS
-          // provider's last save (per-provider ts) — the launch check
-          // lists the active provider's files, so the reference must be
-          // provider-scoped.
-          // Latent-bug fix: NO global `cave-autosave-ts`
-          // fallback here. The global key belongs to whichever provider
-          // saved last; resurrecting it on a provider this device has
-          // NEVER saved to (per-provider key absent) compared foreign
-          // backups against the OTHER provider's timestamp and silently
-          // hid genuinely-newer backups → the two devices diverged. Absent
-          // per-provider key ⇒ 0 ⇒ any cloud backup on this provider is
-          // correctly seen as newer. Mirrors the display path (provider-
-          // switch effect above). Cost: a legacy install that hasn't saved
-          // since the per-provider upgrade may get one harmless self-correcting
-          // nag for its own backup — far better than a silent divergence.
-          // Cloud-save ts only (see cloudGuardLocalRef).
-          var localRef = cloudGuardLocalRef(isDbx);
-          // Name-based dedup is skew-proof — see
-          // findNewerCloudBackup comment. Per-provider.
-          var dis = readCloudDismissed(isDbx);
-          var dismissed = dis.ts;
-          var dismissedName = dis.name;
-          var hit = findNewerCloudBackup(
-            list.files || [], localRef, dismissed, 120000, dismissedName,
-            stableDeviceIdForGuard(), ownStampedSince(),
-          );
-          recordCloudCheckDiag(hit ? "found" : "none");
-          if (hit) {
-            setCloudNewerBackup({
-              id: hit.id,
-              name: hit.name,
-              modifiedTime: hit.modifiedTime,
-              ts: hit.ts,
-              counts: parseBackupCounts(hit.name),
-            });
-          }
-        });
-    }).catch(function () { recordCloudCheckDiag("error"); });
+    if (!isDbx && !getCachedCloudToken()) { recordCloudCheckDiag("no-drive-token"); return; } // no popups from mount
+    attempt(false);
+    function attempt(retried: boolean) {
+      getLiveCloudTokenSilent().then(function (tk) {
+        if (!tk) { recordCloudCheckDiag(isDbx ? "no-token" : "no-drive-token"); return; }
+        return cloud.list(tk, {
+          fields: SYNC_DIAG_FIELDS,
+          orderBy: "modifiedTime+desc",
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (list: any) {
+            // A REFUSED token is dropped and, on Dropbox, renewed once in
+            // silence. It used to be recorded as "list-error" and kept, so every
+            // later check sent the same dead token again.
+            if (list && list.error && isAuthRefusal(list.error)) {
+              cloudTokenInvalidate();
+              if (isDbx && !retried) { attempt(true); return; }
+              recordCloudCheckDiag(isDbx ? "list-error" : "no-drive-token");
+              return;
+            }
+            if (!list || list.error) { recordCloudCheckDiag("list-error"); return; }
+            // The multi-device guard compares against THIS
+            // provider's last save (per-provider ts) — the launch check
+            // lists the active provider's files, so the reference must be
+            // provider-scoped.
+            // Latent-bug fix: NO global `cave-autosave-ts`
+            // fallback here. The global key belongs to whichever provider
+            // saved last; resurrecting it on a provider this device has
+            // NEVER saved to (per-provider key absent) compared foreign
+            // backups against the OTHER provider's timestamp and silently
+            // hid genuinely-newer backups → the two devices diverged. Absent
+            // per-provider key ⇒ 0 ⇒ any cloud backup on this provider is
+            // correctly seen as newer. Mirrors the display path (provider-
+            // switch effect above). Cost: a legacy install that hasn't saved
+            // since the per-provider upgrade may get one harmless self-correcting
+            // nag for its own backup — far better than a silent divergence.
+            // Cloud-save ts only (see cloudGuardLocalRef).
+            var localRef = cloudGuardLocalRef(isDbx);
+            // Name-based dedup is skew-proof — see
+            // findNewerCloudBackup comment. Per-provider.
+            var dis = readCloudDismissed(isDbx);
+            var dismissed = dis.ts;
+            var dismissedName = dis.name;
+            var hit = findNewerCloudBackup(
+              list.files || [], localRef, dismissed, 120000, dismissedName,
+              stableDeviceIdForGuard(), ownStampedSince(),
+            );
+            recordCloudCheckDiag(hit ? "found" : "none");
+            if (hit) {
+              setCloudNewerBackup({
+                id: hit.id,
+                name: hit.name,
+                modifiedTime: hit.modifiedTime,
+                ts: hit.ts,
+                counts: parseBackupCounts(hit.name),
+              });
+            }
+          });
+      }).catch(function () { recordCloudCheckDiag("error"); });
+    }
   }
   // Called through a ref so a timer or listener set up once always runs the
   // CURRENT render's closure (provider, token getters) — not the mount's.
@@ -950,8 +1001,19 @@ export function useGdriveSync({
   // network to come back after the device wakes.
   useEffect(function () {
     var settle: any = null;
+    var saveSettle: any = null;
     function onVisible() {
       if (document.hidden) return;
+      // A FAILED AUTO-SAVE WAS NEVER RETRIED. A network error, a missing
+      // token or a refused renewal left `cave-pending-sync` at "1", and the
+      // next attempt waited for the next EDIT — coming back to the app did
+      // nothing. Unsynced data is now pushed on return, after the same
+      // settle. Not throttled: it only runs while something is unsynced, and
+      // the quiet save's own lock keeps attempts from overlapping.
+      if (lsGet("cave-autosave") === "1" && lsGet("cave-pending-sync") === "1") {
+        if (saveSettle) clearTimeout(saveSettle);
+        saveSettle = setTimeout(function () { saveSettle = null; gdriveSaveQuietRef.current(); }, 1500);
+      }
       if (!resumeCheckDue(Date.now(), lastSilentCheckRef.current, RESUME_CHECK_MIN_GAP_MS)) return;
       if (settle) clearTimeout(settle);
       settle = setTimeout(function () { settle = null; runSilentCloudCheckRef.current(); }, 1500);
@@ -960,6 +1022,7 @@ export function useGdriveSync({
     return function () {
       document.removeEventListener("visibilitychange", onVisible);
       if (settle) clearTimeout(settle);
+      if (saveSettle) clearTimeout(saveSettle);
     };
   }, []);
   // Manual re-check trigger. The launch effect runs
@@ -1816,16 +1879,22 @@ export function useGdriveSync({
       // terminal action — finishing a session / tasting — now uploads ~1.8 s
       // sooner, shrinking the window where iOS suspends the PWA's JS (screen
       // lock / app switch right after "Terminer") before the upload lands.
-      var _at = setTimeout(gdriveSaveQuiet, 1200);
+      var _at = setTimeout(function () { gdriveSaveQuietRef.current(); }, 1200);
       return function () {
         clearTimeout(_at);
       };
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, pendingSync, autoSaveDrive],
   );
 
-  // visibilitychange auto-save
+  // visibilitychange auto-save.
+  //
+  // THROUGH THE REF, because this listener is rebuilt only when `pendingSync`
+  // changes. It called the `gdriveSaveQuiet` of THAT render, so turning
+  // encryption on, entering the passphrase or switching provider afterwards —
+  // none of which touches `pendingSync` — left the going-to-background save
+  // running with the old settings: unencrypted, or to the provider the user
+  // had just left. The ref always holds the current render's function.
   useEffect(
     function () {
       function onHide() {
@@ -1834,14 +1903,13 @@ export function useGdriveSync({
           lsGet("cave-autosave") === "1" &&
           pendingSync
         )
-          gdriveSaveQuiet();
+          gdriveSaveQuietRef.current();
       }
       document.addEventListener("visibilitychange", onHide);
       return function () {
         document.removeEventListener("visibilitychange", onHide);
       };
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [pendingSync],
   );
 
@@ -2083,6 +2151,16 @@ export function useGdriveSync({
                   if (_stillCurrentManual) {
                     setPendingSync(false);
                     lsRemove("cave-pending-sync");
+                    // The Settings line « Dernier essai auto » reads only this
+                    // slot, and only quiet saves wrote it. So after a manual
+                    // save had put the cloud level with the device, a stale
+                    // « sauvegarde reportée — nouvel essai automatique » stayed
+                    // on screen for ever, promising a retry that had nothing
+                    // left to do — reported from the iPad, surviving a relaunch.
+                    // Written only when the data is current, i.e. when there is
+                    // genuinely nothing left for the auto-save to send. A
+                    // backup that went up without its photos says so instead.
+                    recordAutosaveDiag(_photosUnreadable ? "photos-unreadable" : "ok");
                   }
                   if (markExported) markExported();
                   // The cellar DID reach the cloud, so the reminder is
@@ -2339,6 +2417,11 @@ export function useGdriveSync({
     // recomptée par le `.catch` terminal, qui est aussi le seul filet d'un
     // rejet réseau — et qui, avant, avalait ce rejet sans laisser AUCUNE trace.
     var _noted = false;
+    // Photos that could not be read. Recorded when it happens and then, until
+    // this change, overwritten by « uploaded » and « ok » in the same attempt —
+    // so the only trace of a backup that went up WITHOUT its photos lasted a
+    // few hundred milliseconds. The success paths below keep it instead.
+    var _photosLost = false;
     function noteFailure(stage: string, detail: string, counts: boolean) {
       if (_noted) return;
       _noted = true;
@@ -2381,7 +2464,9 @@ export function useGdriveSync({
     // Dropbox path — make sure a fresh access token sits in
     // dbxTokenRef, renewing silently via the refresh grant if needed
     // (works on every platform; no GSI, no redirect). Then re-enter.
-    if (isDbx && !dbxTokenRef.current) {
+    // Through the expiry check: a dead token in memory used to be sent as is,
+    // cost a refused listing, and only then reach the renewal below.
+    if (isDbx && !getCachedCloudToken()) {
       releaseQuietLock();
       dbx.getTokenSilent().then(function (t) {
         dbxTokenRef.current = t;
@@ -2395,13 +2480,7 @@ export function useGdriveSync({
       });
       return;
     }
-    var tk = isDbx ? dbxTokenRef.current : driveTokenRef.current;
-    if (!tk) {
-      try {
-        var _st = JSON.parse(tkGet() || "null");
-        if (_st && _st.x > Date.now()) tk = _st.t;
-      } catch (_e) {}
-    }
+    var tk = getCachedCloudToken();
     if (!tk) {
       if (
         !IS_IOS_STANDALONE &&
@@ -2477,6 +2556,7 @@ export function useGdriveSync({
     // Hence: swallow to an empty map here, and record it so Settings → Données
     // shows the reason instead of the save appearing to do nothing.
     gatherLocalImages(snap).catch(function () {
+      _photosLost = true;
       recordAutosaveDiag("photos-unreadable");
       return {};
     }).then(function (imgMap: any) {
@@ -2539,7 +2619,15 @@ export function useGdriveSync({
         } else {
           // Data moved on mid-upload — flush the newer snapshot shortly (the
           // lock is released just below, so this re-armed save runs cleanly).
-          try { setTimeout(function () { gdriveSaveQuiet(); }, 800); } catch (_e) {}
+          //
+          // The flag is set back to "1" as well. The lock's 12 s TTL is
+          // shorter than the 60 s upload timeout, so a slow upload can land
+          // AFTER a newer one that already cleared the flag — leaving the
+          // cloud on the older snapshot. The re-armed save below fixes that
+          // within a second, but if iOS suspends the app first, only the
+          // durable flag tells the next launch or resume there is work left.
+          lsSet("cave-pending-sync", "1");
+          try { setTimeout(function () { gdriveSaveQuietRef.current(); }, 800); } catch (_e) {}
         }
         if (markExported) markExported();
         // Mark that THIS device has written a
@@ -2550,7 +2638,7 @@ export function useGdriveSync({
         // "restore" their own pre-device-id file after a clock skew.
         lsSet("cave-auto-stamped", String(Date.now()));
         // Upload landed. The sweep result is appended next.
-        recordAutosaveDiag("uploaded");
+        recordAutosaveDiag(_photosLost ? "photos-unreadable" : "uploaded");
         // Release the lock NOW (upload done) so the cleanup
         // sweep runs DETACHED and a follow-up save isn't blocked for the
         // whole sequential-delete window. Idempotent with the outer
@@ -2593,7 +2681,7 @@ export function useGdriveSync({
             // terminal diagnostic if no newer save has started since this
             // one's "saving-start", so a slow sweep can't bury a newer
             // save's real outcome under a stale "ok".
-            if (currentAutosaveAttempt() === _saveAttempt) {
+            if (currentAutosaveAttempt() === _saveAttempt && !_photosLost) {
               recordAutosaveDiag(
                 res.failed > 0 ? "swept-partial" : "ok",
                 "deleted " + res.deleted + ", failed " + res.failed,
@@ -2755,60 +2843,61 @@ export function useGdriveSync({
     if (!opt.d) {
       setGdriveConfirm(null);
       setGdriveStatus(t("st_downloading"));
-      var tk = getCachedCloudToken();
-      if (!tk) {
-        setGdriveStatus(t("err_prefix") + ": " + cloudExpiredMessage());
-        scheduleStatusClear(4000);
-        return;
-      }
-      // 180s download timeout (full payloads with embedded
-      // photos) — AbortController plumbing lives in the provider now.
-      cloud.download(tk, opt.id, 180000)
-        .then(function (r) {
-          if (!r.ok) throw new Error("HTTP " + r.status);
-          return r.text();
-        })
-        .then(function (txt) {
-          // Optional decryption step. Plaintext envelopes
-          // pass through unchanged; encrypted envelopes block on a
-          // passphrase prompt before yielding the decrypted JSON.
-          return maybeDecryptText(txt);
-        })
-        .then(function (jsonText) {
-          if (jsonText === null) {
-            // Surface a transient hint instead of a
-            // fully silent abort. The user who cancelled the
-            // passphrase prompt saw nothing and assumed the button
-            // was broken; now they see why the restore stopped.
-            setGdriveStatus(t("enc_err_decrypt"));
-            scheduleStatusClear(4000);
-            return;
-          }
-          var d;
-          try { d = JSON.parse(jsonText); } catch (parseErr) {
-            // T(), not a French literal — the catch below renders
-            // e.message verbatim after t("err_prefix"), so a German user
-            // restoring a corrupt backup read "Fehler: Fichier corrompu".
-            // Four lines down the same failure class already used t().
-            var err = new Error(t("alert_invalid_file"));
-            (err as any).cause = parseErr;
-            throw err;
-          }
-          if (d.error || !isPlausibleBackup(d)) throw new Error(t("alert_invalid_file"));
-          setGdriveStatus(null);
-          // Hand off to the shared import-confirm picker
-          // instead of saving directly. The user gets the Merge /
-          // Replace / Cancel choice via the same UI as the JSON file
-          // import — keeps the two restore paths consistent.
-          // Restoring counts as acknowledging the newer
-          // cloud backup — silence the multi-device banner.
-          ackCloudNewerBackup(opt && opt.modifiedTime ? new Date(opt.modifiedTime).getTime() : undefined, opt && opt.name);
-          stageImport(d, "drive");
-        })
-        .catch(function (e) {
-          setGdriveStatus(t("err_prefix") + ": " + String((e && e.message) || e).substring(0, 150));
-          scheduleStatusClear(5000);
-        });
+      // Silent renewal first: on Dropbox a token past its four hours is
+      // renewed by the refresh grant instead of ending in « expiré ».
+      getLiveCloudTokenSilent().then(function (tk) {
+        if (!tk) {
+          setGdriveStatus(t("err_prefix") + ": " + cloudExpiredMessage());
+          scheduleStatusClear(4000);
+          return;
+        }
+        // 180s download timeout (full payloads with embedded
+        // photos) — AbortController plumbing lives in the provider now.
+        cloud.download(tk, opt.id, 180000)
+          .then(function (r) {
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.text();
+          })
+          .then(function (txt) {
+            // Optional decryption step. Plaintext envelopes
+            // pass through unchanged; encrypted envelopes block on a
+            // passphrase prompt before yielding the decrypted JSON.
+            return maybeDecryptText(txt);
+          })
+          .then(function (jsonText) {
+            if (jsonText === null) {
+              // Surface a transient hint instead of a
+              // fully silent abort. The user who cancelled the
+              // passphrase prompt saw nothing and assumed the button
+              // was broken; now they see why the restore stopped.
+              setGdriveStatus(t("enc_err_decrypt"));
+              scheduleStatusClear(4000);
+              return;
+            }
+            var d;
+            try { d = JSON.parse(jsonText); } catch (parseErr) {
+              // T(), not a French literal — the catch below renders
+              // e.message verbatim after t("err_prefix"), so a German user
+              // restoring a corrupt backup read "Fehler: Fichier corrompu".
+              // Four lines down the same failure class already used t().
+              var err = new Error(t("alert_invalid_file"));
+              (err as any).cause = parseErr;
+              throw err;
+            }
+            if (d.error || !isPlausibleBackup(d)) throw new Error(t("alert_invalid_file"));
+            setGdriveStatus(null);
+            // Hand off to the shared import-confirm picker
+            // instead of saving directly. The user gets the Merge /
+            // Replace / Cancel choice via the same UI as the JSON file
+            // import — keeps the two restore paths consistent.
+            // See `ackOnApplied`: acknowledged once APPLIED, not downloaded.
+            stageImport(d, "drive", { onApplied: ackOnApplied(opt) });
+          })
+          .catch(function (e) {
+            setGdriveStatus(t("err_prefix") + ": " + String((e && e.message) || e).substring(0, 150));
+            scheduleStatusClear(5000);
+          });
+      });
       return;
     }
     // Review fix: the pre-loaded branch used to stage `opt.d` without the
@@ -2822,9 +2911,18 @@ export function useGdriveSync({
     setGdriveConfirm(null);
     // See comment in the lazy-download branch above —
     // the staged payload flows through useImportConfirm's picker.
-    // See ackCloudNewerBackup note above.
-    ackCloudNewerBackup(opt && opt.modifiedTime ? new Date(opt.modifiedTime).getTime() : undefined, opt && opt.name);
-    stageImport(opt.d, "drive");
+    stageImport(opt.d, "drive", { onApplied: ackOnApplied(opt) });
+  }
+  // RESTORING COUNTS AS ACKNOWLEDGING THE NEWER CLOUD BACKUP — but only once
+  // it is restored. The acknowledgement used to be written when the file was
+  // DOWNLOADED, before the Merge / Replace / Cancel choice, so cancelling
+  // there silenced that backup's multi-device banner for ever while none of
+  // its data had arrived. `restoreCloudNewerBackup` already waited for
+  // `onApplied`; the picker path now does the same.
+  function ackOnApplied(opt: any): () => void {
+    var ts = opt && opt.modifiedTime ? new Date(opt.modifiedTime).getTime() : undefined;
+    var name = opt && opt.name;
+    return function () { ackCloudNewerBackup(ts, name); };
   }
 
   // Lazy-load the payload of a single picker option (without restoring) so the

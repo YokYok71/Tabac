@@ -258,8 +258,10 @@ export function CuratorSettingsModal() {
             // miss this line now catches). `skip-locked` / `skip-inprogress` =
             // a save skipped because another was mid-flight. Real errors keep
             // the ✗ oxblood tone below.
+            // `photos-unreadable` too: the backup DID go up, without photos —
+            // a warning, not a failure.
             var stuck = d.stage === "saving-start" || d.stage === "skip-locked"
-              || d.stage === "skip-inprogress";
+              || d.stage === "skip-inprogress" || d.stage === "photos-unreadable";
             // Null-prototype for the same reason as the cloud-check map below:
             // `d.stage` is read back out of localStorage.
             var msgKeyMap: Record<string, string> = Object.assign(Object.create(null), {
@@ -276,6 +278,10 @@ export function CuratorSettingsModal() {
               "list-auth-error": "autosave_diag_list_auth_error",
               "upload-error": "autosave_diag_upload_error",
               "upload-auth-error": "autosave_diag_upload_auth_error",
+              // Both were recorded and never mapped, so the line printed the
+              // raw code (« network-error · Failed to fetch »).
+              "network-error": "autosave_diag_network_error",
+              "photos-unreadable": "autosave_diag_photos_unreadable",
             });
             var msgKey = msgKeyMap[d.stage];
             var label = (msgKey && t) ? t(msgKey) : d.stage;
