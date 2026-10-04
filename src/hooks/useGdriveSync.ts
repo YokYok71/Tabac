@@ -160,6 +160,36 @@ export function writeCloudRestored(isDbx: boolean, ts: number, name: string): vo
   if (ts > 0) lsSet(k.ts, String(ts));
   if (name) lsSet(k.name, String(name));
 }
+/**
+ * THE ECHO, CLOSED BY CONTENT RATHER THAN BY PATH.
+ *
+ * Build 41 took back the « unsynced » flag that the restore's own `save()`
+ * sets. That covered one door. Others reach the same upload: an auto-save
+ * already uploading when the restore lands sees the cellar has moved and
+ * re-arms itself with the restored cellar, and any later save that changes
+ * nothing does the same. Each sends the other device its own data back as
+ * « a newer version » — reported again from the iPhone after build 41.
+ *
+ * So the restored cellar is fingerprinted, per provider, and an auto-save
+ * whose cellar still has that fingerprint is skipped: the cloud already holds
+ * it. Any real edit changes the fingerprint and uploads as before. Per
+ * provider because a switch to another destination must still send it.
+ */
+export function restoredSnapKey(isDbx: boolean): string {
+  return "cave-restored-snap-" + (isDbx ? "dropbox" : "gdrive");
+}
+/** FNV-1a over the string, plus its length. Not cryptographic — it only has
+ *  to tell « the cellar I restored » from « a cellar that was edited ». */
+export function snapFingerprint(s: string): string {
+  var str = String(s);
+  var h = 0x811c9dc5;
+  for (var i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16) + "-" + str.length;
+}
+
 /** Everything the guard honours: dismissed OR restored. */
 export function readCloudAcks(isDbx: boolean): { ts: number; names: string[] } {
   var d = readCloudDismissed(isDbx);
@@ -2410,6 +2440,15 @@ export function useGdriveSync({
     // user toggles auto-save OFF) would still let the silent save
     // fire. Re-check here so the function is safe to call anywhere.
     if (lsGet("cave-autosave") !== "1") return;
+    // The cellar is still exactly the one restored from this provider: the
+    // cloud has it, so there is nothing to send — see restoredSnapKey.
+    var _restoredFp = lsGet(restoredSnapKey(isDbx));
+    if (_restoredFp && _restoredFp === snapFingerprint(lsGet(SK) || "")) {
+      lsRemove("cave-pending-sync");
+      setPendingSync(false);
+      recordAutosaveDiag("ok");
+      return;
+    }
     // The in-progress ref has NO TTL of its own, so a prior save that died
     // without reaching releaseQuietLock() would leave it true and wedge
     // auto-save for the ENTIRE session (every call bails here). Self-heal:
@@ -2974,9 +3013,11 @@ export function useGdriveSync({
   // produces a cellar no file holds, so it still uploads.
   function cloudRestoreApplied(mode: "replace" | "merge", ackTs?: number, ackName?: string) {
     ackCloudNewerBackup(ackTs, ackName);
-    if (mode !== "replace") return;
+    if (mode !== "replace") { lsRemove(restoredSnapKey(isDbx)); return; }
     lsRemove("cave-pending-sync");
     setPendingSync(false);
+    // `save()` has just written the restored cellar, synchronously.
+    lsSet(restoredSnapKey(isDbx), snapFingerprint(lsGet(SK) || ""));
   }
 
   // Lazy-load the payload of a single picker option (without restoring) so the

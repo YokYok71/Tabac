@@ -32,6 +32,8 @@ import {
   RESUME_CHECK_MIN_GAP_MS,
   QUIET_LOCK_TTL_MS,
   pickLiveToken,
+  restoredSnapKey,
+  snapFingerprint,
   cloudRestoredKeys,
   readCloudAcks,
 } from "../hooks/useGdriveSync";
@@ -3442,6 +3444,88 @@ describe("gdriveSaveQuiet — a skipped save retries after the lock expires", ()
     expect(onHide).toContain("gdriveSaveQuietRef.current()");
     expect(onHide).not.toMatch(/[^.]gdriveSaveQuiet\(\)/);
     expect(src).toMatch(/setTimeout\(function \(\) \{ gdriveSaveQuietRef\.current\(\); \}, 1200\)/);
+  });
+
+  // THE ECHO, by content. Build 41 only took back the flag the restore's own
+  // save() set; an upload already in flight re-armed itself with the restored
+  // cellar and sent it back anyway (reported again after build 41).
+  it("skips an auto-save whose cellar is still exactly the one restored", async () => {
+    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Restored" }] });
+    localStorage.setItem("pipe-cellar-v6", restored);
+    localStorage.setItem(restoredSnapKey(false), snapFingerprint(restored));
+    localStorage.setItem("cave-pending-sync", "1");
+    const setPendingSync = vi.fn();
+    const { result } = renderHook(() => useGdriveSync(makeProps({ setPendingSync }) as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(uploads()).toBe(0);
+    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
+    expect(setPendingSync).toHaveBeenLastCalledWith(false);
+  });
+
+  it("uploads as soon as the cellar is edited after the restore", async () => {
+    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Restored" }] });
+    localStorage.setItem(restoredSnapKey(false), snapFingerprint(restored));
+    localStorage.setItem("pipe-cellar-v6", JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Edited" }] }));
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await waitFor(() => expect(uploads()).toBeGreaterThan(0));
+  });
+
+  it("the marker is per provider — a switch to the other one still uploads", async () => {
+    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Restored" }] });
+    localStorage.setItem("pipe-cellar-v6", restored);
+    localStorage.setItem(restoredSnapKey(true), snapFingerprint(restored)); // restored from DROPBOX
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any)); // saving to DRIVE
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await waitFor(() => expect(uploads()).toBeGreaterThan(0));
+  });
+
+  it("a cloud REPLACE records the restored cellar's fingerprint; a MERGE clears it", () => {
+    const stageImport = vi.fn();
+    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport }) as any));
+    act(() => { result.current.setGdriveConfirm({ options: [{ d: { tobaccos: [] }, ds: "", name: "cave-tabac-auto-ipad-20261004-094714-t1-p0-w0-a0-j0.json" }], sel: 0 }); });
+    act(() => { result.current.doGdriveConfirm(); });
+    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 9, name: "FromIpad" }] });
+    localStorage.setItem("pipe-cellar-v6", restored); // what save() just wrote
+    act(() => { stageImport.mock.calls[0]![2].onApplied("replace"); });
+    expect(localStorage.getItem(restoredSnapKey(false))).toBe(snapFingerprint(restored));
+    act(() => { stageImport.mock.calls[0]![2].onApplied("merge"); });
+    expect(localStorage.getItem(restoredSnapKey(false))).toBeNull();
+  });
+
+  it("an upload IN FLIGHT when the restore lands does not send the restored cellar back", async () => {
+    // The door build 41 left open: the in-flight save sees the cellar moved,
+    // sets the flag again and re-arms itself 800 ms later.
+    vi.useFakeTimers();
+    let releaseUpload: (() => void) | null = null;
+    mockFetch.mockImplementation((_url: any, init: any) => {
+      const m = (init && init.method) || "GET";
+      if (m === "GET") return Promise.resolve({ ok: true, json: () => Promise.resolve({ files: [] }) });
+      if (m === "POST" || m === "PATCH") {
+        return new Promise((res) => { releaseUpload = () => res({ ok: true, json: () => Promise.resolve({ id: "auto-id" }) }); });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+    localStorage.setItem("pipe-cellar-v6", JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Before" }] }));
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(uploads(), "the first upload is in flight").toBe(1);
+    // The restore lands meanwhile (Replace): save() writes, then onApplied.
+    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 9, name: "FromIpad" }] });
+    localStorage.setItem("pipe-cellar-v6", restored);
+    localStorage.setItem(restoredSnapKey(false), snapFingerprint(restored));
+    await act(async () => { releaseUpload!(); await vi.advanceTimersByTimeAsync(5000); });
+    vi.useRealTimers();
+    expect(uploads(), "the re-armed save must not upload the restored cellar").toBe(1);
+    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
+  });
+
+  it("snapFingerprint: equal strings agree, any change disagrees", () => {
+    expect(snapFingerprint('{"a":1}')).toBe(snapFingerprint('{"a":1}'));
+    expect(snapFingerprint('{"a":1}')).not.toBe(snapFingerprint('{"a":2}'));
+    expect(snapFingerprint("")).toBe(snapFingerprint(""));
   });
 
   it("does not retry when the data was synced in the meantime", async () => {
