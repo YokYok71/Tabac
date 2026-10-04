@@ -648,6 +648,40 @@ export function sessionsForLot(sessions: any[], lotId: any): any[] {
 // diagnostic to show "when was this device's data last edited" — a fresh
 // signal for reasoning about multi-device sync direction, independent of the
 // last CLOUD-SAVE time. Returns 0 when nothing carries a stamp (legacy data).
+/**
+ * JSON with every object's keys SORTED, so two values that differ only in key
+ * order serialise identically. save() needs it to tell « nothing changed »:
+ * merging another device's copy of the same cellar rebuilds the top-level
+ * object in another key order (MEASURED: tobaccos, wishlist, pipes… against
+ * tobaccos, pipes, accessories…), so a plain JSON.stringify comparison called
+ * an identical cellar changed. Same skipping rules as JSON.stringify:
+ * `undefined` and functions are dropped from objects and become null in arrays.
+ */
+export function stableStringify(v: any): string {
+  if (v === null || typeof v !== "object") {
+    var prim = JSON.stringify(v);
+    return prim === undefined ? "null" : prim;
+  }
+  if (typeof v.toJSON === "function") return stableStringify(v.toJSON());
+  if (Array.isArray(v)) {
+    var items: string[] = [];
+    for (var i = 0; i < v.length; i++) {
+      var it = v[i];
+      items.push(it === undefined || typeof it === "function" ? "null" : stableStringify(it));
+    }
+    return "[" + items.join(",") + "]";
+  }
+  var keys = Object.keys(v).sort();
+  var parts: string[] = [];
+  for (var j = 0; j < keys.length; j++) {
+    var k = keys[j]!;
+    var val = v[k];
+    if (val === undefined || typeof val === "function") continue;
+    parts.push(JSON.stringify(k) + ":" + stableStringify(val));
+  }
+  return "{" + parts.join(",") + "}";
+}
+
 export function latestEditMs(data: any): number {
   if (!data) return 0;
   var max = 0;

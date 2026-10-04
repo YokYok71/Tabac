@@ -40,7 +40,7 @@ vi.mock("../utils/imgCache.ts", () => ({
 }));
 
 import { useImportConfirm, resolveMergeMatch, mergeRefusedByUid, mergeAmbiguousName, applyEntityLww } from "../hooks/useImportConfirm";
-import { migrateData as realMigrateData } from "../utils.ts";
+import { migrateData as realMigrateData, stableStringify } from "../utils.ts";
 import { PIPE_MAX_EXTRA_PHOTOS } from "../constants.ts";
 import { checkAllInvariants } from "../utils/lotInvariants.ts";
 
@@ -163,6 +163,22 @@ describe("stageImport — dup counts and metadata extraction", () => {
       expect(onApplied, mode).toHaveBeenCalledWith(mode);
       expect(props.save, "it fires after the commit").toHaveBeenCalled();
     }
+  });
+
+  // The first link of the build-44 gate (the second is saveRevisionGate.test):
+  // merging another device's copy of THIS cellar hands save() the same CONTENT,
+  // so save() can recognise it changes nothing and stamp no revision. Not the
+  // same BYTES — the merge rebuilds the top-level object in another key order,
+  // which is why save() compares with stableStringify (this case caught it).
+  it("a merge of the same cellar hands save() the same content", async () => {
+    const { createRequire } = await import("node:module");
+    const H = createRequire(import.meta.url)("../../scripts/i18n-layout.cjs");
+    const local = realMigrateData(JSON.parse(JSON.stringify(H.DATA)));
+    const props = makeProps({ data: local, migrateData: realMigrateData });
+    const { result } = renderHook(() => useImportConfirm(props as any));
+    act(() => { result.current.stageImport(JSON.parse(JSON.stringify(local)), "drive"); });
+    act(() => { result.current.applyImport("merge"); });
+    expect(stableStringify(props.save.mock.calls[0]![0])).toBe(stableStringify(local));
   });
 
   it("strips the _schemaVersion stamp from the staged payload", () => {

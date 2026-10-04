@@ -23,6 +23,7 @@ import {
   newPhotoSuffix,
   convertWeightUnit,
   applyMigratedPhotoKeys,
+  stableStringify,
   type MigratedPhotoTask,
 } from "./utils.ts";
 import {
@@ -1141,18 +1142,35 @@ function App() {
     // this no longer guards against a "pipeId not found" false positive; it
     // just keeps the lot/session/balance invariants running on every persist.)
     assertLotInvariants(nd);
+    var prevData = latestDataRef.current;
     latestDataRef.current = nd;
     setData(nd);
-    setPendingSync(true);
-    lsSet("cave-pending-sync", "1");
-    // A changed cellar is a new revision — how the OTHER device will tell this
-    // data from its own when it comes back (see CELLAR_REV_KEY).
-    stampNewCellarRev();
+    var json = JSON.stringify(nd);
+    // A REVISION CHANGES ONLY WHEN THE CELLAR DOES. A save of exactly what is
+    // already stored — merging another device's copy of the same cellar is
+    // the case that mattered — used to stamp a fresh revision and mark the
+    // cellar unsynced, so it was uploaded under a revision the other device
+    // had never seen, offered there, merged again, and the two devices played
+    // ping-pong with an identical cellar (reported on build 43, revisions
+    // changing with « Dernière édition » frozen at 11:13). Same CONTENT:
+    // nothing to sync, no new revision. Compared key-order-insensitively
+    // (stableStringify) against the cellar in memory — a byte comparison was
+    // tried first and missed exactly that case, because the merge rebuilds the
+    // top-level object in another key order. An earlier unsynced edit keeps
+    // its flag — this only declines to RAISE it.
+    var unchanged: boolean;
+    try { unchanged = !!prevData && stableStringify(prevData) === stableStringify(nd); } catch (_e) { unchanged = false; }
+    if (!unchanged) {
+      setPendingSync(true);
+      lsSet("cave-pending-sync", "1");
+      // A changed cellar is a new revision — how the OTHER device will tell
+      // this data from its own when it comes back (see CELLAR_REV_KEY).
+      stampNewCellarRev();
+    }
     try {
       lsRemove(SK + "-bkp");
       lsRemove(SK + "-bkp-ts");
     } catch (_e) {}
-    var json = JSON.stringify(nd);
     setCellarChars(json.length);
     appStorage.set(SK, json).catch(function (e) {
       console.error("Save error:", e.name, e.message);
