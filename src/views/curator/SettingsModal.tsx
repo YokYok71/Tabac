@@ -2492,6 +2492,7 @@ export function SyncDiagView({ diag, t, lang, onClose, onDeleteEntry }: {
       case "own_device": return t("sync_diag_r_own");
       case "own_legacy": return t("sync_diag_r_own_legacy");
       case "own_rev": return t("sync_diag_r_own_rev");
+      case "superseded": return t("sync_diag_r_superseded");
       case "dismissed_name":
       case "dismissed_ts": return t("sync_diag_r_seen");
       case "older": return t("sync_diag_r_older");

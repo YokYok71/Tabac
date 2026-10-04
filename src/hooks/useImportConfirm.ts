@@ -25,7 +25,7 @@ export var APIKEY_REPLACED_KEY = "cave-apikey-replaced";
 import React from "react";
 import { INIT, PIPE_MAX_EXTRA_PHOTOS } from "../constants.ts";
 import { imgCache, imgMap } from "../utils/imgCache.ts";
-import { isPlausibleBackup, monotonicId, newUid } from "../utils.ts";
+import { isPlausibleBackup, monotonicId, newUid, stableStringify } from "../utils.ts";
 import { tobaccoDbCanonicalKey } from "../utils/tobaccoDb.ts";
 
 var useState = React.useState;
@@ -40,6 +40,13 @@ var useState = React.useState;
 // since the last export must NOT re-import as a duplicate.
 // Recap of what a MERGE import actually changed, delivered to the
 // caller via the `onMerged` callback so the import feedback can report it.
+/** What `onApplied` learns about the committed cellar. `sameAsFile`: the
+ *  cellar is now exactly the imported file's content — always after a
+ *  replace, and after a merge that brought this device nothing of its own. */
+export interface ImportAppliedInfo {
+  sameAsFile: boolean;
+}
+
 export interface MergeSummary {
   tobaccosAdded: number;    // brand-new tabacs appended
   lotsAppended: number;     // lots added onto already-present tabacs (lot-level merge)
@@ -388,7 +395,7 @@ export interface ImportConfirmState {
   // parsed — so backing out of the picker silenced a genuinely-newer backup
   // for ever. See `_executeCloudNewerRestore` in useGdriveSync. Receives the
   // mode that was applied: a cloud REPLACE leaves nothing to upload.
-  onApplied?: ((mode: "replace" | "merge") => void) | undefined;
+  onApplied?: ((mode: "replace" | "merge", info?: ImportAppliedInfo) => void) | undefined;
   /** Masque la carte « Remplacer » du panneau.
    *
    *  POUR LE CSV, ET POUR UNE RAISON DE CONTENU, PAS DE PRUDENCE. Une
@@ -498,7 +505,7 @@ export function useImportConfirm({
       onMerged?: (summary: MergeSummary) => void;
       /** Fired once the import is COMMITTED (either mode), never on cancel.
        *  See `ImportConfirmState.onApplied`. */
-      onApplied?: (mode: "replace" | "merge") => void;
+      onApplied?: (mode: "replace" | "merge", info?: ImportAppliedInfo) => void;
       /** Leave the Settings modal OPEN after an auto-applied
        *  import. Default false — the historical behaviour. See `_runImport`. */
       keepModalOpen?: boolean;
@@ -793,7 +800,7 @@ export function useImportConfirm({
     onMerged?: (summary: MergeSummary) => void,
     settings?: any,
     keepModalOpen?: boolean,
-    onApplied?: (mode: "replace" | "merge") => void,
+    onApplied?: (mode: "replace" | "merge", info?: ImportAppliedInfo) => void,
   ) {
     // Selective restore. When `selection` is provided
     // (a Set of "kind:id" strings — same encoding as the trash
@@ -829,6 +836,9 @@ export function useImportConfirm({
       });
     }
     var next: any;
+    // The FILE's content as a cellar, before the merge touches anything — to
+    // tell a merge whose result IS that file. See the commit below.
+    var fileCanon: string | null = null;
     var mergeSummary: MergeSummary | null = null;
     // How many preferences the restore wrote (0 on a merge, and on
     // any older backup that carries no _settings block).
@@ -848,6 +858,7 @@ export function useImportConfirm({
       settingsApplied = settings ? applySettings(settings) : 0;
     } else {
       var have: any = migrateData(Object.assign({}, INIT, data || {}));
+      try { fileCanon = stableStringify(migrateData(Object.assign({}, INIT, JSON.parse(JSON.stringify(staged))))); } catch (_e) { fileCanon = null; }
       next = Object.assign({}, have);
       var counters = {
         nxT: parseInt(have.nxT) || 1,
@@ -1653,7 +1664,17 @@ export function useImportConfirm({
     // purpose: a merge puts the file's contents in the cellar just as a
     // replace does. Guarded, because a throwing caller must not take the
     // import down with it — the cellar is already saved.
-    if (onApplied) { try { onApplied(mode); } catch (_e) { /* caller's problem */ } }
+    // A MERGE WHOSE RESULT IS THE FILE ITSELF is told so, like a replace. The
+    // iPhone edited, the iPad merged it in, and the iPad — which had nothing
+    // the iPhone lacked — ended with exactly the iPhone's file. save() rightly
+    // saw a change and stamped a new revision, which the iPhone had never held
+    // and offered back (reported on build 44). With `sameAsFile` the caller
+    // adopts the file's revision instead. A merge that kept something of this
+    // device's own differs from the file and keeps its new revision.
+    var appliedInfo: ImportAppliedInfo = {
+      sameAsFile: mode === "replace" || (fileCanon !== null && stableStringify(next) === fileCanon),
+    };
+    if (onApplied) { try { onApplied(mode, appliedInfo); } catch (_e) { /* caller's problem */ } }
 
     // Persist the imported API key ONLY here, at the
     // moment the import is actually applied — never at stage/selection time,

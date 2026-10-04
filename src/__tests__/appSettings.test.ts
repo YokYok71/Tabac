@@ -244,12 +244,18 @@ describe("a flag whose companion secret cannot travel must not travel", () => {
     expect(FORBIDDEN as readonly string[]).toContain("cave-drive-enc-verifier");
   });
 
-  it("still carries the destination and the auto-save preference", () => {
-    // Those are ordinary preferences with no companion secret: the cloud TOKEN
-    // is forbidden, and lacking it degrades visibly (the auto-save diagnostic
-    // records `no-token`) instead of silently switching a check off.
+  it("still carries the destination — but no longer the auto-save switch", () => {
+    // The destination is an ordinary preference with no companion secret: the
+    // cloud TOKEN is forbidden, and lacking it degrades visibly (the auto-save
+    // diagnostic records `no-token`) instead of silently switching a check off.
     expect(SETTINGS_KEYS as readonly string[]).toContain("cave-cloud-provider");
-    expect(SETTINGS_KEYS as readonly string[]).toContain("cave-autosave");
+    // REVERSED: this case used to assert that `cave-autosave` travels. The
+    // two-device simulation (case 8c) showed a replace with a backup from a
+    // device whose auto-save was off turning it off HERE, silently. Whether a
+    // device saves itself is a fact about that device.
+    expect(SETTINGS_KEYS as readonly string[]).not.toContain("cave-autosave");
+    expect(FORBIDDEN as readonly string[]).toContain("cave-autosave");
+    expect(sanitizeSettings({ "cave-autosave": "0" })).toEqual({});
   });
 
   it("the encryption path still reads the verifier only to REJECT", () => {
@@ -281,7 +287,7 @@ describe("enumerable preferences have their value checked", () => {
     for (const [k, v] of Object.entries({
       "cave-weight-unit": "oz", "cave-length-unit": "in", "cave-font-scale": "l",
       "cave-theme-mode": "light", "cave-date-format": "en", "cave-wish-sort": "brand",
-      "ai-provider": "gemini", "cave-cloud-provider": "dropbox", "cave-autosave": "1",
+      "ai-provider": "gemini", "cave-cloud-provider": "dropbox",
       "cave-accounting-enabled": "0", "cave-settings-tab": "prefs",
     })) {
       expect(sanitizeSettings({ [k]: v }), `${k}=${v}`).toEqual({ [k]: v });

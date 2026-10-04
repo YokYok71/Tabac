@@ -219,8 +219,10 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     localStorage.removeItem("cave-pending-sync");
     act(() => { stageImport.mock.calls[0]![2].onApplied("replace"); });
     expect(currentCellarRev()).toBe("k3x9q2a");
-    expect(knownCellarRevs()).toContain("k3x9q2a");
-    expect(knownCellarRevs()).toContain(fresh);
+    // A replace DISCARDS what this device held: its history is reset to the
+    // adopted revision (two-device simulation, crossed replaces).
+    expect(knownCellarRevs()).toEqual(["k3x9q2a"]);
+    expect(fresh).not.toBe("k3x9q2a");
     // Re-sent under the adopted revision even if the replace changed nothing,
     // so the other device recognises it at once.
     expect(localStorage.getItem("cave-pending-sync")).toBe("1");
@@ -615,7 +617,9 @@ describe("gdriveSave — Drive API calls, backup metadata, and state updates", (
     const metaBlob = fd.get("metadata") as Blob;
     expect(metaBlob).toBeTruthy();
     const metaText = await metaBlob.text();
-    expect(metaText).toMatch(/cave-tabac-\d{8}-\d{6}-t2-p1-w3-a0-j5\.json/);
+    // Since build 45 a manual name carries -d<deviceId> (and -r<rev> once a
+    // revision exists) between the timestamp and the counts.
+    expect(metaText).toMatch(/cave-tabac-\d{8}-\d{6}(?:-r[0-9a-z]+)?(?:-d[0-9a-z]+)?-t2-p1-w3-a0-j5\.json/);
   });
 
   // ── the two mid-flight guards of the manual save ────────────────────────
@@ -3502,13 +3506,28 @@ describe("gdriveSaveQuiet — a skipped save retries after the lock expires", ()
     expect(a).toMatch(/^[0-9a-z]{1,12}$/);
   });
 
-  it("the revision history is bounded and keeps the newest", () => {
-    for (let i = 0; i < 60; i++) adoptCellarRev("r" + i);
+  it("the revision history is bounded (1000) and keeps the newest", () => {
+    for (let i = 0; i < 1010; i++) adoptCellarRev("r" + i);
     const known = knownCellarRevs();
-    expect(known.length).toBe(50);
-    expect(known[known.length - 1]).toBe("r59");
-    expect(known).not.toContain("r0");
-    expect(currentCellarRev()).toBe("r59");
+    expect(known.length).toBe(1000);
+    expect(known[known.length - 1]).toBe("r1009");
+    expect(known).not.toContain("r9");
+    expect(known).toContain("r10");
+    expect(currentCellarRev()).toBe("r1009");
+  });
+
+  // Crossed replaces (two-device simulation, case 10): A replaced with B's
+  // file, B with A's earlier one. Each device KEPT the revision it discarded,
+  // so each read the other's upload as its own echo and both stayed silent on
+  // different cellars. A replace now resets the history.
+  it("crossed replaces are visible: a device does not keep the revision it discarded", () => {
+    adoptCellarRev("aaa1");            // A's own cellar
+    adoptCellarRev("bbb2", true);      // A replaces with B's file
+    expect(knownCellarRevs()).toEqual(["bbb2"]);
+    // B, having replaced with A's EARLIER file, now uploads under "aaa1".
+    const bUpload = { id: "b", name: "cave-tabac-auto-ipadid-20261004-120000-raaa1-t1-p0-w0-a0-j0.json", modifiedTime: new Date().toISOString() };
+    expect(findNewerCloudBackup([bUpload], 0, 0, 120000, null, "iphoneid", 1, knownCellarRevs())?.name)
+      .toBe(bUpload.name);
   });
 
   it("refuses a malformed revision rather than storing it", () => {

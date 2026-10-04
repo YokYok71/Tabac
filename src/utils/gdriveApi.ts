@@ -86,15 +86,68 @@ export function makeBackupName(
     var rc = String(rev).toLowerCase().replace(/[^0-9a-z]/g, "").slice(0, 16);
     if (rc) revSeg = "-r" + rc;
   }
-  return prefix + didSeg + ts + revSeg + counts + nameSeg + ".json";
+  // A MANUAL backup carries the device id too, as `-d<id>` before the counts
+  // (an auto name already has it after the prefix). Without it a manual file
+  // could not be told apart from this device's own, so the guard cut every one
+  // by this device's last upload — and another device's manual save, made
+  // while this one uploaded, was never offered (two-device simulation, 8b).
+  var manDidSeg = "";
+  if (type === "manual" && deviceId) {
+    var mclean = String(deviceId).toLowerCase().replace(/[^0-9a-z]/g, "");
+    if (mclean) manDidSeg = "-d" + mclean;
+  }
+  return prefix + didSeg + ts + revSeg + manDidSeg + counts + nameSeg + ".json";
 }
 // LABEL-CONTRACT:end backup-filename-device-name
 
 /** The cellar revision a backup name carries, or null for a name written
  *  before revisions existed. See makeBackupName. */
 export function backupRev(name: string): string | null {
-  var m = String(name || "").match(/-\d{8}-\d{6}-r([0-9a-z]+)-t\d+-p\d+-w\d+-a\d+-j\d+/);
+  var m = String(name || "").match(/-\d{8}-\d{6}-r([0-9a-z]+)(?:-d[0-9a-z]+)?-t\d+-p\d+-w\d+-a\d+-j\d+/);
   return m && m[1] ? m[1] : null;
+}
+
+/** The device that wrote a backup: the auto name's id after the prefix, or a
+ *  manual name's `-d<id>` segment; null for a name that carries neither. */
+export function backupDeviceId(name: string): string | null {
+  var a = autoFileDeviceId(name);
+  if (a) return a;
+  var m = String(name || "").match(/-d([0-9a-z]+)-t\d+-p\d+-w\d+-a\d+-j\d+/);
+  return m && m[1] ? m[1] : null;
+}
+
+/** The `YYYYMMDDHHMMSS` a name was stamped with (the writing device's clock),
+ *  or "" if absent. Comparable as a string within one device. */
+function nameStamp(name: string): string {
+  var m = String(name || "").match(/-(\d{8})-(\d{6})-/);
+  return m ? m[1]! + m[2]! : "";
+}
+
+/**
+ * For each OTHER device, the stamp of its newest file. A device's older files
+ * are stragglers — the classic one is an upload that was in flight when that
+ * device restored and reloaded: it lands AFTER the new page's upload, carries
+ * the cellar the device had just discarded, and has the newest SERVER date, so
+ * it was offered as « newer » (two-device simulation, 7b-after). The device's
+ * own clock, in the name, orders its files correctly where the server date
+ * cannot.
+ */
+function newestStampByDevice(files: any[] | null | undefined, ownDeviceId?: string | null): Record<string, string> {
+  var by: Record<string, string> = Object.create(null);
+  (files || []).forEach(function (f: any) {
+    if (!f || !f.name || classifyBackup(f.name) === "catalogue") return;
+    var did = backupDeviceId(f.name);
+    if (!did || did === ownDeviceId) return;
+    var st = nameStamp(f.name);
+    if (st && (!by[did] || st > by[did]!)) by[did] = st;
+  });
+  return by;
+}
+function isSuperseded(name: string, newest: Record<string, string>): boolean {
+  var did = backupDeviceId(name);
+  if (!did || !newest[did]) return false;
+  var st = nameStamp(name);
+  return !!st && st < newest[did]!;
 }
 
 /**
@@ -236,7 +289,7 @@ function ackedName(acked: string | readonly string[] | null | undefined, name: s
  *  id nothing can be called foreign. See findNewerCloudBackup. */
 export function isForeignStamped(name: string, ownDeviceId?: string | null): boolean {
   if (!ownDeviceId) return false;
-  var did = autoFileDeviceId(name);
+  var did = backupDeviceId(name);
   return did !== null && did !== ownDeviceId;
 }
 
@@ -424,6 +477,7 @@ export function findNewerCloudBackup(
   // whose name matches the last dismissed one is skipped regardless of
   // ts — protects against clock-skew banner spam on multi-device setups.
   var best: { id: string; name: string; modifiedTime: string; ts: number } | null = null;
+  var newest = newestStampByDevice(files, ownDeviceId);
   (files || []).forEach(function (f: any) {
     if (!f || !f.name || !f.modifiedTime) return;
     if (ackedName(dismissedName, String(f.name))) return;
@@ -434,11 +488,13 @@ export function findNewerCloudBackup(
     // user would get a banner that cannot do what it says — which is why this
     // is an exclusion here rather than a rejection downstream.
     if (classifyBackup(f.name) === "catalogue") return;
-    // Never flag this device's own stamped auto file.
-    if (ownDeviceId && autoFileDeviceId(f.name) === ownDeviceId) return;
+    // Never flag this device's own stamped file (auto, or manual since -d).
+    if (ownDeviceId && backupDeviceId(f.name) === ownDeviceId) return;
     // THIS DEVICE'S OWN CELLAR, come back from another device — the echo,
     // recognised by the RECEIVER. See isOwnRev.
     if (isOwnRev(f.name, ownRevs)) return;
+    // An older file of another device — a straggler. See newestStampByDevice.
+    if (isSuperseded(f.name, newest)) return;
     // Once stamped, also skip our own legacy
     // unstamped AUTO files (not manual backups).
     var ts = new Date(f.modifiedTime).getTime();
@@ -483,7 +539,7 @@ export interface CloudBackupDiag {
   size: string;
   counts: ReturnType<typeof parseBackupCounts>;
   status: "proposed" | "candidate" | "ignored";
-  // proposed | candidate | own_device | own_rev | own_legacy | dismissed_name
+  // proposed | candidate | own_device | own_rev | superseded | own_legacy | dismissed_name
   //  | dismissed_ts | older | bad_date | catalogue
   reason: string;
 }
@@ -559,12 +615,13 @@ export function explainCloudBackups(
   ownRevs?: readonly string[] | null,
 ): CloudBackupDiag[] {
   var rows: CloudBackupDiag[] = [];
+  var newest = newestStampByDevice(files, ownDeviceId);
   (files || []).forEach(function (f: any) {
     if (!f || !f.name) return;
     var name = String(f.name);
     var mt = f.modifiedTime ? String(f.modifiedTime) : "";
     var parsed = mt ? new Date(mt).getTime() : NaN;
-    var did = autoFileDeviceId(name);
+    var did = backupDeviceId(name);
     var kind = classifyBackup(name);
     function mk(status: CloudBackupDiag["status"], reason: string): CloudBackupDiag {
       return {
@@ -598,6 +655,7 @@ export function explainCloudBackups(
     if (kind === "catalogue") { rows.push(mk("ignored", "catalogue")); return; }
     if (ownDeviceId && did === ownDeviceId) { rows.push(mk("ignored", "own_device")); return; }
     if (isOwnRev(name, ownRevs)) { rows.push(mk("ignored", "own_rev")); return; }
+    if (isSuperseded(name, newest)) { rows.push(mk("ignored", "superseded")); return; }
     if (ownStampedSince && kind === "auto" && did === null
         && !isNaN(parsed) && parsed <= ownStampedSince) { rows.push(mk("ignored", "own_legacy")); return; }
     if (!isForeignStamped(name, ownDeviceId) && parsed <= (localRefTs || 0) + marginMs) { rows.push(mk("ignored", "older")); return; }

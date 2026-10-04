@@ -51,8 +51,16 @@ export const SETTINGS_KEYS = [
   "cave-autofill-source", "ai-provider",
   "ai-model-anthropic", "ai-model-openai", "ai-model-gemini",
   // cloud preference: WHICH destination, never the credentials or the file ids
-  "cave-cloud-provider", "cave-autosave",
+  "cave-cloud-provider",
 ] as const;
+
+// ── WHY `cave-autosave` LEFT THIS LIST ───────────────────────────────────────
+// Found by the two-device simulation (twoDeviceScenarios.test.tsx, case 8c): a
+// REPLACE with a backup taken on a device whose auto-save was OFF turned it off
+// HERE, without a word — the unsynced flag stayed raised and this device's
+// cloud file stopped moving. Whether this device saves itself to the cloud is
+// a fact about THIS device, like its name; the other device's choice says
+// nothing about it.
 
 // ── WHY `cave-drive-encryption-enabled` IS NOT ON THAT LIST ──────────────────
 // It was, for a while, and it disabled a safety check.
@@ -91,7 +99,8 @@ export const FORBIDDEN = [
   "gdrive-account-hint",
   // device-local cloud routing — copying these makes two devices fight over
   // one auto-file (the convergence bug three releases were spent on)
-  "cave-device-id", "cave-device-name",
+  "cave-device-id", "cave-device-name", "cave-autosave",
+  "cave-cellar-rev", "cave-cellar-revs",
   "gdrive-fid", "gdrive-auto-fid", "dropbox-fid", "dropbox-auto-fid",
   "cave-auto-stamped",
   // ephemeral / per-device state
@@ -139,7 +148,6 @@ const ALLOWED_VALUES: Record<string, readonly string[]> = Object.assign(Object.c
   "cave-autofill-source": ["local", "ai"],
   "ai-provider": ["anthropic", "openai", "gemini"],
   "cave-cloud-provider": ["gdrive", "dropbox"],
-  "cave-autosave": ["0", "1"],
   "cave-settings-tab": ["data", "prefs", "app", "help"],
 });
 

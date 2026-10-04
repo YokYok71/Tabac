@@ -160,7 +160,7 @@ describe("stageImport — dup counts and metadata extraction", () => {
       const { result } = renderHook(() => useImportConfirm(props as any));
       act(() => { result.current.stageImport(imported, "drive", { onApplied }); });
       act(() => { result.current.applyImport(mode); });
-      expect(onApplied, mode).toHaveBeenCalledWith(mode);
+      expect(onApplied, mode).toHaveBeenCalledWith(mode, { sameAsFile: expect.any(Boolean) });
       expect(props.save, "it fires after the commit").toHaveBeenCalled();
     }
   });
@@ -179,6 +179,56 @@ describe("stageImport — dup counts and metadata extraction", () => {
     act(() => { result.current.stageImport(JSON.parse(JSON.stringify(local)), "drive"); });
     act(() => { result.current.applyImport("merge"); });
     expect(stableStringify(props.save.mock.calls[0]![0])).toBe(stableStringify(local));
+  });
+
+  // The build-44 report: the iPhone edited, the iPad MERGED it in and — having
+  // nothing the iPhone lacked — ended with exactly the iPhone's file, yet a new
+  // revision went back. onApplied must say « this IS the file » so the caller
+  // adopts the file's revision. Measured on the realistic harness cellar.
+  describe("onApplied reports when the committed cellar IS the imported file", () => {
+    async function harness() {
+      const { createRequire } = await import("node:module");
+      const H = createRequire(import.meta.url)("../../scripts/i18n-layout.cjs");
+      return realMigrateData(JSON.parse(JSON.stringify(H.DATA)));
+    }
+    function run(local: any, file: any, mode: "merge" | "replace") {
+      const onApplied = vi.fn();
+      const props = makeProps({ data: local, migrateData: realMigrateData });
+      const { result } = renderHook(() => useImportConfirm(props as any));
+      act(() => { result.current.stageImport(file, "drive", { onApplied }); });
+      act(() => { result.current.applyImport(mode); });
+      return onApplied.mock.calls[0]!;
+    }
+
+    it("a merge that only BRINGS the other device's edit: sameAsFile", async () => {
+      const local = await harness();
+      // Both sides carry updatedAt, as every edited row does in the app (a
+      // row with none on the local side is legacy-protected from LWW).
+      local.tobaccos[0].updatedAt = "2026-10-01T10:00:00.000Z";
+      const file = JSON.parse(JSON.stringify(local));
+      file.tobaccos[0].tastingNotes = "edited on the iPhone";
+      file.tobaccos[0].updatedAt = new Date(Date.now() + 60000).toISOString();
+      expect(run(local, file, "merge")).toEqual(["merge", { sameAsFile: true }]);
+    });
+
+    it("a merge of an identical copy: sameAsFile", async () => {
+      const local = await harness();
+      expect(run(local, JSON.parse(JSON.stringify(local)), "merge")).toEqual(["merge", { sameAsFile: true }]);
+    });
+
+    it("a merge where THIS device has something of its own: not the file", async () => {
+      const local = await harness();
+      const file = JSON.parse(JSON.stringify(local));
+      local.wishlist = [...(local.wishlist || []), { id: 999, uid: "only-here", brand: "Mine", name: "Only" }];
+      expect(run(local, file, "merge")).toEqual(["merge", { sameAsFile: false }]);
+    });
+
+    it("a replace always is the file", async () => {
+      const local = await harness();
+      const file = JSON.parse(JSON.stringify(local));
+      file.pipes = [];
+      expect(run(local, file, "replace")).toEqual(["replace", { sameAsFile: true }]);
+    });
   });
 
   it("strips the _schemaVersion stamp from the staged payload", () => {

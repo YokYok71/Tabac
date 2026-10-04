@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   makeBackupName,
   backupRev,
+  backupDeviceId,
   parseBackupCounts,
   backupDeviceName,
   classifyBackup,
@@ -89,10 +90,17 @@ describe("makeBackupName", () => {
     });
   });
 
-  it("ignores the device id for manual names", () => {
+  it("stamps a MANUAL name with the device id too, as -d<id> before the counts", () => {
+    // REVERSED (build 45): manual names used to ignore the device id, so a
+    // manual file could not be told from this device's own, the guard cut every
+    // one by this device's last upload, and another device's manual save was
+    // never offered (two-device simulation, 8b).
     const name = makeBackupName(data, "manual", "k3f9x2");
     expect(name.startsWith(GDRIVE_FILE_PREFIX)).toBe(true);
-    expect(name).not.toContain("k3f9x2");
+    expect(name).toMatch(/-dk3f9x2-t\d+-p\d+-w\d+-a\d+-j\d+\.json$/);
+    expect(classifyBackup(name)).toBe("manual");
+    expect(autoFileDeviceId(name)).toBeNull();
+    expect(backupDeviceId(name)).toBe("k3f9x2");
   });
 
   it("sanitises a tampered device id to [0-9a-z] so parsing can't break", () => {

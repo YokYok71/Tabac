@@ -177,7 +177,11 @@ export function writeCloudRestored(isDbx: boolean, ts: number, name: string): vo
  */
 export var CELLAR_REV_KEY = "cave-cellar-rev";
 export var CELLAR_REVS_KEY = "cave-cellar-revs";
-var CELLAR_REVS_MAX = 50;
+// 1000, not 50 (two-device simulation, case 9c): past the bound, a revision
+// this device once held drops out, and the other device's file carrying that
+// OLD cellar was offered here as « newer » — a replace on it would have thrown
+// away every edit since. ~13 KB of ids at the bound.
+var CELLAR_REVS_MAX = 1000;
 var REV_RE = /^[0-9a-z]{1,16}$/;
 export function currentCellarRev(): string {
   var r = lsGet(CELLAR_REV_KEY) || "";
@@ -210,9 +214,16 @@ export function stampNewCellarRev(): string {
   rememberCellarRev(rev);
   return rev;
 }
-/** A cloud REPLACE: the cellar now IS that file's, so it takes its revision. */
-export function adoptCellarRev(rev: string | null | undefined): void {
-  if (rev && REV_RE.test(rev)) rememberCellarRev(rev);
+/** The cellar now IS that file's, so it takes its revision. `discardHistory`
+ *  (a REPLACE): the content held under every earlier revision has just been
+ *  thrown away, so those revisions no longer describe anything on this device.
+ *  Kept, they made each device read the OTHER's upload of its discarded cellar
+ *  as its own echo — two crossed replaces left the devices on different
+ *  cellars with neither one offered anything (simulation cases 10 and 7c). */
+export function adoptCellarRev(rev: string | null | undefined, discardHistory?: boolean): void {
+  if (!rev || !REV_RE.test(rev)) return;
+  if (discardHistory) lsSet(CELLAR_REVS_KEY, "[]");
+  rememberCellarRev(rev);
 }
 
 /** Everything the guard honours: dismissed OR restored. */
@@ -685,7 +696,7 @@ export function useGdriveSync({
     // `onApplied` fires once the import is COMMITTED (either mode), never on
     // cancel — the cloud-newer banner acks the backup there rather than at
     // stage time, so backing out of the picker leaves the warning armed.
-    options?: { autoApply?: "replace" | "merge"; onApplied?: (mode: "replace" | "merge") => void },
+    options?: { autoApply?: "replace" | "merge"; onApplied?: (mode: "replace" | "merge", info?: { sameAsFile: boolean }) => void },
   ) => void;
   markExported?: () => void;
   t: (k: string) => string;
@@ -1534,7 +1545,7 @@ export function useGdriveSync({
         // being fixed. Verified in CuratorApp's mount gate.
         setImportModal(true);
         stageImport(d, "drive", {
-          onApplied: function (mode: "replace" | "merge") { cloudRestoreApplied(mode, ackTs, ackName); },
+          onApplied: function (mode: "replace" | "merge", info?: { sameAsFile: boolean }) { cloudRestoreApplied(mode, ackTs, ackName, info); },
         });
         finishBusy();
       })
@@ -2213,7 +2224,7 @@ export function useGdriveSync({
                 try { _manualRawSnap = lsGet(SK); } catch (_e) {}
                 // Multipart construction + 60s upload timeout
                 // live in the provider now.
-                return cloud.uploadNew(token, makeBackupName(data, "manual", undefined, getDeviceName(), currentCellarRev()), blob)
+                return cloud.uploadNew(token, makeBackupName(data, "manual", stableDeviceIdForGuard() || undefined, getDeviceName(), currentCellarRev()), blob)
                 .then(function (r) {
                   return r.json();
                 })
@@ -3015,10 +3026,10 @@ export function useGdriveSync({
   // there silenced that backup's multi-device banner for ever while none of
   // its data had arrived. `restoreCloudNewerBackup` already waited for
   // `onApplied`; the picker path now does the same.
-  function ackOnApplied(opt: any): (mode: "replace" | "merge") => void {
+  function ackOnApplied(opt: any): (mode: "replace" | "merge", info?: { sameAsFile: boolean }) => void {
     var ts = opt && opt.modifiedTime ? new Date(opt.modifiedTime).getTime() : undefined;
     var name = opt && opt.name;
-    return function (mode: "replace" | "merge") { cloudRestoreApplied(mode, ts, name); };
+    return function (mode: "replace" | "merge", info?: { sameAsFile: boolean }) { cloudRestoreApplied(mode, ts, name, info); };
   }
   // A CLOUD REPLACE ADOPTS THE RESTORED FILE'S REVISION (see
   // CELLAR_REV_KEY). The restored cellar IS uploaded again, as before build
@@ -3026,12 +3037,18 @@ export function useGdriveSync({
   // one it just discarded — and the other device recognises the revision as
   // its own and stays quiet. A merge keeps the fresh revision save() stamped:
   // its result is new to everybody.
-  function cloudRestoreApplied(mode: "replace" | "merge", ackTs?: number, ackName?: string) {
+  // A MERGE whose result is exactly the file (`info.sameAsFile`, computed by
+  // useImportConfirm) is the same cellar as a replace would give, so it takes
+  // the file's revision the same way. Without `info` (an older caller), only
+  // a replace adopts.
+  function cloudRestoreApplied(mode: "replace" | "merge", ackTs?: number, ackName?: string, info?: { sameAsFile: boolean }) {
     ackCloudNewerBackup(ackTs, ackName);
-    if (mode !== "replace") return;
+    if (mode !== "replace" && !(info && info.sameAsFile)) return;
     var rev = backupRev(ackName || "");
     if (!rev) return;
-    adoptCellarRev(rev);
+    // A merge equal to the file kept everything this device held, so its
+    // history stays; a replace discarded it.
+    adoptCellarRev(rev, mode === "replace");
     // Send this device's file again under the ADOPTED revision, even when the
     // replace changed nothing (save() then raised no flag — build 44). Left
     // alone, this device's cloud file keeps its OLD revision, which the other
