@@ -216,10 +216,14 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     const fresh = currentCellarRev();
     act(() => { stageImport.mock.calls[0]![2].onApplied("merge"); });
     expect(currentCellarRev(), "a merge is new to everybody").toBe(fresh);
+    localStorage.removeItem("cave-pending-sync");
     act(() => { stageImport.mock.calls[0]![2].onApplied("replace"); });
     expect(currentCellarRev()).toBe("k3x9q2a");
     expect(knownCellarRevs()).toContain("k3x9q2a");
     expect(knownCellarRevs()).toContain(fresh);
+    // Re-sent under the adopted revision even if the replace changed nothing,
+    // so the other device recognises it at once.
+    expect(localStorage.getItem("cave-pending-sync")).toBe("1");
   });
 
   it("a REPLACE of a backup written before revisions keeps the fresh revision", () => {
@@ -228,8 +232,10 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     act(() => { result.current.setGdriveConfirm({ options: [{ d: { tobaccos: [] }, ds: "", name: "cave-tabac-auto-ipad-20261004-094714-t1-p0-w0-a0-j0.json" }], sel: 0 }); });
     act(() => { result.current.doGdriveConfirm(); });
     const fresh = stampNewCellarRev();
+    localStorage.removeItem("cave-pending-sync");
     act(() => { stageImport.mock.calls[0]![2].onApplied("replace"); });
     expect(currentCellarRev()).toBe(fresh);
+    expect(localStorage.getItem("cave-pending-sync"), "no revision to propagate").toBeNull();
   });
 
   it("forwards the full payload (metadata and _imageData included) so useImportConfirm can strip and filter them", () => {

@@ -3028,7 +3028,17 @@ export function useGdriveSync({
   // its result is new to everybody.
   function cloudRestoreApplied(mode: "replace" | "merge", ackTs?: number, ackName?: string) {
     ackCloudNewerBackup(ackTs, ackName);
-    if (mode === "replace") adoptCellarRev(backupRev(ackName || ""));
+    if (mode !== "replace") return;
+    var rev = backupRev(ackName || "");
+    if (!rev) return;
+    adoptCellarRev(rev);
+    // Send this device's file again under the ADOPTED revision, even when the
+    // replace changed nothing (save() then raised no flag — build 44). Left
+    // alone, this device's cloud file keeps its OLD revision, which the other
+    // device has never held, and offers it there once more before the two
+    // settle. Uploaded now, the other device recognises its own revision.
+    lsSet("cave-pending-sync", "1");
+    setPendingSync(true);
   }
 
   // Lazy-load the payload of a single picker option (without restoring) so the
