@@ -665,14 +665,17 @@ describe("12 — a device left open in the foreground", () => {
 // Modelled the other way round (the fake cloud is Dropbox): B was on Drive and
 // switches to Dropbox, where A's file already sits.
 describe("13 — switching destination", () => {
-  it("13 a file already on the new destination is not offered; one written after the switch is", async () => {
+  // The 28/08 report: a destination this device had never checked.
+  it("13 never checked from here: a file already there is not offered; one written after the switch is", async () => {
     const { A, B } = await pairedDevices();
     const aFile = await aEditsAlpha(A);
     B.ls.set("cave-cloud-provider", "gdrive");
+    B.ls.delete("cave-cloud-seen-dropbox");    // as if B had never checked Dropbox
     await launch(B);
     expect(offered()).toBeNull();
+    const t0 = Date.now();
     await act(async () => { CTX.saveCloudProviderId("dropbox"); });
-    expect(Number(localStorage.getItem("cave-cloud-switched-dropbox")), "the switch is recorded").toBeGreaterThan(0);
+    expect(Number(localStorage.getItem("cave-cloud-switched-dropbox")), "cut-off = the switch").toBeGreaterThanOrEqual(t0);
     const lists = () => fetchLog.filter((l) => l.indexOf("list") === 0).length;
     const before = lists();
     await advance(5 * 60000 + 20000);   // the periodic check runs on Dropbox
@@ -684,22 +687,41 @@ describe("13 — switching destination", () => {
     await close();
   });
 
-  // Build 50: the Settings offer is the ordinary manual save, so after it the
-  // new destination holds THIS cellar, and the offer's condition is gone.
-  it("13 « Y envoyer ma cave » puts this device's cellar on the new destination", async () => {
-    const { B } = await pairedDevices();
+  // Build 51: switching BACK must not lose what the other device wrote while
+  // this one was away — the window build 49 opened.
+  it("13 switching back: a file the other device wrote while this one was away IS offered", async () => {
+    const { A, B } = await pairedDevices();
+    const seen = Number(B.ls.get("cave-cloud-seen-dropbox"));
+    expect(seen, "B's checks on Dropbox found nothing — recorded").toBeGreaterThan(0);
+    const aFile = await aEditsAlpha(A);       // written after B's last look
     B.ls.set("cave-cloud-provider", "gdrive");
     await launch(B);
     await act(async () => { CTX.saveCloudProviderId("dropbox"); });
-    const switched = Number(localStorage.getItem("cave-cloud-switched-dropbox"));
-    expect(Number(localStorage.getItem("cave-autosave-ts-dropbox") || 0), "the offer's condition holds").toBeLessThan(switched);
+    expect(Number(localStorage.getItem("cave-cloud-switched-dropbox")), "cut-off = B's last empty check").toBe(seen);
+    await advance(5 * 60000 + 20000);
+    expect(offered()).toBe(aFile.name);
+    await close();
+  });
+
+  // The Settings offer is the ordinary manual save; after it the destination
+  // holds this cellar's revision, which is what the offer reads (build 51).
+  it("13 « Y envoyer ma cave » uploads this cellar and records its revision for that destination", async () => {
+    const { B } = await pairedDevices();
+    expect(B.ls.get("cave-saved-rev-dropbox"), "every upload records its revision").toBe(B.ls.get("cave-cellar-rev"));
+    B.ls.set("cave-cloud-provider", "gdrive");
+    offline = true;
+    await launch(B);
+    await addTobacco("Beta");                // the cellar changes away from Dropbox
+    offline = false;
+    await act(async () => { CTX.saveCloudProviderId("dropbox"); });
+    expect(localStorage.getItem("cave-saved-rev-dropbox"), "Dropbox lacks this cellar").not.toBe(localStorage.getItem("cave-cellar-rev"));
     const uploads = () => fetchLog.filter((l) => l.indexOf("upload ") === 0);
     const before = uploads().length;
     await act(async () => { CTX.gdriveSave(); });
     await advance(5000);
     expect(uploads().length, "the cellar went up").toBeGreaterThan(before);
-    expect(uploads()[uploads().length - 1], "a manual backup of this device").toMatch(/^upload cave-tabac-\d{8}/);
-    expect(Number(localStorage.getItem("cave-autosave-ts-dropbox")), "…and the offer goes away").toBeGreaterThanOrEqual(switched);
+    expect(uploads().some((u) => /^upload cave-tabac-\d{8}/.test(u)), "a manual backup of this device").toBe(true);
+    expect(localStorage.getItem("cave-saved-rev-dropbox"), "…and the offer's condition is gone").toBe(localStorage.getItem("cave-cellar-rev"));
     await close();
   });
 });

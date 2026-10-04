@@ -17,7 +17,7 @@ import { VERSION_CHECK_STALE_MS } from "../../hooks/useAppUpdate.ts";
 import { LANGUAGES } from "../../i18n/languages.ts";
 import { alpha, fs, fsInput, C, F, CARD_BG } from "../../theme-curator.ts";
 import { getDiagnosticSnapshot, clearDiagnostic } from "../../utils/diagnostic.ts";
-import { readAutosaveDiag, readCloudCheckDiag, cloudSwitchedAt } from "../../hooks/useGdriveSync.ts";
+import { readAutosaveDiag, readCloudCheckDiag, cloudSwitchedAt, cloudSavedRevKey, cloudOfferDismissedKey, currentCellarRev } from "../../hooks/useGdriveSync.ts";
 import { fmtDate, fmtDateTime, today, plural, localDayKey } from "../../utils.ts";
 import { useFocusRing, caretToEnd } from "../../components/curator/FormFields.tsx";
 import { Lbl, PressCard, Spinner } from "../../components/curator/primitives.tsx";
@@ -207,28 +207,58 @@ export function CuratorSettingsModal() {
             {t ? t("cloud_provider_hint") : "Chaque destination conserve ses propres sauvegardes — changer ne migre rien."}
           </div>
           {/* BUILD 50 — after a switch, offer to put THIS cellar on the new
-              destination. Since build 49 the guard ignores what was already
-              there (cloudSwitchedAt), so until this device saves to it the new
-              destination holds only files older than the cellar — the 28/08
-              file of the report. Shown while this provider's last save
-              predates the switch; `lastAutoSaveTs` is re-read per provider by
-              the switch effect, and it is written by the manual AND the auto
-              save, so either one makes the offer go away. The button is the
-              ordinary manual save, so it signs in when it has to. */}
+              destination. BUILD 51 — and only when it is TRUE that the
+              destination lacks it. Build 50 compared the destination's last
+              save with the switch moment, so switching back to Dropbox, which
+              had held this very cellar since 13:44, announced « ne contient
+              pas encore votre cave actuelle » — and offered no way to say no
+              (both reported from the iPhone, screenshot). Now:
+                • this device never saved here → say so;
+                • it did, and the revision it uploaded (cloudSavedRevKey) is not
+                  the current one → the cellar changed since, say THAT;
+                • same revision, or a save from before build 51 that recorded
+                  none → nothing is claimed, nothing shown.
+              « Non merci » hides it for this switch (keyed by its moment); the
+              next switch may ask again. The button is the ordinary manual
+              save, so it signs in when it has to. */}
           {(function () {
-            var sw = cloudSwitchedAt(cloudProviderId === "dropbox");
-            if (!sw || (lastAutoSaveTs || 0) >= sw) return null;
+            var isDbxP = cloudProviderId === "dropbox";
+            var sw = cloudSwitchedAt(isDbxP);
+            if (!sw) return null;
+            if (lsGet(cloudOfferDismissedKey(isDbxP)) === String(sw)) return null;
+            var kind: "never" | "changed" | null = null;
+            if (!lastAutoSaveTs) kind = "never";
+            else {
+              var savedRev = lsGet(cloudSavedRevKey(isDbxP)) || "";
+              var curRev = currentCellarRev();
+              if (savedRev && curRev && savedRev !== curRev) kind = "changed";
+            }
+            if (!kind) return null;
             return (
               <div style={{
                 padding: "8px 12px", margin: "0 0 10px", borderRadius: 8,
                 background: alpha(C.sage, "1f"), border: `1px solid ${alpha(C.sage, "88")}`,
               }}>
                 <div style={{ color: C.tx, fontSize: fs(13.5), lineHeight: 1.45, marginBottom: 8 }}>
-                  {t ? t("cloud_switch_send_hint") : "Cette destination ne contient pas encore votre cave actuelle : les sauvegardes qui s'y trouvaient datent d'avant votre choix."}
+                  {kind === "never"
+                    ? (t ? t("cloud_switch_send_never") : "Cet appareil n'a encore jamais sauvegardé sa cave sur cette destination.")
+                    : (t ? t("cloud_switch_send_changed") : "Votre cave a changé depuis la dernière sauvegarde de cet appareil sur cette destination.")}
                 </div>
                 <ActionBtn icon="box" label={t ? t("cloud_switch_send_btn") : "Y envoyer ma cave maintenant"}
                   onClick={gdriveSave} accent={C.sageHi}
                   disabled={!!gdriveStatus || !!gdriveConfirm} />
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                  <button type="button"
+                    onClick={() => {
+                      lsSet(cloudOfferDismissedKey(isDbxP), String(sw));
+                      setSettingsTick(x => x + 1);
+                    }}
+                    style={{
+                      background: "transparent", border: "1px solid " + C.rule,
+                      color: C.tx2, padding: "8px 14px", borderRadius: 8, minHeight: 44,
+                      fontSize: fs(13), cursor: "pointer", fontFamily: F.body,
+                    }}>{t ? t("cloud_switch_send_dismiss") : "Non merci"}</button>
+                </div>
               </div>
             );
           })()}

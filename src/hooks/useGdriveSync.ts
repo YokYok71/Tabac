@@ -84,7 +84,9 @@ var useState = React.useState,
  * the guard, scoped to one destination, could not know that.
  *
  * The rule: what was on a destination BEFORE this device chose it predates
- * that choice, and is not « newer ». Written by the provider-switch effect —
+ * that choice, and is not « newer ». Since build 51 the cut-off is the last
+ * EMPTY check on that destination when there is one (cloudSeenKey): coming
+ * back to a destination, what the other device wrote meanwhile is offered. Written by the provider-switch effect —
  * an actual switch in the app, never the initial value at mount, so a device
  * set up from scratch still sees what is there. The cost, accepted and stated
  * in the guide: a device switching to JOIN another that stayed on the new
@@ -97,6 +99,34 @@ export function cloudSwitchedKey(isDbx: boolean): string {
 }
 export function cloudSwitchedAt(isDbx: boolean): number {
   try { return parseInt(lsGet(cloudSwitchedKey(isDbx)) || "0", 10) || 0; } catch (_e) { return 0; }
+}
+/**
+ * THE REVISION LAST UPLOADED TO EACH DESTINATION (build 51). The build 50
+ * offer « Y envoyer ma cave maintenant » compared the destination's last save
+ * with the switch moment, so switching BACK to Dropbox — which had this very
+ * cellar since 13:44 — announced « cette destination ne contient pas encore
+ * votre cave actuelle » (reported from the iPhone, screenshot). Whether a
+ * destination holds the current cellar is a question about CONTENT, and the
+ * cellar revision answers it: written by the manual and the auto save on
+ * success, compared with currentCellarRev(). Device-local, never in backups.
+ */
+export function cloudSavedRevKey(isDbx: boolean): string {
+  return "cave-saved-rev-" + (isDbx ? "dropbox" : "gdrive");
+}
+/**
+ * The last moment this device's silent check on a destination found NOTHING
+ * to offer (build 51) — it had seen everything there up to then. A switch
+ * BACK to that destination ignores only files older than this, not older
+ * than the switch: otherwise a file the other device wrote there while this
+ * one was away would be lost to the guard — the window build 49 opened.
+ */
+export function cloudSeenKey(isDbx: boolean): string {
+  return "cave-cloud-seen-" + (isDbx ? "dropbox" : "gdrive");
+}
+/** « Non merci » on the Settings send offer (build 51): holds the cut-off of
+ *  the switch it was dismissed for, so a later switch may ask again. */
+export function cloudOfferDismissedKey(isDbx: boolean): string {
+  return "cave-cloud-offer-dismissed-" + (isDbx ? "dropbox" : "gdrive");
 }
 export function cloudGuardLocalRef(isDbx: boolean): number {
   try {
@@ -1078,7 +1108,12 @@ export function useGdriveSync({
     // them. `gdriveConfirm` additionally disables Sauvegarder + Restaurer
     // (SettingsModal), so a forgotten picker greys out two buttons with no
     // stated reason, indefinitely.
-    lsSet(cloudSwitchedKey(cloudProviderId === "dropbox"), String(Date.now()));
+    // A destination this device has used before: everything there up to its
+    // last empty check had been seen, so the cut-off is that moment, not now
+    // (see cloudSeenKey). A destination never checked from here: now.
+    var _toDbx = cloudProviderId === "dropbox";
+    var _seen = parseInt(lsGet(cloudSeenKey(_toDbx)) || "0", 10) || 0;
+    lsSet(cloudSwitchedKey(_toDbx), String(_seen > 0 ? _seen : Date.now()));
     setGdriveConfirm(null);
     setCloudNewerBackup(null);
     setSyncDiag(null);
@@ -1204,6 +1239,7 @@ export function useGdriveSync({
               cloudSwitchedAt(isDbx),
             );
             recordCloudCheckDiag(hit ? "found" : "none");
+            if (!hit) lsSet(cloudSeenKey(isDbx), String(Date.now()));
             if (hit) {
               setCloudNewerBackup({
                 id: hit.id,
@@ -2371,7 +2407,8 @@ export function useGdriveSync({
                 try { _manualRawSnap = lsGet(SK); } catch (_e) {}
                 // Multipart construction + 60s upload timeout
                 // live in the provider now.
-                return cloud.uploadNew(token, makeBackupName(data, "manual", stableDeviceIdForGuard() || undefined, getDeviceName(), currentCellarRev()), blob)
+                var _manualRev = currentCellarRev();
+                return cloud.uploadNew(token, makeBackupName(data, "manual", stableDeviceIdForGuard() || undefined, getDeviceName(), _manualRev), blob)
                 .then(function (r) {
                   return r.json();
                 })
@@ -2392,6 +2429,7 @@ export function useGdriveSync({
                   // MANUAL so Settings can label the "last save" line
                   // correctly (auto vs manual). Per-provider, read in render.
                   lsSet("cave-last-save-type-" + (isDbx ? "dropbox" : "gdrive"), "manual");
+                  if (_manualRev) lsSet(cloudSavedRevKey(isDbx), _manualRev);
                   // Only declare "synced" if the data hasn't
                   // moved since we froze the upload payload. An edit that landed
                   // mid-upload leaves the cloud holding the stale snapshot — keep
@@ -2856,6 +2894,8 @@ export function useGdriveSync({
         lsSet("cave-autosave-ts-" + (isDbx ? "dropbox" : "gdrive"), String(ts));
         // Record that the last save on this provider was AUTO.
         lsSet("cave-last-save-type-" + (isDbx ? "dropbox" : "gdrive"), "auto");
+        // The revision of the snapshot that went up (see cloudSavedRevKey).
+        if (revAtSnap) lsSet(cloudSavedRevKey(isDbx), revAtSnap);
         // Une sauvegarde qui aboutit remet la série à zéro ET réarme
         // l'alerte : si le cloud recasse plus tard, il faudra le redire.
         clearAutosaveFailures(isDbx);

@@ -515,39 +515,77 @@ describe("SettingsModal — la ligne du contrôle multi-appareils", () => {
 });
 
 // Build 50 — after a destination switch, the panel offers to put the current
-// cellar there, until a save on that destination postdates the switch.
+// cellar there. Build 51 — only when that is TRUE: switching back to Dropbox,
+// which held this very cellar, said « ne contient pas encore votre cave
+// actuelle » with no way to refuse (reported from the iPhone, screenshot).
 describe("SettingsModal — envoyer la cave vers la nouvelle destination", () => {
-  afterEach(() => { localStorage.removeItem("cave-cloud-switched-gdrive"); });
-  const btn = (c: HTMLElement) => Array.from(c.querySelectorAll("button, [role='button']"))
-    .find((b) => (b.textContent || "").includes(trFr("cloud_switch_send_btn"))) as HTMLElement | undefined;
+  afterEach(() => {
+    for (const k of ["cave-cloud-switched-gdrive", "cave-saved-rev-gdrive", "cave-cellar-rev",
+                     "cave-cloud-offer-dismissed-gdrive"]) localStorage.removeItem(k);
+  });
+  const btn = (c: HTMLElement, key: string) => Array.from(c.querySelectorAll("button, [role='button']"))
+    .find((b) => (b.textContent || "").includes(trFr(key))) as HTMLElement | undefined;
+  function switched(savedRev: string | null, curRev: string) {
+    const sw = Date.now() - 60000;
+    localStorage.setItem("cave-cloud-switched-gdrive", String(sw));
+    localStorage.setItem("cave-cellar-rev", curRev);
+    if (savedRev) localStorage.setItem("cave-saved-rev-gdrive", savedRev);
+    return sw;
+  }
 
-  it("proposé après un changement tant qu'aucune sauvegarde n'a eu lieu depuis — et c'est la sauvegarde ordinaire", () => {
-    const switched = Date.now() - 60000;
-    localStorage.setItem("cave-cloud-switched-gdrive", String(switched));
+  it("jamais sauvegardé ici : le dit, et le bouton est la sauvegarde ordinaire", () => {
+    switched(null, "cur1");
     const gdriveSave = vi.fn();
     const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx({
-      cloudProviderId: "gdrive", lastAutoSaveTs: switched - 86400000, gdriveSave,
+      cloudProviderId: "gdrive", lastAutoSaveTs: null, gdriveSave,
     }));
-    expect((container as HTMLElement).textContent).toContain(trFr("cloud_switch_send_hint"));
-    const b = btn(container as HTMLElement);
-    expect(b, "le bouton d'envoi").toBeTruthy();
-    fireEvent.click(b!);
+    expect((container as HTMLElement).textContent).toContain(trFr("cloud_switch_send_never"));
+    fireEvent.click(btn(container as HTMLElement, "cloud_switch_send_btn")!);
     expect(gdriveSave).toHaveBeenCalledTimes(1);
   });
 
-  it("disparaît dès qu'une sauvegarde sur cette destination suit le changement", () => {
-    const switched = Date.now() - 60000;
-    localStorage.setItem("cave-cloud-switched-gdrive", String(switched));
+  it("LE RAPPORT : la destination a déjà cette cave (même révision) — rien n'est affiché", () => {
+    const sw = switched("cur1", "cur1");
     const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx({
-      cloudProviderId: "gdrive", lastAutoSaveTs: switched + 1000,
+      cloudProviderId: "gdrive", lastAutoSaveTs: sw - 3000000,
     }));
-    expect((container as HTMLElement).textContent).not.toContain(trFr("cloud_switch_send_hint"));
+    const text = (container as HTMLElement).textContent || "";
+    expect(text).not.toContain(trFr("cloud_switch_send_changed"));
+    expect(text).not.toContain(trFr("cloud_switch_send_never"));
+  });
+
+  it("la cave a changé depuis la dernière sauvegarde ici : le dit", () => {
+    const sw = switched("old1", "cur1");
+    const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx({
+      cloudProviderId: "gdrive", lastAutoSaveTs: sw - 3000000,
+    }));
+    expect((container as HTMLElement).textContent).toContain(trFr("cloud_switch_send_changed"));
+  });
+
+  it("une sauvegarde d'avant le build 51 (révision inconnue) : rien n'est affirmé", () => {
+    const sw = switched(null, "cur1");
+    const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx({
+      cloudProviderId: "gdrive", lastAutoSaveTs: sw - 3000000,
+    }));
+    expect((container as HTMLElement).textContent).not.toContain(trFr("cloud_switch_send_changed"));
+  });
+
+  it("« Non merci » le masque pour ce changement-là ; un changement suivant peut redemander", () => {
+    const sw = switched("old1", "cur1");
+    const r = renderWithCtx(<CuratorSettingsModal />, baseCtx({ cloudProviderId: "gdrive", lastAutoSaveTs: sw - 3000000 }));
+    fireEvent.click(btn(r.container as HTMLElement, "cloud_switch_send_dismiss")!);
+    expect((r.container as HTMLElement).textContent).not.toContain(trFr("cloud_switch_send_changed"));
+    expect(localStorage.getItem("cave-cloud-offer-dismissed-gdrive")).toBe(String(sw));
+    r.unmount();
+    localStorage.setItem("cave-cloud-switched-gdrive", String(sw + 5000));   // a later switch
+    const r2 = renderWithCtx(<CuratorSettingsModal />, baseCtx({ cloudProviderId: "gdrive", lastAutoSaveTs: sw - 3000000 }));
+    expect((r2.container as HTMLElement).textContent).toContain(trFr("cloud_switch_send_changed"));
   });
 
   it("absent sans changement de destination (un appareil installé de zéro)", () => {
     const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx({
       cloudProviderId: "gdrive", lastAutoSaveTs: null,
     }));
-    expect((container as HTMLElement).textContent).not.toContain(trFr("cloud_switch_send_hint"));
+    expect((container as HTMLElement).textContent).not.toContain(trFr("cloud_switch_send_never"));
   });
 });
