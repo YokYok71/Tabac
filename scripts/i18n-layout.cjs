@@ -846,13 +846,23 @@ const SCREENS = [
   {
     name: "modal-session", dock: 4, expect: "lbl_session_overline",
     async go(page, dict, lang) {
-      // Sessions are grouped by month; the seed expands the latest month, so the
+      // Sessions are grouped by month; the app expands the latest month, so its
       // rows are visible. Keyboard-activated for the same ghost-click reason as
       // the lot row.
-      const row = page.getByLabel(/Duskfall|Virginia/).first();
-      if (await row.count()) { await row.focus(); await page.keyboard.press("Enter"); }
-      else await page.getByText("55", { exact: false }).first().click({ force: true });
-      void dict; void lang;
+      //
+      // TARGETED BY THE CARD'S OWN LABEL, NOT BY A TOBACCO NAME — the name was
+      // a calendar time bomb. The seed dates sessions relative to today (J-3,
+      // J-5, J-18, J-46), so on the 4th and 5th of every month the latest
+      // month holds ONLY the J-3 bowl — whose tobacco the old name regex did
+      // not list — so it matched nothing visible, the fallback clicked a "55"
+      // that sat in the collapsed month, and both browser gates went red in
+      // every palette.
+      // That is how build 38's deploy died on 4 October with no defect in the
+      // build. `aria_session_card` is on every session card, whichever
+      // tobacco, whichever month.
+      const card = page.getByLabel(label(dict, "aria_session_card", lang), { exact: true }).first();
+      await card.focus();
+      await page.keyboard.press("Enter");
     },
   },
   {

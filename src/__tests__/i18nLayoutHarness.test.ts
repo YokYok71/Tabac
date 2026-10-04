@@ -168,6 +168,24 @@ describe("the harness's navigation keys resolve in every language", () => {
     }
   });
 
+  it("modal-session opens a card by its own label, never by a seeded tobacco's name", () => {
+    // The seed dates sessions relative to TODAY, so which tobacco sits in the
+    // expanded (latest) month depends on the day of the month: on the 4th and
+    // 5th it is only the J-3 Pellworm bowl. A name-based locator therefore
+    // failed two days a month, in every palette and language — build 38's
+    // deploy died on 4 October that way, with no defect in the build.
+    const scr = (H.SCREENS as any[]).find((s) => s.name === "modal-session");
+    const src = String(scr?.go);
+    expect(src).toContain('"aria_session_card"');
+    for (const t of H.DATA.tobaccos as any[]) {
+      expect(src, `locator pinned to "${t.name}"`).not.toContain(t.name);
+      expect(src, `locator pinned to "${t.brand}"`).not.toContain(t.brand);
+    }
+    for (const lang of LANGS) {
+      expect(H.readDict(lang).aria_session_card, lang).toBeTruthy();
+    }
+  });
+
   it("the lot FORM modal is a distinct screen from the lot DETAIL modal", () => {
     // Different components (LotFormModal vs the read-only modal in
     // InventoryDetailView) and different markers. Collapsing them would silently
