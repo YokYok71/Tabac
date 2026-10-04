@@ -614,7 +614,7 @@ export function CuratorHomeViewV2() {
                   carries (the global Overlays twin does; this inline copy was
                   rendering "({date})" literally). */}
               <span style={{ flex: 1, fontSize: fs(13.5), color: C.cream, lineHeight: 1.4 }}>{
-                String(t ? t("cloud_newer_banner") : "Un autre appareil a une version plus récente ({date}). La restaurer efface les données de cet appareil et les remplace par celles de la sauvegarde.")
+                String(t ? t("cloud_newer_banner") : "Une sauvegarde cloud du {date} n'a pas encore été récupérée sur cet appareil. « Restaurer » vous laisse choisir : « Fusionner », sans rien effacer, ou « Remplacer ».")
                   .replace("{date}", (() => {
                     try { const d = new Date(cloudNewerBackup.ts); return dateFormat === "en" ? d.toLocaleString("en-US") : d.toLocaleString("fr-FR"); }
                     catch (_e) { return ""; }

@@ -17,7 +17,7 @@ import { VERSION_CHECK_STALE_MS } from "../../hooks/useAppUpdate.ts";
 import { LANGUAGES } from "../../i18n/languages.ts";
 import { alpha, fs, fsInput, C, F, CARD_BG } from "../../theme-curator.ts";
 import { getDiagnosticSnapshot, clearDiagnostic } from "../../utils/diagnostic.ts";
-import { readAutosaveDiag, readCloudCheckDiag } from "../../hooks/useGdriveSync.ts";
+import { readAutosaveDiag, readCloudCheckDiag, cloudSwitchedAt } from "../../hooks/useGdriveSync.ts";
 import { fmtDate, fmtDateTime, today, plural, localDayKey } from "../../utils.ts";
 import { useFocusRing, caretToEnd } from "../../components/curator/FormFields.tsx";
 import { Lbl, PressCard, Spinner } from "../../components/curator/primitives.tsx";
@@ -206,6 +206,32 @@ export function CuratorSettingsModal() {
           }}>
             {t ? t("cloud_provider_hint") : "Chaque destination conserve ses propres sauvegardes — changer ne migre rien."}
           </div>
+          {/* BUILD 50 — after a switch, offer to put THIS cellar on the new
+              destination. Since build 49 the guard ignores what was already
+              there (cloudSwitchedAt), so until this device saves to it the new
+              destination holds only files older than the cellar — the 28/08
+              file of the report. Shown while this provider's last save
+              predates the switch; `lastAutoSaveTs` is re-read per provider by
+              the switch effect, and it is written by the manual AND the auto
+              save, so either one makes the offer go away. The button is the
+              ordinary manual save, so it signs in when it has to. */}
+          {(function () {
+            var sw = cloudSwitchedAt(cloudProviderId === "dropbox");
+            if (!sw || (lastAutoSaveTs || 0) >= sw) return null;
+            return (
+              <div style={{
+                padding: "8px 12px", margin: "0 0 10px", borderRadius: 8,
+                background: alpha(C.sage, "1f"), border: `1px solid ${alpha(C.sage, "88")}`,
+              }}>
+                <div style={{ color: C.tx, fontSize: fs(13.5), lineHeight: 1.45, marginBottom: 8 }}>
+                  {t ? t("cloud_switch_send_hint") : "Cette destination ne contient pas encore votre cave actuelle : les sauvegardes qui s'y trouvaient datent d'avant votre choix."}
+                </div>
+                <ActionBtn icon="box" label={t ? t("cloud_switch_send_btn") : "Y envoyer ma cave maintenant"}
+                  onClick={gdriveSave} accent={C.sageHi}
+                  disabled={!!gdriveStatus || !!gdriveConfirm} />
+              </div>
+            );
+          })()}
           <Toggle
             value={!!autoSaveDrive}
             setValue={(v) => {

@@ -683,6 +683,25 @@ describe("13 — switching destination", () => {
     expect(offered(), "written after the switch: offered").toBe(aFile.name);
     await close();
   });
+
+  // Build 50: the Settings offer is the ordinary manual save, so after it the
+  // new destination holds THIS cellar, and the offer's condition is gone.
+  it("13 « Y envoyer ma cave » puts this device's cellar on the new destination", async () => {
+    const { B } = await pairedDevices();
+    B.ls.set("cave-cloud-provider", "gdrive");
+    await launch(B);
+    await act(async () => { CTX.saveCloudProviderId("dropbox"); });
+    const switched = Number(localStorage.getItem("cave-cloud-switched-dropbox"));
+    expect(Number(localStorage.getItem("cave-autosave-ts-dropbox") || 0), "the offer's condition holds").toBeLessThan(switched);
+    const uploads = () => fetchLog.filter((l) => l.indexOf("upload ") === 0);
+    const before = uploads().length;
+    await act(async () => { CTX.gdriveSave(); });
+    await advance(5000);
+    expect(uploads().length, "the cellar went up").toBeGreaterThan(before);
+    expect(uploads()[uploads().length - 1], "a manual backup of this device").toMatch(/^upload cave-tabac-\d{8}/);
+    expect(Number(localStorage.getItem("cave-autosave-ts-dropbox")), "…and the offer goes away").toBeGreaterThanOrEqual(switched);
+    await close();
+  });
 });
 
 describe("2 — identical cellars under different revisions (the state builds 42/43 left)", () => {

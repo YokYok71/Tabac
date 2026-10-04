@@ -192,17 +192,23 @@ describe("the cloud-newer banner says what it does", () => {
     const { translate, ensureLang } = await import("../i18n.ts");
     // Each language's own word for what actually happens. A banner that used
     // Its neighbour's vocabulary would be the defect again.
-    const REPLACES: Record<string, RegExp> = {
-      fr: /remplace/i, en: /replaces?/i, es: /sustituye/i,
-      de: /ersetzt/i, it: /sostituisce/i, pt: /substitui/i,
-    };
+    // BUILD 50: the banner names BOTH choices, with the picker's own words.
+    // It used to say only that a restore « efface les données de cet
+    // appareil » — true while « Restaurer » auto-applied a replace, false since
+    // it opens the Replace / Merge picker (see the case below), and it also
+    // called the file « plus récente », which a file left on a destination
+    // before a switch was not (reported from the iPhone, build 49). The rule
+    // this case was written for still holds: the replacement is NAMED, and the
+    // banner never calls it a sync. Reading the labels from the dictionaries
+    // (`import_replace` / `import_merge`) keeps the banner and the picker on
+    // one vocabulary in every language.
     const SYNC = /synchronis|sincroniz|synchronisier|sync\b/i;
     for (const { code } of LANGUAGES) {
       await ensureLang(code);
       const s = String(translate(code, "cloud_newer_banner"));
       expect(s, code).toContain("{date}");
-      expect(REPLACES[code], `no expectation written for ${code}`).toBeTruthy();
-      expect(s, `${code} must name the replacement`).toMatch(REPLACES[code]!);
+      expect(s, `${code} must name the replacement`).toContain(String(translate(code, "import_replace")));
+      expect(s, `${code} must name the merge`).toContain(String(translate(code, "import_merge")));
       expect(s, `${code} still calls a replace a sync`).not.toMatch(SYNC);
     }
   });

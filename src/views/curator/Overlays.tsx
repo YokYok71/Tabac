@@ -861,7 +861,7 @@ export function CuratorCloudNewerBanner() {
         boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
       }}>
       <span style={{ flex: 1, lineHeight: 1.3 }}>
-        {String(t ? t("cloud_newer_banner") : "Un autre appareil a une version plus récente ({date}). La restaurer efface les données de cet appareil et les remplace par celles de la sauvegarde.")
+        {String(t ? t("cloud_newer_banner") : "Une sauvegarde cloud du {date} n'a pas encore été récupérée sur cet appareil. « Restaurer » vous laisse choisir : « Fusionner », sans rien effacer, ou « Remplacer ».")
           .replace("{date}", fmt(cloudNewerBackup.ts))}
       </span>
       <button type="button"

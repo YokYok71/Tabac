@@ -513,3 +513,41 @@ describe("SettingsModal — la ligne du contrôle multi-appareils", () => {
     expect(text).not.toContain(trFr("cloudcheck_diag_today").replace("{n}", "40"));
   });
 });
+
+// Build 50 — after a destination switch, the panel offers to put the current
+// cellar there, until a save on that destination postdates the switch.
+describe("SettingsModal — envoyer la cave vers la nouvelle destination", () => {
+  afterEach(() => { localStorage.removeItem("cave-cloud-switched-gdrive"); });
+  const btn = (c: HTMLElement) => Array.from(c.querySelectorAll("button, [role='button']"))
+    .find((b) => (b.textContent || "").includes(trFr("cloud_switch_send_btn"))) as HTMLElement | undefined;
+
+  it("proposé après un changement tant qu'aucune sauvegarde n'a eu lieu depuis — et c'est la sauvegarde ordinaire", () => {
+    const switched = Date.now() - 60000;
+    localStorage.setItem("cave-cloud-switched-gdrive", String(switched));
+    const gdriveSave = vi.fn();
+    const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx({
+      cloudProviderId: "gdrive", lastAutoSaveTs: switched - 86400000, gdriveSave,
+    }));
+    expect((container as HTMLElement).textContent).toContain(trFr("cloud_switch_send_hint"));
+    const b = btn(container as HTMLElement);
+    expect(b, "le bouton d'envoi").toBeTruthy();
+    fireEvent.click(b!);
+    expect(gdriveSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("disparaît dès qu'une sauvegarde sur cette destination suit le changement", () => {
+    const switched = Date.now() - 60000;
+    localStorage.setItem("cave-cloud-switched-gdrive", String(switched));
+    const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx({
+      cloudProviderId: "gdrive", lastAutoSaveTs: switched + 1000,
+    }));
+    expect((container as HTMLElement).textContent).not.toContain(trFr("cloud_switch_send_hint"));
+  });
+
+  it("absent sans changement de destination (un appareil installé de zéro)", () => {
+    const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx({
+      cloudProviderId: "gdrive", lastAutoSaveTs: null,
+    }));
+    expect((container as HTMLElement).textContent).not.toContain(trFr("cloud_switch_send_hint"));
+  });
+});
