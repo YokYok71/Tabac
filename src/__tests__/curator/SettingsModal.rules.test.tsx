@@ -471,3 +471,45 @@ describe("SettingsModal — le sélecteur de sauvegarde Drive", () => {
     ).not.toContain(trFr("restore_fewer_title"));
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// Build 48 — « vérifié à 14:07, rien de nouveau ». La ligne du contrôle
+// multi-appareils s'affiche aussi quand tout va bien, avec l'heure et le
+// nombre d'interrogations du cloud de la journée.
+describe("SettingsModal — la ligne du contrôle multi-appareils", () => {
+  afterEach(() => { localStorage.removeItem("cave-cloudcheck-diag"); });
+  function hhmm(ms: number) {
+    const d = new Date(ms);
+    return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+  function dayKey(ms: number) {
+    const d = new Date(ms);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  it("un contrôle sans rien de nouveau : l'heure, « rien de nouveau » et le compte du jour", () => {
+    const ts = Date.now() - 60000;
+    localStorage.setItem("cave-cloudcheck-diag", JSON.stringify({ ts, stage: "none", day: dayKey(ts), n: 12 }));
+    const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx());
+    const text = (container as HTMLElement).textContent || "";
+    expect(text).toContain(trFr("settings_cloudcheck_diag_label") + " " + hhmm(ts) + " — " + trFr("cloudcheck_diag_none"));
+    expect(text).toContain(trFr("cloudcheck_diag_today").replace("{n}", "12"));
+  });
+
+  it("une sauvegarde proposée se dit aussi", () => {
+    const ts = Date.now() - 60000;
+    localStorage.setItem("cave-cloudcheck-diag", JSON.stringify({ ts, stage: "found", day: dayKey(ts), n: 1 }));
+    const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx());
+    expect((container as HTMLElement).textContent).toContain(hhmm(ts) + " — " + trFr("cloudcheck_diag_found"));
+  });
+
+  it("un contrôle d'un autre jour porte sa date, et pas le compte d'aujourd'hui", () => {
+    const ts = Date.now() - 3 * 86400000;
+    localStorage.setItem("cave-cloudcheck-diag", JSON.stringify({ ts, stage: "none", day: dayKey(ts), n: 40 }));
+    const { container } = renderWithCtx(<CuratorSettingsModal />, baseCtx());
+    const text = (container as HTMLElement).textContent || "";
+    expect(text).toContain(trFr("cloudcheck_diag_none"));
+    expect(text, "« 14:07 » d'il y a trois jours se lirait comme cet après-midi").not.toContain(trFr("settings_cloudcheck_diag_label") + " " + hhmm(ts) + " —");
+    expect(text).not.toContain(trFr("cloudcheck_diag_today").replace("{n}", "40"));
+  });
+});

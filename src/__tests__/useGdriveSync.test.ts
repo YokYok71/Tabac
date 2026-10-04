@@ -25,6 +25,7 @@ import {
   writeCloudDismissed,
   clearCloudDismissed,
   readCloudCheckDiag,
+  recordCloudCheckDiag,
   ownStampedSince,
   BACKUP_DELETE_PENDING_KEY,
   CLOUD_CHECK_PENDING_KEY,
@@ -3535,6 +3536,28 @@ describe("gdriveSaveQuiet — a skipped save retries after the lock expires", ()
     const bUpload = { id: "b", name: "cave-tabac-auto-ipadid-20261004-120000-raaa1-t1-p0-w0-a0-j0.json", modifiedTime: new Date().toISOString() };
     expect(findNewerCloudBackup([bUpload], 0, 0, 120000, null, "iphoneid", 1, knownCellarRevs())?.name)
       .toBe(bUpload.name);
+  });
+
+  it("the check diagnostic counts today's cloud queries, and only those", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(2026, 9, 4, 10, 0, 0));
+      localStorage.removeItem("cave-cloudcheck-diag");
+      recordCloudCheckDiag("none");
+      recordCloudCheckDiag("found");
+      recordCloudCheckDiag("not-engaged");     // never reached the cloud
+      recordCloudCheckDiag("no-token");        // nor this
+      recordCloudCheckDiag("list-error");
+      expect(readCloudCheckDiag()).toMatchObject({ stage: "list-error", day: "2026-10-04", n: 3 });
+      vi.setSystemTime(new Date(2026, 9, 5, 0, 1, 0));
+      recordCloudCheckDiag("none");
+      expect(readCloudCheckDiag(), "a new day starts from zero").toMatchObject({ day: "2026-10-05", n: 1 });
+      // A record from before build 48 has neither day nor count.
+      localStorage.setItem("cave-cloudcheck-diag", JSON.stringify({ ts: 5, stage: "none" }));
+      expect(readCloudCheckDiag()).toEqual({ ts: 5, stage: "none", day: "", n: 0 });
+      localStorage.setItem("cave-cloudcheck-diag", JSON.stringify({ ts: 5, stage: "none", day: "x", n: -3 }));
+      expect(readCloudCheckDiag()!.n).toBe(0);
+    } finally { vi.useRealTimers(); }
   });
 
   it("periodicCheckDue: every 5 minutes from the LAST check, never hidden, offline or busy", () => {

@@ -8,7 +8,7 @@ import {
   SCHEMA_VERSION,
 } from "../constants.ts";
 import { imgCache } from "../utils/imgCache.ts";
-import { isPlausibleBackup, latestEditMs } from "../utils.ts";
+import { isPlausibleBackup, latestEditMs, localDayKey } from "../utils.ts";
 import { recordOAuthEvent } from "../utils/oauthDiag.ts";
 import {
   encryptBackup,
@@ -651,15 +651,31 @@ export function pickLiveToken(
   return memTok;
 }
 
+/** The stages where the check actually asked the cloud something — the ones
+ *  that cost a request, and so the ones counted per day (build 48: the count
+ *  is what lets the user judge the periodic check's cost on a real device). */
+var CLOUD_QUERIED_STAGES = ["none", "found", "list-error", "error"];
 export function recordCloudCheckDiag(stage: string): void {
-  lsSet("cave-cloudcheck-diag", JSON.stringify({ ts: Date.now(), stage: stage }));
+  var now = Date.now();
+  var day = localDayKey(now);
+  var prev = readCloudCheckDiag();
+  var n = prev && prev.day === day ? prev.n : 0;
+  if (CLOUD_QUERIED_STAGES.indexOf(stage) >= 0) n++;
+  lsSet("cave-cloudcheck-diag", JSON.stringify({ ts: now, stage: stage, day: day, n: n }));
 }
-export function readCloudCheckDiag(): { ts: number; stage: string } | null {
+export function readCloudCheckDiag(): { ts: number; stage: string; day: string; n: number } | null {
   try {
     var raw = lsGet("cave-cloudcheck-diag");
     if (!raw) return null;
     var v = JSON.parse(raw);
-    if (v && typeof v.stage === "string") return v;
+    if (v && typeof v.stage === "string" && typeof v.ts === "number") {
+      // A record from before build 48 has no day / count.
+      return {
+        ts: v.ts, stage: v.stage,
+        day: typeof v.day === "string" ? v.day : "",
+        n: typeof v.n === "number" && v.n >= 0 ? Math.floor(v.n) : 0,
+      };
+    }
   } catch (_e) {}
   return null;
 }

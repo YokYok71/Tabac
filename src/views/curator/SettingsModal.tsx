@@ -313,9 +313,17 @@ export function CuratorSettingsModal() {
               had looked and found nothing or never looked at all. Reported
               from the app after switching devices. `found` and `none` are
               benign and stay hidden; the rest are the states worth acting on. */}
+          {/* Build 48 — the benign outcomes are SHOWN now, with the time and
+              today's count (asked by the user: « vérifié à 14:07, rien de
+              nouveau »). Hidden, a check that ran and one that never ran looked
+              the same as soon as things went well, and the periodic check
+              (every 5 min in the foreground) made « when did it last look? » a
+              real question. The count is the one figure that lets the cost of
+              that check be judged on a real device. The 4 s settings tick
+              above keeps the line fresh while Settings is open. */}
           {(function () {
             var d = readCloudCheckDiag();
-            if (!d || d.stage === "found" || d.stage === "none") return null;
+            if (!d) return null;
             // Null-prototype: the key comes from stored data, and on a plain
             // object a forged `constructor` / `toString` stage resolves to an
             // Object.prototype member — truthy, so `k && t(k)` would hand t()
@@ -327,9 +335,18 @@ export function CuratorSettingsModal() {
               "no-token": "cloudcheck_diag_no_token",
               "list-error": "cloudcheck_diag_list_error",
               "error": "cloudcheck_diag_error",
+              "none": "cloudcheck_diag_none",
+              "found": "cloudcheck_diag_found",
             });
             var k = keys[d.stage];
             if (!k) return null;
+            // Today: the time alone. Earlier: the date too — « 14:07 » from
+            // three days ago would read as this afternoon.
+            var dt = new Date(d.ts);
+            var when = d.day === localDayKey(Date.now())
+              ? String(dt.getHours()).padStart(2, "0") + ":" + String(dt.getMinutes()).padStart(2, "0")
+              : fmtDateTime(d.ts, dateFormat);
+            var todayN = d.day === localDayKey(Date.now()) ? d.n : 0;
             // "not run" is a state, not a fault — only a genuine failure to
             // reach the cloud earns the alarm colour.
             var ccTone = (d.stage === "list-error" || d.stage === "error")
@@ -340,7 +357,8 @@ export function CuratorSettingsModal() {
                 padding: "2px 4px 8px",
               }}>
                 {(t ? t("settings_cloudcheck_diag_label") : "Contrôle multi-appareils :")
-                  + " " + (t ? t(k) : k)}
+                  + " " + when + " — " + (t ? t(k) : k)
+                  + (todayN > 0 ? " · " + (t ? String(t("cloudcheck_diag_today")) : "aujourd'hui : {n}").replace("{n}", String(todayN)) : "")}
               </div>
             );
           })()}
