@@ -660,6 +660,31 @@ describe("12 — a device left open in the foreground", () => {
   });
 });
 
+// Build 49, reported from the iPhone: switching destination offered a file
+// the other device had left there weeks before, over a cellar edited that day.
+// Modelled the other way round (the fake cloud is Dropbox): B was on Drive and
+// switches to Dropbox, where A's file already sits.
+describe("13 — switching destination", () => {
+  it("13 a file already on the new destination is not offered; one written after the switch is", async () => {
+    const { A, B } = await pairedDevices();
+    const aFile = await aEditsAlpha(A);
+    B.ls.set("cave-cloud-provider", "gdrive");
+    await launch(B);
+    expect(offered()).toBeNull();
+    await act(async () => { CTX.saveCloudProviderId("dropbox"); });
+    expect(Number(localStorage.getItem("cave-cloud-switched-dropbox")), "the switch is recorded").toBeGreaterThan(0);
+    const lists = () => fetchLog.filter((l) => l.indexOf("list") === 0).length;
+    const before = lists();
+    await advance(5 * 60000 + 20000);   // the periodic check runs on Dropbox
+    expect(lists(), "a check did run").toBeGreaterThan(before);
+    expect(offered(), "A's file predates the switch").toBeNull();
+    cloud.set(aFile.id, Object.assign({}, aFile, { server_modified: isoNow() }));  // A uploads again, now
+    await advance(5 * 60000 + 20000);
+    expect(offered(), "written after the switch: offered").toBe(aFile.name);
+    await close();
+  });
+});
+
 describe("2 — identical cellars under different revisions (the state builds 42/43 left)", () => {
   async function splitRevisions() {
     const { A, B } = await pairedDevices();

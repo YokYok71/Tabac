@@ -576,6 +576,23 @@ describe("explainCloudBackups (read-only diagnostic)", () => {
     expect(rows[0]!.reason).toBe("dismissed_ts");
   });
 
+  // Build 49 — reported from the iPhone: switching from Dropbox to Drive put
+  // up a 28/08 file another device had left on Drive, over a cellar edited
+  // that day. A foreign file is never cut by this device's last save, so only
+  // the moment this device CHOSE the destination can refuse it.
+  it("a file already on the destination when this device switched to it is not offered — one written after is", () => {
+    const switchedAt = new Date("2026-10-04T11:00:00.000Z").getTime();
+    const stale = AUTO("ipadold", "135219", "2026-08-28T13:52:19.000Z");
+    const fresh = AUTO("ipadnew", "120000", "2026-10-04T12:00:00.000Z");
+    expect(findNewerCloudBackup([stale], 0, 0, 120000, null, "iphone1", 0, [])?.name,
+      "without the switch moment, the stale foreign file IS offered — the report").toBe(stale.name);
+    expect(findNewerCloudBackup([stale], 0, 0, 120000, null, "iphone1", 0, [], switchedAt)).toBeNull();
+    expect(findNewerCloudBackup([stale, fresh], 0, 0, 120000, null, "iphone1", 0, [], switchedAt)?.name).toBe(fresh.name);
+    const rows = explainCloudBackups([stale, fresh], 0, 0, 120000, null, "iphone1", 0, [], switchedAt);
+    expect(rows.find(r => r.name === stale.name)!.reason).toBe("before_switch");
+    expect(rows.find(r => r.name === fresh.name)!.status).toBe("proposed");
+  });
+
   it("classifies every reason: own_legacy, older, dismissed_name, bad_date", () => {
     const legacy = { id: "l", name: "cave-tabac-auto-20260705-120000-t1-p1-w1-a1-j1.json", modifiedTime: "2026-07-05T12:00:00.000Z" };
     // A MANUAL backup: no device id, so it may be this device's own and the

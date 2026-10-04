@@ -70,6 +70,34 @@ var useState = React.useState,
 // genuinely-newer backup from another device (the export-reminder banner still
 // uses that key). Single source so the three guard sites (launch check /
 // manual re-check / sync diagnostic) can't drift out of agreement.
+/**
+ * WHEN THIS DEVICE SWITCHED TO A DESTINATION (build 49) — files already on it
+ * at that moment are not offered by the multi-device guard.
+ *
+ * Reported from the iPhone: backups had gone to Dropbox for weeks; switching
+ * to Google Drive put up « Un autre appareil a une version plus récente
+ * (28/08/2026) » over a cellar edited that very day. Nothing in the guard
+ * could refuse it: a file stamped by ANOTHER device is deliberately never cut
+ * by this device's last save (that save does not contain the other device's
+ * data), and Drive held a file the other device had written there before both
+ * moved to Dropbox. Its content had long reached this device THROUGH Dropbox;
+ * the guard, scoped to one destination, could not know that.
+ *
+ * The rule: what was on a destination BEFORE this device chose it predates
+ * that choice, and is not « newer ». Written by the provider-switch effect —
+ * an actual switch in the app, never the initial value at mount, so a device
+ * set up from scratch still sees what is there. The cost, accepted and stated
+ * in the guide: a device switching to JOIN another that stayed on the new
+ * destination is not offered its file automatically; « Restaurer » in
+ * Réglages → Données lists every backup, which is already the guide's advice
+ * for a second device. Device-local, never in backups.
+ */
+export function cloudSwitchedKey(isDbx: boolean): string {
+  return "cave-cloud-switched-" + (isDbx ? "dropbox" : "gdrive");
+}
+export function cloudSwitchedAt(isDbx: boolean): number {
+  try { return parseInt(lsGet(cloudSwitchedKey(isDbx)) || "0", 10) || 0; } catch (_e) { return 0; }
+}
 export function cloudGuardLocalRef(isDbx: boolean): number {
   try {
     return parseInt(
@@ -1050,6 +1078,7 @@ export function useGdriveSync({
     // them. `gdriveConfirm` additionally disables Sauvegarder + Restaurer
     // (SettingsModal), so a forgotten picker greys out two buttons with no
     // stated reason, indefinitely.
+    lsSet(cloudSwitchedKey(cloudProviderId === "dropbox"), String(Date.now()));
     setGdriveConfirm(null);
     setCloudNewerBackup(null);
     setSyncDiag(null);
@@ -1172,6 +1201,7 @@ export function useGdriveSync({
             var hit = findNewerCloudBackup(
               list.files || [], localRef, acks.ts, 120000, acks.names,
               stableDeviceIdForGuard(), ownStampedSince(), knownCellarRevs(),
+              cloudSwitchedAt(isDbx),
             );
             recordCloudCheckDiag(hit ? "found" : "none");
             if (hit) {
@@ -1341,7 +1371,7 @@ export function useGdriveSync({
         // cloudRestoredKeys). Still skip THIS device's own stamped auto file.
         var acks = readCloudAcks(isDbx);
         var hit = findNewerCloudBackup(files, localRef, acks.ts, 120000, acks.names,
-          stableDeviceIdForGuard(), ownStampedSince(), knownCellarRevs());
+          stableDeviceIdForGuard(), ownStampedSince(), knownCellarRevs(), cloudSwitchedAt(isDbx));
         if (hit) {
           setCloudNewerBackup({
             id: hit.id,
@@ -1401,6 +1431,7 @@ export function useGdriveSync({
     var rows = explainCloudBackups(
       files, localRef, dismissedTs, 120000, _acks.names,
       stableDeviceIdForGuard(), ownStampedSince(), knownCellarRevs(),
+      cloudSwitchedAt(isDbx),
     );
     return {
       deviceId: getDeviceId(),

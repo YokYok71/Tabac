@@ -101,6 +101,7 @@ export const FORBIDDEN = [
   // one auto-file (the convergence bug three releases were spent on)
   "cave-device-id", "cave-device-name", "cave-autosave",
   "cave-cellar-rev", "cave-cellar-revs",
+  "cave-cloud-switched-gdrive", "cave-cloud-switched-dropbox",
   "gdrive-fid", "gdrive-auto-fid", "dropbox-fid", "dropbox-auto-fid",
   "cave-auto-stamped",
   // ephemeral / per-device state

@@ -469,6 +469,7 @@ export function findNewerCloudBackup(
   ownDeviceId?: string | null,
   ownStampedSince?: number,
   ownRevs?: readonly string[] | null,
+  notBeforeTs?: number,
 ): { id: string; name: string; modifiedTime: string; ts: number } | null {
   // `id` is the provider file handle so the caller can
   // fetch the payload directly when the user accepts the Home banner
@@ -499,6 +500,9 @@ export function findNewerCloudBackup(
     // unstamped AUTO files (not manual backups).
     var ts = new Date(f.modifiedTime).getTime();
     if (isNaN(ts)) return;
+    // ALREADY THERE WHEN THIS DEVICE CHOSE THIS DESTINATION (build 49). See
+    // the `cave-cloud-switched-*` note in useGdriveSync.
+    if (notBeforeTs && ts < notBeforeTs) return;
     // Only a file OLDER than the moment we started stamping can be
     // our own pre-stamping leftover. See the ownStampedSince note above.
     if (ownStampedSince && classifyBackup(f.name) === "auto"
@@ -539,7 +543,7 @@ export interface CloudBackupDiag {
   size: string;
   counts: ReturnType<typeof parseBackupCounts>;
   status: "proposed" | "candidate" | "ignored";
-  // proposed | candidate | own_device | own_rev | superseded | own_legacy | dismissed_name
+  // proposed | candidate | own_device | own_rev | superseded | before_switch | own_legacy | dismissed_name
   //  | dismissed_ts | older | bad_date | catalogue
   reason: string;
 }
@@ -613,6 +617,7 @@ export function explainCloudBackups(
   ownDeviceId?: string | null,
   ownStampedSince?: number,
   ownRevs?: readonly string[] | null,
+  notBeforeTs?: number,
 ): CloudBackupDiag[] {
   var rows: CloudBackupDiag[] = [];
   var newest = newestStampByDevice(files, ownDeviceId);
@@ -656,6 +661,7 @@ export function explainCloudBackups(
     if (ownDeviceId && did === ownDeviceId) { rows.push(mk("ignored", "own_device")); return; }
     if (isOwnRev(name, ownRevs)) { rows.push(mk("ignored", "own_rev")); return; }
     if (isSuperseded(name, newest)) { rows.push(mk("ignored", "superseded")); return; }
+    if (notBeforeTs && parsed < notBeforeTs) { rows.push(mk("ignored", "before_switch")); return; }
     if (ownStampedSince && kind === "auto" && did === null
         && !isNaN(parsed) && parsed <= ownStampedSince) { rows.push(mk("ignored", "own_legacy")); return; }
     if (!isForeignStamped(name, ownDeviceId) && parsed <= (localRefTs || 0) + marginMs) { rows.push(mk("ignored", "older")); return; }
