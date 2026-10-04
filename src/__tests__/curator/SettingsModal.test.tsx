@@ -730,10 +730,13 @@ describe("SettingsModal — last-save type label + failure-only diagnostic", () 
     expect(container.textContent).toMatch(/non confirmée/);
   });
 
-  it("surfaces a 'skip-locked' state (save skipped)", () => {
+  it("surfaces a 'skip-locked' state (save postponed, retried automatically)", () => {
     localStorage.setItem("cave-autosave-diag", JSON.stringify({ ts: Date.now(), stage: "skip-locked" }));
     const { container } = renderWithCtx(<CuratorSettingsModal />, { ...base });
-    expect(container.textContent).toMatch(/ignorée/);
+    // « ignorée » until build 38: a skipped save is now RETRIED once the lock
+    // expires (scheduleSkipRetry), so the line says postponed, not dropped.
+    expect(container.textContent).toMatch(/reportée/);
+    expect(container.textContent).toMatch(/nouvel essai automatique/);
   });
 
   it("still hides a benign 'uploaded' state (file reached the cloud)", () => {

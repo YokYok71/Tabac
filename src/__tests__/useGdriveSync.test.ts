@@ -28,6 +28,9 @@ import {
   ownStampedSince,
   BACKUP_DELETE_PENDING_KEY,
   CLOUD_CHECK_PENDING_KEY,
+  resumeCheckDue,
+  RESUME_CHECK_MIN_GAP_MS,
+  QUIET_LOCK_TTL_MS,
 } from "../hooks/useGdriveSync";
 import { readFileSync } from "node:fs";
 import { INIT } from "../constants";
@@ -3116,5 +3119,129 @@ describe("gatherLocalImages reports an unreadable photo store", () => {
     vi.mocked(imgCache.get).mockImplementation(() => Promise.reject(new Error("InvalidStateError")));
     const { result } = renderHook(() => useGdriveSync(makeProps({ data: dataWithPhotos() }) as any));
     await expect(result.current.withPhotos(dataWithPhotos())).rejects.toThrow(/unreadable/);
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// THE MULTI-DEVICE CHECK ALSO RUNS WHEN THE APP COMES BACK TO THE FOREGROUND.
+// Reported from an iPad (Dropbox): a session logged and auto-saved on the
+// iPhone was never announced, because the iPad app was RESUMED, not relaunched,
+// and the check only ran at mount. These drive the real hook through a hide →
+// show cycle with the cloud contents changing in between.
+describe("cloudNewerBackup — resume check (app back in the foreground)", () => {
+  function setHidden(v: boolean) {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => v });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+  afterEach(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+  });
+  function dropboxDevice() {
+    localStorage.setItem("dropbox-rt", "rt-abc");
+    localStorage.setItem("dropbox-tk", JSON.stringify({ t: "dbx-tok", x: Date.now() + 3600000 }));
+  }
+  function cloudHolds(entries: any[]) {
+    mockFetch.mockResolvedValue({
+      ok: true, status: 200,
+      text: () => Promise.resolve(JSON.stringify({ entries })),
+    });
+  }
+  const iphoneBackup = () => ({
+    ".tag": "file", id: "id:f1",
+    name: "cave-tabac-20260612-101010-t5-p2-w0-a1-j9.json",
+    server_modified: new Date(Date.now() - 60000).toISOString(),
+  });
+
+  it("finds, on resume, a backup another device saved while this one was in the background", async () => {
+    vi.useFakeTimers();
+    dropboxDevice();
+    cloudHolds([]);                                   // at launch: nothing newer
+    const { result } = renderHook(() =>
+      useGdriveSync(makeProps({ cloudProviderId: "dropbox" }) as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(result.current.cloudNewerBackup).toBeNull();
+    const callsAtLaunch = mockFetch.mock.calls.length;
+    expect(callsAtLaunch, "the launch check itself must have run").toBeGreaterThan(0);
+
+    await act(async () => { setHidden(true); await vi.advanceTimersByTimeAsync(3 * 60 * 1000); });
+    cloudHolds([iphoneBackup()]);                     // the iPhone saved meanwhile
+    await act(async () => { setHidden(false); await vi.advanceTimersByTimeAsync(2000); });
+    vi.useRealTimers();
+    expect(mockFetch.mock.calls.length).toBeGreaterThan(callsAtLaunch);
+    expect(result.current.cloudNewerBackup).not.toBeNull();
+    expect(readCloudCheckDiag()!.stage).toBe("found");
+  });
+
+  it("does not hit the cloud again on a quick app switch (throttled)", async () => {
+    vi.useFakeTimers();
+    dropboxDevice();
+    cloudHolds([]);
+    renderHook(() => useGdriveSync(makeProps({ cloudProviderId: "dropbox" }) as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    const callsAtLaunch = mockFetch.mock.calls.length;
+    await act(async () => { setHidden(true); await vi.advanceTimersByTimeAsync(30 * 1000); });
+    await act(async () => { setHidden(false); await vi.advanceTimersByTimeAsync(2000); });
+    vi.useRealTimers();
+    expect(mockFetch.mock.calls.length).toBe(callsAtLaunch);
+  });
+
+  it("resumeCheckDue: due on first run, then only once the gap has passed", () => {
+    expect(resumeCheckDue(1000, 0, RESUME_CHECK_MIN_GAP_MS)).toBe(true);
+    expect(resumeCheckDue(RESUME_CHECK_MIN_GAP_MS - 1, 1, RESUME_CHECK_MIN_GAP_MS)).toBe(false);
+    expect(resumeCheckDue(RESUME_CHECK_MIN_GAP_MS + 1, 1, RESUME_CHECK_MIN_GAP_MS)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// A SKIPPED QUIET SAVE RETRIES ONCE THE LOCK HAS EXPIRED. Reported from an iPad
+// after a restore: « sauvegarde ignorée (une autre en cours) » stayed on screen
+// and « Dernière sauvegarde auto » stayed frozen, because the save holding the
+// lock never landed and nothing ever retried the one it had skipped.
+//
+// The fetch mock answers BY METHOD, not in call order: mounting the hook also
+// fires the launch cloud check (a GET), and a `once` queue would hand it the
+// response meant for the save.
+describe("gdriveSaveQuiet — a skipped save retries after the lock expires", () => {
+  beforeEach(() => {
+    localStorage.setItem("cave-autosave", "1");
+    sessionStorage.setItem("gdrive-tk", JSON.stringify({ t: "quiet-token", x: Date.now() + 3600000 }));
+    localStorage.setItem("pipe-cellar-v6", JSON.stringify({ ...INIT }));
+    mockFetch.mockImplementation((_url: any, init: any) => {
+      const m = (init && init.method) || "GET";
+      if (m === "GET") return Promise.resolve({ ok: true, json: () => Promise.resolve({ files: [] }) });
+      if (m === "POST" || m === "PATCH") return Promise.resolve({ ok: true, json: () => Promise.resolve({ id: "new-auto-id" }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+  });
+  const uploads = () => mockFetch.mock.calls.filter((c: any[]) => {
+    const m = (c[1] && c[1].method) || "GET";
+    return m === "POST" || m === "PATCH";
+  }).length;
+
+  it("retries after the lock expires while data is still unsynced, and the save lands", async () => {
+    vi.useFakeTimers();
+    localStorage.setItem("cave-pending-sync", "1");
+    localStorage.setItem("cave-autosave-lock", String(Date.now() - 5000)); // held by a save in flight
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+    expect(uploads()).toBe(0);
+    expect(readAutosaveDiag()?.stage).toBe("skip-locked");
+    await act(async () => { await vi.advanceTimersByTimeAsync(QUIET_LOCK_TTL_MS); });
+    vi.useRealTimers();
+    expect(uploads(), "the retry must reach the upload").toBeGreaterThan(0);
+    expect(readAutosaveDiag()?.stage).not.toBe("skip-locked");
+  });
+
+  it("does not retry when the data was synced in the meantime", async () => {
+    vi.useFakeTimers();
+    // no cave-pending-sync: whatever held the lock landed and cleared it
+    localStorage.setItem("cave-autosave-lock", String(Date.now() - 5000));
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(QUIET_LOCK_TTL_MS + 1000); });
+    vi.useRealTimers();
+    expect(uploads()).toBe(0);
   });
 });

@@ -404,6 +404,30 @@ export function currentAutosaveAttempt(): number { return autosaveAttemptSeq; }
  * Stages: not-engaged / no-drive-token / no-token / list-error / error / none
  * / found. Surfaced in Settings → Données beside the auto-save diagnostic.
  */
+/**
+ * THE MULTI-DEVICE CHECK RAN ONLY AT LAUNCH, AND AN iPAD RARELY LAUNCHES.
+ *
+ * The silent "is there a newer backup in the cloud?" check was a mount effect:
+ * once per JS context, 4.5 s in. An installed PWA that the user leaves in the
+ * background is not re-mounted when they come back to it — iPadOS RESUMES the
+ * page — so a session logged on the iPhone and auto-saved to the cloud went
+ * unannounced on an iPad that was merely reopened. Reported from the app
+ * (Dropbox, iPhone → iPad); a manual save + full relaunch did surface it, which
+ * is what pointed at the launch-only trigger.
+ *
+ * The same silent check now also runs when the app comes back to the
+ * foreground, at most once per `RESUME_CHECK_MIN_GAP_MS` (a quick app switch
+ * must not hit the cloud each time). Still silent: cached Drive token only, a
+ * Dropbox refresh-token renewal at most — never a popup or a redirect.
+ */
+export var RESUME_CHECK_MIN_GAP_MS = 2 * 60 * 1000;
+export function resumeCheckDue(nowMs: number, lastRunMs: number, minGapMs: number): boolean {
+  if (!(lastRunMs > 0)) return true;
+  return nowMs - lastRunMs >= minGapMs;
+}
+/** How long a quiet save's lock is honoured (see gdriveSaveQuiet). */
+export var QUIET_LOCK_TTL_MS = 12000;
+
 export function recordCloudCheckDiag(stage: string): void {
   lsSet("cave-cloudcheck-diag", JSON.stringify({ ts: Date.now(), stage: stage }));
 }
@@ -677,6 +701,19 @@ export function useGdriveSync({
   var quietSaveInProgressRef = useRef(false);
   // « L'alerte de refus répété a déjà été levée pour la série en cours. »
   var autosaveAlertRef = useRef(false);
+  // A SKIPPED QUIET SAVE NEVER RESCHEDULED ITSELF. A save requested while
+  // another held the lock was dropped, on the bet that the one in flight would
+  // land and its post-upload check would re-arm. When the one in flight never
+  // landed (the app closed, iPadOS paused it, a long photo upload outlived the
+  // session), nothing retried: Settings went on reading « sauvegarde ignorée
+  // (une autre en cours) » and « Dernière sauvegarde auto » stayed frozen —
+  // reported from an iPad after a restore. One retry is now armed for just
+  // after the lock expires, and only fires if data is still unsynced.
+  var skipRetryTimerRef = useRef<any>(null);
+  var gdriveSaveQuietRef = useRef<() => void>(function () {});
+  var runSilentCloudCheckRef = useRef<() => void>(function () {});
+  // When the silent multi-device check last STARTED (launch or resume).
+  var lastSilentCheckRef = useRef(0);
 
   // ── Provider routing ───────────────────────────────────────────────
   // Dropbox auth is composed unconditionally (hook-order rule) but only
@@ -809,93 +846,121 @@ export function useGdriveSync({
   var _crb = useState(false);
   var cloudRestoreBusy = _crb[0];
   var setCloudRestoreBusy = _crb[1];
+  // The silent multi-device check, shared by the LAUNCH and the RESUME
+  // triggers below (see RESUME_CHECK_MIN_GAP_MS for why there are two). Body
+  // unchanged from when it lived inline in the launch effect.
+  function runSilentCloudCheck() {
+    lastSilentCheckRef.current = Date.now();
+    // BEING AUTHENTICATED IS ENGAGEMENT.
+    //
+    // This gate used to read only `cave-autosave` and the two fid keys, and
+    // the paths that write those fids are the SAVES (gdriveSave /
+    // gdriveSaveQuiet) plus the backup LISTING — never a restore that
+    // reaches this device by any other route.
+    //
+    // So a device you set up by RESTORING from the cloud, and on which you
+    // never turned auto-save on, was judged "not engaged" and the
+    // multi-device check never ran — silently, for ever. That is exactly the
+    // device that needs it most: the one you pick up after a week away and
+    // want to be told is stale. Reported from the app: "I switched devices
+    // and it does not tell me newer data is on Dropbox, and I have not
+    // touched this one in a week."
+    //
+    // Holding a Dropbox refresh token, or a Drive account hint, means the
+    // user has connected THIS device to THAT provider. There is no reading
+    // of that which is not engagement.
+    var engaged = false;
+    try {
+      engaged = lsGet("cave-autosave") === "1"
+        || !!lsGet(FID_KEY)
+        || !!lsGet(AUTO_FID_KEY)
+        || (isDbx ? !!lsGet("dropbox-rt")
+                  : !!lsGet("gdrive-account-hint"));
+    } catch (_e) { /* storage blocked → stay silent */ }
+    if (!engaged) { recordCloudCheckDiag("not-engaged"); return; }
+    var cached = getCachedCloudToken();
+    var tokenPromise: Promise<string | null>;
+    if (cached) tokenPromise = Promise.resolve(cached);
+    else if (isDbx) tokenPromise = dbx.getTokenSilent().catch(function () { return null; });
+    else { recordCloudCheckDiag("no-drive-token"); return; } // no popups from mount
+    tokenPromise.then(function (tk) {
+      if (!tk) { recordCloudCheckDiag("no-token"); return; }
+      return cloud.list(tk, {
+        fields: SYNC_DIAG_FIELDS,
+        orderBy: "modifiedTime+desc",
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (list: any) {
+          if (!list || list.error) { recordCloudCheckDiag("list-error"); return; }
+          // The multi-device guard compares against THIS
+          // provider's last save (per-provider ts) — the launch check
+          // lists the active provider's files, so the reference must be
+          // provider-scoped.
+          // Latent-bug fix: NO global `cave-autosave-ts`
+          // fallback here. The global key belongs to whichever provider
+          // saved last; resurrecting it on a provider this device has
+          // NEVER saved to (per-provider key absent) compared foreign
+          // backups against the OTHER provider's timestamp and silently
+          // hid genuinely-newer backups → the two devices diverged. Absent
+          // per-provider key ⇒ 0 ⇒ any cloud backup on this provider is
+          // correctly seen as newer. Mirrors the display path (provider-
+          // switch effect above). Cost: a legacy install that hasn't saved
+          // since the per-provider upgrade may get one harmless self-correcting
+          // nag for its own backup — far better than a silent divergence.
+          // Cloud-save ts only (see cloudGuardLocalRef).
+          var localRef = cloudGuardLocalRef(isDbx);
+          // Name-based dedup is skew-proof — see
+          // findNewerCloudBackup comment. Per-provider.
+          var dis = readCloudDismissed(isDbx);
+          var dismissed = dis.ts;
+          var dismissedName = dis.name;
+          var hit = findNewerCloudBackup(
+            list.files || [], localRef, dismissed, 120000, dismissedName,
+            stableDeviceIdForGuard(), ownStampedSince(),
+          );
+          recordCloudCheckDiag(hit ? "found" : "none");
+          if (hit) {
+            setCloudNewerBackup({
+              id: hit.id,
+              name: hit.name,
+              modifiedTime: hit.modifiedTime,
+              ts: hit.ts,
+              counts: parseBackupCounts(hit.name),
+            });
+          }
+        });
+    }).catch(function () { recordCloudCheckDiag("error"); });
+  }
+  // Called through a ref so a timer or listener set up once always runs the
+  // CURRENT render's closure (provider, token getters) — not the mount's.
+  runSilentCloudCheckRef.current = runSilentCloudCheck;
   var cloudCheckRanRef = useRef(false);
   useEffect(function () {
     if (cloudCheckRanRef.current) return;
     cloudCheckRanRef.current = true;
-    var timer = setTimeout(function () {
-      // BEING AUTHENTICATED IS ENGAGEMENT.
-      //
-      // This gate used to read only `cave-autosave` and the two fid keys, and
-      // the paths that write those fids are the SAVES (gdriveSave /
-      // gdriveSaveQuiet) plus the backup LISTING — never a restore that
-      // reaches this device by any other route.
-      //
-      // So a device you set up by RESTORING from the cloud, and on which you
-      // never turned auto-save on, was judged "not engaged" and the
-      // multi-device check never ran — silently, for ever. That is exactly the
-      // device that needs it most: the one you pick up after a week away and
-      // want to be told is stale. Reported from the app: "I switched devices
-      // and it does not tell me newer data is on Dropbox, and I have not
-      // touched this one in a week."
-      //
-      // Holding a Dropbox refresh token, or a Drive account hint, means the
-      // user has connected THIS device to THAT provider. There is no reading
-      // of that which is not engagement.
-      var engaged = false;
-      try {
-        engaged = lsGet("cave-autosave") === "1"
-          || !!lsGet(FID_KEY)
-          || !!lsGet(AUTO_FID_KEY)
-          || (isDbx ? !!lsGet("dropbox-rt")
-                    : !!lsGet("gdrive-account-hint"));
-      } catch (_e) { /* storage blocked → stay silent */ }
-      if (!engaged) { recordCloudCheckDiag("not-engaged"); return; }
-      var cached = getCachedCloudToken();
-      var tokenPromise: Promise<string | null>;
-      if (cached) tokenPromise = Promise.resolve(cached);
-      else if (isDbx) tokenPromise = dbx.getTokenSilent().catch(function () { return null; });
-      else { recordCloudCheckDiag("no-drive-token"); return; } // no popups from mount
-      tokenPromise.then(function (tk) {
-        if (!tk) { recordCloudCheckDiag("no-token"); return; }
-        return cloud.list(tk, {
-          fields: SYNC_DIAG_FIELDS,
-          orderBy: "modifiedTime+desc",
-        })
-          .then(function (r) { return r.json(); })
-          .then(function (list: any) {
-            if (!list || list.error) { recordCloudCheckDiag("list-error"); return; }
-            // The multi-device guard compares against THIS
-            // provider's last save (per-provider ts) — the launch check
-            // lists the active provider's files, so the reference must be
-            // provider-scoped.
-            // Latent-bug fix: NO global `cave-autosave-ts`
-            // fallback here. The global key belongs to whichever provider
-            // saved last; resurrecting it on a provider this device has
-            // NEVER saved to (per-provider key absent) compared foreign
-            // backups against the OTHER provider's timestamp and silently
-            // hid genuinely-newer backups → the two devices diverged. Absent
-            // per-provider key ⇒ 0 ⇒ any cloud backup on this provider is
-            // correctly seen as newer. Mirrors the display path (provider-
-            // switch effect above). Cost: a legacy install that hasn't saved
-            // since the per-provider upgrade may get one harmless self-correcting
-            // nag for its own backup — far better than a silent divergence.
-            // Cloud-save ts only (see cloudGuardLocalRef).
-            var localRef = cloudGuardLocalRef(isDbx);
-            // Name-based dedup is skew-proof — see
-            // findNewerCloudBackup comment. Per-provider.
-            var dis = readCloudDismissed(isDbx);
-            var dismissed = dis.ts;
-            var dismissedName = dis.name;
-            var hit = findNewerCloudBackup(
-              list.files || [], localRef, dismissed, 120000, dismissedName,
-              stableDeviceIdForGuard(), ownStampedSince(),
-            );
-            recordCloudCheckDiag(hit ? "found" : "none");
-            if (hit) {
-              setCloudNewerBackup({
-                id: hit.id,
-                name: hit.name,
-                modifiedTime: hit.modifiedTime,
-                ts: hit.ts,
-                counts: parseBackupCounts(hit.name),
-              });
-            }
-          });
-      }).catch(function () { recordCloudCheckDiag("error"); });
-    }, 4500);
+    // Stamped at SCHEDULING time, so a hide/show in the first 4.5 s does not
+    // run the resume check on top of this one.
+    lastSilentCheckRef.current = Date.now();
+    var timer = setTimeout(function () { runSilentCloudCheckRef.current(); }, 4500);
     return function () { clearTimeout(timer); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // RESUME: the same silent check when the app returns to the foreground —
+  // an iPad PWA left in the background is resumed, not re-mounted, so the
+  // launch effect above never runs again. Throttled; 1.5 s settle for the
+  // network to come back after the device wakes.
+  useEffect(function () {
+    var settle: any = null;
+    function onVisible() {
+      if (document.hidden) return;
+      if (!resumeCheckDue(Date.now(), lastSilentCheckRef.current, RESUME_CHECK_MIN_GAP_MS)) return;
+      if (settle) clearTimeout(settle);
+      settle = setTimeout(function () { settle = null; runSilentCloudCheckRef.current(); }, 1500);
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return function () {
+      document.removeEventListener("visibilitychange", onVisible);
+      if (settle) clearTimeout(settle);
+    };
   }, []);
   // Manual re-check trigger. The launch effect runs
   // once per app session, uses cached tokens only on Drive, and is
@@ -2200,6 +2265,28 @@ export function useGdriveSync({
       });
   }
 
+  // One retry for a skipped quiet save, armed for just after the lock that
+  // caused the skip expires (see skipRetryTimerRef). One pending retry at a
+  // time; it fires only if auto-save is still on AND data is still unsynced —
+  // a save that landed in between clears `cave-pending-sync`, and then there is
+  // nothing left to do.
+  function scheduleSkipRetry(lockTs: number) {
+    if (skipRetryTimerRef.current) return;
+    var wait = Math.max(500, QUIET_LOCK_TTL_MS - (Date.now() - lockTs) + 500);
+    skipRetryTimerRef.current = setTimeout(function () {
+      skipRetryTimerRef.current = null;
+      if (lsGet("cave-autosave") === "1" && lsGet("cave-pending-sync") === "1") {
+        gdriveSaveQuietRef.current();
+      }
+    }, wait);
+  }
+  gdriveSaveQuietRef.current = function () { gdriveSaveQuiet(); };
+  useEffect(function () {
+    return function () {
+      if (skipRetryTimerRef.current) { clearTimeout(skipRetryTimerRef.current); skipRetryTimerRef.current = null; }
+    };
+  }, []);
+
   function gdriveSaveQuiet(_retried?: boolean) {
     // Defense-in-depth — every caller is already supposed
     // to check `localStorage["cave-autosave"] === "1"` before invoking
@@ -2221,11 +2308,11 @@ export function useGdriveSync({
     // before: Dropbox serialises writes, so a sequential delete of a straggler
     // pile takes 20-30 s, and every auto-save the user triggered in that window
     // bailed with "skip-locked" while the last-save timestamp froze.
-    var LOCK_TTL = 12000;
+    var LOCK_TTL = QUIET_LOCK_TTL_MS;
     if (quietSaveInProgressRef.current) {
       var _lk = 0;
       try { _lk = parseInt(lsGet("cave-autosave-lock") || "0", 10) || 0; } catch (_e) {}
-      if (_lk && Date.now() - _lk < LOCK_TTL) { recordAutosaveDiag("skip-inprogress"); return; }
+      if (_lk && Date.now() - _lk < LOCK_TTL) { recordAutosaveDiag("skip-inprogress"); scheduleSkipRetry(_lk); return; }
       quietSaveInProgressRef.current = false;
       recordAutosaveDiag("ref-reset-stale");
     }
@@ -2242,7 +2329,7 @@ export function useGdriveSync({
     try {
       var raw = lsGet(LOCK_KEY);
       var lockTs = raw ? parseInt(raw, 10) || 0 : 0;
-      if (lockTs && now - lockTs < LOCK_TTL) { recordAutosaveDiag("skip-locked"); return; }
+      if (lockTs && now - lockTs < LOCK_TTL) { recordAutosaveDiag("skip-locked"); scheduleSkipRetry(lockTs); return; }
       lsSet(LOCK_KEY, String(now));
     } catch (_e) { /* storage blocked — proceed without the lock */ }
     var _saveAttempt = nextAutosaveAttempt();
