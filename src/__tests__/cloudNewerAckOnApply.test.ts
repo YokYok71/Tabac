@@ -198,6 +198,13 @@ describe("the cloud-newer banner is acked only once the import lands", () => {
     expect(result.current.cloudNewerBackup).toBeNull();
   });
 
+  it("the banner's restore, applied as a REPLACE, does not send the cellar back", async () => {
+    const { stageImport } = await armAndRestore();
+    localStorage.setItem("cave-pending-sync", "1"); // what save() just did
+    await act(async () => { stageImport.mock.calls[0]![2].onApplied("replace"); });
+    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
+  });
+
   it("passes an onApplied that DOES ack, so a confirmed import silences it", async () => {
     const { result, stageImport } = await armAndRestore();
     const opts = stageImport.mock.calls[0]![2];

@@ -386,8 +386,9 @@ export interface ImportConfirmState {
   // on cancel. It exists because the cloud-newer banner used to write its
   // persistent "already seen this file" markers the moment the download
   // parsed — so backing out of the picker silenced a genuinely-newer backup
-  // for ever. See `_executeCloudNewerRestore` in useGdriveSync.
-  onApplied?: (() => void) | undefined;
+  // for ever. See `_executeCloudNewerRestore` in useGdriveSync. Receives the
+  // mode that was applied: a cloud REPLACE leaves nothing to upload.
+  onApplied?: ((mode: "replace" | "merge") => void) | undefined;
   /** Masque la carte « Remplacer » du panneau.
    *
    *  POUR LE CSV, ET POUR UNE RAISON DE CONTENU, PAS DE PRUDENCE. Une
@@ -497,7 +498,7 @@ export function useImportConfirm({
       onMerged?: (summary: MergeSummary) => void;
       /** Fired once the import is COMMITTED (either mode), never on cancel.
        *  See `ImportConfirmState.onApplied`. */
-      onApplied?: () => void;
+      onApplied?: (mode: "replace" | "merge") => void;
       /** Leave the Settings modal OPEN after an auto-applied
        *  import. Default false — the historical behaviour. See `_runImport`. */
       keepModalOpen?: boolean;
@@ -792,7 +793,7 @@ export function useImportConfirm({
     onMerged?: (summary: MergeSummary) => void,
     settings?: any,
     keepModalOpen?: boolean,
-    onApplied?: () => void,
+    onApplied?: (mode: "replace" | "merge") => void,
   ) {
     // Selective restore. When `selection` is provided
     // (a Set of "kind:id" strings — same encoding as the trash
@@ -1652,7 +1653,7 @@ export function useImportConfirm({
     // purpose: a merge puts the file's contents in the cellar just as a
     // replace does. Guarded, because a throwing caller must not take the
     // import down with it — the cellar is already saved.
-    if (onApplied) { try { onApplied(); } catch (_e) { /* caller's problem */ } }
+    if (onApplied) { try { onApplied(mode); } catch (_e) { /* caller's problem */ } }
 
     // Persist the imported API key ONLY here, at the
     // moment the import is actually applied — never at stage/selection time,

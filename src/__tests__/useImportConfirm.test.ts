@@ -150,6 +150,21 @@ describe("stageImport — dup counts and metadata extraction", () => {
     expect(result.current.importConfirm!.source).toBe("drive");
   });
 
+  // The cloud restore needs to know WHICH mode was applied: after a replace
+  // the cellar is a file the cloud already holds, so useGdriveSync must not
+  // upload it back (the iPad/iPhone echo). onApplied carries it.
+  it("onApplied receives the mode that was applied", () => {
+    for (const mode of ["replace", "merge"] as const) {
+      const onApplied = vi.fn();
+      const props = makeProps({ data: baseLocal });
+      const { result } = renderHook(() => useImportConfirm(props as any));
+      act(() => { result.current.stageImport(imported, "drive", { onApplied }); });
+      act(() => { result.current.applyImport(mode); });
+      expect(onApplied, mode).toHaveBeenCalledWith(mode);
+      expect(props.save, "it fires after the commit").toHaveBeenCalled();
+    }
+  });
+
   it("strips the _schemaVersion stamp from the staged payload", () => {
     const props = makeProps({ data: baseLocal });
     const { result } = renderHook(() => useImportConfirm(props as any));

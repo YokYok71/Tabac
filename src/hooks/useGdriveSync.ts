@@ -630,7 +630,7 @@ export function useGdriveSync({
     // `onApplied` fires once the import is COMMITTED (either mode), never on
     // cancel — the cloud-newer banner acks the backup there rather than at
     // stage time, so backing out of the picker leaves the warning armed.
-    options?: { autoApply?: "replace" | "merge"; onApplied?: () => void },
+    options?: { autoApply?: "replace" | "merge"; onApplied?: (mode: "replace" | "merge") => void },
   ) => void;
   markExported?: () => void;
   t: (k: string) => string;
@@ -1479,7 +1479,7 @@ export function useGdriveSync({
         // being fixed. Verified in CuratorApp's mount gate.
         setImportModal(true);
         stageImport(d, "drive", {
-          onApplied: function () { ackCloudNewerBackup(ackTs, ackName); },
+          onApplied: function (mode: "replace" | "merge") { cloudRestoreApplied(mode, ackTs, ackName); },
         });
         finishBusy();
       })
@@ -2957,10 +2957,26 @@ export function useGdriveSync({
   // there silenced that backup's multi-device banner for ever while none of
   // its data had arrived. `restoreCloudNewerBackup` already waited for
   // `onApplied`; the picker path now does the same.
-  function ackOnApplied(opt: any): () => void {
+  function ackOnApplied(opt: any): (mode: "replace" | "merge") => void {
     var ts = opt && opt.modifiedTime ? new Date(opt.modifiedTime).getTime() : undefined;
     var name = opt && opt.name;
-    return function () { ackCloudNewerBackup(ts, name); };
+    return function (mode: "replace" | "merge") { cloudRestoreApplied(mode, ts, name); };
+  }
+  // A CLOUD REPLACE IS NOT AN EDIT, AND IT USED TO BE UPLOADED AS ONE. The
+  // import commits through `save()`, which marks the cellar unsynced, so the
+  // auto-save sent the restored cellar straight back 1.2 s later — the iPad
+  // restored the iPhone's backup and re-uploaded it, and the iPhone was then
+  // offered « a newer version » that was its own data. Restoring that echo
+  // re-uploaded it again, the other way. After a REPLACE the cellar is exactly
+  // a file the cloud already holds, so there is nothing to send; the flag that
+  // `save()` has just set is taken back (and any older one with it — a replace
+  // discards the unsynced work it marked, by the user's choice). A MERGE
+  // produces a cellar no file holds, so it still uploads.
+  function cloudRestoreApplied(mode: "replace" | "merge", ackTs?: number, ackName?: string) {
+    ackCloudNewerBackup(ackTs, ackName);
+    if (mode !== "replace") return;
+    lsRemove("cave-pending-sync");
+    setPendingSync(false);
   }
 
   // Lazy-load the payload of a single picker option (without restoring) so the

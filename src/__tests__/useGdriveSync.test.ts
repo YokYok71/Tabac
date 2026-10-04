@@ -197,6 +197,33 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBe("cave-tabac-auto-x-20260705-161000.json");
   });
 
+  // THE ECHO. A restore commits through save(), which marks the cellar
+  // unsynced, so the auto-save sent the restored cellar straight back and the
+  // OTHER device was offered its own data as « a newer version ».
+  it("after a cloud REPLACE nothing is left to upload — the flag save() set is taken back", () => {
+    const stageImport = vi.fn();
+    const setPendingSync = vi.fn();
+    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport, setPendingSync }) as any));
+    act(() => { result.current.setGdriveConfirm({ options: [{ d: { tobaccos: [] }, ds: "", name: "cave-tabac-auto-ipad-20261004-094714-t1-p0-w0-a0-j0.json" }], sel: 0 }); });
+    act(() => { result.current.doGdriveConfirm(); });
+    localStorage.setItem("cave-pending-sync", "1"); // what save() just did
+    act(() => { stageImport.mock.calls[0]![2].onApplied("replace"); });
+    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
+    expect(setPendingSync).toHaveBeenLastCalledWith(false);
+  });
+
+  it("after a cloud MERGE the result is new and still uploads", () => {
+    const stageImport = vi.fn();
+    const setPendingSync = vi.fn();
+    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport, setPendingSync }) as any));
+    act(() => { result.current.setGdriveConfirm({ options: [{ d: { tobaccos: [] }, ds: "", name: "cave-tabac-auto-ipad-20261004-094714-t1-p0-w0-a0-j0.json" }], sel: 0 }); });
+    act(() => { result.current.doGdriveConfirm(); });
+    localStorage.setItem("cave-pending-sync", "1");
+    act(() => { stageImport.mock.calls[0]![2].onApplied("merge"); });
+    expect(localStorage.getItem("cave-pending-sync")).toBe("1");
+    expect(setPendingSync).not.toHaveBeenCalledWith(false);
+  });
+
   it("forwards the full payload (metadata and _imageData included) so useImportConfirm can strip and filter them", () => {
     // The security strip + _imageData filter now live inside
     // useImportConfirm (see useImportConfirm.test.ts). useGdriveSync's
