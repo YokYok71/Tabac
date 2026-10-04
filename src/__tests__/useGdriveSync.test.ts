@@ -32,8 +32,12 @@ import {
   RESUME_CHECK_MIN_GAP_MS,
   QUIET_LOCK_TTL_MS,
   pickLiveToken,
-  restoredSnapKey,
-  snapFingerprint,
+  currentCellarRev,
+  knownCellarRevs,
+  stampNewCellarRev,
+  adoptCellarRev,
+  CELLAR_REV_KEY,
+  CELLAR_REVS_KEY,
   cloudRestoredKeys,
   readCloudAcks,
 } from "../hooks/useGdriveSync";
@@ -199,31 +203,33 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBe("cave-tabac-auto-x-20260705-161000.json");
   });
 
-  // THE ECHO. A restore commits through save(), which marks the cellar
-  // unsynced, so the auto-save sent the restored cellar straight back and the
-  // OTHER device was offered its own data as « a newer version ».
-  it("after a cloud REPLACE nothing is left to upload — the flag save() set is taken back", () => {
+  // THE ECHO, recognised by the receiver (build 43). A cloud REPLACE adopts
+  // the restored file's revision, so this device's re-upload carries it, and
+  // the device that wrote it recognises its own cellar.
+  it("a cloud REPLACE adopts the restored file's revision; a MERGE keeps the fresh one", () => {
     const stageImport = vi.fn();
-    const setPendingSync = vi.fn();
-    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport, setPendingSync }) as any));
-    act(() => { result.current.setGdriveConfirm({ options: [{ d: { tobaccos: [] }, ds: "", name: "cave-tabac-auto-ipad-20261004-094714-t1-p0-w0-a0-j0.json" }], sel: 0 }); });
+    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport }) as any));
+    const name = "cave-tabac-auto-ipad-20261004-094714-rk3x9q2a-t1-p0-w0-a0-j0-ipad.json";
+    act(() => { result.current.setGdriveConfirm({ options: [{ d: { tobaccos: [] }, ds: "", name }], sel: 0 }); });
     act(() => { result.current.doGdriveConfirm(); });
-    localStorage.setItem("cave-pending-sync", "1"); // what save() just did
+    stampNewCellarRev(); // what save() just did
+    const fresh = currentCellarRev();
+    act(() => { stageImport.mock.calls[0]![2].onApplied("merge"); });
+    expect(currentCellarRev(), "a merge is new to everybody").toBe(fresh);
     act(() => { stageImport.mock.calls[0]![2].onApplied("replace"); });
-    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
-    expect(setPendingSync).toHaveBeenLastCalledWith(false);
+    expect(currentCellarRev()).toBe("k3x9q2a");
+    expect(knownCellarRevs()).toContain("k3x9q2a");
+    expect(knownCellarRevs()).toContain(fresh);
   });
 
-  it("after a cloud MERGE the result is new and still uploads", () => {
+  it("a REPLACE of a backup written before revisions keeps the fresh revision", () => {
     const stageImport = vi.fn();
-    const setPendingSync = vi.fn();
-    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport, setPendingSync }) as any));
+    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport }) as any));
     act(() => { result.current.setGdriveConfirm({ options: [{ d: { tobaccos: [] }, ds: "", name: "cave-tabac-auto-ipad-20261004-094714-t1-p0-w0-a0-j0.json" }], sel: 0 }); });
     act(() => { result.current.doGdriveConfirm(); });
-    localStorage.setItem("cave-pending-sync", "1");
-    act(() => { stageImport.mock.calls[0]![2].onApplied("merge"); });
-    expect(localStorage.getItem("cave-pending-sync")).toBe("1");
-    expect(setPendingSync).not.toHaveBeenCalledWith(false);
+    const fresh = stampNewCellarRev();
+    act(() => { stageImport.mock.calls[0]![2].onApplied("replace"); });
+    expect(currentCellarRev()).toBe(fresh);
   });
 
   it("forwards the full payload (metadata and _imageData included) so useImportConfirm can strip and filter them", () => {
@@ -3315,6 +3321,28 @@ describe("cloudNewerBackup — resume check (app back in the foreground)", () =>
     expect(readCloudCheckDiag()!.stage).toBe("found");
   });
 
+  // The receiver's half, end to end: the iPad re-uploaded the iPhone's own
+  // cellar (revision R, adopted on restore). The iPhone has held R — it is
+  // not news, whichever device uploaded it, and whenever.
+  it("does NOT offer a file carrying a revision this device has held", async () => {
+    vi.useFakeTimers();
+    dropboxDevice();
+    localStorage.setItem("cave-device-id", "iphoneid");
+    adoptCellarRev("rr1");   // the iPhone's cellar was R…
+    stampNewCellarRev();     // …and it has edited since
+    cloudHolds([{
+      ".tag": "file", id: "id:echo",
+      name: "cave-tabac-auto-ipadid-20261004-111315-rrr1-t58-p21-w19-a4-j52-ipad.json",
+      server_modified: new Date(Date.now() - 60000).toISOString(),
+    }]);
+    const { result } = renderHook(() =>
+      useGdriveSync(makeProps({ cloudProviderId: "dropbox" }) as any));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    vi.useRealTimers();
+    expect(result.current.cloudNewerBackup).toBeNull();
+    expect(readCloudCheckDiag()!.stage).toBe("none");
+  });
+
   it("does not hit the cloud again on a quick app switch (throttled)", async () => {
     vi.useFakeTimers();
     dropboxDevice();
@@ -3446,86 +3474,43 @@ describe("gdriveSaveQuiet — a skipped save retries after the lock expires", ()
     expect(src).toMatch(/setTimeout\(function \(\) \{ gdriveSaveQuietRef\.current\(\); \}, 1200\)/);
   });
 
-  // THE ECHO, by content. Build 41 only took back the flag the restore's own
-  // save() set; an upload already in flight re-armed itself with the restored
-  // cellar and sent it back anyway (reported again after build 41).
-  it("skips an auto-save whose cellar is still exactly the one restored", async () => {
-    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Restored" }] });
-    localStorage.setItem("pipe-cellar-v6", restored);
-    localStorage.setItem(restoredSnapKey(false), snapFingerprint(restored));
-    localStorage.setItem("cave-pending-sync", "1");
-    const setPendingSync = vi.fn();
-    const { result } = renderHook(() => useGdriveSync(makeProps({ setPendingSync }) as any));
-    act(() => { result.current.gdriveSaveQuiet(); });
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(uploads()).toBe(0);
-    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
-    expect(setPendingSync).toHaveBeenLastCalledWith(false);
-  });
-
-  it("uploads as soon as the cellar is edited after the restore", async () => {
-    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Restored" }] });
-    localStorage.setItem(restoredSnapKey(false), snapFingerprint(restored));
-    localStorage.setItem("pipe-cellar-v6", JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Edited" }] }));
+  it("an auto-save names its file with the revision of the cellar it uploads", async () => {
+    localStorage.setItem(CELLAR_REV_KEY, "abc123");
     const { result } = renderHook(() => useGdriveSync(makeProps() as any));
     act(() => { result.current.gdriveSaveQuiet(); });
     await waitFor(() => expect(uploads()).toBeGreaterThan(0));
+    const call = mockFetch.mock.calls.find((c: any[]) => ((c[1] && c[1].method) || "GET") !== "GET")!;
+    const fd = call[1].body as FormData;
+    const meta = JSON.parse(await (fd.get("metadata") as Blob).text());
+    expect(meta.name).toMatch(/-\d{8}-\d{6}-rabc123-t\d+-p/);
   });
 
-  it("the marker is per provider — a switch to the other one still uploads", async () => {
-    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Restored" }] });
-    localStorage.setItem("pipe-cellar-v6", restored);
-    localStorage.setItem(restoredSnapKey(true), snapFingerprint(restored)); // restored from DROPBOX
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any)); // saving to DRIVE
-    act(() => { result.current.gdriveSaveQuiet(); });
-    await waitFor(() => expect(uploads()).toBeGreaterThan(0));
+  it("every save() of the cellar stamps a fresh revision", () => {
+    const app = readFileSync("src/App.tsx", "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+    const body = app.slice(app.indexOf("var save = useCallback"), app.indexOf("var save = useCallback") + 900);
+    expect(body).toContain('lsSet("cave-pending-sync", "1")');
+    expect(body).toContain("stampNewCellarRev()");
+    const a = stampNewCellarRev(), b = stampNewCellarRev();
+    expect(a).not.toBe(b);
+    expect(a).toMatch(/^[0-9a-z]{1,12}$/);
   });
 
-  it("a cloud REPLACE records the restored cellar's fingerprint; a MERGE clears it", () => {
-    const stageImport = vi.fn();
-    const { result } = renderHook(() => useGdriveSync(makeProps({ stageImport }) as any));
-    act(() => { result.current.setGdriveConfirm({ options: [{ d: { tobaccos: [] }, ds: "", name: "cave-tabac-auto-ipad-20261004-094714-t1-p0-w0-a0-j0.json" }], sel: 0 }); });
-    act(() => { result.current.doGdriveConfirm(); });
-    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 9, name: "FromIpad" }] });
-    localStorage.setItem("pipe-cellar-v6", restored); // what save() just wrote
-    act(() => { stageImport.mock.calls[0]![2].onApplied("replace"); });
-    expect(localStorage.getItem(restoredSnapKey(false))).toBe(snapFingerprint(restored));
-    act(() => { stageImport.mock.calls[0]![2].onApplied("merge"); });
-    expect(localStorage.getItem(restoredSnapKey(false))).toBeNull();
+  it("the revision history is bounded and keeps the newest", () => {
+    for (let i = 0; i < 60; i++) adoptCellarRev("r" + i);
+    const known = knownCellarRevs();
+    expect(known.length).toBe(50);
+    expect(known[known.length - 1]).toBe("r59");
+    expect(known).not.toContain("r0");
+    expect(currentCellarRev()).toBe("r59");
   });
 
-  it("an upload IN FLIGHT when the restore lands does not send the restored cellar back", async () => {
-    // The door build 41 left open: the in-flight save sees the cellar moved,
-    // sets the flag again and re-arms itself 800 ms later.
-    vi.useFakeTimers();
-    let releaseUpload: (() => void) | null = null;
-    mockFetch.mockImplementation((_url: any, init: any) => {
-      const m = (init && init.method) || "GET";
-      if (m === "GET") return Promise.resolve({ ok: true, json: () => Promise.resolve({ files: [] }) });
-      if (m === "POST" || m === "PATCH") {
-        return new Promise((res) => { releaseUpload = () => res({ ok: true, json: () => Promise.resolve({ id: "auto-id" }) }); });
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
-    });
-    localStorage.setItem("pipe-cellar-v6", JSON.stringify({ ...INIT, tobaccos: [{ id: 1, name: "Before" }] }));
-    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
-    act(() => { result.current.gdriveSaveQuiet(); });
-    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
-    expect(uploads(), "the first upload is in flight").toBe(1);
-    // The restore lands meanwhile (Replace): save() writes, then onApplied.
-    const restored = JSON.stringify({ ...INIT, tobaccos: [{ id: 9, name: "FromIpad" }] });
-    localStorage.setItem("pipe-cellar-v6", restored);
-    localStorage.setItem(restoredSnapKey(false), snapFingerprint(restored));
-    await act(async () => { releaseUpload!(); await vi.advanceTimersByTimeAsync(5000); });
-    vi.useRealTimers();
-    expect(uploads(), "the re-armed save must not upload the restored cellar").toBe(1);
-    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
-  });
-
-  it("snapFingerprint: equal strings agree, any change disagrees", () => {
-    expect(snapFingerprint('{"a":1}')).toBe(snapFingerprint('{"a":1}'));
-    expect(snapFingerprint('{"a":1}')).not.toBe(snapFingerprint('{"a":2}'));
-    expect(snapFingerprint("")).toBe(snapFingerprint(""));
+  it("refuses a malformed revision rather than storing it", () => {
+    adoptCellarRev("bad-rev!");
+    adoptCellarRev("");
+    expect(knownCellarRevs()).toEqual([]);
+    localStorage.setItem(CELLAR_REVS_KEY, "not json");
+    expect(knownCellarRevs()).toEqual([]);
   });
 
   it("does not retry when the data was synced in the meantime", async () => {

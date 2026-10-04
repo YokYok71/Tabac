@@ -63,7 +63,7 @@ import { useTrashOps } from "./hooks/useTrashOps.ts";
 import { planCatalogueApply, applyCataloguePlan } from "./utils/catalogueApply.ts";
 import { loadTobaccoDb, tobaccoDbLookupSync } from "./utils/tobaccoDb.ts";
 import { useAiAutoFill } from "./hooks/useAiAutoFill.ts";
-import { useGdriveSync } from "./hooks/useGdriveSync.ts";
+import { useGdriveSync, stampNewCellarRev } from "./hooks/useGdriveSync.ts";
 import { useExportImport } from "./hooks/useExportImport.ts";
 import { useUserCatalogue } from "./hooks/useUserCatalogue.ts";
 import { useImportConfirm, APIKEY_REPLACED_KEY } from "./hooks/useImportConfirm.ts";
@@ -1145,6 +1145,9 @@ function App() {
     setData(nd);
     setPendingSync(true);
     lsSet("cave-pending-sync", "1");
+    // A changed cellar is a new revision — how the OTHER device will tell this
+    // data from its own when it comes back (see CELLAR_REV_KEY).
+    stampNewCellarRev();
     try {
       lsRemove(SK + "-bkp");
       lsRemove(SK + "-bkp-ts");

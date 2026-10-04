@@ -19,6 +19,7 @@ import {
 } from "../utils/cryptoBackup.ts";
 import {
   makeBackupName,
+  backupRev,
   makeCatalogueName,
   parseBackupCounts,
   classifyBackup,
@@ -161,33 +162,57 @@ export function writeCloudRestored(isDbx: boolean, ts: number, name: string): vo
   if (name) lsSet(k.name, String(name));
 }
 /**
- * THE ECHO, CLOSED BY CONTENT RATHER THAN BY PATH.
+ * THE CELLAR REVISION — how a device recognises its own data coming back.
  *
- * Build 41 took back the « unsynced » flag that the restore's own `save()`
- * sets. That covered one door. Others reach the same upload: an auto-save
- * already uploading when the restore lands sees the cellar has moved and
- * re-arms itself with the restored cellar, and any later save that changes
- * nothing does the same. Each sends the other device its own data back as
- * « a newer version » — reported again from the iPhone after build 41.
- *
- * So the restored cellar is fingerprinted, per provider, and an auto-save
- * whose cellar still has that fingerprint is skipped: the cloud already holds
- * it. Any real edit changes the fingerprint and uploads as before. Per
- * provider because a switch to another destination must still send it.
+ * Builds 41 and 42 held back the restoring device's upload instead. Each
+ * closed one door and the echo came through another (reported twice from the
+ * iPhone), and holding the upload back left that device's cloud file on the
+ * state it had just discarded, which the other device was then offered. The
+ * user proposed the receiving side instead: every `save()` stamps a fresh
+ * revision, a cloud REPLACE adopts the restored file's revision, uploads carry
+ * the current one in their name (makeBackupName), and the guard ignores any
+ * file whose revision this device has HELD — its own cellar, whoever uploaded
+ * it. A bounded history rather than the current value alone: after the iPad
+ * echoes revision R back, the iPhone may already have moved on to R2.
  */
-export function restoredSnapKey(isDbx: boolean): string {
-  return "cave-restored-snap-" + (isDbx ? "dropbox" : "gdrive");
+export var CELLAR_REV_KEY = "cave-cellar-rev";
+export var CELLAR_REVS_KEY = "cave-cellar-revs";
+var CELLAR_REVS_MAX = 50;
+var REV_RE = /^[0-9a-z]{1,16}$/;
+export function currentCellarRev(): string {
+  var r = lsGet(CELLAR_REV_KEY) || "";
+  return REV_RE.test(r) ? r : "";
 }
-/** FNV-1a over the string, plus its length. Not cryptographic — it only has
- *  to tell « the cellar I restored » from « a cellar that was edited ». */
-export function snapFingerprint(s: string): string {
-  var str = String(s);
-  var h = 0x811c9dc5;
-  for (var i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
+export function knownCellarRevs(): string[] {
+  try {
+    var v = JSON.parse(lsGet(CELLAR_REVS_KEY) || "[]");
+    return Array.isArray(v) ? v.filter(function (x: any) { return typeof x === "string" && REV_RE.test(x); }) : [];
+  } catch (_e) { return []; }
+}
+function rememberCellarRev(rev: string): void {
+  var list = knownCellarRevs().filter(function (x) { return x !== rev; });
+  list.push(rev);
+  if (list.length > CELLAR_REVS_MAX) list = list.slice(list.length - CELLAR_REVS_MAX);
+  lsSet(CELLAR_REVS_KEY, JSON.stringify(list));
+  lsSet(CELLAR_REV_KEY, rev);
+}
+/** A fresh revision for a cellar that has just changed. Called by save(). */
+export function stampNewCellarRev(): string {
+  var raw: string;
+  try {
+    var a = new Uint32Array(2);
+    crypto.getRandomValues(a);
+    raw = a[0]!.toString(36) + a[1]!.toString(36);
+  } catch (_e) {
+    raw = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   }
-  return (h >>> 0).toString(16) + "-" + str.length;
+  var rev = String(raw).replace(/[^0-9a-z]/g, "").slice(0, 12) || "0";
+  rememberCellarRev(rev);
+  return rev;
+}
+/** A cloud REPLACE: the cellar now IS that file's, so it takes its revision. */
+export function adoptCellarRev(rev: string | null | undefined): void {
+  if (rev && REV_RE.test(rev)) rememberCellarRev(rev);
 }
 
 /** Everything the guard honours: dismissed OR restored. */
@@ -1032,7 +1057,7 @@ export function useGdriveSync({
             var acks = readCloudAcks(isDbx);
             var hit = findNewerCloudBackup(
               list.files || [], localRef, acks.ts, 120000, acks.names,
-              stableDeviceIdForGuard(), ownStampedSince(),
+              stableDeviceIdForGuard(), ownStampedSince(), knownCellarRevs(),
             );
             recordCloudCheckDiag(hit ? "found" : "none");
             if (hit) {
@@ -1189,7 +1214,7 @@ export function useGdriveSync({
         // cloudRestoredKeys). Still skip THIS device's own stamped auto file.
         var acks = readCloudAcks(isDbx);
         var hit = findNewerCloudBackup(files, localRef, acks.ts, 120000, acks.names,
-          stableDeviceIdForGuard(), ownStampedSince());
+          stableDeviceIdForGuard(), ownStampedSince(), knownCellarRevs());
         if (hit) {
           setCloudNewerBackup({
             id: hit.id,
@@ -1248,7 +1273,7 @@ export function useGdriveSync({
     var dismissedName = _acks.names.join(" · ") || null;
     var rows = explainCloudBackups(
       files, localRef, dismissedTs, 120000, _acks.names,
-      stableDeviceIdForGuard(), ownStampedSince(),
+      stableDeviceIdForGuard(), ownStampedSince(), knownCellarRevs(),
     );
     return {
       deviceId: getDeviceId(),
@@ -2188,7 +2213,7 @@ export function useGdriveSync({
                 try { _manualRawSnap = lsGet(SK); } catch (_e) {}
                 // Multipart construction + 60s upload timeout
                 // live in the provider now.
-                return cloud.uploadNew(token, makeBackupName(data, "manual", undefined, getDeviceName()), blob)
+                return cloud.uploadNew(token, makeBackupName(data, "manual", undefined, getDeviceName(), currentCellarRev()), blob)
                 .then(function (r) {
                   return r.json();
                 })
@@ -2440,15 +2465,6 @@ export function useGdriveSync({
     // user toggles auto-save OFF) would still let the silent save
     // fire. Re-check here so the function is safe to call anywhere.
     if (lsGet("cave-autosave") !== "1") return;
-    // The cellar is still exactly the one restored from this provider: the
-    // cloud has it, so there is nothing to send — see restoredSnapKey.
-    var _restoredFp = lsGet(restoredSnapKey(isDbx));
-    if (_restoredFp && _restoredFp === snapFingerprint(lsGet(SK) || "")) {
-      lsRemove("cave-pending-sync");
-      setPendingSync(false);
-      recordAutosaveDiag("ok");
-      return;
-    }
     // The in-progress ref has NO TTL of its own, so a prior save that died
     // without reaching releaseQuietLock() would leave it true and wedge
     // auto-save for the ENTIRE session (every call bails here). Self-heal:
@@ -2598,6 +2614,9 @@ export function useGdriveSync({
       return;
     }
     var rawSnap = lsGet(SK);
+    // Read WITH the snapshot: save() writes both synchronously, so the name
+    // carries the revision of exactly the cellar being uploaded.
+    var revAtSnap = currentCellarRev();
     if (!rawSnap) { releaseQuietLock(); return; }
     var snap: any;
     try {
@@ -2723,7 +2742,7 @@ export function useGdriveSync({
         releaseQuietLock();
       }
       var myDeviceId = getDeviceId();
-      var newName = makeBackupName(snap, "auto", myDeviceId, getDeviceName());
+      var newName = makeBackupName(snap, "auto", myDeviceId, getDeviceName(), revAtSnap);
 
       // Multipart construction lives in the provider.
 
@@ -3001,23 +3020,15 @@ export function useGdriveSync({
     var name = opt && opt.name;
     return function (mode: "replace" | "merge") { cloudRestoreApplied(mode, ts, name); };
   }
-  // A CLOUD REPLACE IS NOT AN EDIT, AND IT USED TO BE UPLOADED AS ONE. The
-  // import commits through `save()`, which marks the cellar unsynced, so the
-  // auto-save sent the restored cellar straight back 1.2 s later — the iPad
-  // restored the iPhone's backup and re-uploaded it, and the iPhone was then
-  // offered « a newer version » that was its own data. Restoring that echo
-  // re-uploaded it again, the other way. After a REPLACE the cellar is exactly
-  // a file the cloud already holds, so there is nothing to send; the flag that
-  // `save()` has just set is taken back (and any older one with it — a replace
-  // discards the unsynced work it marked, by the user's choice). A MERGE
-  // produces a cellar no file holds, so it still uploads.
+  // A CLOUD REPLACE ADOPTS THE RESTORED FILE'S REVISION (see
+  // CELLAR_REV_KEY). The restored cellar IS uploaded again, as before build
+  // 41 — that keeps this device's cloud file on its real state instead of the
+  // one it just discarded — and the other device recognises the revision as
+  // its own and stays quiet. A merge keeps the fresh revision save() stamped:
+  // its result is new to everybody.
   function cloudRestoreApplied(mode: "replace" | "merge", ackTs?: number, ackName?: string) {
     ackCloudNewerBackup(ackTs, ackName);
-    if (mode !== "replace") { lsRemove(restoredSnapKey(isDbx)); return; }
-    lsRemove("cave-pending-sync");
-    setPendingSync(false);
-    // `save()` has just written the restored cellar, synchronously.
-    lsSet(restoredSnapKey(isDbx), snapFingerprint(lsGet(SK) || ""));
+    if (mode === "replace") adoptCellarRev(backupRev(ackName || ""));
   }
 
   // Lazy-load the payload of a single picker option (without restoring) so the

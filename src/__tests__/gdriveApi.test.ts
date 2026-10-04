@@ -14,6 +14,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   makeBackupName,
+  backupRev,
   parseBackupCounts,
   backupDeviceName,
   classifyBackup,
@@ -770,5 +771,65 @@ describe("backupDeviceName + name-aware device roll-up", () => {
     ], 0, 0, 120000, null, "own", OLD_STAMP);
     const devs = summariseCloudDevices(rows, "own");
     expect(devs[0]!.deviceName).toBe("newname");
+  });
+});
+
+// ── The cellar revision in the backup name (build 43) ─────────────────────
+describe("backup names carry the cellar revision", () => {
+  const data = { tobaccos: [1, 2], pipes: [1], wishlist: [], accessories: [], sessions: [1, 2, 3] };
+
+  it("sits between the timestamp and the counts, and reads back", () => {
+    const n = makeBackupName(data, "auto", "dev1", "iPad", "k3x9q2a");
+    expect(n).toMatch(/^cave-tabac-auto-dev1-\d{8}-\d{6}-rk3x9q2a-t2-p1-w0-a0-j3-ipad\.json$/);
+    expect(backupRev(n)).toBe("k3x9q2a");
+    const m = makeBackupName(data, "manual", undefined, "iPhone", "abc");
+    expect(backupRev(m)).toBe("abc");
+  });
+
+  it("is absent from a name written without one, and from every older name", () => {
+    expect(backupRev(makeBackupName(data, "auto", "dev1", "iPad"))).toBeNull();
+    expect(backupRev("cave-tabac-auto-w4u4ti4hkb-20261004-111315-t58-p21-w19-a4-j52-ipad.json")).toBeNull();
+    expect(backupRev("cave-tabac-20261004-110715-t58-p21-w19-a4-j52-ipad.json")).toBeNull();
+  });
+
+  // A device still on an older build reads these names with THESE parsers —
+  // they are unchanged — so the new segment must not move anything they read.
+  it("every existing parser reads a revision-bearing name exactly as before", () => {
+    const withRev = makeBackupName(data, "auto", "dev1", "iPad", "k3x9q2a");
+    const without = makeBackupName(data, "auto", "dev1", "iPad");
+    expect(autoFileDeviceId(withRev)).toBe("dev1");
+    expect(parseBackupCounts(withRev)).toEqual(parseBackupCounts(without));
+    expect(backupDeviceName(withRev)).toBe("ipad");
+    expect(classifyBackup(withRev)).toBe("auto");
+    const manual = makeBackupName(data, "manual", undefined, "iPhone", "abc");
+    expect(classifyBackup(manual)).toBe("manual");
+    expect(autoFileDeviceId(manual)).toBeNull();
+    expect(backupDeviceName(manual)).toBe("iphone");
+  });
+
+  it("a tampered revision cannot smuggle a dash or a dot into the name", () => {
+    const n = makeBackupName(data, "auto", "dev1", "", "a-b.c/d");
+    expect(backupRev(n)).toBe("abcd");
+    expect(parseBackupCounts(n)).not.toBeNull();
+  });
+});
+
+describe("the guard ignores this device's own cellar coming back", () => {
+  const OLD = new Date("2020-01-01T00:00:00Z").getTime();
+  const echo = {
+    id: "e", name: "cave-tabac-auto-ipadid-20261004-111315-rk3x9q2a-t58-p21-w19-a4-j52-ipad.json",
+    modifiedTime: "2026-10-04T09:13:15.000Z",
+  };
+  it("a file whose revision this device has held is not proposed", () => {
+    expect(findNewerCloudBackup([echo], 0, 0, 120000, null, "iphoneid", OLD, ["zz", "k3x9q2a"])).toBeNull();
+    const rows = explainCloudBackups([echo], 0, 0, 120000, null, "iphoneid", OLD, ["k3x9q2a"]);
+    expect(rows[0]!.reason).toBe("own_rev");
+  });
+  it("a different revision IS proposed — the other device changed something", () => {
+    expect(findNewerCloudBackup([echo], 0, 0, 120000, null, "iphoneid", OLD, ["other"])?.name).toBe(echo.name);
+  });
+  it("a name without a revision falls back to the existing rules", () => {
+    const legacy = { ...echo, name: "cave-tabac-auto-ipadid-20261004-111315-t58-p21-w19-a4-j52-ipad.json" };
+    expect(findNewerCloudBackup([legacy], 0, 0, 120000, null, "iphoneid", OLD, ["k3x9q2a"])?.name).toBe(legacy.name);
   });
 });

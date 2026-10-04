@@ -38,6 +38,7 @@ export function makeBackupName(
   type: "manual" | "auto",
   deviceId?: string,
   deviceName?: string,
+  rev?: string,
 ): string {
   var d = new Date();
   function pad(n: number) { return String(n).padStart(2, "0"); }
@@ -75,9 +76,26 @@ export function makeBackupName(
       .replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "").slice(0, 16);
     if (ns) nameSeg = "-" + ns;
   }
-  return prefix + didSeg + ts + counts + nameSeg + ".json";
+  // The cellar REVISION (see backupRev), between the timestamp and the
+  // counts: every existing parser tolerates it there — autoFileDeviceId reads
+  // only up to the timestamp, the counts and device-name parsers anchor on
+  // `-tN-pN-…` — so a device still on an older build reads these names as
+  // before. An opaque random id, not user data.
+  var revSeg = "";
+  if (rev) {
+    var rc = String(rev).toLowerCase().replace(/[^0-9a-z]/g, "").slice(0, 16);
+    if (rc) revSeg = "-r" + rc;
+  }
+  return prefix + didSeg + ts + revSeg + counts + nameSeg + ".json";
 }
 // LABEL-CONTRACT:end backup-filename-device-name
+
+/** The cellar revision a backup name carries, or null for a name written
+ *  before revisions existed. See makeBackupName. */
+export function backupRev(name: string): string | null {
+  var m = String(name || "").match(/-\d{8}-\d{6}-r([0-9a-z]+)-t\d+-p\d+-w\d+-a\d+-j\d+/);
+  return m && m[1] ? m[1] : null;
+}
 
 /**
  * The name of a CATALOGUE file in the cloud.
@@ -187,6 +205,25 @@ export function pickKeepAuto(autoFiles: any[], deviceId: string): string | null 
 // disagree about where the counts end and the name begins. Returns "" when the
 // file carries no slug (a legacy backup, or one written before the device was
 // named) — never a guess.
+/**
+ * THE ECHO, RECOGNISED BY THE DEVICE IT CAME FROM.
+ *
+ * Builds 41 and 42 tried to stop the restoring device from sending the
+ * restored cellar back. Each closed one door and the echo came through
+ * another — and holding the upload back left that device's cloud file on the
+ * state it had just DISCARDED, which the other device was then offered.
+ * Proposed by the user: let the receiver recognise its own data. Every save
+ * stamps a fresh revision; a REPLACE adopts the restored file's revision; and
+ * a file whose revision this device has held is its own cellar, whichever
+ * device uploaded it. No guess about which path uploaded, and no trust in the
+ * sender's build.
+ */
+function isOwnRev(name: string, ownRevs: readonly string[] | null | undefined): boolean {
+  if (!ownRevs || !ownRevs.length) return false;
+  var r = backupRev(name);
+  return r !== null && ownRevs.indexOf(r) >= 0;
+}
+
 /** One acknowledged name, or several (dismissed + restored — see
  *  readCloudAcks in useGdriveSync). */
 function ackedName(acked: string | readonly string[] | null | undefined, name: string): boolean {
@@ -378,6 +415,7 @@ export function findNewerCloudBackup(
   dismissedName?: string | readonly string[] | null,
   ownDeviceId?: string | null,
   ownStampedSince?: number,
+  ownRevs?: readonly string[] | null,
 ): { id: string; name: string; modifiedTime: string; ts: number } | null {
   // `id` is the provider file handle so the caller can
   // fetch the payload directly when the user accepts the Home banner
@@ -398,6 +436,9 @@ export function findNewerCloudBackup(
     if (classifyBackup(f.name) === "catalogue") return;
     // Never flag this device's own stamped auto file.
     if (ownDeviceId && autoFileDeviceId(f.name) === ownDeviceId) return;
+    // THIS DEVICE'S OWN CELLAR, come back from another device — the echo,
+    // recognised by the RECEIVER. See isOwnRev.
+    if (isOwnRev(f.name, ownRevs)) return;
     // Once stamped, also skip our own legacy
     // unstamped AUTO files (not manual backups).
     var ts = new Date(f.modifiedTime).getTime();
@@ -442,7 +483,7 @@ export interface CloudBackupDiag {
   size: string;
   counts: ReturnType<typeof parseBackupCounts>;
   status: "proposed" | "candidate" | "ignored";
-  // proposed | candidate | own_device | own_legacy | dismissed_name
+  // proposed | candidate | own_device | own_rev | own_legacy | dismissed_name
   //  | dismissed_ts | older | bad_date | catalogue
   reason: string;
 }
@@ -515,6 +556,7 @@ export function explainCloudBackups(
   dismissedName?: string | readonly string[] | null,
   ownDeviceId?: string | null,
   ownStampedSince?: number,
+  ownRevs?: readonly string[] | null,
 ): CloudBackupDiag[] {
   var rows: CloudBackupDiag[] = [];
   (files || []).forEach(function (f: any) {
@@ -555,6 +597,7 @@ export function explainCloudBackups(
     // rung missing here would explain a decision the guard did not make.
     if (kind === "catalogue") { rows.push(mk("ignored", "catalogue")); return; }
     if (ownDeviceId && did === ownDeviceId) { rows.push(mk("ignored", "own_device")); return; }
+    if (isOwnRev(name, ownRevs)) { rows.push(mk("ignored", "own_rev")); return; }
     if (ownStampedSince && kind === "auto" && did === null
         && !isNaN(parsed) && parsed <= ownStampedSince) { rows.push(mk("ignored", "own_legacy")); return; }
     if (!isForeignStamped(name, ownDeviceId) && parsed <= (localRefTs || 0) + marginMs) { rows.push(mk("ignored", "older")); return; }

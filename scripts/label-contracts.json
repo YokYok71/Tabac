@@ -699,7 +699,7 @@
         "docs/storage-keys.md — cave-device-name key entry"
       ],
       "why": "A change started appending the device name to every backup FILENAME. The hint kept claiming it was 'jamais dans les sauvegardes' for 20 releases, and the help paragraph contradicted itself in the same breath. If this function stops (or starts) embedding user-visible data in the name, all three places must be re-read.",
-      "fingerprint": "f6b67e53d76e85c4"
+      "fingerprint": "ffa029b4a1ae228e"
     },
     {
       "id": "photos-in-backups",
