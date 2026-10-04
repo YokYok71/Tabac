@@ -582,6 +582,35 @@ export function resumeCheckDue(nowMs: number, lastRunMs: number, minGapMs: numbe
   if (!(lastRunMs > 0)) return true;
   return nowMs - lastRunMs >= minGapMs;
 }
+/**
+ * THE PERIODIC CHECK — the same silent check, every 5 minutes while the app
+ * stays in the FOREGROUND (asked by the user, build 47). Launch and resume
+ * cover a device that is picked up; they never fired for an iPad left open on
+ * the app, which learned of the other device's work only when it was put down
+ * and taken up again.
+ *
+ * A short tick (PERIODIC_TICK_MS) decides, rather than a 5-minute interval: the gap is
+ * measured from the LAST check of any kind, so a resume check two minutes ago
+ * pushes this one back instead of doubling it, and a tick that lands while the
+ * app is hidden is simply skipped (iOS suspends a backgrounded PWA's timers
+ * anyway; resume takes over when it comes back).
+ *
+ * It stands down while offline (nothing to learn, and every attempt would
+ * write an « error » line in Réglages → Données) and while a restore is in
+ * progress: a listing taken before that restore's acknowledgement is written
+ * could otherwise offer the very file being applied.
+ */
+export var PERIODIC_CHECK_MS = 5 * 60 * 1000;
+// 15 s, not 60: the tick's phase is set at mount and the gap at the last
+// check, so with a 60 s tick the first eligible one came 6 minutes after the
+// check, not 5 (measured in the simulation). A tick is one comparison.
+export var PERIODIC_TICK_MS = 15 * 1000;
+export function periodicCheckDue(
+  nowMs: number, lastRunMs: number, hidden: boolean, online: boolean, busy: boolean,
+): boolean {
+  if (hidden || !online || busy) return false;
+  return resumeCheckDue(nowMs, lastRunMs, PERIODIC_CHECK_MS);
+}
 /** How long a quiet save's lock is honoured (see gdriveSaveQuiet). */
 export var QUIET_LOCK_TTL_MS = 12000;
 
@@ -735,6 +764,7 @@ export function useGdriveSync({
   requestDrivePassphrase,
   cloudProviderId,
   setSaveWarn,
+  importPending,
 }: {
   data: any;
   // App's cold-start loading flag. `data`
@@ -777,6 +807,9 @@ export function useGdriveSync({
   // Active backup destination — "gdrive" (default) or
   // "dropbox". Owned by App.tsx (cave-cloud-provider localStorage).
   cloudProviderId?: "gdrive" | "dropbox";
+  // An import is staged or being applied (the Replace / Merge picker is up).
+  // The periodic check stands down meanwhile — see PERIODIC_CHECK_MS.
+  importPending?: boolean;
 }) {
   var _gd = useState<string | null>(null),
     gdriveStatus = _gd[0],
@@ -1180,6 +1213,19 @@ export function useGdriveSync({
       if (settle) clearTimeout(settle);
       if (saveSettle) clearTimeout(saveSettle);
     };
+  }, []);
+  // PERIODIC, in the foreground — see PERIODIC_CHECK_MS. Read through refs:
+  // the interval is set up once and must see the current render's state.
+  var periodicBusyRef = useRef(false);
+  periodicBusyRef.current = !!importPending || cloudRestoreBusy;
+  useEffect(function () {
+    var iv = setInterval(function () {
+      var online = true;
+      try { online = navigator.onLine !== false; } catch (_e) { /* assume online */ }
+      if (periodicCheckDue(Date.now(), lastSilentCheckRef.current, !!document.hidden, online, periodicBusyRef.current))
+        runSilentCloudCheckRef.current();
+    }, PERIODIC_TICK_MS);
+    return function () { clearInterval(iv); };
   }, []);
   // Manual re-check trigger. The launch effect runs
   // once per app session, uses cached tokens only on Drive, and is

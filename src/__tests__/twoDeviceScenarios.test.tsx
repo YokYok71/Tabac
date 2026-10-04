@@ -609,6 +609,57 @@ describe("11 — a session smoked on A, then restored on B", () => {
   });
 });
 
+// Build 47, asked by the user: an iPad left OPEN on the app learned of the
+// iPhone's work only once put down and picked up again (launch / resume).
+describe("12 — a device left open in the foreground", () => {
+  async function aFileWhileBOpen(hiddenMeanwhile: boolean) {
+    const { A, B } = await pairedDevices();
+    const aFile = await aEditsAlpha(A);
+    cloud.delete(aFile.id);              // not there yet when B opens
+    await launch(B);
+    expect(offered()).toBeNull();
+    if (hiddenMeanwhile) Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    cloud.set(aFile.id, Object.assign({}, aFile, { server_modified: isoNow() }));  // A uploads now
+    return { A, B, aFile };
+  }
+  it("12 the other device's upload is offered within 5 minutes, with no launch or resume", async () => {
+    const { aFile } = await aFileWhileBOpen(false);
+    await advance(3 * 60000);
+    expect(offered(), "not before 5 minutes since the last check").toBeNull();
+    await advance(2 * 60000 + 20000);  // 5 min after the launch check, plus one tick
+    expect(offered()).toBe(aFile.name);
+    await close();
+  });
+  it("12 nothing runs while the app is hidden", async () => {
+    await aFileWhileBOpen(true);
+    const lists = () => fetchLog.filter((l) => l.indexOf("list") === 0).length;
+    const before = lists();
+    await advance(12 * 60000);
+    expect(lists(), "no listing in the background").toBe(before);
+    expect(offered()).toBeNull();
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => false });
+    await close();
+  });
+  it("12 it stands down while the restore picker is open", async () => {
+    const { aFile } = await aFileWhileBOpen(false);
+    await advance(5 * 60000 + 20000);
+    expect(offered()).toBe(aFile.name);
+    await act(async () => { CTX.restoreCloudNewerBackup(); });
+    await advance(500);
+    expect(CTX.importConfirm).not.toBeNull();
+    const lists = () => fetchLog.filter((l) => l.indexOf("list") === 0).length;
+    const before = lists();
+    await advance(12 * 60000);
+    expect(lists(), "no check under the picker").toBe(before);
+    await act(async () => { CTX.applyImport("replace"); });
+    await advance(100);
+    await reloadIfAsked();
+    await advance(6 * 60000);
+    expect(offered(), "the applied file is not offered again").toBeNull();
+    await close();
+  });
+});
+
 describe("2 — identical cellars under different revisions (the state builds 42/43 left)", () => {
   async function splitRevisions() {
     const { A, B } = await pairedDevices();

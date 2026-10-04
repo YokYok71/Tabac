@@ -2366,6 +2366,8 @@ function App() {
     // cessé de fonctionner. Sans ce câblage la fonction existe et ne
     // parle à personne — la moitié qui pourrit.
     setSaveWarn,
+    // The periodic cloud check stands down while the import picker is up.
+    importPending: !!importConfirm,
   });
   // Export-reminder probe (placed after useGdriveSync so the
   // `lastAutoSaveTs` destructured above is in scope at the deps array).

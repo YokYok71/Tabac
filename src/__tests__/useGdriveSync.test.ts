@@ -40,6 +40,9 @@ import {
   readLineage,
   fileDescendsFrom,
   revUntouchedSince,
+  periodicCheckDue,
+  PERIODIC_CHECK_MS,
+  PERIODIC_TICK_MS,
   CELLAR_REV_KEY,
   CELLAR_REVS_KEY,
   cloudRestoredKeys,
@@ -3532,6 +3535,18 @@ describe("gdriveSaveQuiet — a skipped save retries after the lock expires", ()
     const bUpload = { id: "b", name: "cave-tabac-auto-ipadid-20261004-120000-raaa1-t1-p0-w0-a0-j0.json", modifiedTime: new Date().toISOString() };
     expect(findNewerCloudBackup([bUpload], 0, 0, 120000, null, "iphoneid", 1, knownCellarRevs())?.name)
       .toBe(bUpload.name);
+  });
+
+  it("periodicCheckDue: every 5 minutes from the LAST check, never hidden, offline or busy", () => {
+    const t0 = 1_000_000_000;
+    expect(PERIODIC_CHECK_MS).toBe(5 * 60 * 1000);
+    expect(periodicCheckDue(t0 + PERIODIC_CHECK_MS, t0, false, true, false)).toBe(true);
+    expect(periodicCheckDue(t0 + PERIODIC_CHECK_MS - 1, t0, false, true, false), "too soon").toBe(false);
+    expect(periodicCheckDue(t0 + PERIODIC_CHECK_MS, t0, true, true, false), "hidden").toBe(false);
+    expect(periodicCheckDue(t0 + PERIODIC_CHECK_MS, t0, false, false, false), "offline").toBe(false);
+    expect(periodicCheckDue(t0 + PERIODIC_CHECK_MS, t0, false, true, true), "restore in progress").toBe(false);
+    expect(periodicCheckDue(t0, 0, false, true, false), "never checked").toBe(true);
+    expect(PERIODIC_TICK_MS).toBeLessThan(PERIODIC_CHECK_MS);
   });
 
   // Build 46 — the lineage a backup carries (`_revs`).
