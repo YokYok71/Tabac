@@ -187,6 +187,14 @@ export function pickKeepAuto(autoFiles: any[], deviceId: string): string | null 
 // disagree about where the counts end and the name begins. Returns "" when the
 // file carries no slug (a legacy backup, or one written before the device was
 // named) — never a guess.
+/** One acknowledged name, or several (dismissed + restored — see
+ *  readCloudAcks in useGdriveSync). */
+function ackedName(acked: string | readonly string[] | null | undefined, name: string): boolean {
+  if (!acked) return false;
+  if (typeof acked === "string") return acked === name;
+  return acked.indexOf(name) >= 0;
+}
+
 /** An auto file stamped with a device id that is not ours. Without our own
  *  id nothing can be called foreign. See findNewerCloudBackup. */
 export function isForeignStamped(name: string, ownDeviceId?: string | null): boolean {
@@ -367,7 +375,7 @@ export function findNewerCloudBackup(
   localRefTs: number,
   dismissedTs: number,
   marginMs: number = 120000,
-  dismissedName?: string | null,
+  dismissedName?: string | readonly string[] | null,
   ownDeviceId?: string | null,
   ownStampedSince?: number,
 ): { id: string; name: string; modifiedTime: string; ts: number } | null {
@@ -380,7 +388,7 @@ export function findNewerCloudBackup(
   var best: { id: string; name: string; modifiedTime: string; ts: number } | null = null;
   (files || []).forEach(function (f: any) {
     if (!f || !f.name || !f.modifiedTime) return;
-    if (dismissedName && String(f.name) === dismissedName) return;
+    if (ackedName(dismissedName, String(f.name))) return;
     // The CATALOGUE stream is not a cellar backup and must
     // never be offered as one. Without this the launch banner would propose
     // restoring a CSV, and its « Restaurer » button stages an import of the
@@ -504,7 +512,7 @@ export function explainCloudBackups(
   localRefTs: number,
   dismissedTs: number,
   marginMs: number = 120000,
-  dismissedName?: string | null,
+  dismissedName?: string | readonly string[] | null,
   ownDeviceId?: string | null,
   ownStampedSince?: number,
 ): CloudBackupDiag[] {
@@ -541,7 +549,7 @@ export function explainCloudBackups(
     }
     // Same order as findNewerCloudBackup — keep in sync.
     if (!mt || isNaN(parsed)) { rows.push(mk("ignored", "bad_date")); return; }
-    if (dismissedName && name === dismissedName) { rows.push(mk("ignored", "dismissed_name")); return; }
+    if (ackedName(dismissedName, name)) { rows.push(mk("ignored", "dismissed_name")); return; }
     // Mirror findNewerCloudBackup's catalogue exclusion. The whole
     // value of this diagnostic is that it reproduces that ladder exactly; a
     // rung missing here would explain a decision the guard did not make.

@@ -133,6 +133,43 @@ export function writeCloudDismissed(isDbx: boolean, ts: number, name: string): v
   if (name) lsSet(k.name, String(name));
 }
 
+// A RESTORE IS NOT A DISMISSAL, and sharing one marker made « Vérifier »
+// undo it. The restore acknowledgement used to be written into the dismissed
+// pair, which `checkCloudNewerNow` CLEARS by design — its job is to give a
+// backup the user waved away a second chance. So restoring the iPad's backup
+// on the iPhone and then tapping « Vérifier les sauvegardes cloud » offered
+// that very backup again, a minute after it had been applied. Build 39 made it
+// systematic: another device's file is no longer cut by this device's later
+// saves, so only the acknowledgement silences it. The restored pair lives
+// apart and « Vérifier » never touches it: a backup whose data you took is
+// not news, whatever you ask to reconsider.
+export function cloudRestoredKeys(isDbx: boolean): { ts: string; name: string } {
+  var p = isDbx ? "dropbox" : "gdrive";
+  return {
+    ts: "cave-cloud-newer-restored-" + p,
+    name: "cave-cloud-newer-restored-name-" + p,
+  };
+}
+export function readCloudRestored(isDbx: boolean): { ts: number; name: string | null } {
+  var k = cloudRestoredKeys(isDbx);
+  return { ts: parseInt(lsGet(k.ts) || "0", 10) || 0, name: lsGet(k.name) || null };
+}
+export function writeCloudRestored(isDbx: boolean, ts: number, name: string): void {
+  var k = cloudRestoredKeys(isDbx);
+  // Same rule as the dismissed pair: a FILE's ts, never the wall clock.
+  if (ts > 0) lsSet(k.ts, String(ts));
+  if (name) lsSet(k.name, String(name));
+}
+/** Everything the guard honours: dismissed OR restored. */
+export function readCloudAcks(isDbx: boolean): { ts: number; names: string[] } {
+  var d = readCloudDismissed(isDbx);
+  var r = readCloudRestored(isDbx);
+  var names: string[] = [];
+  if (d.name) names.push(d.name);
+  if (r.name) names.push(r.name);
+  return { ts: Math.max(d.ts, r.ts), names: names };
+}
+
 export function clearCloudDismissed(isDbx: boolean): void {
   var k = cloudDismissKeys(isDbx);
   lsRemove(k.ts);
@@ -961,11 +998,10 @@ export function useGdriveSync({
             var localRef = cloudGuardLocalRef(isDbx);
             // Name-based dedup is skew-proof — see
             // findNewerCloudBackup comment. Per-provider.
-            var dis = readCloudDismissed(isDbx);
-            var dismissed = dis.ts;
-            var dismissedName = dis.name;
+            // Dismissed or restored — see readCloudAcks.
+            var acks = readCloudAcks(isDbx);
             var hit = findNewerCloudBackup(
-              list.files || [], localRef, dismissed, 120000, dismissedName,
+              list.files || [], localRef, acks.ts, 120000, acks.names,
               stableDeviceIdForGuard(), ownStampedSince(),
             );
             recordCloudCheckDiag(hit ? "found" : "none");
@@ -1118,10 +1154,11 @@ export function useGdriveSync({
         // No global fallback — see the launch-check rationale.
         // Cloud-save ts only (see cloudGuardLocalRef).
         var localRef = cloudGuardLocalRef(isDbx);
-        // dismissed markers were cleared above — pass 0 / null so any
-        // legitimately-newer cloud backup surfaces. Still skip
-        // THIS device's own stamped auto file.
-        var hit = findNewerCloudBackup(files, localRef, 0, 120000, null,
+        // The DISMISSED markers were cleared above, so a backup the user
+        // waved away surfaces again; the RESTORED ones were not (see
+        // cloudRestoredKeys). Still skip THIS device's own stamped auto file.
+        var acks = readCloudAcks(isDbx);
+        var hit = findNewerCloudBackup(files, localRef, acks.ts, 120000, acks.names,
           stableDeviceIdForGuard(), ownStampedSince());
         if (hit) {
           setCloudNewerBackup({
@@ -1176,11 +1213,11 @@ export function useGdriveSync({
   // how it would stop doing so.
   function buildSyncDiag(files: any[]) {
     var localRef = cloudGuardLocalRef(isDbx);
-    var _dis = readCloudDismissed(isDbx);   // Per-provider
-    var dismissedTs = _dis.ts;
-    var dismissedName = _dis.name;
+    var _acks = readCloudAcks(isDbx);   // Per-provider, dismissed + restored
+    var dismissedTs = _acks.ts;
+    var dismissedName = _acks.names.join(" · ") || null;
     var rows = explainCloudBackups(
-      files, localRef, dismissedTs, 120000, dismissedName,
+      files, localRef, dismissedTs, 120000, _acks.names,
       stableDeviceIdForGuard(), ownStampedSince(),
     );
     return {
@@ -1356,8 +1393,9 @@ export function useGdriveSync({
       var name = ackedName || (prev && prev.name) || "";
       // The by-name marker is the primary skew-proof dedup; write it whenever
       // we know the file. The ts floor is secondary — only write a real
-      // file ts, never the restore wall-clock.
-      writeCloudDismissed(isDbx, ts, String(name || ""));
+      // file ts, never the restore wall-clock. Into the RESTORED pair, which
+      // « Vérifier » leaves alone (see cloudRestoredKeys).
+      writeCloudRestored(isDbx, ts, String(name || ""));
     } catch (_e) {}
     setCloudNewerBackup(null);
   }

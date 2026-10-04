@@ -32,6 +32,8 @@ import {
   RESUME_CHECK_MIN_GAP_MS,
   QUIET_LOCK_TTL_MS,
   pickLiveToken,
+  cloudRestoredKeys,
+  readCloudAcks,
 } from "../hooks/useGdriveSync";
 import { readFileSync } from "node:fs";
 import { INIT } from "../constants";
@@ -188,11 +190,11 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
     act(() => { result.current.doGdriveConfirm(); });
     expect(stageImport).toHaveBeenCalledTimes(1);
     // Staged, and the user has not chosen yet (or cancels): nothing acked.
-    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBeNull();
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBeNull();
+    expect(localStorage.getItem(cloudRestoredKeys(false).ts)).toBeNull();
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBeNull();
     // Applied: acked.
     act(() => { stageImport.mock.calls[0]![2].onApplied(); });
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe("cave-tabac-auto-x-20260705-161000.json");
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBe("cave-tabac-auto-x-20260705-161000.json");
   });
 
   it("forwards the full payload (metadata and _imageData included) so useImportConfirm can strip and filter them", () => {
@@ -236,8 +238,8 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
 
     // The dismissed floor is the ACKED FILE's ts — never the wall-clock
     // restore moment (which the old code wrote via Date.now()).
-    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBe(String(fileTs));
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe(fileName);
+    expect(localStorage.getItem(cloudRestoredKeys(false).ts)).toBe(String(fileTs));
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBe(fileName);
 
     // End-to-end: a second device's newer auto backup (different device id,
     // modifiedTime after the acked file) must still be detected on launch.
@@ -246,8 +248,8 @@ describe("doGdriveConfirm — delegates to stageImport", () => {
       name: "cave-tabac-auto-qsekqav94e-20260705-235700-t5-p2-w14-a2-j22.json",
       modifiedTime: "2026-07-05T23:57:00.000Z",
     };
-    const dismissedTs = parseInt(localStorage.getItem(cloudDismissKeys(false).ts)!, 10);
-    const dismissedName = localStorage.getItem(cloudDismissKeys(false).name);
+    const dismissedTs = parseInt(localStorage.getItem(cloudRestoredKeys(false).ts)!, 10);
+    const dismissedName = localStorage.getItem(cloudRestoredKeys(false).name);
     const hit = findNewerCloudBackup(
       [device2Newer],
       fileTs,          // localRef = this device's last save (the acked file)
@@ -329,13 +331,13 @@ describe("doGdriveConfirm — lazy download validates before it stages", () => {
     const { stageImport } = pick({ id: "f1", name, modifiedTime });
     await settleRestore();
     expect(stageImport).toHaveBeenCalledWith(payload, "drive", { onApplied: expect.any(Function) });
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBeNull(); // not before it is applied
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBeNull(); // not before it is applied
     act(() => { stageImport.mock.calls[0]![2].onApplied(); });
     // Same rule the pre-loaded branch already had: the dismissed floor is
     // the restored FILE's moment. `Date.now()` here is newer than every
     // cloud file, so it would silence a second device's newer backup.
-    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBe(String(fileTs));
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe(name);
+    expect(localStorage.getItem(cloudRestoredKeys(false).ts)).toBe(String(fileTs));
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBe(name);
   });
 
   it("refuses a pre-loaded payload that is not a backup", () => {
@@ -2071,6 +2073,28 @@ describe("the cloud panel resets on a provider switch", () => {
 // of information. Reported from the app: "je clique sur vérifier les
 // sauvegardes, il ne se passait rien… ensuite il me dit juste ok, avant je
 // voyais le détail par device."
+function writeCloudRestoredForTest(name: string, ts: number) {
+  localStorage.setItem(cloudRestoredKeys(false).name, name);
+  localStorage.setItem(cloudRestoredKeys(false).ts, String(ts));
+}
+
+describe("readCloudAcks — dismissed and restored, both honoured", () => {
+  it("merges the two pairs: max floor, both names", () => {
+    localStorage.setItem(cloudDismissKeys(true).name, "a.json");
+    localStorage.setItem(cloudDismissKeys(true).ts, "100");
+    localStorage.setItem(cloudRestoredKeys(true).name, "b.json");
+    localStorage.setItem(cloudRestoredKeys(true).ts, "200");
+    expect(readCloudAcks(true)).toEqual({ ts: 200, names: ["a.json", "b.json"] });
+    expect(readCloudAcks(false)).toEqual({ ts: 0, names: [] }); // per provider
+  });
+
+  it("the launch check honours a RESTORED name as well as a dismissed one", () => {
+    const f = { id: "x", name: "cave-tabac-auto-other-20261004-094714-t1-p0-w0-a0-j0.json", modifiedTime: "2026-10-04T09:47:14.000Z" };
+    expect(findNewerCloudBackup([f], 0, 0, 120000, ["z.json", f.name], "mine", 1)).toBeNull();
+    expect(findNewerCloudBackup([f], 0, 0, 120000, ["z.json"], "mine", 1)?.name).toBe(f.name);
+  });
+});
+
 describe("checkCloudNewerNow — answers in place, with the per-device detail", () => {
   function tokenInSession() {
     sessionStorage.setItem("gdrive-tk", JSON.stringify({ t: "tok-123", x: Date.now() + 3500000 }));
@@ -2118,6 +2142,44 @@ describe("checkCloudNewerNow — answers in place, with the per-device detail", 
     await waitFor(() => expect(result.current.cloudNewerBackup).not.toBeNull());
     expect(result.current.syncDiag).not.toBeNull();
     expect(result.current.syncDiagSource).toBe("check");
+  });
+
+  // The iPhone restored the iPad's backup, then tapped « Vérifier les
+  // sauvegardes cloud » — and was offered that same backup again, because the
+  // restore was recorded in the very marker this button clears.
+  const IPAD = "cave-tabac-auto-w4u4ti4hkb-20261004-094714-t58-p21-w19-a4-j52-ipad.json";
+  function ipadInCloud() {
+    tokenInSession();
+    localStorage.setItem("cave-device-id", "8udtad73xz");
+    localStorage.setItem("cave-autosave-ts-gdrive", String(Date.now()));
+    mockFetch.mockResolvedValue({
+      ok: true, status: 200,
+      json: () => Promise.resolve({
+        files: [{ id: "ipad", name: IPAD, modifiedTime: new Date(Date.now() - 600000).toISOString() }],
+      }),
+    });
+  }
+
+  it("does NOT offer again a backup this device RESTORED", async () => {
+    ipadInCloud();
+    writeCloudRestoredForTest(IPAD, Date.now() - 600000);
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    await act(async () => { result.current.checkCloudNewerNow(); });
+    await waitFor(() => expect(result.current.syncDiag).not.toBeNull());
+    expect(result.current.cloudNewerBackup).toBeNull();
+    expect(result.current.syncDiag!.rows[0]!.reason).toBe("dismissed_name");
+    // and the restored marker survives the check
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBe(IPAD);
+  });
+
+  it("DOES offer again a backup that was only dismissed — that is what the button is for", async () => {
+    ipadInCloud();
+    localStorage.setItem(cloudDismissKeys(false).name, IPAD);
+    localStorage.setItem(cloudDismissKeys(false).ts, String(Date.now() - 600000));
+    const { result } = renderHook(() => useGdriveSync(makeProps() as any));
+    await act(async () => { result.current.checkCloudNewerNow(); });
+    await waitFor(() => expect(result.current.cloudNewerBackup).not.toBeNull());
+    expect(result.current.cloudNewerBackup!.name).toBe(IPAD);
   });
 
   it("puts a failure next to the button too, not in the shared status slot", async () => {
@@ -2497,11 +2559,11 @@ describe("cloudNewerBackup — launch check", () => {
     act(() => { stageImport.mock.calls[0]![2].onApplied(); });
     // The ack records the restored option's NAME (the primary
     // skew-proof dedup) — here "cave-tabac-backup.json" from renderAndConfirm.
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe("cave-tabac-backup.json");
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBe("cave-tabac-backup.json");
     // It must NOT write a Date.now() ts floor: doing so muted every OTHER
     // device's cloud backup present at restore time (the multi-device bug).
     // With no modifiedTime on this simplified option, no ts floor is set.
-    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBeNull();
+    expect(localStorage.getItem(cloudRestoredKeys(false).ts)).toBeNull();
   });
 
   // One-tap restore from the Home banner. Fetches the
@@ -2568,7 +2630,7 @@ describe("cloudNewerBackup — launch check", () => {
     // (`onApplied`), so at THIS point nothing may be written and the banner
     // must still be armed. See cloudNewerAckOnApply.test.ts.
     expect(result.current.cloudNewerBackup).not.toBeNull();
-    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBeNull();
+    expect(localStorage.getItem(cloudRestoredKeys(false).ts)).toBeNull();
     expect(typeof args[2]?.onApplied).toBe("function");
   });
 
@@ -2610,12 +2672,12 @@ describe("cloudNewerBackup — launch check", () => {
     // the hook has just remounted, so `cloudNewerBackup` state is null — the
     // ack must take the file's ts + name from the PERSISTED payload, or it
     // writes no markers at all and the restored backup re-nags next launch.
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBeNull();
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBeNull();
     const opts = stageImport.mock.calls[0]![2];
     await act(async () => { opts.onApplied(); });
     // The markers carry the FILE's ts + name from the persisted payload.
-    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBe(String(fileTs));
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe(fileName);
+    expect(localStorage.getItem(cloudRestoredKeys(false).ts)).toBe(String(fileTs));
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBe(fileName);
     // One-shot keys consumed.
     expect(localStorage.getItem("cave-cloud-newer-pending-id")).toBeNull();
     expect(localStorage.getItem("cave-cloud-newer-pending-ack")).toBeNull();

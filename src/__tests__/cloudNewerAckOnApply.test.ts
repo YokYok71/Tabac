@@ -29,7 +29,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useImportConfirm } from "../hooks/useImportConfirm";
-import { useGdriveSync, cloudDismissKeys } from "../hooks/useGdriveSync";
+import { useGdriveSync, cloudDismissKeys, cloudRestoredKeys } from "../hooks/useGdriveSync";
 
 // ── half 1: the picker fires onApplied, on BOTH modes, and never on cancel ──
 
@@ -169,11 +169,33 @@ describe("the cloud-newer banner is acked only once the import lands", () => {
     const { result, stageImport } = await armAndRestore();
     expect(stageImport).toHaveBeenCalled();
     // Neither marker is written yet — the user has not decided anything.
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBeNull();
-    expect(localStorage.getItem(cloudDismissKeys(false).ts)).toBeNull();
+    for (const k of [cloudDismissKeys(false), cloudRestoredKeys(false)]) {
+      expect(localStorage.getItem(k.name)).toBeNull();
+      expect(localStorage.getItem(k.ts)).toBeNull();
+    }
     // …and the banner is still armed, so cancelling the picker leaves the
     // warning intact for the next launch.
     expect(result.current.cloudNewerBackup).not.toBeNull();
+  });
+
+  // The report from the iPhone, end to end: restore the banner's backup,
+  // then tap « Vérifier les sauvegardes cloud » — which clears the DISMISSED
+  // markers by design. The restore used to live in those markers, so the very
+  // backup just applied came back a minute later.
+  it("a restored backup is NOT offered again by « Vérifier les sauvegardes cloud »", async () => {
+    const { result, stageImport } = await armAndRestore();
+    await act(async () => { stageImport.mock.calls[0]![2].onApplied(); });
+    expect(result.current.cloudNewerBackup).toBeNull();
+    mockFetch.mockResolvedValue({
+      ok: true, status: 200,
+      json: () => Promise.resolve({
+        files: [{ id: "remote-file-id", name: "cave-tabac-x-t1-p0-w0-a0-j0.json", modifiedTime: new Date(Date.now() - 3600000).toISOString() }],
+      }),
+    });
+    await act(async () => { result.current.checkCloudNewerNow(); });
+    await act(async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); });
+    expect(result.current.syncDiag, "the check must have run").not.toBeNull();
+    expect(result.current.cloudNewerBackup).toBeNull();
   });
 
   it("passes an onApplied that DOES ack, so a confirmed import silences it", async () => {
@@ -181,8 +203,8 @@ describe("the cloud-newer banner is acked only once the import lands", () => {
     const opts = stageImport.mock.calls[0]![2];
     expect(typeof opts?.onApplied, "the ack must reach the picker's success path").toBe("function");
     await act(async () => { opts.onApplied(); });
-    expect(localStorage.getItem(cloudDismissKeys(false).name)).toBe("cave-tabac-x-t1-p0-w0-a0-j0.json");
-    expect(localStorage.getItem(cloudDismissKeys(false).ts)).not.toBeNull();
+    expect(localStorage.getItem(cloudRestoredKeys(false).name)).toBe("cave-tabac-x-t1-p0-w0-a0-j0.json");
+    expect(localStorage.getItem(cloudRestoredKeys(false).ts)).not.toBeNull();
     expect(result.current.cloudNewerBackup).toBeNull();
   });
 });
