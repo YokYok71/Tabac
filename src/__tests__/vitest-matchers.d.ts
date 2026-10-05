@@ -10,6 +10,16 @@
 // 5's `Assertion<R, T>` has two type parameters, so the two cannot merge.
 // `Matchers<R, T>` is the extension point vitest 5 provides for exactly this.
 //
+// A DECISION CHANGE, ON THE USER'S CALL (5 October 2026). Issue #15 had
+// decided NOT to write this file — it hides an upstream lag in the very file
+// whose job is to catch type errors, and has to be maintained and then
+// remembered to be removed — and to wait for a jest-dom release instead. It
+// was written anyway without that issue having been read; asked, the user
+// chose to keep vitest 5 (docs/history.md). WHAT REMAINS TRUE FROM #15 IS THE
+// EXIT: delete this file as soon as `npm view @testing-library/jest-dom
+// version` shows a release after 7.0.1 that types vitest 5's matchers, then
+// re-run `npm run typecheck` — green without this file means it is done.
+//
 // PROBED, not assumed: removing `toHaveNoViolations` below brings its seven
 // errors back, and a wrong call (`toHaveTextContent` with four arguments, an
 // invented `toBeInTheDocumentX`) is refused — so these are real types, not an
