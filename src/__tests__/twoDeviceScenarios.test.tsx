@@ -759,6 +759,44 @@ describe("14 — a session logged through the form on A, merged on B", () => {
   });
 });
 
+// Build 53, reported from the iPhone: a session ended, the phone was put
+// away, and the session reached the cloud only at the next opening. A new
+// session's auto-save now skips the 1.2 s debounce; other edits keep it.
+describe("15 — a new session goes to the cloud at once", () => {
+  const uploadsOf = (dev: string) => fetchLog.filter((l) => l.indexOf("upload cave-tabac-auto-" + dev + "-") === 0).length;
+  it("15 the session's upload starts with no debounce", async () => {
+    const { A } = await pairedDevices();
+    await launch(A);
+    await act(async () => { CTX.changeLotStatus(1, "lot-1", "jar"); });
+    await advance(5000);                       // that edit's own debounced upload
+    const before = uploadsOf("iphone1");
+    await act(async () => {
+      CTX.setSessForm(Object.assign({}, CTX.BJ, {
+        date: "2026-10-06", time: "21:15", tobaccoId: 1, pipeId: 1, lotId: "lot-1",
+        weightG: "3", duration: "40", rating: 4,
+      }));
+    });
+    await act(async () => { CTX.addSession(); });
+    await advance(50);                         // far below the 1.2 s debounce
+    expect(uploadsOf("iphone1"), "uploaded without waiting").toBe(before + 1);
+    await advance(5000);
+    expect(uploadsOf("iphone1"), "…and only once").toBe(before + 1);
+    expect(localStorage.getItem("cave-pending-sync")).toBeNull();
+    await close();
+  });
+
+  it("15 any other edit keeps the debounce", async () => {
+    const { A } = await pairedDevices();
+    await launch(A);
+    const before = uploadsOf("iphone1");
+    await addTobacco("Gamma");                 // advances 100 ms
+    expect(uploadsOf("iphone1"), "not yet").toBe(before);
+    await advance(1500);
+    expect(uploadsOf("iphone1")).toBe(before + 1);
+    await close();
+  });
+});
+
 describe("2 — identical cellars under different revisions (the state builds 42/43 left)", () => {
   async function splitRevisions() {
     const { A, B } = await pairedDevices();

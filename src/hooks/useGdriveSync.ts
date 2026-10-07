@@ -669,6 +669,22 @@ export function periodicCheckDue(
   if (hidden || !online || busy) return false;
   return resumeCheckDue(nowMs, lastRunMs, PERIODIC_CHECK_MS);
 }
+/**
+ * ONE-SHOT « SEND NOW » for the next auto-save (build 53). Reported from the
+ * iPhone: a session ended, the phone went back in the pocket, and the session
+ * reached the cloud only at the next opening — meanwhile the iPad was offered
+ * the older file. iOS suspends a web app almost at once in the background, and
+ * the 1.2 s debounce plus a ~10 MB upload did not fit in that window. Logging
+ * a session is a discrete, terminal act with nothing to coalesce, so its
+ * auto-save skips the debounce. A flag consumed by the debounce effect rather
+ * than a second, direct call: one upload by the usual path, where a direct
+ * call racing the timer would hit the quiet-save lock and log a spurious
+ * « sauvegarde ignorée (une autre en cours) ». The user asked for no on-screen
+ * message.
+ */
+var _cloudSaveNow = false;
+export function requestImmediateCloudSave(): void { _cloudSaveNow = true; }
+function takeImmediateCloudSave(): boolean { var v = _cloudSaveNow; _cloudSaveNow = false; return v; }
 /** How long a quiet save's lock is honoured (see gdriveSaveQuiet). */
 export var QUIET_LOCK_TTL_MS = 12000;
 
@@ -2157,6 +2173,9 @@ export function useGdriveSync({
   // cancelled before it can hit gdriveSaveQuiet.
   useEffect(
     function () {
+      // Consumed on every run, so a request made while auto-save is off or
+      // nothing is pending does not linger onto an unrelated later edit.
+      var now = takeImmediateCloudSave();
       if (!data || !pendingSync || !autoSaveDrive)
         return;
       // 1.2 s (was 3 s). The debounce still coalesces a burst of
@@ -2164,7 +2183,7 @@ export function useGdriveSync({
       // terminal action — finishing a session / tasting — now uploads ~1.8 s
       // sooner, shrinking the window where iOS suspends the PWA's JS (screen
       // lock / app switch right after "Terminer") before the upload lands.
-      var _at = setTimeout(function () { gdriveSaveQuietRef.current(); }, 1200);
+      var _at = setTimeout(function () { gdriveSaveQuietRef.current(); }, now ? 0 : 1200);
       return function () {
         clearTimeout(_at);
       };

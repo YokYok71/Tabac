@@ -3489,7 +3489,9 @@ describe("gdriveSaveQuiet — a skipped save retries after the lock expires", ()
     const onHide = src.slice(src.indexOf("function onHide()"), src.indexOf("function onHide()") + 300);
     expect(onHide).toContain("gdriveSaveQuietRef.current()");
     expect(onHide).not.toMatch(/[^.]gdriveSaveQuiet\(\)/);
-    expect(src).toMatch(/setTimeout\(function \(\) \{ gdriveSaveQuietRef\.current\(\); \}, 1200\)/);
+    // Build 53: the debounce is 0 for a new session (requestImmediateCloudSave),
+    // 1.2 s otherwise — still one timer, still through the ref.
+    expect(src).toMatch(/setTimeout\(function \(\) \{ gdriveSaveQuietRef\.current\(\); \}, now \? 0 : 1200\)/);
   });
 
   it("an auto-save names its file with the revision of the cellar it uploads", async () => {

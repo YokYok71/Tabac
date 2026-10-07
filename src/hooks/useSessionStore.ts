@@ -3,6 +3,7 @@ import { BJ } from "../constants.ts";
 import { pickJarLot, applyLotWeightDelta, roundWeightToUnit } from "../utils/lotUtils.ts";
 import { toggleCollapseKey, findById, entitySnapshot, safeWeight as safeW, isUntrackedWeight, latestSessionMonthSeed, newUid } from "../utils.ts";
 import { LANG } from "../i18n.ts";
+import { requestImmediateCloudSave } from "./useGdriveSync.ts";
 
 var useState = React.useState;
 var useEffect = React.useEffect;
@@ -193,6 +194,10 @@ export function useSessionStore({
     // deduction via pickJarLot.
     if (w > 0 && form.tobaccoId && resolvedLotId)
       nd = applyLotWeightDelta(nd, form.tobaccoId, resolvedLotId, -w, weightUnit);
+    // A new session goes to the cloud without the auto-save debounce — both
+    // doors (the form and the end of a tasting) come through here. See
+    // requestImmediateCloudSave.
+    requestImmediateCloudSave();
     save(nd);
     return true;
   }
