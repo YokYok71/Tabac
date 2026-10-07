@@ -726,6 +726,39 @@ describe("13 — switching destination", () => {
   });
 });
 
+// Reported from the iPad (build 52): « fusionner est sans effet — 53 séances
+// sur l'iPhone, toujours 52 après fusion ». A session logged through the REAL
+// session form (not a crafted row), uploaded, then merged on the other device.
+describe("14 — a session logged through the form on A, merged on B", () => {
+  it("14 B gains exactly that session", async () => {
+    const { A, B } = await pairedDevices();
+    await launch(A);
+    // The base lot is sealed (cellar); the form's confirm opens it first.
+    await act(async () => { CTX.changeLotStatus(1, "lot-1", "jar"); });
+    await advance(100);
+    await act(async () => {
+      CTX.setSessForm(Object.assign({}, CTX.BJ, {
+        date: "2026-10-06", time: "21:15", tobaccoId: 1, pipeId: 1, lotId: "lot-1",
+        weightG: "3", duration: "40", rating: 4,
+      }));
+    });
+    await act(async () => { CTX.addSession(); });
+    await advance(100);
+    const aSess = (stored().sessions || []).filter((x: any) => !x.deletedAt);
+    expect(aSess.length, "A logged it").toBe(1);
+    expect(aSess[0].uid, "with its own uid").toBeTruthy();
+    await close(); wait(5 * 60000);
+    const aFile = autoFileOf("iphone1")!;
+    expect((contentOf(aFile).sessions || []).length, "A's upload carries it").toBe(1);
+    const bBefore = (storedOf(B).sessions || []).length;
+    await launch(B);
+    expect(offered()).toBe(aFile.name);
+    await restoreOffered("merge");
+    expect((stored().sessions || []).filter((x: any) => !x.deletedAt).length, "B gained it").toBe(bBefore + 1);
+    await close();
+  });
+});
+
 describe("2 — identical cellars under different revisions (the state builds 42/43 left)", () => {
   async function splitRevisions() {
     const { A, B } = await pairedDevices();
