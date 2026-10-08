@@ -971,6 +971,17 @@ describe("SettingsModal — per-device roll-up names the other device", () => {
     expect(txt).not.toContain("sync_diag_legacy_files");
   });
 
+  it("a photo pack line says whose it is — this device, or the other one by name", () => {
+    // Reported: the line read « Paquet de photos » with no device at all.
+    const { container } = withDevices([
+      { deviceId: "unr52hzxv1", deviceName: "ipad", isOwn: true, kind: "photos", count: 1, latestTs: 1 },
+      { deviceId: "8udtad73xz", deviceName: "iphone", isOwn: false, kind: "photos", count: 1, latestTs: 1 },
+    ]);
+    const txt = container.textContent || "";
+    expect(txt).toContain("sync_diag_photo_pack_file · Ipad");
+    expect(txt).toContain("sync_diag_photo_pack_file · iphone");
+  });
+
   it("…and a genuinely legacy file is still called one", () => {
     const { container } = withDevices([
       { deviceId: null, deviceName: "", isOwn: false, kind: "auto", count: 1, latestTs: 1 },

@@ -3103,7 +3103,7 @@ export function useGdriveSync({
       // Upload a NEW pack and remember it. Resolves with the name it landed
       // under (Dropbox may autorename), which the auto file then names.
       function uploadPack(): Promise<string> {
-        var pName = photoPackName(myDeviceId, Date.now());
+        var pName = photoPackName(myDeviceId, Date.now(), getDeviceName());
         var body = JSON.stringify({
           _photoPack: 1,
           _savedAt: new Date().toISOString(),

@@ -840,6 +840,7 @@ describe("16 — the auto-save's photo pack", () => {
     expect(pk.length).toBe(1);
     expect(auto._photoPack.name).toBe(pk[0]!.name);
     expect(JSON.parse(pk[0]!.content).images["local-photo-a1"]).toBe(PHOTO("local-photo-a1"));
+    expect(pk[0]!.name, "named after the device, like the auto file").toMatch(/^cave-tabac-photos-iphone1-\d{8}-\d{6}-iphone\.json$/);
   });
 
   it("16b a session or an edit without a photo change does NOT re-send the pack", async () => {

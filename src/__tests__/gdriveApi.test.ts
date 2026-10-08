@@ -33,6 +33,7 @@ import {
   isOwnPhotoPack,
   collectPhotoKeys,
   photoPackFingerprint,
+  packsUnderTheirBackup,
 } from "../utils/gdriveApi";
 import { GDRIVE_FILE_PREFIX, GDRIVE_AUTO_PREFIX } from "../constants";
 
@@ -891,6 +892,70 @@ describe("the photo pack", () => {
     expect(isOwnPhotoPack(n1, "iphone1")).toBe(true);
     expect(isOwnPhotoPack(n1, "ipad1")).toBe(false);
     expect(isOwnPhotoPack(n1, "")).toBe(false);
+  });
+
+  it("carries the device's NAME like every backup, and both the id and the name read back", () => {
+    // Reported: the panel listed the pack with only the opaque id, where the
+    // auto file beside it read « …-iphone.json ».
+    const n = photoPackName("iphone1", new Date(2026, 9, 8, 10, 15, 0).getTime(), "iPhone de Rémy");
+    expect(n).toBe("cave-tabac-photos-iphone1-20261008-101500-iphonederemy.json");
+    expect(backupDeviceId(n)).toBe("iphone1");
+    expect(backupDeviceName(n)).toBe("iphonederemy");
+    expect(backupDeviceName("cave-tabac-photos-iphone1-20261008-101500-iphone (1).json"), "a Dropbox autorename").toBe("iphone");
+    expect(backupDeviceName("cave-tabac-photos-iphone1-20261008-101500.json"), "a build-54 pack has no name").toBe("");
+    expect(isOwnPhotoPack(n, "iphone1")).toBe(true);
+    // Still never offered, even now that its device id reads back as foreign.
+    expect(findNewerCloudBackup([{ id: "p", name: n, modifiedTime: "2026-10-08T10:15:00.000Z" }], 0, 0, 120000, null, "ipad1", 0, [])).toBeNull();
+  });
+
+  it("keeps a line of its own per device in the roll-up, named after that device", () => {
+    const auto = { id: "a", name: "cave-tabac-auto-iphone1-20261008-101400-t1-p0-w0-a0-j0-iphone.json", modifiedTime: "2026-10-08T10:14:00.000Z" };
+    const pk = { id: "p", name: "cave-tabac-photos-iphone1-20261008-101500-iphone.json", modifiedTime: "2026-10-08T10:15:00.000Z" };
+    const rows = explainCloudBackups([auto, pk], 0, 0, 120000, null, "iphone1", 0, []);
+    const sum = summariseCloudDevices(rows, "iphone1");
+    expect(sum.length, "the pack is not folded into the device's line").toBe(2);
+    const p = sum.find((d) => d.kind === "photos")!;
+    expect(p.deviceId).toBe("iphone1");
+    expect(p.deviceName).toBe("iphone");
+    expect(p.isOwn).toBe(true);
+    expect(sum.find((d) => d.kind === "auto")!.count).toBe(1);
+  });
+
+  // Asked by the user: the pack is always shown right under its device's
+  // backup, in both lists of the panel.
+  describe("sits right under its device's backup", () => {
+    const f = (name: string, iso: string) => ({ id: name, name, modifiedTime: iso });
+    // The iPad's auto file is the NEWEST; the iPhone's pack is newer than the
+    // iPhone's auto file (a photo was added) — by date alone, the iPhone's two
+    // lines would be split by the iPad's.
+    const files = [
+      f("cave-tabac-auto-iphone1-20261008-090000-t1-p0-w0-a0-j0-iphone.json", "2026-10-08T09:00:00.000Z"),
+      f("cave-tabac-photos-iphone1-20261008-100000-iphone.json", "2026-10-08T10:00:00.000Z"),
+      f("cave-tabac-auto-ipad1-20261008-110000-t1-p0-w0-a0-j0-ipad.json", "2026-10-08T11:00:00.000Z"),
+      f("cave-tabac-photos-ipad1-20261008-080000-ipad.json", "2026-10-08T08:00:00.000Z"),
+    ];
+    it("in the roll-up", () => {
+      const rows = explainCloudBackups(files, 0, 0, 120000, null, "iphone1", 0, []);
+      const sum = summariseCloudDevices(rows, "iphone1");
+      expect(sum.map((d) => d.kind + ":" + d.deviceId)).toEqual([
+        "auto:ipad1", "photos:ipad1", "auto:iphone1", "photos:iphone1",
+      ]);
+    });
+    it("in the list of files — whatever their status and date", () => {
+      const rows = explainCloudBackups(files, 0, 0, 120000, null, "iphone1", 0, []);
+      const order = rows.map((r) => r.name);
+      const under = (auto: string, pack: string) => expect(order.indexOf(pack), pack).toBe(order.indexOf(auto) + 1);
+      under(files[0]!.name, files[1]!.name);
+      under(files[2]!.name, files[3]!.name);
+      expect(rows[0]!.status, "the proposal still comes first").toBe("proposed");
+    });
+    it("a pack whose device has no backup line keeps its place", () => {
+      const out = packsUnderTheirBackup(
+        [{ k: "auto", d: "a" }, { k: "photos", d: "z" }, { k: "auto", d: "b" }, { k: "photos", d: "a" }],
+        (x) => x.k === "photos", (x) => x.d, (x) => x.k === "auto",
+      );
+      expect(out.map((x) => x.k + ":" + x.d)).toEqual(["auto:a", "photos:a", "photos:z", "auto:b"]);
+    });
   });
 
   it("collectPhotoKeys walks the same places the backup always carried, sorted and deduplicated", () => {

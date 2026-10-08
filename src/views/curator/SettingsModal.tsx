@@ -2669,7 +2669,14 @@ export function SyncDiagView({ diag, t, lang, onClose, onDeleteEntry }: {
               // two devices can share a name and the id is what the filters key
               // on.
               const dn = d.deviceName ? String(d.deviceName) : "";
-              const label = d.isOwn
+              // A photo pack (build 54) says WHOSE it is — reported: the line
+              // read « Paquet de photos » with no device at all.
+              const packOf = d.isOwn
+                ? (diag.deviceName ? String(diag.deviceName) : t("sync_diag_this_device"))
+                : dn || (d.deviceId != null ? t("sync_diag_other_device") + " " + String(d.deviceId) : "");
+              const label = d.kind === "photos"
+                ? t("sync_diag_photo_pack_file") + (packOf ? " · " + packOf : "")
+                : d.isOwn
                 ? (diag.deviceName ? String(diag.deviceName) : t("sync_diag_this_device"))
                 : d.deviceId != null
                   ? (dn ? dn + " · " + String(d.deviceId)
@@ -2685,7 +2692,6 @@ export function SyncDiagView({ diag, t, lang, onClose, onDeleteEntry }: {
                     // under a heading that reads PAR APPAREIL, about the one
                     // file no device wrote. It is named for what it is.
                     : d.kind === "catalogue" ? t("sync_diag_catalogue_file")
-                    : d.kind === "photos" ? t("sync_diag_photo_pack_file")
                     : (d.kind === "manual" ? t("sync_diag_manual_files") : t("sync_diag_legacy_files"));
               const count = String(t("sync_diag_files")).replace("{n}", String(d.count));
               return (

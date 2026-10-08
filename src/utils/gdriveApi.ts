@@ -34,6 +34,17 @@ import {
 // useGdriveSync.gdriveSaveQuiet. Manual names are unchanged (manual
 // backups intentionally rotate over GDRIVE_MAX_MANUAL).
 // LABEL-CONTRACT:start backup-filename-device-name — see scripts/label-contracts.json
+/** The device NAME as it appears at the tail of a file name: accents folded,
+ *  [a-z0-9] only, at most 16 characters ("" when nothing is left). Shared by
+ *  the backups and the photo pack, so both read the same in the panel. */
+export function deviceNameSlug(deviceName?: string | null): string {
+  if (!deviceName) return "";
+  // Cap the raw string BEFORE normalize() so a tampered
+  // multi-MB `cave-device-name` can't force an O(n) NFD pass on every save.
+  return String(deviceName).slice(0, 64).toLowerCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").slice(0, 16);
+}
+
 export function makeBackupName(
   data: any,
   type: "manual" | "auto",
@@ -69,14 +80,8 @@ export function makeBackupName(
   // trailing group. The NAME is display-only; the opaque `deviceId` remains the
   // convergence identity. Placed at the tail (not the prefix) so a device named
   // "auto" can't flip classifyBackup.
-  var nameSeg = "";
-  if (deviceName) {
-    // Cap the raw string BEFORE normalize() so a tampered
-    // multi-MB `cave-device-name` can't force an O(n) NFD pass on every save.
-    var ns = String(deviceName).slice(0, 64).toLowerCase().normalize("NFD")
-      .replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "").slice(0, 16);
-    if (ns) nameSeg = "-" + ns;
-  }
+  var ns = deviceNameSlug(deviceName);
+  var nameSeg = ns ? "-" + ns : "";
   // The cellar REVISION (see backupRev), between the timestamp and the
   // counts: every existing parser tolerates it there — autoFileDeviceId reads
   // only up to the timestamp, the counts and device-name parsers anchor on
@@ -113,6 +118,9 @@ export function backupRev(name: string): string | null {
 export function backupDeviceId(name: string): string | null {
   var a = autoFileDeviceId(name);
   if (a) return a;
+  // The auto-save's photo pack names its device right after the prefix.
+  var pk = String(name || "").match(/^cave-tabac-photos-([0-9a-z]+)-\d{8}-\d{6}/);
+  if (pk && pk[1]) return pk[1];
   var m = String(name || "").match(/-d([0-9a-z]+)-t\d+-p\d+-w\d+-a\d+-j\d+/);
   return m && m[1] ? m[1] : null;
 }
@@ -296,6 +304,9 @@ export function isForeignStamped(name: string, ownDeviceId?: string | null): boo
 
 export function backupDeviceName(name: string): string {
   if (!name) return "";
+  // The photo pack carries the same name slug after its timestamp (build 54).
+  var pk = String(name).match(/^cave-tabac-photos-[0-9a-z]+-\d{8}-\d{6}-([a-z0-9]+)(?: \(\d+\))?\.json$/);
+  if (pk && pk[1]) return pk[1];
   var m = String(name).match(/-t\d+-p\d+-w\d+-a\d+-j\d+-([a-z0-9]+)(?: \(\d+\))?\.json$/);
   return m && m[1] ? m[1] : "";
 }
@@ -364,12 +375,16 @@ export function isSideStream(name: string): boolean {
  * that auto file has landed — so the auto file in the cloud always points at a
  * pack that exists.
  */
-export function photoPackName(deviceId: string, nowMs: number): string {
+export function photoPackName(deviceId: string, nowMs: number, deviceName?: string | null): string {
   var d = new Date(nowMs);
   var p2 = function (n: number) { return (n < 10 ? "0" : "") + n; };
   var st = d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate())
     + "-" + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds());
-  return GDRIVE_PHOTOS_PREFIX + deviceId + "-" + st + ".json";
+  // The device's NAME at the tail, like every backup — reported: the panel
+  // listed the pack with only the opaque id, where the auto file beside it
+  // read « …-iphone.json ».
+  var slug = deviceNameSlug(deviceName);
+  return GDRIVE_PHOTOS_PREFIX + deviceId + "-" + st + (slug ? "-" + slug : "") + ".json";
 }
 /** Is `name` a photo pack written by `deviceId`? */
 export function isOwnPhotoPack(name: string, deviceId: string | null | undefined): boolean {
@@ -653,7 +668,11 @@ export function summariseCloudDevices(
     // this panel exists to answer. Nameless unstamped files keep the old
     // group-by-kind bucket. The NUL prefix keeps that bucket in a namespace no
     // user string can collide with.
-    var key = dev != null ? "dev:" + dev
+    // A PHOTO PACK keeps a line of its own, per device — folded into the
+    // device's line it would turn « 1 fichier » into « 2 fichiers » and hide
+    // what the second one is.
+    var key = r.kind === "photos" ? "ph:" + (dev != null ? dev : nm)
+      : dev != null ? "dev:" + dev
       : nm ? "nm:" + nm
       : "\0" + (r.kind || "unknown");
     var e = by[key];
@@ -675,8 +694,51 @@ export function summariseCloudDevices(
     if (nm && r.ts >= e.latestTs) e.deviceName = nm;
     if (r.ts > e.latestTs) e.latestTs = r.ts;
   });
-  return Object.keys(by).map(function (k) { return by[k]!; })
+  var sorted = Object.keys(by).map(function (k) { return by[k]!; })
     .sort(function (a, b) { return b.latestTs - a.latestTs; });
+  return packsUnderTheirBackup(
+    sorted,
+    function (d) { return d.kind === "photos"; },
+    function (d) { return d.deviceId; },
+    function (d) { return d.kind !== "photos"; },
+  );
+}
+
+/**
+ * A PHOTO PACK SITS RIGHT UNDER ITS DEVICE'S BACKUP — asked by the user, in
+ * both lists of the multi-device panel (the roll-up and the files). Sorted by
+ * date alone, the pack drifted away from the auto file it serves: it is older
+ * whenever only the cellar changed, and an « ignored » row besides. Each pack
+ * whose device HAS a backup line (`isData`) is lifted out and placed right
+ * after that device's first such line; a pack with none keeps its own place.
+ * Pure and order-preserving otherwise.
+ */
+export function packsUnderTheirBackup<T>(
+  items: T[],
+  isPack: (x: T) => boolean,
+  deviceOf: (x: T) => string | null | undefined,
+  isData: (x: T) => boolean,
+): T[] {
+  var hasData: Record<string, true> = Object.create(null);
+  items.forEach(function (x) {
+    var d = deviceOf(x);
+    if (!isPack(x) && isData(x) && d) hasData[d] = true;
+  });
+  var out: T[] = [];
+  var done: Record<string, true> = Object.create(null);
+  items.forEach(function (x) {
+    var d = deviceOf(x);
+    if (isPack(x)) {
+      if (!d || !hasData[d]) out.push(x);      // no backup line: stays put
+      return;
+    }
+    out.push(x);
+    if (d && isData(x) && !done[d]) {
+      done[d] = true;
+      items.forEach(function (p) { if (isPack(p) && deviceOf(p) === d) out.push(p); });
+    }
+  });
+  return out;
 }
 
 export function explainCloudBackups(
@@ -751,7 +813,13 @@ export function explainCloudBackups(
   rows.sort(function (a, b) {
     return ((rank[a.status] ?? 3) - (rank[b.status] ?? 3)) || (b.ts - a.ts);
   });
-  return rows;
+  // The pack under its device's AUTO file — the one it serves.
+  return packsUnderTheirBackup(
+    rows,
+    function (r) { return r.kind === "photos"; },
+    function (r) { return r.deviceId; },
+    function (r) { return r.kind === "auto"; },
+  );
 }
 
 // Rotation pruner: keep the newest `keep` files of `keepType`, fire
