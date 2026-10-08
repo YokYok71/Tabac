@@ -187,7 +187,7 @@ describe("deploy.yml — the gates gate the deploy", () => {
       expect(deploy.indexOf("npm run build")).toBeLessThan(deploy.indexOf("npm run theme:contrast"));
       expect(jobBlock("bundle")).toMatch(/upload-artifact@[^\n]*\n\s+if:[^\n]*\n\s+with:\n\s+name: dist\n\s+path: dist\n/);
       for (const j of ["browser", "deploy"]) {
-        expect(jobBlock(j), j + " ne télécharge pas l'artefact `dist`")
+        expect(jobBlock(j), j + " ne télécharge pas l'artefact du build")
           .toMatch(/download-artifact@[^\n]*\n\s+with:\n\s+name: dist\n\s+path: dist\n/);
       }
       expect(jobBlock("deploy")).toMatch(/upload-pages-artifact@[^\n]*\n\s+with:\n\s+path: dist\n/);
