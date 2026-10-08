@@ -113,7 +113,9 @@ describe("the catalogue download refuses an HTTP error body", () => {
       .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
       .replace(/\/\/[^\n]*/g, (m) => m.replace(/[^\n]/g, " "));
     const downloads = [...src.matchAll(/cloud\.download\(/g)].length;
-    expect(downloads, "non-vacuity: the download sites are still there").toBe(4);
+    // 5 since build 54: the auto-save's photo pack (attachPhotoPack) is
+    // downloaded too, and must refuse an error body like the others.
+    expect(downloads, "non-vacuity: the download sites are still there").toBe(5);
     // Every one of them must guard. Sliced per call site so a single guard
     // cannot satisfy the count for all four.
     // Sliced to the NEXT call site rather than a fixed window: blanking a

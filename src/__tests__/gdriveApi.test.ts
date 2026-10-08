@@ -28,6 +28,11 @@ import {
   ownAutoFiles,
   chooseAutoSaveTarget,
   pickKeepAuto,
+  isSideStream,
+  photoPackName,
+  isOwnPhotoPack,
+  collectPhotoKeys,
+  photoPackFingerprint,
 } from "../utils/gdriveApi";
 import { GDRIVE_FILE_PREFIX, GDRIVE_AUTO_PREFIX } from "../constants";
 
@@ -856,5 +861,56 @@ describe("the guard ignores this device's own cellar coming back", () => {
   it("a name without a revision falls back to the existing rules", () => {
     const legacy = { ...echo, name: "cave-tabac-auto-ipadid-20261004-111315-t58-p21-w19-a4-j52-ipad.json" };
     expect(findNewerCloudBackup([legacy], 0, 0, 120000, null, "iphoneid", OLD, ["k3x9q2a"])?.name).toBe(legacy.name);
+  });
+});
+
+// Build 54 — the auto-save's photo pack, the pure half.
+describe("the photo pack", () => {
+  const pack = { id: "pk", name: "cave-tabac-photos-iphone1-20261008-101500.json", modifiedTime: "2026-10-08T10:15:00.000Z" };
+
+  it("is its own kind, a side stream like the catalogue", () => {
+    expect(classifyBackup(pack.name)).toBe("photos");
+    expect(isSideStream(pack.name)).toBe(true);
+    expect(isSideStream("cave-tabac-catalogue-x.csv")).toBe(true);
+    expect(isSideStream("cave-tabac-auto-iphone1-20261008-101500-t1-p0-w0-a0-j0.json")).toBe(false);
+    expect(isSideStream("cave-tabac-20261008-101500-t1-p0-w0-a0-j0.json")).toBe(false);
+  });
+
+  it("is never offered by the guard — even as the only, newest, foreign file — and the diagnostic says why", () => {
+    expect(findNewerCloudBackup([pack], 0, 0, 120000, null, "ipad1", 0, [])).toBeNull();
+    const rows = explainCloudBackups([pack], 0, 0, 120000, null, "ipad1", 0, []);
+    expect(rows[0]!.kind).toBe("photos");
+    expect(rows[0]!.reason).toBe("photos");
+    expect(rows[0]!.status).toBe("ignored");
+  });
+
+  it("is named per device and per moment, so a new one never collides with the old", () => {
+    const n1 = photoPackName("iphone1", new Date(2026, 9, 8, 10, 15, 0).getTime());
+    expect(n1).toBe("cave-tabac-photos-iphone1-20261008-101500.json");
+    expect(photoPackName("iphone1", new Date(2026, 9, 8, 10, 15, 1).getTime())).not.toBe(n1);
+    expect(isOwnPhotoPack(n1, "iphone1")).toBe(true);
+    expect(isOwnPhotoPack(n1, "ipad1")).toBe(false);
+    expect(isOwnPhotoPack(n1, "")).toBe(false);
+  });
+
+  it("collectPhotoKeys walks the same places the backup always carried, sorted and deduplicated", () => {
+    const keys = collectPhotoKeys({
+      tobaccos: [{ imageUrl: "local-photo-t" }, { imageUrl: "https://x/y.jpg" }],
+      pipes: [{ imageUrl: "local-photo-p", photos: ["local-photo-p2", "local-photo-p"] }],
+      wishlist: [{ imageUrl: "local-photo-w" }],
+      accessories: [{ imageUrl: "local-photo-a" }],
+      sessions: [{ tobaccoSnapshot: { imageUrl: "local-photo-s" }, pipeSnapshot: { imageUrl: "local-photo-t" } }],
+    });
+    expect(keys).toEqual(["local-photo-a", "local-photo-p", "local-photo-p2", "local-photo-s", "local-photo-t", "local-photo-w"]);
+  });
+
+  it("the fingerprint moves with a photo added, removed, replaced, or with encryption — and only then", () => {
+    const base = { "local-photo-1": "data:image/jpeg;base64,AAAA" };
+    const fp = photoPackFingerprint(base, false);
+    expect(photoPackFingerprint({ ...base }, false), "same set").toBe(fp);
+    expect(photoPackFingerprint({ ...base, "local-photo-2": "data:x" }, false), "added").not.toBe(fp);
+    expect(photoPackFingerprint({}, false), "removed").not.toBe(fp);
+    expect(photoPackFingerprint({ "local-photo-1": "data:image/jpeg;base64,AAAABBBB" }, false), "same key, other bytes").not.toBe(fp);
+    expect(photoPackFingerprint(base, true), "encryption turned on").not.toBe(fp);
   });
 });

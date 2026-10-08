@@ -21,15 +21,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act } from "@testing-library/react";
 
+// Each device has its OWN photo store (build 54 — the photo pack): swapped
+// in with its localStorage, so a restore really has to bring photos over.
 vi.mock("../utils/imgCache.ts", async () => {
   const real: any = await vi.importActual("../utils/imgCache.ts");
+  const store = (): Map<string, string> => (globalThis as any).__PHOTOS || new Map();
   return {
     ...real,
     imgCache: {
       open: () => Promise.resolve(null),
-      get: () => Promise.resolve(undefined),
-      put: () => Promise.resolve(true),
-      clear: () => Promise.resolve(),
+      get: (k: string) => Promise.resolve(store().get(k)),
+      put: (k: string, v: string) => { store().set(k, v); return Promise.resolve(true); },
+      keys: () => Promise.resolve([...store().keys()]),
+      del: (k: string) => { store().delete(k); return Promise.resolve(true); },
+      clear: () => { store().clear(); return Promise.resolve(); },
     },
     gcOrphans: () => Promise.resolve(0),
   };
@@ -62,6 +67,7 @@ let fileSeq = 0;
 // One-shot: only the first upload that reaches an armed gate is held.
 let uploadGate: { promise: Promise<void>; release: () => void; dropResponse?: boolean; used?: boolean } | null = null;
 let offline = false;
+let failPackUploads = false;
 function holdUploads(dropResponse = false) {
   let release!: () => void;
   const promise = new Promise<void>((r) => { release = r; });
@@ -107,6 +113,10 @@ async function fakeFetch(url: any, init: any = {}) {
   }
   if (u.includes("/2/files/upload")) {
     const content = await bodyText(init.body);
+    if (failPackUploads && String(arg.path).indexOf("/cave-tabac-photos-") === 0) {
+      fetchLog.push("upload-failed " + String(arg.path).replace(/^\//, ""));
+      return wire(500, { error_summary: "internal_error/" });
+    }
     const gate = uploadGate && !uploadGate.used ? uploadGate : null;
     if (gate) { gate.used = true; await gate.promise; }
     let name = String(arg.path).replace(/^\//, "");
@@ -144,7 +154,7 @@ async function fakeFetch(url: any, init: any = {}) {
 
 // ── devices ─────────────────────────────────────────────────────────────────
 
-type Device = { name: string; ls: Map<string, string>; ss: Map<string, string> };
+type Device = { name: string; ls: Map<string, string>; ss: Map<string, string>; photos: Map<string, string> };
 let mounted: { dev: Device; unmount: () => void } | null = null;
 let reloadSpy: ReturnType<typeof vi.fn>;
 
@@ -172,10 +182,11 @@ function newDevice(name: string, id: string, cellar: any | null): Device {
   ls.set("dropbox-rt", "rt-" + id);
   ls.set("dropbox-tk", JSON.stringify({ t: "tok-" + id, x: Date.now() + 365 * 86400000 }));
   if (cellar) ls.set(SK, JSON.stringify(cellar));
-  return { name, ls, ss: new Map() };
+  return { name, ls, ss: new Map(), photos: new Map() };
 }
 
 function swapIn(dev: Device) {
+  (globalThis as any).__PHOTOS = dev.photos;
   localStorage.clear();
   sessionStorage.clear();
   dev.ls.forEach((v, k) => localStorage.setItem(k, v));
@@ -328,6 +339,7 @@ beforeEach(() => {
   cloud = new Map();
   fileSeq = 0;
   uploadGate = null;
+  failPackUploads = false;
   offline = false;
   fetchLog = [];
   localStorage.clear();
@@ -793,6 +805,132 @@ describe("15 — a new session goes to the cloud at once", () => {
     expect(uploadsOf("iphone1"), "not yet").toBe(before);
     await advance(1500);
     expect(uploadsOf("iphone1")).toBe(before + 1);
+    await close();
+  });
+});
+
+// Build 54 — THE PHOTO PACK. The auto file stops carrying the photos; a
+// per-device pack does, re-sent only when the photo set changes.
+describe("16 — the auto-save's photo pack", () => {
+  const PHOTO = (k: string) => "data:image/jpeg;base64," + Buffer.from("img-" + k).toString("base64");
+  const packs = () => [...cloud.values()].filter((f) => f.name.indexOf("cave-tabac-photos-") === 0);
+  const packUploads = () => fetchLog.filter((l) => l.indexOf("upload cave-tabac-photos-") === 0).length;
+  /** A, open: put a photo in A's store and on the first tobacco, then save. */
+  async function aSetsPhoto(key: string) {
+    (globalThis as any).__PHOTOS.set(key, PHOTO(key));
+    const d = JSON.parse(JSON.stringify(CTX.dataRaw));
+    d.tobaccos[0].imageUrl = key;
+    await act(async () => { CTX.save(d); });
+    await advance(5000);
+  }
+  async function aWithPhoto() {
+    const p = await pairedDevices();
+    await launch(p.A);
+    await aSetsPhoto("local-photo-a1");
+    await close(); wait(5 * 60000);
+    return p;
+  }
+
+  it("16a the auto file names the pack and carries no photo; the pack carries it", async () => {
+    await aWithPhoto();
+    const auto = contentOf(autoFileOf("iphone1"));
+    expect(auto._imageData, "no photo inside the auto file").toBeUndefined();
+    expect(auto._photoPack.keys).toEqual(["local-photo-a1"]);
+    const pk = packs();
+    expect(pk.length).toBe(1);
+    expect(auto._photoPack.name).toBe(pk[0]!.name);
+    expect(JSON.parse(pk[0]!.content).images["local-photo-a1"]).toBe(PHOTO("local-photo-a1"));
+  });
+
+  it("16b a session or an edit without a photo change does NOT re-send the pack", async () => {
+    const { A } = await aWithPhoto();
+    const before = packUploads();
+    const packName = packs()[0]!.name;
+    await launch(A);
+    await addTobacco("Delta");
+    await advance(5000);
+    await close();
+    expect(packUploads(), "pack not re-sent").toBe(before);
+    expect(contentOf(autoFileOf("iphone1"))._photoPack.name, "still names the same pack").toBe(packName);
+    expect(tobNames(contentOf(autoFileOf("iphone1")))).toContain("Delta");
+  });
+
+  it("16c a new photo re-sends the pack, and the old one is deleted once the auto file names the new one", async () => {
+    const { A } = await aWithPhoto();
+    const oldName = packs()[0]!.name;
+    wait(2000);                                 // the next pack gets another timestamp
+    await launch(A);
+    await aSetsPhoto("local-photo-a2");
+    await advance(20000);                       // the detached sweep
+    await close();
+    const pk = packs();
+    expect(pk.length, "one pack per device").toBe(1);
+    expect(pk[0]!.name).not.toBe(oldName);
+    expect(Object.keys(JSON.parse(pk[0]!.content).images)).toEqual(["local-photo-a2"]);
+    expect(contentOf(autoFileOf("iphone1"))._photoPack.name).toBe(pk[0]!.name);
+  });
+
+  it("16d B restores A's file and gets the photo; with the photo already there, the pack is not downloaded", async () => {
+    const { A, B } = await aWithPhoto();
+    expect(B.photos.size).toBe(0);
+    await launch(B);
+    expect(offered(), "the auto file is offered, never the pack").toMatch(/^cave-tabac-auto-iphone1-/);
+    await restoreOffered("replace");
+    await close();
+    expect(B.photos.get("local-photo-a1"), "the photo came over").toBe(PHOTO("local-photo-a1"));
+    // Second round: A edits (no photo change); B already holds the photo.
+    wait(5 * 60000);
+    await launch(A); await addTobacco("Epsilon"); await close(); wait(5 * 60000);
+    const downloadsBefore = fetchLog.filter((l) => l.indexOf("download cave-tabac-photos-") === 0).length;
+    await launch(B);
+    await restoreOffered("replace");
+    await close();
+    expect(tobNames(storedOf(B))).toContain("Epsilon");
+    expect(fetchLog.filter((l) => l.indexOf("download cave-tabac-photos-") === 0).length, "pack not downloaded").toBe(downloadsBefore);
+  });
+
+  it("16e a pack deleted from the cloud is sent again at the next save", async () => {
+    const { A } = await aWithPhoto();
+    for (const f of packs()) cloud.delete(f.id);
+    const before = packUploads();
+    await launch(A);
+    await addTobacco("Zeta");
+    await advance(5000);
+    await close();
+    expect(packUploads()).toBe(before + 1);
+    expect(packs().length).toBe(1);
+    expect(contentOf(autoFileOf("iphone1"))._photoPack.name).toBe(packs()[0]!.name);
+  });
+
+  it("16f a failed pack upload sends nothing: the auto file is not sent, the cellar stays unsynced", async () => {
+    const { A } = await pairedDevices();
+    const autoBefore = autoFileOf("iphone1")!.name;
+    await launch(A);
+    failPackUploads = true;
+    await aSetsPhoto("local-photo-a1");
+    expect(fetchLog.some((l) => l.indexOf("upload-failed cave-tabac-photos-") === 0), "the pack was tried").toBe(true);
+    expect(autoFileOf("iphone1")!.name, "no auto file naming a pack that is not there").toBe(autoBefore);
+    expect(localStorage.getItem("cave-pending-sync")).toBe("1");
+    failPackUploads = false;
+    await resume();
+    await close();
+    expect(packs().length).toBe(1);
+    expect(contentOf(autoFileOf("iphone1"))._photoPack.name).toBe(packs()[0]!.name);
+  });
+
+  it("16g a pack that cannot be had does not block the restore: the cellar comes, the shortfall is said", async () => {
+    const { B } = await aWithPhoto();
+    for (const f of packs()) cloud.delete(f.id);
+    await launch(B);
+    await act(async () => { CTX.restoreCloudNewerBackup(); });
+    await advance(500);
+    expect(String(CTX.gdriveStatus || ""), "the shortfall is said").toBe(CTX.t("photo_pack_missing").replace("{n}", "1"));
+    expect(CTX.importConfirm, "and the picker is open all the same").not.toBeNull();
+    await act(async () => { CTX.applyImport("replace"); });
+    await advance(100);
+    await reloadIfAsked();
+    expect(tobNames(stored())).toContain("Duskfall");
+    expect((globalThis as any).__PHOTOS.has("local-photo-a1"), "no photo").toBe(false);
     await close();
   });
 });

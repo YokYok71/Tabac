@@ -169,7 +169,10 @@ describe("the restore PICKER must never list it", () => {
     const src = readFileSync("src/hooks/useGdriveSync.ts", "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/\/\/[^\n]*/g, "");
-    expect(src).toMatch(/cellarFiles\s*=\s*\(\(list\.files[\s\S]{0,200}classifyBackup\(fi\.name\) !== "catalogue"/);
+    // Build 54: the filter is `!isSideStream(...)`, which excludes the
+    // catalogue AND the auto-save's photo pack (isSideStream is unit-tested
+    // in gdriveApi.test.ts to cover the catalogue).
+    expect(src).toMatch(/cellarFiles\s*=\s*\(\(list\.files[\s\S]{0,200}!isSideStream\(fi\.name\)/);
     expect(src, "and the options are built from the FILTERED list")
       .toMatch(/\boptions\s*=\s*cellarFiles\.map/);
   });
@@ -178,7 +181,7 @@ describe("the restore PICKER must never list it", () => {
     // The filter runs BEFORE the emptiness check, so the user is told there is
     // nothing to restore rather than shown a picker of unusable rows.
     const src = readFileSync("src/hooks/useGdriveSync.ts", "utf8");
-    const filter = src.indexOf('classifyBackup(fi.name) !== "catalogue"');
+    const filter = src.indexOf('!isSideStream(fi.name)');
     const empty = src.indexOf('if (!cellarFiles.length)');
     expect(filter).toBeGreaterThan(-1);
     expect(empty).toBeGreaterThan(filter);

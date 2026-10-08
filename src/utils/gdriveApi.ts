@@ -15,6 +15,7 @@ import {
   GDRIVE_AUTO_FILENAME,
   GDRIVE_AUTO_PREFIX,
   GDRIVE_CATALOGUE_PREFIX,
+  GDRIVE_PHOTOS_PREFIX,
 } from "../constants.ts";
 
 // Encode top-level data counts directly in the filename so the picker
@@ -135,7 +136,7 @@ function nameStamp(name: string): string {
 function newestStampByDevice(files: any[] | null | undefined, ownDeviceId?: string | null): Record<string, string> {
   var by: Record<string, string> = Object.create(null);
   (files || []).forEach(function (f: any) {
-    if (!f || !f.name || classifyBackup(f.name) === "catalogue") return;
+    if (!f || !f.name || isSideStream(f.name)) return;
     var did = backupDeviceId(f.name);
     if (!did || did === ownDeviceId) return;
     var st = nameStamp(f.name);
@@ -346,9 +347,76 @@ export function parseBackupCounts(name: string): null | {
  * after three. Order matters: the catalogue test comes FIRST, because its
  * prefix must never fall through to the manual default.
  */
-export function classifyBackup(name: string): "auto" | "manual" | "catalogue" {
+/** A file of the cloud folder that is NOT a cellar backup: the catalogue
+ *  stream, or the auto-save's photo pack. */
+export function isSideStream(name: string): boolean {
+  var k = classifyBackup(name);
+  return k === "catalogue" || k === "photos";
+}
+
+/**
+ * THE AUTO-SAVE'S PHOTO PACK (build 54) — the pure half.
+ *
+ * NAMED WITH A TIMESTAMP, never overwritten in place: Dropbox uploads in « add »
+ * mode with autorename, so re-sending a fixed name would create « … (1).json »
+ * beside the old one. A new pack is uploaded under a new name, the auto file
+ * names exactly that one, and this device's older packs are deleted only once
+ * that auto file has landed — so the auto file in the cloud always points at a
+ * pack that exists.
+ */
+export function photoPackName(deviceId: string, nowMs: number): string {
+  var d = new Date(nowMs);
+  var p2 = function (n: number) { return (n < 10 ? "0" : "") + n; };
+  var st = d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate())
+    + "-" + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds());
+  return GDRIVE_PHOTOS_PREFIX + deviceId + "-" + st + ".json";
+}
+/** Is `name` a photo pack written by `deviceId`? */
+export function isOwnPhotoPack(name: string, deviceId: string | null | undefined): boolean {
+  return !!deviceId && typeof name === "string"
+    && name.indexOf(GDRIVE_PHOTOS_PREFIX + deviceId + "-") === 0;
+}
+/** Every `local-photo-*` key a cellar references — entity photos, extra pipe
+ *  photos and session snapshots. The SAME walk the backup has always used to
+ *  decide which photos to carry (`gatherLocalImages`), extracted so the pack
+ *  and the auto file agree on it. Sorted, deduplicated. */
+export function collectPhotoKeys(dat: any): string[] {
+  var seen: Record<string, true> = Object.create(null);
+  var keys: string[] = [];
+  function addK(k: any) {
+    if (typeof k === "string" && k.indexOf("local-photo-") === 0 && !seen[k]) { seen[k] = true; keys.push(k); }
+  }
+  ((dat && dat.tobaccos) || []).forEach(function (t: any) { if (t) addK(t.imageUrl); });
+  ((dat && dat.pipes) || []).forEach(function (p: any) {
+    if (!p) return;
+    addK(p.imageUrl);
+    if (Array.isArray(p.photos)) p.photos.forEach(addK);
+  });
+  ((dat && dat.wishlist) || []).forEach(function (w: any) { if (w) addK(w.imageUrl); });
+  ((dat && dat.accessories) || []).forEach(function (a: any) { if (a) addK(a.imageUrl); });
+  ((dat && dat.sessions) || []).forEach(function (s: any) {
+    if (s && s.tobaccoSnapshot) addK(s.tobaccoSnapshot.imageUrl);
+    if (s && s.pipeSnapshot) addK(s.pipeSnapshot.imageUrl);
+  });
+  return keys.sort();
+}
+/** What decides whether the pack must be re-sent: the photos it would carry
+ *  (key + length — a new or replaced photo always gets a NEW key, so a key
+ *  set is a faithful identity, and the length guards the rare reused key),
+ *  and whether it is encrypted (turning encryption on must re-send it). */
+export function photoPackFingerprint(images: Record<string, any>, encrypted: boolean): string {
+  var ks = Object.keys(images || {}).sort();
+  var parts = ks.map(function (k) {
+    var v = images[k];
+    return k + ":" + (typeof v === "string" ? v.length : 0);
+  });
+  return (encrypted ? "e1|" : "e0|") + parts.join("|");
+}
+
+export function classifyBackup(name: string): "auto" | "manual" | "catalogue" | "photos" {
   if (!name) return "manual";
   if (name.indexOf(GDRIVE_CATALOGUE_PREFIX) === 0) return "catalogue";
+  if (name.indexOf(GDRIVE_PHOTOS_PREFIX) === 0) return "photos";
   if (name === GDRIVE_AUTO_FILENAME) return "auto";
   if (name.indexOf(GDRIVE_AUTO_PREFIX) === 0) return "auto";
   return "manual";
@@ -489,6 +557,8 @@ export function findNewerCloudBackup(
     // user would get a banner that cannot do what it says — which is why this
     // is an exclusion here rather than a rejection downstream.
     if (classifyBackup(f.name) === "catalogue") return;
+    // Nor the auto-save's photo pack (build 54): photos, not a cellar.
+    if (classifyBackup(f.name) === "photos") return;
     // Never flag this device's own stamped file (auto, or manual since -d).
     if (ownDeviceId && backupDeviceId(f.name) === ownDeviceId) return;
     // THIS DEVICE'S OWN CELLAR, come back from another device — the echo,
@@ -538,12 +608,13 @@ export interface CloudBackupDiag {
   deviceName: string;
   // "catalogue" is the user's own reference catalogue,
   // a separate stream that the cellar guard must ignore.
-  kind: "auto" | "manual" | "catalogue";
+  kind: "auto" | "manual" | "catalogue" | "photos";
   /** Byte count as the provider reported it, "" when it reported none. */
   size: string;
   counts: ReturnType<typeof parseBackupCounts>;
   status: "proposed" | "candidate" | "ignored";
   // proposed | candidate | own_device | own_rev | superseded | before_switch | own_legacy | dismissed_name
+  //  | photos
   //  | dismissed_ts | older | bad_date | catalogue
   reason: string;
 }
@@ -562,7 +633,7 @@ export interface CloudDeviceSummary {
   // name reaches this one — the name is device-local and never in the payload.
   deviceName: string;
   isOwn: boolean;
-  kind: "auto" | "manual" | "catalogue" | "mixed";
+  kind: "auto" | "manual" | "catalogue" | "photos" | "mixed";
   count: number;
   latestTs: number;          // 0 when no parseable date
 }
@@ -658,6 +729,7 @@ export function explainCloudBackups(
     // value of this diagnostic is that it reproduces that ladder exactly; a
     // rung missing here would explain a decision the guard did not make.
     if (kind === "catalogue") { rows.push(mk("ignored", "catalogue")); return; }
+    if (kind === "photos") { rows.push(mk("ignored", "photos")); return; }
     if (ownDeviceId && did === ownDeviceId) { rows.push(mk("ignored", "own_device")); return; }
     if (isOwnRev(name, ownRevs)) { rows.push(mk("ignored", "own_rev")); return; }
     if (isSuperseded(name, newest)) { rows.push(mk("ignored", "superseded")); return; }

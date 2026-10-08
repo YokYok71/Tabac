@@ -23,6 +23,11 @@ import {
   makeCatalogueName,
   parseBackupCounts,
   classifyBackup,
+  isSideStream,
+  photoPackName,
+  isOwnPhotoPack,
+  collectPhotoKeys,
+  photoPackFingerprint,
   pruneByType,
   findNewerCloudBackup,
   explainCloudBackups,
@@ -122,6 +127,27 @@ export function cloudSavedRevKey(isDbx: boolean): string {
  */
 export function cloudSeenKey(isDbx: boolean): string {
   return "cave-cloud-seen-" + (isDbx ? "dropbox" : "gdrive");
+}
+/**
+ * THE LAST PHOTO PACK THIS DEVICE UPLOADED TO A DESTINATION (build 54):
+ * `{ fp, name }` — its fingerprint (`photoPackFingerprint`) and the name it
+ * landed under. The auto-save re-sends the pack only when the fingerprint
+ * changed or the named file is no longer in the listing (deleted by hand, or
+ * by a cleanup). Written only once the pack upload succeeded. Device-local,
+ * never in backups.
+ */
+export function photoPackRecordKey(isDbx: boolean): string {
+  return "cave-photo-pack-" + (isDbx ? "dropbox" : "gdrive");
+}
+export function readPhotoPackRecord(isDbx: boolean): { fp: string; name: string } | null {
+  try {
+    var v = JSON.parse(lsGet(photoPackRecordKey(isDbx)) || "null");
+    if (v && typeof v.fp === "string" && typeof v.name === "string" && v.name) return { fp: v.fp, name: v.name };
+  } catch (_e) { /* unreadable → re-send */ }
+  return null;
+}
+function writePhotoPackRecord(isDbx: boolean, rec: { fp: string; name: string }): void {
+  lsSet(photoPackRecordKey(isDbx), JSON.stringify(rec));
 }
 /** « Non merci » on the Settings send offer (build 51): holds the cut-off of
  *  the switch it was dismissed for, so a later switch may ask again. */
@@ -1742,9 +1768,13 @@ export function useGdriveSync({
         // `importModal` is set — so staging without opening it would leave the
         // import pending with NOTHING on screen, a worse defect than the one
         // being fixed. Verified in CuratorApp's mount gate.
-        setImportModal(true);
-        stageCloudRestore(d, ackTs, ackName);
-        finishBusy();
+        // The pack's missing photos first (build 54 — see attachPhotoPack).
+        return attachPhotoPack(tk, d).then(function (d2: any) {
+          setImportModal(true);
+          stageCloudRestore(d2, ackTs, ackName);
+          reportPhotoPackMissing(d2);
+          finishBusy();
+        });
       })
       .catch(function (e: any) {
         setGdriveStatus(t("err_prefix") + ": " + String((e && e.message) || e).substring(0, 150));
@@ -2225,36 +2255,11 @@ export function useGdriveSync({
 
   // LABEL-CONTRACT:start photos-in-backups — see scripts/label-contracts.json
   function gatherLocalImages(dat: any): any {
-    var keys: string[] = [];
-    function addK(k: any) {
-      if (k && k.indexOf("local-photo-") === 0 && keys.indexOf(k) < 0)
-        keys.push(k);
-    }
-    (dat.tobaccos || []).forEach(function (t: any) {
-      addK(t.imageUrl);
-    });
-    (dat.pipes || []).forEach(function (p: any) {
-      addK(p.imageUrl);
-      // Additional pipe photos — include their blobs so a backup /
-      // restore is self-contained.
-      if (p && Array.isArray(p.photos)) p.photos.forEach(addK);
-    });
-    (dat.wishlist || []).forEach(function (w: any) {
-      addK(w.imageUrl);
-    });
-    (dat.accessories || []).forEach(function (a: any) {
-      addK(a.imageUrl);
-    });
-    // Also include session snapshots. The journal
-    // renders via tobaccoSnapshot.imageUrl / pipeSnapshot.imageUrl
-    // when the live entity is gone — but if its `local-photo-*` blob
-    // isn't in `_imageData` on a fresh-device restore, the snapshot
-    // displays a placeholder forever. Walking the snapshots here makes
-    // backups self-contained.
-    (dat.sessions || []).forEach(function (s: any) {
-      if (s && s.tobaccoSnapshot) addK(s.tobaccoSnapshot.imageUrl);
-      if (s && s.pipeSnapshot) addK(s.pipeSnapshot.imageUrl);
-    });
+    // Which photos: entity photos, extra pipe photos and session snapshots
+    // (so a journal entry whose blend was purged still shows its photo after
+    // a restore). The walk lives in `collectPhotoKeys` since build 54, shared
+    // with the auto-save's photo pack.
+    var keys = collectPhotoKeys(dat);
     if (!keys.length) return Promise.resolve({});
     var result: Record<string, any> = {};
     var pending = keys.length;
@@ -2592,7 +2597,7 @@ export function useGdriveSync({
             // check, so an account holding only catalogue files reports "no
             // backup" rather than a picker of unusable rows.
             var cellarFiles = ((list.files || []) as any[]).filter(function (fi: any) {
-              return fi && classifyBackup(fi.name) !== "catalogue";
+              return fi && !isSideStream(fi.name);
             });
             if (!cellarFiles.length)
               throw new Error(t("st_no_backup"));
@@ -2867,45 +2872,25 @@ export function useGdriveSync({
     //     may no longer have anyway.
     // Hence: swallow to an empty map here, and record it so Settings → Données
     // shows the reason instead of the save appearing to do nothing.
+    // Which photos the cellar needs — the auto file names them, the pack
+    // carries them (build 54).
+    var refKeys = collectPhotoKeys(snap);
     gatherLocalImages(snap).catch(function () {
       _photosLost = true;
       recordAutosaveDiag("photos-unreadable");
       return {};
     }).then(function (imgMap: any) {
-      var bk = Object.assign({}, snap, {
-        _apiKey: ak,
-        _apiKeyProvider: akProvider,
-        _savedAt: new Date().toISOString(),
-        _saveType: "auto",
-        _schemaVersion: SCHEMA_VERSION,
-        // Preferences ride along (allowlist — utils/appSettings).
-        _settings: collectSettings(),
-        // Read with the snapshot, like its revision — see readLineage.
-        _revs: revsAtSnap,
-      });
-      if (Object.keys(imgMap as object).length)
-        bk = Object.assign({}, bk, { _imageData: imgMap });
-      var plainJson = JSON.stringify(bk);
-      // Encryption-aware auto-save. Three cases:
-      //   1. Encryption OFF → plain JSON, current behaviour.
-      //   2. Encryption ON, passphrase cached → encrypt then upload.
-      //   3. Encryption ON, passphrase NOT cached → SKIP the auto-save
-      //      silently. Surfaces in Settings via the lock indicator. The
-      //      next manual save prompts and recovers.
+      // Encryption ON with the passphrase NOT cached → SKIP the auto-save
+      // silently (the lock indicator in Settings says why; the next manual
+      // save prompts and recovers). OFF → plaintext; ON + cached → encrypted.
       if (driveEncryptionEnabled && !drivePassphrase) {
         releaseQuietLock();
         return;
       }
-      maybeEncryptPayloadQuiet(plainJson).then(function (jsonMaybe) {
-        if (jsonMaybe === null) {
-          releaseQuietLock();
-          return;
-        }
-        // Narrow `json` to non-null for the nested closures below
-        // (postNew, patchExisting) — TS doesn't follow the narrowing
-        // across function boundaries.
-        var json: string = jsonMaybe;
       var listingTk = tk as string;
+      // Assigned once the pack question is settled, read by postNew /
+      // patchExisting below.
+      var json = "";
       function _onSuccess() {
         var ts = Date.now();
         setLastAutoSaveTs(ts);
@@ -3007,6 +2992,21 @@ export function useGdriveSync({
           });
       }
 
+      // THE PHOTO PACK (build 54) — see GDRIVE_PHOTOS_PREFIX. This device's
+      // older packs are deleted only AFTER an auto file naming the current one
+      // has landed, so the auto file in the cloud never points at a pack that
+      // is gone. Sequential and best-effort, like the auto-file sweep, and
+      // DETACHED from the save. Another device restoring this device's PREVIOUS
+      // auto file in that exact window would miss its photos — and is told so.
+      var _packInUse = "";
+      var _ownPacks: any[] = [];
+      function sweepOldPacks() {
+        var stale = _ownPacks.filter(function (f: any) { return f && f.id && f.name !== _packInUse; });
+        return stale.reduce(function (p: Promise<any>, f: any) {
+          return p.then(function () { return cloud.remove(listingTk, f.id).catch(function () {}); });
+        }, Promise.resolve());
+      }
+
       function postNew(autoFilesForCleanup: any[]) {
         // 60s timeout for multipart upload.
         return cloud.uploadNew(listingTk, newName, json)
@@ -3025,7 +3025,7 @@ export function useGdriveSync({
               // save isn't blocked for the whole delete window. Dropbox
               // delete↔upload collisions are absorbed by the per-op 429
               // retries (dropboxProvider.remove + dbxUpload).
-              sweepOwnAutoFiles(autoFilesForCleanup, f.id || null);
+              sweepOwnAutoFiles(autoFilesForCleanup, f.id || null).then(sweepOldPacks, sweepOldPacks);
               return;
             } else if (f && f.error && (isAuthRefusal(f.error))) {
               noteFailure("upload-auth-error", "POST " + f.error.code, false);
@@ -3074,7 +3074,7 @@ export function useGdriveSync({
               // is skipped; for Dropbox keepId is the NEW id and the old
               // `fid` is swept here (its device id matches ours).
               // Sweep DETACHED (see postNew).
-              sweepOwnAutoFiles(autoFilesForCleanup, keepId);
+              sweepOwnAutoFiles(autoFilesForCleanup, keepId).then(sweepOldPacks, sweepOldPacks);
               return;
             }
             // Stale fid (404 / file deleted manually) → fall back to a
@@ -3097,10 +3097,60 @@ export function useGdriveSync({
           });
       }
 
-      // Step 1: list all auto files so we can either reuse one or
-      // clean up legacy rotations. We could skip this when
-      // gdrive-auto-fid is set, but listing is cheap and lets us
-      // delete leftovers from the old rotation pattern.
+      // Thrown to stop the chain without counting a failure: the passphrase
+      // was not available, which the lock indicator already reports.
+      var SKIP = { __skip__: true };
+      // Upload a NEW pack and remember it. Resolves with the name it landed
+      // under (Dropbox may autorename), which the auto file then names.
+      function uploadPack(): Promise<string> {
+        var pName = photoPackName(myDeviceId, Date.now());
+        var body = JSON.stringify({
+          _photoPack: 1,
+          _savedAt: new Date().toISOString(),
+          _deviceId: myDeviceId,
+          images: imgMap,
+        });
+        return maybeEncryptPayloadQuiet(body).then(function (enc) {
+          if (enc === null) throw SKIP;
+          return cloud.uploadNew(listingTk, pName, enc);
+        }).then(function (r: any) { return r.json(); }).then(function (f: any) {
+          if (!f || f.error) {
+            var err = (f && f.error) || {};
+            if (isAuthRefusal(err)) {
+              noteFailure("upload-auth-error", "PACK " + (err.code || ""), false);
+              cloudTokenInvalidate();
+              if (!_retried && (isDbx || !IS_IOS_STANDALONE)) {
+                setTimeout(function () { gdriveSaveQuiet(true); }, 100);
+              }
+            } else {
+              noteFailure("upload-error", "PACK " + (err.code || "") + " " + String(err.message || "").slice(0, 60), true);
+            }
+            throw err;
+          }
+          var landed = typeof f.name === "string" && f.name ? f.name : pName;
+          writePhotoPackRecord(isDbx, { fp: photoPackFingerprint(imgMap, !!driveEncryptionEnabled), name: landed });
+          return landed;
+        });
+      }
+      // Which pack the auto file names: none (no photo), the one already in
+      // the cloud (the photos did not change — THE COMMON CASE: a session, a
+      // note, a rating), or a freshly uploaded one. When the photo store could
+      // not be read at all, the last good pack is kept rather than replaced by
+      // an empty one.
+      function settlePack(allFiles: any[]): Promise<string> {
+        _ownPacks = allFiles.filter(function (f: any) { return f && isOwnPhotoPack(f.name, myDeviceId); });
+        if (!refKeys.length) return Promise.resolve("");
+        var rec = readPhotoPackRecord(isDbx);
+        var inCloud = !!rec && _ownPacks.some(function (f: any) { return f.name === rec!.name; });
+        if (_photosLost) return Promise.resolve(inCloud ? rec!.name : "");
+        if (inCloud && rec!.fp === photoPackFingerprint(imgMap, !!driveEncryptionEnabled)) {
+          return Promise.resolve(rec!.name);
+        }
+        return uploadPack();
+      }
+
+      // Step 1: list the folder — to reuse this device's auto file, clean up
+      // stragglers, and see whether the photo pack is there.
       cloud.list(listingTk, {
         fields: "files(id,name,createdTime,modifiedTime)",
         orderBy: "modifiedTime+desc",
@@ -3128,23 +3178,49 @@ export function useGdriveSync({
           var autoFiles = allFiles.filter(function (f: any) {
             return classifyBackup(f.name) === "auto";
           });
-          // Only ever reuse (PATCH/overwrite) an auto file
-          // that belongs to THIS device or is a legacy unstamped one —
-          // never hijack another device's stamped auto file. The tracked
-          // fid wins when it still points at a listed auto file, else the
-          // newest own/legacy auto; on miss we POST a fresh device-stamped
-          // file. The subsequent sweepOwnAutoFiles drains the rest. Build
-          // 78: extracted to the pure `chooseAutoSaveTarget` (was inline).
-          var storedFid = lsGet(AUTO_FID_KEY);
-          var targetFid = chooseAutoSaveTarget(autoFiles, storedFid, myDeviceId);
-          if (targetFid) {
-            return patchExisting(targetFid, autoFiles);
-          }
-          return postNew(autoFiles);
+          // Step 2: the pack FIRST — an auto file must never name a pack that
+          // did not make it. A failed pack upload stops here: nothing is sent,
+          // the unsynced flag stays up, and the next attempt retries.
+          return settlePack(allFiles).then(function (packName) {
+            _packInUse = packName;
+            // Step 3: the auto file — the cellar WITHOUT the photos, plus the
+            // name of the pack and the keys it must provide.
+            var bk: any = Object.assign({}, snap, {
+              _apiKey: ak,
+              _apiKeyProvider: akProvider,
+              _savedAt: new Date().toISOString(),
+              _saveType: "auto",
+              _schemaVersion: SCHEMA_VERSION,
+              // Preferences ride along (allowlist — utils/appSettings).
+              _settings: collectSettings(),
+              // Read with the snapshot, like its revision — see readLineage.
+              _revs: revsAtSnap,
+            });
+            if (packName) bk._photoPack = { name: packName, keys: refKeys };
+            return maybeEncryptPayloadQuiet(JSON.stringify(bk));
+          }).then(function (jsonMaybe) {
+            if (jsonMaybe === null) throw SKIP;
+            json = jsonMaybe;
+            // Only ever reuse (PATCH/overwrite) an auto file
+            // that belongs to THIS device or is a legacy unstamped one —
+            // never hijack another device's stamped auto file. The tracked
+            // fid wins when it still points at a listed auto file, else the
+            // newest own/legacy auto; on miss we POST a fresh device-stamped
+            // file. The subsequent sweepOwnAutoFiles drains the rest. Build
+            // 78: extracted to the pure `chooseAutoSaveTarget` (was inline).
+            var storedFid = lsGet(AUTO_FID_KEY);
+            var targetFid = chooseAutoSaveTarget(autoFiles, storedFid, myDeviceId);
+            if (targetFid) {
+              return patchExisting(targetFid, autoFiles);
+            }
+            return postNew(autoFiles);
+          });
         })
         .then(function () { releaseQuietLock(); })
-        .catch(_quietFailed);
-      }).catch(_quietFailed);
+        .catch(function (e: any) {
+          if (e === SKIP) { releaseQuietLock(); return; }
+          _quietFailed(e);
+        });
     }).catch(_quietFailed);
   }
 
@@ -3207,7 +3283,11 @@ export function useGdriveSync({
             // Replace / Cancel choice via the same UI as the JSON file
             // import — keeps the two restore paths consistent.
             // See `ackOnApplied`: acknowledged once APPLIED, not downloaded.
-            stageCloudRestore(d, optAckTs(opt), opt && opt.name);
+            // The pack's missing photos first (build 54 — see attachPhotoPack).
+            return attachPhotoPack(tk as string, d).then(function (d2: any) {
+              stageCloudRestore(d2, optAckTs(opt), opt && opt.name);
+              reportPhotoPackMissing(d2);
+            });
           })
           .catch(function (e) {
             setGdriveStatus(t("err_prefix") + ": " + String((e && e.message) || e).substring(0, 150));
@@ -3226,8 +3306,20 @@ export function useGdriveSync({
     }
     setGdriveConfirm(null);
     // See comment in the lazy-download branch above —
-    // the staged payload flows through useImportConfirm's picker.
-    stageCloudRestore(opt.d, optAckTs(opt), opt && opt.name);
+    // the staged payload flows through useImportConfirm's picker. The payload
+    // was loaded for its counts only, so its photo pack is fetched now.
+    var preD = opt.d;
+    // An old-format file (photos inside, or none) stages at once, as before.
+    if (!needsPhotoPack(preD)) {
+      stageCloudRestore(preD, optAckTs(opt), opt && opt.name);
+      return;
+    }
+    getLiveCloudTokenSilent().then(function (tk) {
+      return tk ? attachPhotoPack(tk, preD) : preD;
+    }).catch(function () { return preD; }).then(function (d2: any) {
+      stageCloudRestore(d2, optAckTs(opt), opt && opt.name);
+      reportPhotoPackMissing(d2);
+    });
   }
   // RESTORING COUNTS AS ACKNOWLEDGING THE NEWER CLOUD BACKUP — but only once
   // it is restored. The acknowledgement used to be written when the file was
@@ -3237,6 +3329,65 @@ export function useGdriveSync({
   // `onApplied`; the picker path now does the same.
   function optAckTs(opt: any): number | undefined {
     return opt && opt.modifiedTime ? new Date(opt.modifiedTime).getTime() : undefined;
+  }
+  // THE PHOTO PACK, ON THE WAY IN (build 54). An auto file of the new format
+  // carries no photos, only `_photoPack: { name, keys }`. The photos this
+  // device does NOT already have are fetched from that pack and attached as
+  // `_imageData`, so the import writes them exactly as before. When every key
+  // is already here — the ordinary case between two devices that share a
+  // cellar — the pack is not even downloaded. A pack that cannot be had
+  // (deleted, unreadable, wrong passphrase) never blocks the restore: the
+  // cellar comes back, and `_photoPackMissing` says how many photos did not.
+  function needsPhotoPack(d: any): boolean {
+    var pp = d && d._photoPack;
+    return !!pp && !d._imageData && typeof pp.name === "string" && !!pp.name && Array.isArray(pp.keys);
+  }
+  function attachPhotoPack(tk: string, d: any): Promise<any> {
+    if (!needsPhotoPack(d)) return Promise.resolve(d);
+    var pp = d._photoPack;
+    var wanted = (pp.keys as any[]).filter(function (k) {
+      return typeof k === "string" && k.indexOf("local-photo-") === 0;
+    });
+    if (!wanted.length) return Promise.resolve(d);
+    return imgCache.keys().then(function (have: string[]) {
+      var here: Record<string, true> = Object.create(null);
+      (have || []).forEach(function (k) { here[k] = true; });
+      var missing = wanted.filter(function (k) { return !here[k]; });
+      if (!missing.length) return d;
+      return cloud.list(tk, { fields: "files(id,name)", orderBy: "modifiedTime+desc" })
+        .then(function (r: any) { return r.json(); })
+        .then(function (list: any) {
+          var f = ((list && list.files) || []).find(function (x: any) { return x && x.name === pp.name; });
+          if (!f) throw new Error("pack-missing");
+          return cloud.download(tk, f.id, 180000);
+        })
+        .then(function (r: any) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.text();
+        })
+        .then(function (txt: string) { return maybeDecryptText(txt); })
+        .then(function (jsonText: string | null) {
+          if (jsonText === null) throw new Error("pack-undecryptable");
+          var pk = JSON.parse(jsonText);
+          var imgs = (pk && pk.images) || {};
+          var out: Record<string, string> = {};
+          missing.forEach(function (k) { if (typeof imgs[k] === "string") out[k] = imgs[k]; });
+          var res: any = Object.assign({}, d, { _imageData: out });
+          var lost = missing.length - Object.keys(out).length;
+          if (lost > 0) res._photoPackMissing = lost;
+          return res;
+        })
+        .catch(function () {
+          return Object.assign({}, d, { _photoPackMissing: missing.length });
+        });
+    });
+  }
+  function reportPhotoPackMissing(d: any) {
+    var n = d && typeof d._photoPackMissing === "number" ? d._photoPackMissing : 0;
+    if (n > 0) {
+      setGdriveStatus(String(t("photo_pack_missing")).replace("{n}", String(n)));
+      scheduleStatusClear(8000);
+    }
   }
   // Both restore doors (the banner and the backups panel) stage through here.
   // The lineage and this device's revision are read NOW, before the import's

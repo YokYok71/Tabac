@@ -105,6 +105,7 @@ export const FORBIDDEN = [
   "cave-saved-rev-gdrive", "cave-saved-rev-dropbox",
   "cave-cloud-seen-gdrive", "cave-cloud-seen-dropbox",
   "cave-cloud-offer-dismissed-gdrive", "cave-cloud-offer-dismissed-dropbox",
+  "cave-photo-pack-gdrive", "cave-photo-pack-dropbox",
   "gdrive-fid", "gdrive-auto-fid", "dropbox-fid", "dropbox-auto-fid",
   "cave-auto-stamped",
   // ephemeral / per-device state

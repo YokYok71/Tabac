@@ -573,6 +573,10 @@ export function useImportConfirm({
     // The backup's lineage (build 46) is read by the cloud restore BEFORE
     // staging; it describes the file, not the cellar, so it is not kept.
     delete staged._revs;
+    // The auto-save's photo-pack reference (build 54) and its shortfall count:
+    // both describe how the FILE got its photos, not the cellar.
+    delete staged._photoPack;
+    delete staged._photoPackMissing;
     // The app's PREFERENCES, carried by every export and backup.
     // Extracted here so they never bleed into the saved data structure, and
     // applied only on REPLACE — see _runImport.

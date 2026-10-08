@@ -708,7 +708,7 @@
         "public/privacy.html — \"Photos\" paragraph (all languages)"
       ],
       "why": "gatherLocalImages is what makes photos leave the device: it collects the base64 blobs into the backup payload. The policy claimed photos 'ne quittent jamais votre appareil'. Any change to what this walks (entities, pipe.photos, session snapshots) changes what the policy must disclose.",
-      "fingerprint": "999ff007b056bb88"
+      "fingerprint": "6b51bf19f7a2271d"
     },
     {
       "id": "ai-tin-scan-upload",

@@ -29,6 +29,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { useGdriveSync } from "../hooks/useGdriveSync";
 import { makeEncryptionVerifier, isEncryptedEnvelopeJSON } from "../utils/cryptoBackup";
 import { INIT } from "../constants";
+import { imgCache } from "../utils/imgCache.ts";
 
 vi.mock("../utils/imgCache.ts", () => ({
   imgCache: {
@@ -301,5 +302,46 @@ describe("sauvegarde AUTO chiffrée — jamais de fuite en clair", () => {
     const body = (await uploadedBodies(calls)).join("");
     expect(body).toContain("_encrypted");
     expect(body).not.toContain("Halvorsen Foxtrot");
+  });
+});
+
+// Build 54 — the photos travel in a separate PACK. It must be encrypted exactly
+// like the auto file: a photo is personal data too.
+describe("le paquet de photos (build 54) — chiffré comme la sauvegarde", () => {
+  const PHOTO = "data:image/jpeg;base64,U0VDUkVUUEhPVE8=";
+  function amorcer() {
+    localStorage.setItem("cave-autosave", "1");
+    sessionStorage.setItem("gdrive-tk", JSON.stringify({ t: "quiet-token", x: Date.now() + 3600000 }));
+    localStorage.setItem("pipe-cellar-v6", JSON.stringify({
+      ...INIT,
+      tobaccos: [{ id: 1, name: "Halvorsen Foxtrot", brand: "Halvorsen", imageUrl: "local-photo-1", lots: [] }],
+    }));
+    (imgCache.get as any).mockImplementation((k: string) => Promise.resolve(k === "local-photo-1" ? PHOTO : null));
+  }
+  async function deuxEnvois(props: any) {
+    const { result } = renderHook(() => useGdriveSync(props as any));
+    act(() => { result.current.gdriveSaveQuiet(); });
+    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBe(2));
+    return uploadedBodies(calls);
+  }
+
+  it("NON-VACUITÉ : sans chiffrement, la photo part dans le paquet et PAS dans le fichier auto", async () => {
+    amorcer();
+    const [pack, auto] = await deuxEnvois(makeProps({ pendingSync: true }));
+    expect(pack, "le paquet porte la photo").toContain(PHOTO);
+    expect(auto, "le fichier auto ne la porte plus").not.toContain(PHOTO);
+    expect(auto).toContain("_photoPack");
+  });
+
+  it("chiffrement actif + phrase en mémoire : le paquet ET le fichier auto partent en enveloppe", async () => {
+    amorcer();
+    const bodies = await deuxEnvois(makeProps({
+      driveEncryptionEnabled: true, drivePassphrase: "correcte-horse-battery", pendingSync: true,
+    }));
+    for (const b of bodies) {
+      expect(b).toContain("_encrypted");
+      expect(b).not.toContain(PHOTO);
+      expect(b).not.toContain("Halvorsen Foxtrot");
+    }
   });
 });

@@ -53,7 +53,7 @@ export var APP_VERSION = "1.1";
  * about to move backwards or restart.
  */
 export var APP_GENERATION = 2;
-export var APP_BUILD = "53";
+export var APP_BUILD = "54";
 
 export var CATS = ["Américain","Anglais","Anglais aromatique","Aromatique","Balkan","Burley","Cavendish","Cigare","Dark Fired","Écossais","Lakeland","Latakia","Oriental","Perique","Turkish","VaPer","Virginia","Virginia/Burley","Virginia/Latakia","Autre"] as const;
 export var CATS_EN: Record<string, string> = {"Américain":"American",Anglais:"English","Anglais aromatique":"English aromatic",Aromatique:"Aromatic",Balkan:"Balkan",Burley:"Burley",Cavendish:"Cavendish",Cigare:"Cigar","Dark Fired":"Dark Fired","Écossais":"Scottish",Lakeland:"Lakeland",Latakia:"Latakia",Oriental:"Oriental",Perique:"Perique",Turkish:"Turkish",VaPer:"VaPer",Virginia:"Virginia","Virginia/Burley":"Virginia/Burley","Virginia/Latakia":"Virginia/Latakia",Autre:"Other"};
@@ -529,6 +529,15 @@ export var GDRIVE_MAX_MANUAL = 3;
 // offered a CSV as a cellar backup to restore. Both are excluded explicitly
 // and asserted — this is the area three separate releases were each spent on.
 export var GDRIVE_CATALOGUE_PREFIX = "cave-tabac-catalogue-";
+
+// THE PHOTO PACK of the auto-save (build 54). The auto file used to carry every
+// photo (~10 MB on the user's cellar) and re-sent all of it on each change, so
+// a session logged on the iPhone often never finished uploading before iOS
+// suspended the app. The photos now travel in a separate per-device pack,
+// re-sent only when the photo set changes; the auto file names the pack it
+// needs. Like the catalogue, it is a side stream: `classifyBackup` returns
+// "photos" for it, and every cellar-backup consumer excludes it.
+export var GDRIVE_PHOTOS_PREFIX = "cave-tabac-photos-";
 
 // How long a soft-deleted entity stays in the Trash before
 // the startup cleanup hard-removes it.

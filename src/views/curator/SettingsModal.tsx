@@ -2594,6 +2594,7 @@ export function SyncDiagView({ diag, t, lang, onClose, onDeleteEntry }: {
       case "own_rev": return t("sync_diag_r_own_rev");
       case "superseded": return t("sync_diag_r_superseded");
       case "before_switch": return t("sync_diag_r_before_switch");
+      case "photos": return t("sync_diag_r_photos");
       case "dismissed_name":
       case "dismissed_ts": return t("sync_diag_r_seen");
       case "older": return t("sync_diag_r_older");
@@ -2684,6 +2685,7 @@ export function SyncDiagView({ diag, t, lang, onClose, onDeleteEntry }: {
                     // under a heading that reads PAR APPAREIL, about the one
                     // file no device wrote. It is named for what it is.
                     : d.kind === "catalogue" ? t("sync_diag_catalogue_file")
+                    : d.kind === "photos" ? t("sync_diag_photo_pack_file")
                     : (d.kind === "manual" ? t("sync_diag_manual_files") : t("sync_diag_legacy_files"));
               const count = String(t("sync_diag_files")).replace("{n}", String(d.count));
               return (
@@ -2710,7 +2712,7 @@ export function SyncDiagView({ diag, t, lang, onClose, onDeleteEntry }: {
               <span style={{ width: 8, height: 8, borderRadius: 4, marginTop: 4, flexShrink: 0, background: dotColor(r.status) }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: F.mono, fontSize: fs(12), color: C.tx2, wordBreak: "break-all" }}>
-                  {r.kind === "auto" ? "🔄 " : r.kind === "manual" ? "💾 " : r.kind === "catalogue" ? "📖 " : ""}
+                  {r.kind === "auto" ? "🔄 " : r.kind === "manual" ? "💾 " : r.kind === "catalogue" ? "📖 " : r.kind === "photos" ? "🖼 " : ""}
                   {r.name}
                 </div>
                 <div style={{
