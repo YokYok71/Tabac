@@ -46,10 +46,12 @@ function jobBlock(name: string): string {
 const req = createRequire(import.meta.url);
 const scope = req("../../scripts/browserScope.cjs") as {
   patterns: (wf: string) => string[];
-  shards: (langs: string[]) => Array<{ name: string; check: string; langs: string }>;
+  shards: (langs: string[], widths: number[]) => Array<{ name: string; check: string; langs: string; widths: string }>;
   decide: (o: object) => { browser: boolean; why: string };
 };
-const registryLangs = (req("../../scripts/i18n-layout.cjs") as { registryLangs: () => string[] }).registryLangs;
+const layoutMod = req("../../scripts/i18n-layout.cjs") as { registryLangs: () => string[]; DEFAULT_WIDTHS: number[] };
+const registryLangs = layoutMod.registryLangs;
+const DEFAULT_WIDTHS = layoutMod.DEFAULT_WIDTHS;
 
 const UPLOAD = "upload-pages-artifact";
 
@@ -110,11 +112,33 @@ describe("deploy.yml — the gates gate the deploy", () => {
     // have their own job now (`gates`, started beside the build), so it reads
     // that job — whose first named step, the tests, has nothing before it to
     // be skipped by.
+    //
+    // AND THEN THE SUITE LEFT TOO, into `tests`, split in two halves: the
+    // halves are matrix jobs, so the equivalent of `!cancelled()` between them
+    // is `fail-fast: false` — without it the first red half cancels the other.
     const steps = jobBlock("gates").split(/\n {6}- name: /).slice(1);
-    // Tests, doc:check, typecheck, lint, prune.
-    expect(steps.length).toBeGreaterThanOrEqual(5);
-    expect(steps[0]).toMatch(/^Tests\n/);
-    steps.slice(1).forEach((st) => expect(st).toContain("!cancelled()"));
+    // doc:check, typecheck, lint, prune — every one of them, none exempt.
+    expect(steps.length).toBeGreaterThanOrEqual(4);
+    steps.forEach((st) => expect(st).toContain("!cancelled()"));
+    expect(jobBlock("tests")).toMatch(/^\s+fail-fast: false$/m);
+  });
+
+  it("splits the suite into halves whose UNION is the whole suite", () => {
+    // `vitest --shard=i/N` partitions the test FILES. N must be the number of
+    // jobs the matrix actually starts, or a half is never run — and a part that
+    // is never run reports nothing at all, which reads as green. N is therefore
+    // `strategy.job-total`, read by GitHub from the matrix, never a second
+    // literal kept in step with it by hand.
+    const job = jobBlock("tests");
+    expect(job).toContain("npm test -- --shard=${{ matrix.part }}/${{ strategy.job-total }}");
+    expect(job, "the shard total is a literal — it can drift from the matrix")
+      .not.toMatch(/--shard=[^\n]*\/\d/);
+    const parts = (job.match(/^\s+part: \[([^\]]*)\]$/m) || [])[1] || "";
+    const list = parts.split(",").map((x) => Number(x.trim()));
+    // 1..N with no gap and no repeat: a matrix `[1, 3]` would start two jobs
+    // and run halves 1/2 and 3/2 — the second runs nothing.
+    expect(list).toEqual(list.map((_, i) => i + 1));
+    expect(list.length).toBeGreaterThanOrEqual(2);
   });
 
   // The one exception to "every gate runs regardless", and it earns it.
@@ -214,12 +238,12 @@ describe("deploy.yml — the gates gate the deploy", () => {
   // ── LE DÉCOUPAGE, ET LE SEUL JOB QUI PUBLIE ───────────────────────────────
   //
   // Un seul job faisait tout en série, ~11 min 30 dont 5 min 28 pour la seule
-  // mise en page. Quatre jobs maintenant : `bundle` et `gates` en parallèle,
-  // les campagnes découpées en un job par langue dès que dist/ existe, puis
-  // `deploy`. La GARANTIE est celle d'avant — rien ne part qu'un contrôle a
+  // mise en page. Cinq jobs maintenant : `bundle`, `gates` et `tests` (la
+  // suite en deux moitiés) en parallèle, les campagnes découpées en un job par
+  // langue × largeur dès que dist/ existe, puis `deploy`. La GARANTIE est celle d'avant — rien ne part qu'un contrôle a
   // refusé — et ce bloc la lit sur la forme nouvelle, parce que c'est le
   // câblage qui pourrit : un job oublié dans `needs` publierait sans attendre.
-  describe("quatre jobs, une seule publication", () => {
+  describe("cinq jobs, une seule publication", () => {
     it("chaque porte vit dans un job dont `deploy` dépend", () => {
       const needs = (jobBlock("deploy").match(/^ {4}needs: \[([^\]]*)\]$/m) || [])[1] || "";
       const deps = needs.split(",").map((x) => x.trim()).filter(Boolean);
@@ -239,6 +263,7 @@ describe("deploy.yml — the gates gate the deploy", () => {
       const cond = jobBlock("deploy").slice(0, jobBlock("deploy").indexOf("runs-on:"));
       expect(cond).toContain("needs.bundle.result == 'success'");
       expect(cond).toContain("needs.gates.result == 'success'");
+      expect(cond).toContain("needs.tests.result == 'success'");
       expect(cond).toContain("needs.browser.result == 'success'");
       // Le SEUL saut accepté : celui que `bundle` a décidé. Un `browser` sauté
       // alors que la mesure était demandée ne publie pas.
@@ -254,15 +279,22 @@ describe("deploy.yml — the gates gate the deploy", () => {
       expect(job).toContain("${{ fromJSON(needs.bundle.outputs.shards) }}");
       const langs = registryLangs();
       langs.forEach((l) => expect(job, "langue « " + l + " » écrite en dur").not.toMatch(new RegExp("[\"' ]" + l + "[\"',\\]]")));
-      // La seule langue que la campagne voit est celle de son morceau.
+      // La seule langue et la seule largeur que la campagne voit sont celles de
+      // son morceau.
       expect((job.match(/I18N_LAYOUT_LANGS:[^\n]*/g) || [])).toEqual(["I18N_LAYOUT_LANGS: ${{ matrix.shard.langs }}"]);
+      expect((job.match(/I18N_LAYOUT_WIDTHS:[^\n]*/g) || [])).toEqual(["I18N_LAYOUT_WIDTHS: ${{ matrix.shard.widths }}"]);
+      expect(job, "une largeur écrite en dur").not.toMatch(/\b(360|820)\b/);
     });
 
-    it("l'union des morceaux est la matrice complète — chaque langue une fois, le contraste une fois", () => {
-      const list = scope.shards(registryLangs());
+    it("l'union des morceaux est la matrice complète — chaque langue × chaque largeur une fois, le contraste une fois", () => {
+      const list = scope.shards(registryLangs(), DEFAULT_WIDTHS);
       expect(list.filter((x) => x.check === "theme:contrast")).toHaveLength(1);
-      const layout = list.filter((x) => x.check === "i18n:layout").map((x) => x.langs).sort();
-      expect(layout).toEqual(registryLangs().slice().sort());
+      const layout = list.filter((x) => x.check === "i18n:layout").map((x) => x.langs + "@" + x.widths).sort();
+      const want: string[] = [];
+      registryLangs().forEach((l) => DEFAULT_WIDTHS.forEach((w) => want.push(l + "@" + w)));
+      expect(layout).toEqual(want.sort());
+      // Non-vacuité : les deux largeurs du vérificateur, pas une seule.
+      expect(DEFAULT_WIDTHS.length).toBeGreaterThanOrEqual(2);
       expect(list.every((x) => x.check === "theme:contrast" || x.check === "i18n:layout")).toBe(true);
     });
 

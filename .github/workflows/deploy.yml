@@ -34,7 +34,7 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-# ── QUATRE JOBS AU LIEU D'UN, ET LA GARANTIE N'A PAS BOUGÉ ─────────────────────
+# ── CINQ JOBS AU LIEU D'UN, ET LA GARANTIE N'A PAS BOUGÉ ───────────────────────
 #
 # Tout tenait dans un seul job, étape après étape : installation, tests, build,
 # portes, Chromium, contraste, puis la mise en page des six langues — environ
@@ -42,12 +42,16 @@ concurrency:
 # étapes n'attend réellement les autres, sauf les campagnes, qui ont besoin du
 # `dist/` construit.
 #
-#   bundle ─┬─ browser (contraste + une langue par job, côte à côte) ─┐
-#           │                                                         ├─ deploy
-#   gates ──┴──────────── (tests, doc, tsc, lint, knip) ──────────────┘
+#   bundle ── browser (contraste + une langue × une largeur par job) ─┐
+#   gates ─── (doc, tsc, lint, knip) ─────────────────────────────────┼─ deploy
+#   tests ─── (la suite, en deux moitiés côte à côte) ────────────────┘
 #
-# `gates` part tout de suite, en parallèle de `bundle` ; les campagnes partent
-# dès que le `dist/` existe, sans attendre les tests. **LA GARANTIE EST LA MÊME
+# `gates` et `tests` partent tout de suite, en parallèle de `bundle` ; les
+# campagnes partent dès que le `dist/` existe, sans attendre les tests.
+# MESURÉ en un job par langue : 6 min 04 contre ~11 min 30, avec la mise en
+# page d'une langue (~4 min 07 de rendu) puis les tests (~4 min avec le reste
+# de `gates`) pour chemins critiques — d'où le découpage par largeur et la
+# suite en deux. **LA GARANTIE EST LA MÊME
 # QU'AVANT** : `deploy` exige le succès de TOUS, et c'est lui seul qui
 # téléverse l'artefact Pages — aucun job ne peut publier ce qu'un autre a
 # refusé. « Une porte dans un workflow parallèle ne peut pas bloquer un
@@ -146,8 +150,9 @@ jobs:
   #
   # Their own job now, started at once beside `bundle`: none of them reads
   # dist/ (`serviceWorker.test.ts` forbids a test that does), so waiting for
-  # the build bought nothing. Each step after the first carries `!cancelled()`
-  # so one push reports every class at once instead of one per re-run.
+  # the build bought nothing. The test suite has its own job below, split in
+  # two. Each gate step carries `!cancelled()` so one push reports every class
+  # at once instead of one per re-run.
   #
   # Yes, this duplicates checks.yml on a push to main. That is deliberate and it
   # is the cheap half of the trade: checks.yml gives fast, isolated feedback
@@ -166,9 +171,6 @@ jobs:
           cache: "npm"
 
       - run: npm ci
-
-      - name: Tests
-        run: npm test
 
       # i18n parity + key-existence + length checks. The bump
       # guard is intentionally skipped in CI (developer discipline +
@@ -210,6 +212,35 @@ jobs:
         if: ${{ !cancelled() }}
         run: npm run prune
 
+  # LA SUITE, EN DEUX MOITIÉS CÔTE À CÔTE. Elle tenait seule ~2 min 30 du job
+  # `gates`, devenu le chemin critique une fois la mise en page découpée.
+  # `vitest --shard=i/N` répartit les FICHIERS de test ; N est
+  # `strategy.job-total`, le nombre de jobs de cette matrice lu par GitHub, et
+  # non un second chiffre écrit à la main : la matrice et le découpage ne
+  # peuvent pas diverger, donc l'union des moitiés est la suite entière.
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      # Chaque moitié rapporte même si l'autre a échoué.
+      fail-fast: false
+      matrix:
+        part: [1, 2]
+    name: Tests ${{ matrix.part }}/${{ strategy.job-total }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Tests
+        run: npm test -- --shard=${{ matrix.part }}/${{ strategy.job-total }}
+
   # ── LES CAMPAGNES NAVIGATEUR SONT DES PORTES DE DÉPLOIEMENT ────────────────
   #
   # Elles vivaient dans leur propre workflow, en parallèle de celui-ci, donc
@@ -218,7 +249,8 @@ jobs:
   # tombait ~9 min plus tard sur un build que l'utilisateur avait déjà. Fenêtre
   # signalée comme gênante, donc fermée — et elle le reste : `deploy` les attend.
   #
-  # UN JOB PAR MORCEAU : le contraste entier, puis UNE LANGUE par job. La liste
+  # UN JOB PAR MORCEAU : le contraste entier, puis UNE LANGUE × UNE LARGEUR par
+  # job (les largeurs : `DEFAULT_WIDTHS` du vérificateur). La liste
   # vient de `bundle` (scripts/browserScope.cjs), qui la DÉRIVE du registre des
   # langues — jamais écrite ici : une matrice littérale est la liste figée qui a
   # déjà fait sauter le portugais au vérificateur. L'union des morceaux est la
@@ -272,10 +304,11 @@ jobs:
         if: ${{ matrix.shard.check == 'theme:contrast' }}
         run: npm run theme:contrast
 
-      - name: Layout — one language × 36 screens × 2 text sizes × 2 widths
+      - name: Layout — one language × one width × 36 screens × 2 text sizes
         if: ${{ matrix.shard.check == 'i18n:layout' }}
         env:
           I18N_LAYOUT_LANGS: ${{ matrix.shard.langs }}
+          I18N_LAYOUT_WIDTHS: ${{ matrix.shard.widths }}
         run: npm run i18n:layout
 
       # Un morceau qu'aucune étape ne reconnaît passerait VERT sans rien avoir
@@ -293,12 +326,13 @@ jobs:
   # que `bundle` demandait la mesure ne publie pas. Sur une autre branche que
   # main (lancement manuel), rien n'est publié : c'est une répétition.
   deploy:
-    needs: [bundle, gates, browser]
+    needs: [bundle, gates, tests, browser]
     if: >-
       ${{ !cancelled()
       && github.ref == 'refs/heads/main'
       && needs.bundle.result == 'success'
       && needs.gates.result == 'success'
+      && needs.tests.result == 'success'
       && (needs.browser.result == 'success'
       || (needs.browser.result == 'skipped' && needs.bundle.outputs.browser == 'false')) }}
     runs-on: ubuntu-latest

@@ -30,7 +30,10 @@
  *    la dérive. Une seule liste, deux usages.
  *
  * 2. LE DÉCOUPAGE. La mise en page tournait en un job, six langues sur 4 vCPU,
- *    5 min 28 à elle seule. Un job PAR LANGUE les fait tourner côte à côte.
+ *    5 min 28 à elle seule. Un job PAR LANGUE les a fait tourner côte à côte
+ *    (~4 min 07 de rendu chacun, MESURÉ, le nouveau chemin critique), puis un
+ *    job par LANGUE × LARGEUR : les largeurs sont lues dans `DEFAULT_WIDTHS`,
+ *    la valeur par défaut du vérificateur lui-même, pour la même raison.
  *    Les langues sont lues dans le registre (`registryLangs()` de
  *    `i18n-layout.cjs`, qui lit `src/i18n/languages.ts` — et non `LANGS`, que
  *    `--langs` ou I18N_LAYOUT_LANGS rétrécissent), JAMAIS écrites dans le workflow :
@@ -83,10 +86,16 @@ function triggers(file, pats) {
 }
 
 /** Les morceaux de la campagne : le contraste entier, puis une langue par job. */
-function shards(langs) {
+function shards(langs, widths) {
   if (!Array.isArray(langs) || !langs.length) throw new Error("browserScope: aucune langue dans le registre");
-  return [{ name: "Contrast — all palettes", check: "theme:contrast", langs: "" }]
-    .concat(langs.map((l) => ({ name: "Layout — " + l, check: "i18n:layout", langs: l })));
+  if (!Array.isArray(widths) || !widths.length) throw new Error("browserScope: aucune largeur par défaut");
+  const layout = [];
+  for (const l of langs) {
+    for (const w of widths) {
+      layout.push({ name: "Layout — " + l + " · " + w + "px", check: "i18n:layout", langs: l, widths: String(w) });
+    }
+  }
+  return [{ name: "Contrast — all palettes", check: "theme:contrast", langs: "", widths: "" }].concat(layout);
 }
 
 /**
@@ -116,7 +125,8 @@ function main() {
   }
   const pats = patterns(fs.readFileSync(path.join(ROOT, BROWSER_WF), "utf8"));
   const d = decide({ event, base, changed, pats });
-  const list = shards(require("./i18n-layout.cjs").registryLangs());
+  const layout = require("./i18n-layout.cjs");
+  const list = shards(layout.registryLangs(), layout.DEFAULT_WIDTHS);
   console.log("browserScope: " + (d.browser ? "MESURER" : "sauter") + " — " + d.why);
   console.log("browserScope: " + list.length + " morceau(x) : " + list.map((s) => s.name).join(" · "));
   const out = process.env.GITHUB_OUTPUT;

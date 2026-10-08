@@ -117,7 +117,10 @@ function opt(name, env, fallback) {
 
 // Two viewports. 360 is the narrow phone the app is designed for;
 // 820 clears the 760px column cap.
-const WIDTHS = opt("widths", "I18N_LAYOUT_WIDTHS", "360,820").map(Number);
+// Exported: `browserScope.cjs` splits the CI campaign by width too, and must
+// read the SAME default rather than restate it.
+const DEFAULT_WIDTHS = [360, 820];
+const WIDTHS = opt("widths", "I18N_LAYOUT_WIDTHS", DEFAULT_WIDTHS.join(",")).map(Number);
 
 // DERIVED from the registry, never a literal list. This line once
 // read "fr,en,es,de,it" — so the full run silently skipped Portuguese, in the
@@ -1471,7 +1474,7 @@ module.exports = {
   // The REGISTRY, not LANGS: LANGS honours `--langs` / I18N_LAYOUT_LANGS, and
   // `browserScope.cjs` splits the CI campaign by it — a narrowed source would
   // narrow every shard list built from it.
-  registryLangs,
+  registryLangs, DEFAULT_WIDTHS,
   // `bigListCellar` BUILDS the payload and `setCellar` WRITES it with the pin
   // flag; exporting only the first is exporting half a seed step, which is how
   // `theme-contrast` came to reuse the `inv-long` screen without ever being
