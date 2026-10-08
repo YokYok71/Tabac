@@ -85,9 +85,11 @@ describe("sw.js — install integrity", () => {
   });
 
   it("no test depends on dist/ — CI runs `npm test` BEFORE `npm run build`", () => {
-    // This cost two red deploys. deploy.yml's build job is
-    // `npm ci` → `npm test` → `npm run build`, so dist/ does not exist while
-    // the suite runs. Locally a stale dist/ is almost always lying around, so
+    // This cost two red deploys. deploy.yml's build job was
+    // `npm ci` → `npm test` → `npm run build`, so dist/ did not exist while
+    // the suite ran — and it still does not: the tests now run in their own
+    // `gates` job, beside the build and with no build at all, which is what
+    // lets that job start at once. Locally a stale dist/ is almost always lying around, so
     // a test that reads it passes here and fails there — the worst kind of
     // divergence, because the local run reports green with total confidence.
     // The scripts that legitimately read dist/ (size:check) are not tests and

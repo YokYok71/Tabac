@@ -73,6 +73,12 @@ on:
       - "scripts/parallelRun.cjs"
       - "scripts/distFreshness.cjs"
       - ".github/workflows/browser.yml"
+      # Le câblage de la campagne AU DÉPLOIEMENT : le script qui décide de la
+      # lancer et la découpe, et le workflow qui la porte. Cette liste sert
+      # aussi au déploiement (scripts/browserScope.cjs la lit) ; un changement
+      # de ce câblage doit être exercé par la campagne elle-même.
+      - "scripts/browserScope.cjs"
+      - ".github/workflows/deploy.yml"
   # Le rattrapage manuel : quand on veut la matrice complète sur un commit que
   # le filtre a ignoré, ou simplement avant une release.
   workflow_dispatch:

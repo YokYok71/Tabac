@@ -1468,6 +1468,10 @@ async function main() {
 // read each `scr.<axis>`, so a fourth axis needs no one to remember it.
 module.exports = {
   SCREENS, DATA, SEED_KEYS, LANGS, SCALES, WIDTHS, readDict,
+  // The REGISTRY, not LANGS: LANGS honours `--langs` / I18N_LAYOUT_LANGS, and
+  // `browserScope.cjs` splits the CI campaign by it — a narrowed source would
+  // narrow every shard list built from it.
+  registryLangs,
   // `bigListCellar` BUILDS the payload and `setCellar` WRITES it with the pin
   // flag; exporting only the first is exporting half a seed step, which is how
   // `theme-contrast` came to reuse the `inv-long` screen without ever being

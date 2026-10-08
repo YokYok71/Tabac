@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Lancé à la main sur une AUTRE branche, ce workflow est une répétition à
+  # blanc : tout tourne, rien n'est publié (voir la condition du job `deploy`).
   workflow_dispatch:
 
 # Node 20 is being deprecated on GitHub Actions runners
@@ -32,8 +34,126 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+# ── QUATRE JOBS AU LIEU D'UN, ET LA GARANTIE N'A PAS BOUGÉ ─────────────────────
+#
+# Tout tenait dans un seul job, étape après étape : installation, tests, build,
+# portes, Chromium, contraste, puis la mise en page des six langues — environ
+# 11 min 30 d'horloge, dont 5 min 28 pour la seule mise en page. Aucune de ces
+# étapes n'attend réellement les autres, sauf les campagnes, qui ont besoin du
+# `dist/` construit.
+#
+#   bundle ─┬─ browser (contraste + une langue par job, côte à côte) ─┐
+#           │                                                         ├─ deploy
+#   gates ──┴──────────── (tests, doc, tsc, lint, knip) ──────────────┘
+#
+# `gates` part tout de suite, en parallèle de `bundle` ; les campagnes partent
+# dès que le `dist/` existe, sans attendre les tests. **LA GARANTIE EST LA MÊME
+# QU'AVANT** : `deploy` exige le succès de TOUS, et c'est lui seul qui
+# téléverse l'artefact Pages — aucun job ne peut publier ce qu'un autre a
+# refusé. « Une porte dans un workflow parallèle ne peut pas bloquer un
+# déploiement » reste vrai ; une porte dans un job dont `deploy` dépend, si.
+#
+# LES CAMPAGNES MESURENT LE `dist/` QUI SERA PUBLIÉ, pas une reconstruction :
+# `bundle` le téléverse comme artefact du run, les jobs `browser` le
+# téléchargent, et `deploy` publie ce même artefact. C'était la raison de la
+# mise en série (« un job séparé devrait reconstruire ») ; un artefact de run
+# la satisfait sans la série.
 jobs:
-  build:
+  bundle:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lire l'historique des runs de CE workflow, pour trouver le dernier
+      # commit déployé (voir l'étape « Browser scope »). Lecture seule.
+      actions: read
+    outputs:
+      browser: ${{ steps.scope.outputs.browser }}
+      shards: ${{ steps.scope.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Build (Vite)
+        id: build
+        run: |
+          npm ci
+          npm run build
+
+      # The ONE gate that needs the build step to have SUCCEEDED, not merely to
+      # have been attempted: without dist/ it reported `dist/ not found`, which
+      # was the LAST error in the log and the first thing a reader saw — how a
+      # flaky test once got diagnosed as a build problem, back when tests and
+      # build shared a step. The `!cancelled()` intent is unchanged.
+      - name: Bundle size budget
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run size:check
+
+      # FAUT-IL MESURER CE COMMIT DANS UN NAVIGATEUR ? Voir scripts/browserScope.cjs.
+      #
+      # Le filtre par chemins avait été REFUSÉ ici, à raison, tant que sa base
+      # était `github.event.before` : `cancel-in-progress` annule les runs
+      # intermédiaires, si bien que deux poussées rapprochées (une vue, puis de
+      # la documentation) laissaient le run survivant ne voir que la seconde, et
+      # la vue partait NON MESURÉE. La base est désormais le DERNIER COMMIT
+      # DÉPLOYÉ AVEC SUCCÈS : un run annulé n'a rien publié, donc ses fichiers
+      # restent dans le diff du suivant. FAIL-CLOSED : base introuvable, diff
+      # impossible, lancement manuel → campagne complète.
+      - name: Browser scope
+        id: scope
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BASE=$(gh api "repos/${{ github.repository }}/actions/workflows/deploy.yml/runs?branch=main&status=success&per_page=1" \
+                   --jq '.workflow_runs[0].head_sha // ""' 2>/dev/null || true)
+          if [ -n "$BASE" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE" || echo "base $BASE introuvable — le script mesurera"
+          fi
+          BROWSER_SCOPE_BASE="$BASE" node scripts/browserScope.cjs
+
+      # L'artefact du RUN (pas celui de Pages) : les campagnes le mesurent et
+      # `deploy` le publie, si bien que ce qui est mesuré est ce qui part.
+      - uses: actions/upload-artifact@v7
+        if: ${{ steps.build.outcome == 'success' }}
+        with:
+          name: dist
+          path: dist
+          if-no-files-found: error
+          retention-days: 1
+          # upload-artifact laisse les fichiers cachés de côté par défaut ;
+          # upload-pages-artifact, qui lisait dist/ directement, les gardait. Un
+          # `.well-known/` ajouté un jour disparaîtrait du site sans un mot.
+          include-hidden-files: true
+
+  # THE GATES GATE THE DEPLOY.
+  #
+  # Until they lived in this workflow, `checks.yml` ran typecheck / lint / prune
+  # and `lighthouse.yml` ran size:check — both IN PARALLEL with this workflow,
+  # neither able to stop it. So a push that failed any of them still uploaded
+  # its artifact and shipped to Pages; the red X arrived afterwards, on a build
+  # users already had. An earlier pass fixed "these gates run nowhere"; it did
+  # not fix "they gate nothing".
+  #
+  # The reachable case is not hypothetical: Vite/Rolldown transpiles without
+  # typechecking, so a `tsc` error builds and deploys perfectly happily.
+  # (`catalogue:check` was a fifth gate here until the app stopped shipping a
+  # catalogue at all — it now needs a `--csv` argument and is a reviewer tool,
+  # not a CI gate.)
+  #
+  # Their own job now, started at once beside `bundle`: none of them reads
+  # dist/ (`serviceWorker.test.ts` forbids a test that does), so waiting for
+  # the build bought nothing. Each step after the first carries `!cancelled()`
+  # so one push reports every class at once instead of one per re-run.
+  #
+  # Yes, this duplicates checks.yml on a push to main. That is deliberate and it
+  # is the cheap half of the trade: checks.yml gives fast, isolated feedback
+  # (and is the ONLY gate on pull requests), while this copy is the one that can
+  # actually hold the artifact back.
+  gates:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,20 +165,10 @@ jobs:
           node-version: "24"
           cache: "npm"
 
-      - name: Build (Vite) or prepare static files
-        id: build
-        run: |
-          if [ -f "package.json" ]; then
-            npm ci
-            npm test
-            npm run build
-            echo "ARTIFACT_PATH=dist" >> $GITHUB_ENV
-          else
-            mkdir -p _site
-            cp index.html reset.html help.html changelog.html privacy.html \
-               manifest.json icon-192.png icon-512.png sw.js _site/
-            echo "ARTIFACT_PATH=_site" >> $GITHUB_ENV
-          fi
+      - run: npm ci
+
+      - name: Tests
+        run: npm test
 
       # i18n parity + key-existence + length checks. The bump
       # guard is intentionally skipped in CI (developer discipline +
@@ -69,7 +179,7 @@ jobs:
       # surface in the GH Actions UI timeline without scrolling logs.
       # Errors still fail the step (script exit 1).
       - name: Documentation & i18n check
-        if: ${{ hashFiles('package.json') != '' }}
+        if: ${{ !cancelled() }}
         env:
           DOC_CHECK_SKIP_BUMP: "1"
         run: |
@@ -88,82 +198,68 @@ jobs:
           fi
           exit $rc
 
-      # THE GATES GATE THE DEPLOY.
-      #
-      # Until this step existed, `checks.yml` ran typecheck / lint / prune and
-      # `lighthouse.yml` ran size:check — both IN PARALLEL
-      # with this workflow, neither able to stop it. So a push that failed any
-      # of them still uploaded its artifact and shipped to Pages; the red X
-      # arrived afterwards, on a build users already had. An earlier pass fixed
-      # "these gates run nowhere"; it did not fix "they gate nothing".
-      #
-      # The reachable case is not hypothetical: Vite/Rolldown transpiles
-      # without typechecking, so a `tsc` error builds and deploys perfectly
-      # happily. (`catalogue:check` was a fifth gate here until the app
-      # stopped shipping a catalogue at all — it now needs a
-      # `--csv` argument and is a reviewer tool, not a CI gate.)
-      #
-      # They run AFTER build (size:check needs dist/) and BEFORE the upload,
-      # each with `!cancelled()` so one push reports every class at once
-      # instead of one per re-run. Total added: ~12 s on a ~3 min job.
-      #
-      # Yes, this duplicates checks.yml on a push to main. That is deliberate
-      # and it is the cheap half of the trade: checks.yml gives fast, isolated
-      # feedback (and is the ONLY gate on pull requests), while this copy is
-      # the one that can actually hold the artifact back. A gate in a parallel
-      # workflow cannot block a deploy — that is the whole finding.
       - name: TypeScript (strict)
-        if: ${{ !cancelled() && hashFiles('package.json') != '' }}
+        if: ${{ !cancelled() }}
         run: npm run typecheck
 
       - name: ESLint
-        if: ${{ !cancelled() && hashFiles('package.json') != '' }}
+        if: ${{ !cancelled() }}
         run: npm run lint
 
       - name: Dead code (knip)
-        if: ${{ !cancelled() && hashFiles('package.json') != '' }}
+        if: ${{ !cancelled() }}
         run: npm run prune
 
-      # The ONE gate that needs the build step to have SUCCEEDED, not merely to
-      # have been attempted. `npm test` and `npm run build` share that step, so
-      # a failing test means dist/ was never produced — and this gate then
-      # reported `dist/ not found`, which is the LAST error in the log and the
-      # first thing a reader sees. That is how a flaky test in the suite got
-      # diagnosed as a build problem. The `!cancelled()` intent is unchanged:
-      # every other gate still reports its own class on the same push.
-      - name: Bundle size budget
-        if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
-        run: npm run size:check
+  # ── LES CAMPAGNES NAVIGATEUR SONT DES PORTES DE DÉPLOIEMENT ────────────────
+  #
+  # Elles vivaient dans leur propre workflow, en parallèle de celui-ci, donc
+  # elles ne pouvaient RIEN retenir : l'artefact partait, l'application
+  # arrivait sur le téléphone, et le verdict de mise en page et de contraste
+  # tombait ~9 min plus tard sur un build que l'utilisateur avait déjà. Fenêtre
+  # signalée comme gênante, donc fermée — et elle le reste : `deploy` les attend.
+  #
+  # UN JOB PAR MORCEAU : le contraste entier, puis UNE LANGUE par job. La liste
+  # vient de `bundle` (scripts/browserScope.cjs), qui la DÉRIVE du registre des
+  # langues — jamais écrite ici : une matrice littérale est la liste figée qui a
+  # déjà fait sauter le portugais au vérificateur. L'union des morceaux est la
+  # matrice complète ; `deployGates.test.ts` le vérifie.
+  browser:
+    needs: bundle
+    if: ${{ needs.bundle.outputs.browser == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      # Chaque morceau rapporte même si un autre a échoué : un push dit tout.
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.bundle.outputs.shards) }}
+    name: ${{ matrix.shard.name }}
+    steps:
+      - uses: actions/checkout@v7
 
-      # ── LES CAMPAGNES NAVIGATEUR SONT DES PORTES DE DÉPLOIEMENT ────────────
-      #
-      # Elles vivaient dans leur propre workflow, en parallèle de celui-ci, donc
-      # elles ne pouvaient RIEN retenir : l'artefact partait, l'application
-      # arrivait sur le téléphone, et le verdict de mise en page et de contraste
-      # tombait ~9 min plus tard sur un build que l'utilisateur avait déjà. La
-      # même découverte que pour les quatre portes au-dessus, un cran plus loin :
-      # « une porte dans un workflow parallèle ne peut pas bloquer un
-      # déploiement ». Fenêtre signalée comme gênante, donc fermée.
-      #
-      # ELLES TOURNENT SANS CONDITION, et ce n'est pas un oubli du filtre par
-      # chemins. Le filtrer ici demanderait de diffèrer contre
-      # `github.event.before` — or `concurrency: cancel-in-progress` annule les
-      # runs intermédiaires, si bien que deux poussées rapprochées (une vue,
-      # puis de la documentation) laissent le run survivant ne voir que la
-      # seconde : la vue partirait NON MESURÉE, exactement ce que cette porte
-      # existe pour empêcher. Une porte avec un trou est pire qu'une porte
-      # lente. Le filtre garde toute sa valeur là où sa base est bien définie —
-      # `browser.yml`, sur les pull requests et en rattrapage manuel.
-      #
-      # SÉRIE ET NON PARALLÈLE, délibérément : les deux vérificateurs REFUSENT
-      # un `dist/` plus vieux que `src/` (scripts/distFreshness.cjs), donc les
-      # faire tourner dans un job séparé signifierait reconstruire. Ici elles
-      # réutilisent le `dist/` que l'étape Build vient de produire. Coût : le
-      # déploiement passe d'environ 4 min à environ 17.
-      #
-      # AVANT le téléversement, comme les quatre autres.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      # `vite preview` sert le dist/ mesuré : il faut node_modules.
+      - run: npm ci
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      # Les deux vérificateurs REFUSENT un dist/ plus vieux que src/
+      # (scripts/distFreshness.cjs, une garde écrite pour les humains). Ici le
+      # checkout vient d'être fait et l'artefact a été construit par CE run,
+      # sur CE commit, dans `bundle` : il est frais par construction, et seule
+      # son horodatage dit le contraire si l'extraction conserve celui du zip.
+      - name: Mark the downloaded bundle as built from this checkout
+        run: find dist -exec touch {} +
+
       - name: Install playwright-core + Chromium
-        if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
         # A download that hangs used to hold the deploy for the runner's 6-hour
         # ceiling: build 53 (7 Oct 2026) sat here from 19:59 to 01:55 and was
         # never deployed. It normally takes a minute or two.
@@ -173,19 +269,38 @@ jobs:
           npx playwright-core install --with-deps chromium
 
       - name: Contrast — 6 palettes × 36 screens
-        if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
+        if: ${{ matrix.shard.check == 'theme:contrast' }}
         run: npm run theme:contrast
 
-      - name: Layout — 6 languages × 36 screens × 2 text sizes × 2 widths
-        if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
+      - name: Layout — one language × 36 screens × 2 text sizes × 2 widths
+        if: ${{ matrix.shard.check == 'i18n:layout' }}
+        env:
+          I18N_LAYOUT_LANGS: ${{ matrix.shard.langs }}
         run: npm run i18n:layout
 
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: ${{ env.ARTIFACT_PATH }}
+      # Un morceau qu'aucune étape ne reconnaît passerait VERT sans rien avoir
+      # mesuré. Il échoue.
+      - name: Refuse an unknown shard
+        if: ${{ matrix.shard.check != 'theme:contrast' && matrix.shard.check != 'i18n:layout' }}
+        run: |
+          echo "::error::morceau inconnu : ${{ matrix.shard.check }}"
+          exit 1
 
+  # LE SEUL JOB QUI PUBLIE, et il exige tout le reste.
+  #
+  # `browser` peut être SAUTÉ — légitimement quand `bundle` a jugé que rien ne
+  # change un pixel. Ce saut-là seulement est accepté : un `browser` sauté alors
+  # que `bundle` demandait la mesure ne publie pas. Sur une autre branche que
+  # main (lancement manuel), rien n'est publié : c'est une répétition.
   deploy:
-    needs: build
+    needs: [bundle, gates, browser]
+    if: >-
+      ${{ !cancelled()
+      && github.ref == 'refs/heads/main'
+      && needs.bundle.result == 'success'
+      && needs.gates.result == 'success'
+      && (needs.browser.result == 'success'
+      || (needs.browser.result == 'skipped' && needs.bundle.outputs.browser == 'false')) }}
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -194,5 +309,14 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
       - uses: actions/deploy-pages@v5
         id: deployment

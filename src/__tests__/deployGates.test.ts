@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createRequire } from "node:module";
 
 // The gates must gate the DEPLOY, not merely exist.
 //
@@ -27,6 +28,28 @@ const checks = readFileSync(resolve(ROOT, ".github/workflows/checks.yml"), "utf8
 // qui garde ce filtre — la liste de chemins est écrite à la main, c'est-à-dire
 // la classe de liste figée que ce dépôt a trouvée six fois.
 const browser = readFileSync(resolve(ROOT, ".github/workflows/browser.yml"), "utf8");
+
+// Les jobs de deploy.yml, lus par leur en-tête à deux espaces sous `jobs:`.
+// Pas de YAML (voir plus haut) : la question posée est « quel texte appartient
+// à quel job », à laquelle l'indentation répond directement.
+const jobsText = deploy.slice(deploy.indexOf("\njobs:\n"));
+function jobNames(): string[] {
+  return [...jobsText.matchAll(/^ {2}([a-z][\w-]*):\s*$/gm)].map((m) => m[1]!);
+}
+function jobBlock(name: string): string {
+  const start = jobsText.search(new RegExp("^ {2}" + name + ":\\s*$", "m"));
+  if (start < 0) return "";
+  const rest = jobsText.slice(start + 1);
+  const next = rest.search(/^ {2}[a-z][\w-]*:\s*$/m);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+const req = createRequire(import.meta.url);
+const scope = req("../../scripts/browserScope.cjs") as {
+  patterns: (wf: string) => string[];
+  shards: (langs: string[]) => Array<{ name: string; check: string; langs: string }>;
+  decide: (o: object) => { browser: boolean; why: string };
+};
+const registryLangs = (req("../../scripts/i18n-layout.cjs") as { registryLangs: () => string[] }).registryLangs;
 
 const UPLOAD = "upload-pages-artifact";
 
@@ -78,16 +101,20 @@ describe("deploy.yml — the gates gate the deploy", () => {
   });
 
   it("does not let a failing gate be skipped by an earlier failure", () => {
-    // Each gate carries `!cancelled()` so one push reports every class at
-    // once. Without it, the first failure short-circuits the rest and a
-    // commit needs one re-run per problem.
-    const tail = deploy.slice(deploy.indexOf("npm run typecheck") - 400, deploy.indexOf(UPLOAD));
-    const gateSteps = tail.split(/\n {6}- name: /).slice(1);
-    // Four (catalogue:check was the fifth). Derived from
-    // GATES minus the two that pre-date the block, so the number cannot drift
-    // from the list above.
-    expect(gateSteps.length).toBeGreaterThanOrEqual(GATES.length - 2);
-    gateSteps.forEach((s) => expect(s).toContain("!cancelled()"));
+    // Each gate after the first carries `!cancelled()` so one push reports
+    // every class at once. Without it, the first failure short-circuits the
+    // rest and a commit needs one re-run per problem.
+    //
+    // RE-SCOPED, not loosened: the gates used to share the build job, and
+    // this read « every named step between typecheck and the upload ». They
+    // have their own job now (`gates`, started beside the build), so it reads
+    // that job — whose first named step, the tests, has nothing before it to
+    // be skipped by.
+    const steps = jobBlock("gates").split(/\n {6}- name: /).slice(1);
+    // Tests, doc:check, typecheck, lint, prune.
+    expect(steps.length).toBeGreaterThanOrEqual(5);
+    expect(steps[0]).toMatch(/^Tests\n/);
+    steps.slice(1).forEach((st) => expect(st).toContain("!cancelled()"));
   });
 
   // The one exception to "every gate runs regardless", and it earns it.
@@ -150,27 +177,125 @@ describe("deploy.yml — the gates gate the deploy", () => {
       expect(zone).toMatch(/playwright-core install[^\n]*chromium/);
     });
 
-    it("réutilise le dist/ de l'étape Build, qui la précède", () => {
-      // Les deux vérificateurs REFUSENT un dist/ plus vieux que src/. Un job
-      // séparé devrait reconstruire ; ici l'ordre suffit, et c'est aussi
-      // pourquoi elles sont en SÉRIE et non en parallèle.
+    it("mesure le dist/ que `bundle` a construit — et que `deploy` publiera", () => {
+      // Les deux vérificateurs REFUSENT un dist/ plus vieux que src/, et
+      // c'était la raison de la mise EN SÉRIE : « un job séparé devrait
+      // reconstruire ». RENVERSEMENT CONSIGNÉ : un artefact du RUN satisfait la
+      // même exigence sans la série. `bundle` le téléverse, chaque morceau de
+      // la campagne le télécharge, et `deploy` publie ce même artefact — ce
+      // qui est mesuré est ce qui part, à l'octet près.
       expect(deploy.indexOf("npm run build")).toBeLessThan(deploy.indexOf("npm run theme:contrast"));
+      expect(jobBlock("bundle")).toMatch(/upload-artifact@[^\n]*\n\s+if:[^\n]*\n\s+with:\n\s+name: dist\n\s+path: dist\n/);
+      for (const j of ["browser", "deploy"]) {
+        expect(jobBlock(j), j + " ne télécharge pas l'artefact `dist`")
+          .toMatch(/download-artifact@[^\n]*\n\s+with:\n\s+name: dist\n\s+path: dist\n/);
+      }
+      expect(jobBlock("deploy")).toMatch(/upload-pages-artifact@[^\n]*\n\s+with:\n\s+path: dist\n/);
     });
 
-    it("chaque campagne rapporte même si l'autre a échoué", () => {
-      const after = zone.slice(zone.indexOf("- name: Contrast"));
-      expect((after.match(/!cancelled\(\)/g) || []).length,
-        "une campagne en échec masque l'autre").toBeGreaterThanOrEqual(2);
+    it("chaque morceau rapporte même si un autre a échoué", () => {
+      // RE-SCOPED : les deux campagnes étaient deux étapes d'un job, chacune
+      // sous `!cancelled()`. Elles sont des jobs d'une matrice maintenant, et
+      // l'équivalent est `fail-fast: false` — sans lui, le premier morceau
+      // rouge annule les autres et un push ne dit qu'une classe.
+      expect(jobBlock("browser")).toMatch(/^\s+fail-fast: false$/m);
     });
 
     it("se tait quand le build a échoué, comme size:check", () => {
       // Même raison exactement : sans dist/, la campagne imprimerait une
       // erreur de fraîcheur en DERNIER dans le journal, donc la première chose
-      // que lit un humain — et un test rouge se diagnostiquerait en problème
-      // de navigateur.
-      const steps = zone.split(/\n {6}- name: /).slice(1);
-      expect(steps.length).toBeGreaterThanOrEqual(2);
-      steps.forEach((s) => expect(s).toContain("steps.build.outcome == 'success'"));
+      // que lit un humain. La garde `steps.build.outcome` ne peut pas traverser
+      // un job ; `needs: bundle` la remplace — un job dont la dépendance a
+      // échoué ne démarre pas.
+      expect(jobBlock("browser")).toMatch(/^ {4}needs: bundle$/m);
+    });
+  });
+
+  // ── LE DÉCOUPAGE, ET LE SEUL JOB QUI PUBLIE ───────────────────────────────
+  //
+  // Un seul job faisait tout en série, ~11 min 30 dont 5 min 28 pour la seule
+  // mise en page. Quatre jobs maintenant : `bundle` et `gates` en parallèle,
+  // les campagnes découpées en un job par langue dès que dist/ existe, puis
+  // `deploy`. La GARANTIE est celle d'avant — rien ne part qu'un contrôle a
+  // refusé — et ce bloc la lit sur la forme nouvelle, parce que c'est le
+  // câblage qui pourrit : un job oublié dans `needs` publierait sans attendre.
+  describe("quatre jobs, une seule publication", () => {
+    it("chaque porte vit dans un job dont `deploy` dépend", () => {
+      const needs = (jobBlock("deploy").match(/^ {4}needs: \[([^\]]*)\]$/m) || [])[1] || "";
+      const deps = needs.split(",").map((x) => x.trim()).filter(Boolean);
+      expect(deps.length, "deploy n'a plus de `needs` lisible").toBeGreaterThanOrEqual(3);
+      GATES.forEach((cmd) => {
+        const j = jobNames().find((n) => n !== "deploy" && jobBlock(n).includes(cmd));
+        expect(j, cmd + " n'est dans aucun job").toBeDefined();
+        expect(deps, cmd + " vit dans `" + j + "`, que deploy n'attend pas").toContain(j);
+      });
+    });
+
+    it("seul `deploy` publie, et seulement si tout le reste a réussi", () => {
+      jobNames().filter((n) => n !== "deploy").forEach((n) => {
+        expect(jobBlock(n)).not.toContain("upload-pages-artifact");
+        expect(jobBlock(n)).not.toContain("deploy-pages");
+      });
+      const cond = jobBlock("deploy").slice(0, jobBlock("deploy").indexOf("runs-on:"));
+      expect(cond).toContain("needs.bundle.result == 'success'");
+      expect(cond).toContain("needs.gates.result == 'success'");
+      expect(cond).toContain("needs.browser.result == 'success'");
+      // Le SEUL saut accepté : celui que `bundle` a décidé. Un `browser` sauté
+      // alors que la mesure était demandée ne publie pas.
+      expect(cond).toContain("needs.browser.result == 'skipped' && needs.bundle.outputs.browser == 'false'");
+      // Sur une autre branche (lancement manuel), répétition à blanc.
+      expect(cond).toContain("github.ref == 'refs/heads/main'");
+    });
+
+    it("la matrice vient de `bundle` — aucune langue n'est écrite dans le workflow", () => {
+      // Une matrice littérale est la liste figée qui a déjà fait sauter le
+      // portugais au vérificateur : elle est DÉRIVÉE du registre.
+      const job = jobBlock("browser");
+      expect(job).toContain("${{ fromJSON(needs.bundle.outputs.shards) }}");
+      const langs = registryLangs();
+      langs.forEach((l) => expect(job, "langue « " + l + " » écrite en dur").not.toMatch(new RegExp("[\"' ]" + l + "[\"',\\]]")));
+      // La seule langue que la campagne voit est celle de son morceau.
+      expect((job.match(/I18N_LAYOUT_LANGS:[^\n]*/g) || [])).toEqual(["I18N_LAYOUT_LANGS: ${{ matrix.shard.langs }}"]);
+    });
+
+    it("l'union des morceaux est la matrice complète — chaque langue une fois, le contraste une fois", () => {
+      const list = scope.shards(registryLangs());
+      expect(list.filter((x) => x.check === "theme:contrast")).toHaveLength(1);
+      const layout = list.filter((x) => x.check === "i18n:layout").map((x) => x.langs).sort();
+      expect(layout).toEqual(registryLangs().slice().sort());
+      expect(list.every((x) => x.check === "theme:contrast" || x.check === "i18n:layout")).toBe(true);
+    });
+
+    it("un morceau qu'aucune étape ne reconnaît ÉCHOUE au lieu de passer vert", () => {
+      const job = jobBlock("browser");
+      const i = job.indexOf("- name: Refuse an unknown shard");
+      expect(i).toBeGreaterThan(-1);
+      expect(job.slice(i)).toMatch(/exit 1/);
+    });
+
+    it("la base du filtre est le dernier DÉPLOIEMENT réussi, pas le push précédent", () => {
+      // `github.event.before` a le trou documenté : `cancel-in-progress`
+      // annule les runs intermédiaires, et le survivant ne verrait que le
+      // dernier push. Commentaires blanchis : ils CITENT ce nom pour
+      // expliquer pourquoi il n'est pas utilisé.
+      const code = deploy.replace(/^\s*#[^\n]*$/gm, "");
+      expect(code).not.toContain("github.event.before");
+      expect(code).toContain("actions/workflows/deploy.yml/runs?branch=main&status=success");
+      expect(code).toContain("BROWSER_SCOPE_BASE=");
+    });
+
+    describe("la décision de portée est FAIL-CLOSED", () => {
+      const pats = scope.patterns(readFileSync(resolve(ROOT, ".github/workflows/browser.yml"), "utf8"));
+      const d = (o: object) => scope.decide(Object.assign({ event: "push", base: "abc1234def", changed: [], pats }, o)).browser;
+      it("lancement manuel → mesure", () => expect(d({ event: "workflow_dispatch" })).toBe(true));
+      it("aucun déploiement réussi → mesure", () => expect(d({ base: "" })).toBe(true));
+      it("diff impossible → mesure", () => expect(d({ changed: null })).toBe(true));
+      it("un fichier rendu parmi d'autres → mesure", () =>
+        expect(d({ changed: ["docs/history.md", "src/views/curator/HomeViewV2.tsx"] })).toBe(true));
+      it("le guide est un écran → mesure", () => expect(d({ changed: ["public/help.html"] })).toBe(true));
+      it("le câblage lui-même → mesure", () => expect(d({ changed: [".github/workflows/deploy.yml"] })).toBe(true));
+      it("seulement documentation interne et tests → saute", () =>
+        expect(d({ changed: ["docs/history.md", "CLAUDE.md", "src/__tests__/x.test.ts"] })).toBe(false));
     });
   });
 

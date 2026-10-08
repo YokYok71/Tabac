@@ -25,55 +25,32 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 
 const WF = ".github/workflows/browser.yml";
 const wf = readFileSync(WF, "utf8");
 
 /**
- * Les motifs `paths:` du workflow, lus dans le fichier.
+ * Les motifs, et le moteur qui les applique, sont ceux de
+ * `scripts/browserScope.cjs` — le script qui décide AU DÉPLOIEMENT si la
+ * campagne tourne. Ce fichier en avait sa propre copie, écrite pour lui seul ;
+ * depuis que la même liste sert aussi à `deploy.yml`, deux moteurs auraient pu
+ * diverger, et le test aurait gardé un filtre que le déploiement n'applique
+ * pas. Un seul moteur : celui qui tourne est celui qui est vérifié.
  *
- * Aucun analyseur YAML n'est dépendance de ce dépôt, et en ajouter un pour ces
- * quinze lignes serait signalé par knip. Les motifs sont donc extraits de la
- * liste `&browser_paths` par lecture directe — les entrées sont toutes de la
- * forme `- "…"`, et l'ancre est réutilisée par `pull_request` via `*`, donc
- * la liste n'existe QU'UNE fois dans le fichier.
+ * Il reste volontairement pauvre (un chemin littéral, ou un préfixe suivi de
+ * `**`, éventuellement nié) et LÈVE sur toute autre forme, sans quoi une
+ * syntaxe plus riche introduite plus tard rendrait ce garde silencieux.
  */
+const scope = createRequire(import.meta.url)("../../scripts/browserScope.cjs") as {
+  patterns: (wf: string) => string[];
+  triggers: (file: string, pats: string[]) => boolean;
+};
 function patterns(): string[] {
-  const start = wf.indexOf("paths: &browser_paths");
-  expect(start, "l'ancre `&browser_paths` a disparu du workflow").toBeGreaterThan(-1);
-  const rest = wf.slice(start);
-  const end = rest.indexOf("\n  workflow_dispatch:");
-  expect(end, "la liste de motifs n'est pas suivie de workflow_dispatch").toBeGreaterThan(-1);
-  return (rest.slice(0, end).match(/^\s*- "([^"]+)"/gm) || [])
-    .map((l) => (l.match(/"([^"]+)"/) || [])[1]!)
-    .filter(Boolean);
+  expect(wf.indexOf("paths: &browser_paths"), "l'ancre `&browser_paths` a disparu du workflow").toBeGreaterThan(-1);
+  return scope.patterns(wf);
 }
-
-/**
- * Les motifs GitHub, réduits à ce que ce filtre utilise réellement : un chemin
- * littéral, ou un préfixe suivi de `**`. Un `!` en tête est une EXCLUSION.
- *
- * Volontairement pauvre : reproduire toute la syntaxe de filtrage de GitHub
- * serait écrire un second moteur qu'on ne pourrait pas vérifier. Un motif d'une
- * forme non reconnue fait échouer le test plutôt que d'être ignoré — sans quoi
- * une syntaxe plus riche introduite plus tard rendrait ce garde silencieux.
- */
-function matches(pattern: string, file: string): boolean {
-  const p = pattern.startsWith("!") ? pattern.slice(1) : pattern;
-  if (p.endsWith("/**")) return file.startsWith(p.slice(0, -2));
-  if (!p.includes("*")) return file === p;
-  throw new Error("motif non reconnu par ce test : " + pattern);
-}
-
-/** Le filtre déclenche-t-il la campagne pour ce fichier ? */
-function triggers(file: string, pats: string[]): boolean {
-  let on = false;
-  for (const p of pats) {
-    if (!matches(p, file)) continue;
-    on = !p.startsWith("!");
-  }
-  return on;
-}
+const triggers = scope.triggers;
 
 /**
  * CE QUI NE PEUT PAS CHANGER UN PIXEL — chaque entrée est une décision, pas une
@@ -92,9 +69,9 @@ const INERT: Array<{ re: RegExp; why: string }> = [
   // copié dans `dist/` et déclenche donc la campagne via `public/**`. Celui-ci
   // est le domaine que GitHub Pages lit ; il ne construit rien.
   { re: /^CNAME$/, why: "domaine GitHub Pages, hors de l'artefact construit" },
-  { re: /^\.github\/workflows\/(?!browser\.yml)/, why: "les autres workflows ne construisent pas l'artefact mesuré" },
+  { re: /^\.github\/workflows\/(?!browser\.yml|deploy\.yml)/, why: "les autres workflows ne construisent pas l'artefact mesuré" },
   { re: /^\.github\/(?!workflows\/)/, why: "configuration de dépôt (dependabot, modèles)" },
-  { re: /^scripts\//, why: "outillage — les QUATRE scripts qui portent les campagnes sont, eux, dans le filtre" },
+  { re: /^scripts\//, why: "outillage — les CINQ scripts qui portent les campagnes sont, eux, dans le filtre" },
   { re: /^eslint-rules\//, why: "règles de lint : elles échouent à la compilation, elles ne rendent rien" },
   { re: /^(eslint\.config\.js|tsconfig[^/]*\.json|knip\.json|vitest[^/]*|\.npmrc|\.gitignore|\.lighthouserc\.json)$/,
     why: "configuration d'outillage, hors chaîne de construction de dist/" },
@@ -138,12 +115,15 @@ describe("le filtre par chemins des campagnes navigateur", () => {
     expect(dead.map((e) => String(e.re))).toEqual([]);
   });
 
-  it("les quatre scripts qui PORTENT les campagnes déclenchent la campagne", () => {
+  it("les cinq scripts qui PORTENT les campagnes déclenchent la campagne", () => {
     // L'exemption `^scripts/` est large ; ces quatre-là doivent en sortir, ou
     // un vérificateur élargi partirait sans jamais avoir été exercé — « le
     // câblage est ce qui pourrit », encore.
     for (const s of ["scripts/i18n-layout.cjs", "scripts/theme-contrast.cjs",
-                     "scripts/parallelRun.cjs", "scripts/distFreshness.cjs"]) {
+                     "scripts/parallelRun.cjs", "scripts/distFreshness.cjs",
+                     // Le cinquième décide AU DÉPLOIEMENT de lancer la campagne et
+                     // la découpe ; deploy.yml la porte. Les deux sont son câblage.
+                     "scripts/browserScope.cjs", ".github/workflows/deploy.yml"]) {
       expect(triggers(s, pats), s + " ne déclenche pas les campagnes").toBe(true);
     }
   });
