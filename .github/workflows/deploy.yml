@@ -125,7 +125,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           # upload-artifact laisse les fichiers cachés de côté par défaut ;
-          # upload-pages-artifact, qui lisait dist/ directement, les gardait. Un
+          # l'étape de publication, qui lisait dist/ directement, les gardait. Un
           # `.well-known/` ajouté un jour disparaîtrait du site sans un mot.
           include-hidden-files: true
 
