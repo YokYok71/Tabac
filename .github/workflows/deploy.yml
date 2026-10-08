@@ -164,6 +164,10 @@ jobs:
       # AVANT le téléversement, comme les quatre autres.
       - name: Install playwright-core + Chromium
         if: ${{ !cancelled() && steps.build.outcome == 'success' && hashFiles('package.json') != '' }}
+        # A download that hangs used to hold the deploy for the runner's 6-hour
+        # ceiling: build 53 (7 Oct 2026) sat here from 19:59 to 01:55 and was
+        # never deployed. It normally takes a minute or two.
+        timeout-minutes: 15
         run: |
           npm i --no-save playwright-core
           npx playwright-core install --with-deps chromium
