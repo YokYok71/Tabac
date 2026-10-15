@@ -35,7 +35,7 @@ The Curator UI (`src/CuratorApp.tsx` + `src/views/curator/` + `src/components/cu
 | State | React Hooks (`useState`, `useEffect`, `useCallback`, `useMemo`) |
 | Context | `AppCtx` / `useAppCtx()` — views receive all state via context |
 | Persistence | `localStorage` (primary), IndexedDB (image cache), `sessionStorage` (OAuth token, non-iOS) |
-| Offline | Service Worker (`public/sw.js`, current cache name `cave-tabac-v1-0-1`) |
+| Offline | Service Worker (`public/sw.js`, current cache name `cave-tabac-v1-0-2`) |
 | Auth | Google Sign-In (OAuth 2.0) |
 | Cloud backup | Google Drive API v3 |
 | AI | Anthropic / OpenAI / Google Gemini (multi-provider) |
@@ -146,7 +146,8 @@ The pending OAuth action (`gdrive-pending`) is validated against a whitelist (`"
 
 ## Service Worker Notes
 
-- Cache name: `cave-tabac-v1-0-1` (current). In `public/sw.js`. See bumping rules below.
+- Cache name: `cave-tabac-v1-0-2` (current). In `public/sw.js`. See bumping rules below.
+- **Offline launch — two defects fixed together (CACHE_NAME bumped to `v1-0-2` for them).** Reported from the iPhone: offline, the app did not start; closed and reopened, it did. Both reproduced in Chromium against a `no-store` server (the state more than GitHub Pages' 10-minute `max-age` after a visit) — and Playwright's offline switch does NOT reach the service worker (17 requests landed during a « offline » run), so offline is simulated at the server. **(1) A connection that is up but never answers held the HTML page for ever** — network-first had no deadline: not started after 45 s. HTML now waits `NAV_TIMEOUT_MS` (4 s) and then serves the cached copy; the network request carries on and still refreshes the cache. Without a cached copy it keeps waiting. Measured: started in 4.4 s. **(2) After every update the next offline launch could not start.** `doUpdate()` purges every cache and reloads, and the reloaded page is not controlled (the worker never claims open pages, below), so the hashed scripts it loads bypass the worker and are never cached — stuck on « Chargement… », twice in a row. The page now hands the worker what it loaded (`primeOfflineShell`, `src/utils/offlineShell.ts`, 3 s after `load`) and the worker's `CACHE_URLS` handler stores it: same-origin, no query string, never HTML, at most 200, past the same origin gate as `SKIP_WAITING`. Measured: started offline in 0.36 s; with the call disabled, stuck again. Locked by `serviceWorker.test.ts` and `offlineShell.test.ts`; six probes, each red.
 - Cached assets: the root `./`, `index.html`, `help.html`, `reset.html`, `changelog.html`, `privacy.html`, `manifest.json`, `icon-192.png`, `icon-512.png`, `icon-512-maskable.png`. `licenses.html` is NOT pre-cached (served network-first like every other page). No CDN scripts — React 19 is bundled by Vite. Self-hosted woff2 fonts are fetched once and served from the SW cache on subsequent loads (cache-first per the default fetch handler).
 - **Never cached** (always fetched from network): `api.anthropic.com`, `api.github.com`, `api.openai.com`, `corsproxy.io`, `allorigins.win`, `googleapis.com`, `accounts.google.com`, `gstatic.com`. Bypass check parses the URL hostname and matches exact host or `*.host` suffix — the previous `indexOf` form was flagged by CodeQL as an incomplete URL substring sanitization.
 - **`self.clients.claim()` is intentionally absent** from the `activate` handler. This ensures the new SW does not take over open pages mid-session — activation only occurs via `doUpdate()` (`SKIP_WAITING` → `location.reload()`), which is called automatically after the 10s countdown banner or on explicit user action in Settings.

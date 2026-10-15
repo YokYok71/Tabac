@@ -24,7 +24,7 @@
  * from source and evaluated in an isolated scope rather than imported.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { createRequire } from "node:module";
@@ -435,5 +435,96 @@ describe("index.html — la barre d'état iOS ne doit plus se superposer", () =>
     const defautSombre = themeColorFor("brass", "dark");
     expect(mf.theme_color, "la bande au lancement").toBe(defautSombre);
     expect(mf.background_color, "l'écran de lancement").toBe(defautSombre);
+  });
+});
+
+// ── HORS LIGNE : les deux défauts du lancement sans réseau ──────────────────
+//
+// Reported from the iPhone: offline, the app did not start; closed and
+// reopened, it did. Reproduced in Chromium against a server that never
+// answers (not started after 45 s) and against an install followed by an
+// offline launch (stuck on « Chargement… »). The page half of the second fix
+// is in offlineShell.test.ts.
+function loadOffline(caches: { match: (r: unknown) => Promise<unknown> }) {
+  const pick = (re: RegExp, what: string) => {
+    const m = SW.match(re);
+    if (!m) throw new Error("sw.js no longer exposes " + what + " in the expected form — update this extraction");
+    return m[0];
+  };
+  const src = [
+    pick(/var NAV_TIMEOUT_MS = \d+;/, "NAV_TIMEOUT_MS"),
+    pick(/function withDeadline\(request, network\) \{[\s\S]*?\n\}/, "withDeadline"),
+    pick(/function isCacheableAsset\(raw\) \{[\s\S]*?\n\}/, "isCacheableAsset"),
+    pick(/function isHtmlDoc\(rawUrl\) \{[\s\S]*?\n\}/, "isHtmlDoc"),
+  ].join("\n");
+  const self = { location: { href: "https://t-cellar.app/sw.js", origin: "https://t-cellar.app" } };
+  return new Function("caches", "self",
+    src + "\nreturn { NAV_TIMEOUT_MS, withDeadline, isCacheableAsset };")(caches, self) as {
+      NAV_TIMEOUT_MS: number;
+      withDeadline: (req: unknown, net: Promise<unknown>) => Promise<unknown>;
+      isCacheableAsset: (u: string) => boolean;
+    };
+}
+
+describe("sw.js — an HTML page does not wait for the network for ever", () => {
+  it("serves the cached copy once the deadline passes, when the network never answers", async () => {
+    vi.useFakeTimers();
+    try {
+      const { NAV_TIMEOUT_MS, withDeadline } = loadOffline({ match: () => Promise.resolve("CACHED") });
+      expect(NAV_TIMEOUT_MS).toBeGreaterThanOrEqual(2000);
+      expect(NAV_TIMEOUT_MS).toBeLessThanOrEqual(6000);
+      let got: unknown = "pending";
+      withDeadline("req", new Promise(() => { /* never answers */ })).then((r) => { got = r; });
+      await vi.advanceTimersByTimeAsync(NAV_TIMEOUT_MS - 1);
+      expect(got).toBe("pending");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(got).toBe("CACHED");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("returns the network answer when it comes in time", async () => {
+    const { withDeadline } = loadOffline({ match: () => Promise.resolve("CACHED") });
+    await expect(withDeadline("req", Promise.resolve("NETWORK"))).resolves.toBe("NETWORK");
+  });
+
+  it("keeps waiting when there is no cached copy — there is nothing better to show", async () => {
+    vi.useFakeTimers();
+    try {
+      const { NAV_TIMEOUT_MS, withDeadline } = loadOffline({ match: () => Promise.resolve(undefined) });
+      let resolveNet!: (v: unknown) => void;
+      let got: unknown = "pending";
+      withDeadline("req", new Promise((r) => { resolveNet = r; })).then((r) => { got = r; });
+      await vi.advanceTimersByTimeAsync(NAV_TIMEOUT_MS * 3);
+      expect(got).toBe("pending");
+      resolveNet("NETWORK");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(got).toBe("NETWORK");
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("is applied to the HTML branch", () => {
+    const code = SW.replace(/^\s*\/\/.*$/gm, "");
+    expect(code).toMatch(/isHtmlDoc\(event\.request\.url\)\) \{\s*event\.respondWith\(withDeadline\(/);
+  });
+});
+
+describe("sw.js — keeping the files the uncontrolled page loaded", () => {
+  it("takes same-origin, query-free, non-HTML files only", () => {
+    const { isCacheableAsset } = loadOffline({ match: () => Promise.resolve(undefined) });
+    expect(isCacheableAsset("https://t-cellar.app/assets/index-AbCd1234.js")).toBe(true);
+    expect(isCacheableAsset("/fonts/inter.woff2")).toBe(true);
+    expect(isCacheableAsset("https://evil.example/assets/x.js")).toBe(false);
+    expect(isCacheableAsset("https://t-cellar.app/version.json?_v=1")).toBe(false);
+    expect(isCacheableAsset("https://t-cellar.app/help.html")).toBe(false);
+    expect(isCacheableAsset("https://t-cellar.app/")).toBe(false);
+  });
+
+  it("handles CACHE_URLS only past the origin gate, and bounds the list", () => {
+    const code = SW.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    const gate = code.indexOf("event.origin !== self.location.origin");
+    const msg = code.indexOf("'CACHE_URLS'");
+    expect(gate).toBeGreaterThan(-1);
+    expect(msg).toBeGreaterThan(gate);
+    expect(code).toMatch(/urls\.filter\(isCacheableAsset\)\.slice\(0, \d+\)/);
   });
 });

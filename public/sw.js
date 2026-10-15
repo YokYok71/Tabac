@@ -1,4 +1,4 @@
-var CACHE_NAME = 'cave-tabac-v1-0-1';
+var CACHE_NAME = 'cave-tabac-v1-0-2';
 var CORE_URLS = [
   './',
   './index.html',
@@ -32,7 +32,36 @@ self.addEventListener('message', function(event) {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  // The page asks us to keep the files it loaded BEFORE this worker
+  // controlled it. This worker deliberately never claims open pages, so the page that
+  // follows an install — which is EVERY update, since doUpdate() purges every
+  // cache and reloads — fetches its scripts, styles and fonts straight from
+  // the network, past this worker, and none of them is stored. The cache then
+  // held index.html and its icons but not the code index.html loads: offline,
+  // the next launch stopped on « Chargement… » until one launch WITH network
+  // had re-fetched everything under control. Reproduced in Chromium against a
+  // no-store server (a visit more than GitHub Pages' 10-minute max-age later).
+  // Same-origin only, no query string (`?_v=` is the uncached version probe),
+  // never an HTML page (those stay network-first), and bounded.
+  if (event.data && event.data.type === 'CACHE_URLS' && Array.isArray(event.data.urls)) {
+    var urls = event.data.urls.filter(isCacheableAsset).slice(0, 200);
+    event.waitUntil(caches.open(CACHE_NAME).then(function(cache) {
+      return Promise.all(urls.map(function(u) {
+        return cache.match(u).then(function(hit) {
+          return hit || cache.add(u).catch(function() { /* one file must not sink the rest */ });
+        });
+      }));
+    }));
+  }
 });
+
+function isCacheableAsset(raw) {
+  var u;
+  try { u = new URL(raw, self.location.href); } catch (_e) { return false; }
+  if (u.origin !== self.location.origin) return false;
+  if (u.search) return false;
+  return !isHtmlDoc(u.href);
+}
 
 self.addEventListener('activate', function(event) {
   event.waitUntil(
@@ -77,6 +106,20 @@ function shouldBypass(rawUrl) {
     if (host === h || host.endsWith('.' + h)) return true;
   }
   return false;
+}
+
+// How long an HTML page waits for the network before the cached copy is used.
+var NAV_TIMEOUT_MS = 4000;
+function withDeadline(request, network) {
+  return new Promise(function(resolve, reject) {
+    var settled = false;
+    function done(r) { if (!settled) { settled = true; resolve(r); } }
+    network.then(done, function(e) { if (!settled) { settled = true; reject(e); } });
+    setTimeout(function() {
+      if (settled) return;
+      caches.match(request).then(function(cached) { if (cached) done(cached); });
+    }, NAV_TIMEOUT_MS);
+  });
 }
 
 // Is this URL one of the app's HTML documents? Used to give
@@ -124,8 +167,19 @@ self.addEventListener('fetch', function(event) {
   //     the surface where users actually read the docs. Keying on the URL
   //     being an HTML document instead of on the request mode makes the
   //     documented behaviour the real one.
+  //
+  // (c) NO DEADLINE. Network-first waited for the network as long as the
+  //     network took, and a connection that is up but answers nothing — a weak
+  //     signal, a Wi-Fi with no Internet behind it — took for ever: the app
+  //     sat on « Chargement… » with a good copy in the cache. Reported from the
+  //     iPhone (« sans connexion l'app ne s'est pas lancée », then fine on the
+  //     second try, once iOS had decided it was offline and the fetch failed
+  //     fast). Reproduced against a server that never answers: not started
+  //     after 45 s. Past NAV_TIMEOUT_MS the cached copy is served; the network
+  //     request carries on and still refreshes the cache if it lands. Without
+  //     a cached copy there is nothing better to show, so it keeps waiting.
   if (event.request.mode === 'navigate' || isHtmlDoc(event.request.url)) {
-    event.respondWith(
+    event.respondWith(withDeadline(event.request,
       fetch(event.request).then(function(response) {
         if (response.ok) {
           var clone = response.clone();
@@ -146,7 +200,7 @@ self.addEventListener('fetch', function(event) {
           });
         });
       })
-    );
+    ));
     return;
   }
 

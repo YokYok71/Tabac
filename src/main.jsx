@@ -8,6 +8,7 @@ import { lsSet } from './utils/appStorage.ts'
 import { detectUiLang } from './utils.ts'
 import { LANGUAGES } from './i18n/languages.ts'
 import { ensureLang } from './i18n.ts'
+import { primeOfflineShell } from './utils/offlineShell.ts'
 import { applyTheme } from './theme-curator.ts'
 import { isFramed, renderFramedNotice, tryBustOut } from './utils/frameGuard.ts'
 
@@ -146,6 +147,11 @@ try {
 // machinery on behalf of a page the user never chose to open.
 if (!FRAMED && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js')
+  // Hand the worker what this page loaded — the page after an install (every
+  // update) is not controlled, so nothing it fetched was cached and the next
+  // offline launch could not start. A few seconds after `load`, so the fonts
+  // the first screen pulled in are on the list too. See offlineShell.ts.
+  window.addEventListener('load', () => { window.setTimeout(() => primeOfflineShell(window), 3000) })
 }
 
 // Load the ACTIVE language's dictionary before mounting.
