@@ -10,9 +10,14 @@
 #
 # Schedule weekly so the PR backlog stays manageable. CVE alerts ignore
 # the schedule and fire immediately — Dependabot security updates run
-# regardless of the cadence below (controlled via repo Settings →
-# Code security → Dependabot alerts / security updates, enabled by
-# default on public repos).
+# regardless of the cadence below. They are NOT configured in this file:
+# they live in repo Settings → Advanced Security (Dependency graph,
+# Dependabot alerts, Dependabot security updates), switched on by hand
+# on 16 Oct 2026; "Grouped security updates" is left off so each CVE
+# fix is its own PR. This comment used to say they were "enabled by
+# default on public repos" — they were found all Off on that date, and
+# while they were, this file was the ONLY Dependabot running here: no
+# CVE alert could fire, whatever the line above promised.
 #
 # Auto-merge: NOT enabled. Each PR runs through CI (deploy.yml + codeql)
 # and a human eyeballs the changelog before merging — we don't want a
