@@ -1886,24 +1886,21 @@ export function useGdriveSync({
 
   // Mirror of maybeEncryptPayload for the AUTO-save path (gdriveSaveQuiet).
   // Difference: never prompts. If encryption is on but the passphrase
-  // isn't cached, the auto-save is skipped (returns null), the next
+  // isn't cached, the auto-save is skipped (resolves null), the next
   // manual save will prompt and recover. This avoids surprising the
   // user with an auto-popup in the middle of editing.
-  function maybeEncryptQuiet(plaintext: string): string | null {
-    if (!driveEncryptionEnabled) return plaintext;
-    if (!drivePassphrase) return null;
-    // The encryption is async but we return a sync result for this
-    // helper signature — caller is expected to await encryptBackup
-    // separately when the synchronous null check passes.
-    return drivePassphrase;
-  }
-  // Auto-save async variant: returns a Promise<string|null>. Null
-  // means "skip the auto-save, encryption is on but locked".
+  //
+  // THREE PLAIN BRANCHES, and the shape is the point. It used to go through a
+  // sync helper returning null, the passphrase OR THE PLAINTEXT ITSELF into a
+  // variable named `pw`, told apart afterwards by `pw === plaintext`. Nothing
+  // ever encrypted under the plaintext, but CodeQL followed the backup text —
+  // which carries Math.random-made ids — into `encryptBackup`'s passphrase
+  // (js/insecure-randomness, alert #24), and a variable that may hold
+  // something other than a passphrase is exactly how a real one gets misused.
   function maybeEncryptPayloadQuiet(plaintext: string): Promise<string | null> {
-    var pw = maybeEncryptQuiet(plaintext);
-    if (pw === null) return Promise.resolve(null);
-    if (pw === plaintext) return Promise.resolve(plaintext);
-    return encryptBackup(plaintext, pw);
+    if (!driveEncryptionEnabled) return Promise.resolve(plaintext);
+    if (!drivePassphrase) return Promise.resolve(null);
+    return encryptBackup(plaintext, drivePassphrase);
   }
 
   // Matching decrypt helper for the restore path. Detects an
@@ -3420,15 +3417,19 @@ export function useGdriveSync({
   // as ANCESTORS: the result contains them, so a later upload from here tells
   // the other device that it, in turn, holds nothing new — which is what ends
   // a ping-pong after the two devices genuinely diverged.
+  // `lin` is REQUIRED: its one caller (stageCloudRestore) always reads the
+  // lineage before the import. It was optional, and `!!lin` was always true
+  // (CodeQL js/trivial-conditional, alert #23) — a guard that suggested a
+  // lineage-less restore path which does not exist.
   function cloudRestoreApplied(
-    mode: "replace" | "merge", ackTs?: number, ackName?: string,
-    info?: { sameAsFile: boolean },
-    lin?: { preRev: string; lineage: string[] },
+    mode: "replace" | "merge", ackTs: number | undefined, ackName: string | undefined,
+    info: { sameAsFile: boolean } | undefined,
+    lin: { preRev: string; lineage: string[] },
   ) {
     ackCloudNewerBackup(ackTs, ackName);
     var rev = backupRev(ackName || "");
-    var lineage = (lin && lin.lineage) || [];
-    var descends = !!lin && fileDescendsFrom(lineage, lin.preRev) && revUntouchedSince(lin.preRev);
+    var lineage = lin.lineage || [];
+    var descends = fileDescendsFrom(lineage, lin.preRev) && revUntouchedSince(lin.preRev);
     var exact = mode === "replace" || !!(info && info.sameAsFile);
     if (exact && rev) {
       // A replace discarded the cellar every earlier revision described —

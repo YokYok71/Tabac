@@ -265,7 +265,10 @@ describe("sauvegarde AUTO chiffrée — jamais de fuite en clair", () => {
     // qui l'établit :
     //   · retirer la sortie précoce de `gdriveSaveQuiet`
     //     (`driveEncryptionEnabled && !drivePassphrase`) seule → 8 verts ;
-    //   · faire rendre le clair à `maybeEncryptQuiet` seule → 8 verts ;
+    //   · faire rendre le clair à `maybeEncryptPayloadQuiet` quand la phrase
+    //     manque (la branche `!drivePassphrase` ; c'était `maybeEncryptQuiet`,
+    //     fondue dedans pour l'alerte CodeQL #24) seule → 8 verts (refait
+    //     au build 58 sur la nouvelle forme : 10 verts sur 10, les deux → rouge) ;
     //   · retirer LES DEUX → ce cas rougit, la cave part en clair.
     // Une sonde verte n'est donc pas ici le signe d'un test creux : c'est la
     // couche absorbante qui se montre. Ce cas épingle le RÉSULTAT sur le fil,
