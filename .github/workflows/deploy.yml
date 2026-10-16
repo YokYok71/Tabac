@@ -311,10 +311,17 @@ jobs:
           I18N_LAYOUT_WIDTHS: ${{ matrix.shard.widths }}
         run: npm run i18n:layout
 
+      # Le lancement hors ligne (build 57) : après une mise à jour, et sur un
+      # réseau qui ne répond jamais. Les deux défauts ont été rapportés depuis
+      # l'iPhone et reproduits avant d'être corrigés ; ce morceau les rejoue.
+      - name: Offline launch — after an update, and on a silent network
+        if: ${{ matrix.shard.check == 'offline:check' }}
+        run: npm run offline:check
+
       # Un morceau qu'aucune étape ne reconnaît passerait VERT sans rien avoir
       # mesuré. Il échoue.
       - name: Refuse an unknown shard
-        if: ${{ matrix.shard.check != 'theme:contrast' && matrix.shard.check != 'i18n:layout' }}
+        if: ${{ matrix.shard.check != 'theme:contrast' && matrix.shard.check != 'i18n:layout' && matrix.shard.check != 'offline:check' }}
         run: |
           echo "::error::morceau inconnu : ${{ matrix.shard.check }}"
           exit 1

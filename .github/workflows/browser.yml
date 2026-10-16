@@ -78,6 +78,8 @@ on:
       # aussi au déploiement (scripts/browserScope.cjs la lit) ; un changement
       # de ce câblage doit être exercé par la campagne elle-même.
       - "scripts/browserScope.cjs"
+      # Le lancement hors ligne : son vérificateur est une campagne lui aussi.
+      - "scripts/offline-launch.cjs"
       - ".github/workflows/deploy.yml"
   # Le rattrapage manuel : quand on veut la matrice complète sur un commit que
   # le filtre a ignoré, ou simplement avant une release.
@@ -152,3 +154,7 @@ jobs:
       - name: Layout — 6 languages × 36 screens × 2 text sizes × 2 widths
         if: ${{ !cancelled() }}
         run: npm run i18n:layout
+
+      - name: Offline launch — after an update, and on a silent network
+        if: ${{ !cancelled() }}
+        run: npm run offline:check

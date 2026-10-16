@@ -95,7 +95,10 @@ function shards(langs, widths) {
       layout.push({ name: "Layout — " + l + " · " + w + "px", check: "i18n:layout", langs: l, widths: String(w) });
     }
   }
-  return [{ name: "Contrast — all palettes", check: "theme:contrast", langs: "", widths: "" }].concat(layout);
+  return [{ name: "Contrast — all palettes", check: "theme:contrast", langs: "", widths: "" }]
+    .concat(layout)
+    // The offline launch (build 57): one job, it is not split by any axis.
+    .concat([{ name: "Offline launch", check: "offline:check", langs: "", widths: "" }]);
 }
 
 /**

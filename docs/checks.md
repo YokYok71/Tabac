@@ -366,6 +366,20 @@ npm run theme:contrast # OPT-IN contrast check across the SIX palettes (brass/st
                     #   Campagnes complètes vertes après correction (contraste 6 palettes ×
                     #   36 écrans, 2564 éléments par palette ; mise en page 864 rendus, canari
                     #   inchangé à 85 lignes).
+npm run offline:check # The OFFLINE LAUNCH, replayed in Chromium against the built app (build 57,
+                    #   scripts/offline-launch.cjs). Two scenarios, both reported from the iPhone and
+                    #   reproduced before being fixed: (1) after an update — a page the new worker does
+                    #   not control, then no network at all — the app must start; (2) on a network that
+                    #   takes every request and answers none, it must start once the worker's
+                    #   NAV_TIMEOUT_MS has passed. ITS OWN SERVER, not `vite preview` + Playwright's
+                    #   offline switch: that switch does not reach the service worker (MEASURED, 17
+                    #   requests landed during an « offline » run), and `Cache-Control: no-store` keeps
+                    #   the browser's HTTP cache from standing in for the worker's. Each scenario proves
+                    #   its simulation APPLIED (the dropped server was asked; the silent launch waited
+                    #   at least the deadline) or fails. Its first version, faced with a hanging request,
+                    #   HUNG instead of failing — every close and every DOM read is now bounded, with a
+                    #   150 s watchdog. A deploy shard and a step of browser.yml; ~25 s. Probed: each
+                    #   of the two build-57 fixes removed makes it fail, naming the cause.
 npm run prune       # knip — dead exports / files / dependencies (a CI-style gate; ~2s)
 npm run release:data # scripts/data-only-release.cjs — bump APP_BUILD and write a version.json
                     #   carrying `data_only: true`, so the running app applies the release

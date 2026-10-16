@@ -71,6 +71,9 @@ const GATES = [
   // elles doivent précéder le téléversement.
   "npm run theme:contrast",
   "npm run i18n:layout",
+  // Le lancement hors ligne (build 57) : deux défauts rapportés depuis
+  // l'iPhone, reproduits, corrigés — et rejoués avant chaque publication.
+  "npm run offline:check",
 ];
 // `npm run catalogue:check` was a sixth gate. It read the
 // catalogue the app shipped; the app ships none, so the script now REQUIRES a
@@ -295,7 +298,8 @@ describe("deploy.yml — the gates gate the deploy", () => {
       expect(layout).toEqual(want.sort());
       // Non-vacuité : les deux largeurs du vérificateur, pas une seule.
       expect(DEFAULT_WIDTHS.length).toBeGreaterThanOrEqual(2);
-      expect(list.every((x) => x.check === "theme:contrast" || x.check === "i18n:layout")).toBe(true);
+      expect(list.filter((x) => x.check === "offline:check")).toHaveLength(1);
+      expect(list.every((x) => ["theme:contrast", "i18n:layout", "offline:check"].includes(x.check))).toBe(true);
     });
 
     it("un morceau qu'aucune étape ne reconnaît ÉCHOUE au lieu de passer vert", () => {
@@ -372,6 +376,10 @@ describe("deploy.yml — the gates gate the deploy", () => {
       // code juste. C'est la cinquième fois que ce dépôt le note.
       const code = checks.replace(/^\s*#[^\n]*$/gm, "");
       expect(code, "la voie rapide s'est remise à construire").not.toContain("npm run build");
+    });
+
+    it("runs the offline launch too — the PR lane must not be the one that misses it", () => {
+      expect(job).toContain("npm run offline:check");
     });
 
     it("runs BOTH campaigns, in full", () => {

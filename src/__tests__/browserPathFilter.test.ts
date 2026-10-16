@@ -123,7 +123,9 @@ describe("le filtre par chemins des campagnes navigateur", () => {
                      "scripts/parallelRun.cjs", "scripts/distFreshness.cjs",
                      // Le cinquième décide AU DÉPLOIEMENT de lancer la campagne et
                      // la découpe ; deploy.yml la porte. Les deux sont son câblage.
-                     "scripts/browserScope.cjs", ".github/workflows/deploy.yml"]) {
+                     "scripts/browserScope.cjs", ".github/workflows/deploy.yml",
+                     // Le vérificateur du lancement hors ligne (build 57).
+                     "scripts/offline-launch.cjs"]) {
       expect(triggers(s, pats), s + " ne déclenche pas les campagnes").toBe(true);
     }
   });
