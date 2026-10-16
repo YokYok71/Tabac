@@ -273,6 +273,15 @@ After every significant task (bug fix, feature, security change, release), alway
   new push contains but what the cancellation destroys), and once by two runs
   created for the same SHA in the same second. A rule that lives only in a
   conversation dies with it, which is the whole reason this line exists.
+- **NO DRY RUN UNLESS IT IS NEEDED.** A dry run is `deploy.yml` dispatched by
+  hand on the feature branch: every job runs, the `deploy` job is skipped off
+  `main`. It costs a full deploy's wait (~3 min) before the real one. **Run it
+  only when the change touches the deploy machinery itself** — `deploy.yml`,
+  `browser.yml`, `scripts/browserScope.cjs`, or a script a CI job runs in a
+  new way — because that is the one thing the local gates cannot exercise.
+  For an app, test or documentation change the local gates already ran
+  everything CI will run: push to `main` directly. **Set by the user,
+  standing**: *« ne pas faire de répétition à blanc si pas nécessaire »*.
 
 ## Key Conventions for AI Assistants
 
