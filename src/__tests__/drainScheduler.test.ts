@@ -175,13 +175,24 @@ describe("drainSchedulerQueue", () => {
     // Vitest's teardown, in miniature: delete the global, let the check phase
     // run, put it back. Restored in a `finally` so a failing assertion cannot
     // leave the rest of the file without a DOM.
+    //
+    // THE WAIT IS THE DRAIN, NOT A 2 ms TIMER — the flake the REAL-thing case
+    // below already documents, left behind in this helper. A 2 ms timer races
+    // the queued immediate: on a loaded CI runner the timers phase can find
+    // 2 ms elapsed BEFORE the check phase reaches the immediate, so `finally`
+    // put the window back first and the case read `expected 0 to be 1`
+    // (deploy of b2ae743, Tests 1/2). The drain yields through the captured
+    // native `setImmediate`, which runs FIFO AFTER the immediate under test,
+    // and stops once none is pending — so the callback has been judged with
+    // the window gone, whatever the machine's speed. No weaker as a probe:
+    // with the guard removed the callback still runs here, and `ran` is true.
     async function withTornDownEnvironment(fn: () => void) {
       const g = globalThis as unknown as Record<string, unknown>;
       const realWindow = g["window"];
       try {
         fn();
         delete g["window"];
-        await new Promise<void>((r) => { setTimeout(r, 2); });
+        await drainSchedulerQueue();
       } finally {
         g["window"] = realWindow;
       }
