@@ -117,7 +117,11 @@ describe("le refresh grant Dropbox ne quitte pas l'app sur une panne réseau", (
   it("pas de grant du tout : la redirection reste la bonne réponse", async () => {
     const d = await drive(vi.fn());
     (d.result.current as any).getToken("save");
-    await new Promise((r) => setTimeout(r, 50));
+    // WAIT ON THE REDIRECT, NOT ON 50 ms. It comes after a PKCE challenge, and
+    // `crypto.subtle.digest` resolves off the main thread — the one step in
+    // this file that is not a microtask, so a loaded runner can outlast any
+    // fixed delay. The same race failed a deploy in drainScheduler.test.ts.
+    await vi.waitFor(() => expect(d.assign).toHaveBeenCalled());
     expect(d.assign.mock.calls.length,
       "sans jeton de rafraîchissement il FAUT rediriger — sinon le bouton est mort").toBe(1);
     expect(String(d.assign.mock.calls[0]![0])).toContain("dropbox.com/oauth2/authorize");
@@ -132,7 +136,7 @@ describe("le refresh grant Dropbox ne quitte pas l'app sur une panne réseau", (
       text: async () => JSON.stringify({ error: "invalid_grant" }),
     }));
     (d.result.current as any).getToken("save");
-    await new Promise((r) => setTimeout(r, 80));
+    await vi.waitFor(() => expect(d.assign).toHaveBeenCalled()); // PKCE digest, see above
     expect(d.assign.mock.calls.length).toBe(1);
     expect(localStorage.getItem("dropbox-rt"),
       "un grant révoqué doit être effacé, sinon on martèle un jeton mort").toBeNull();
