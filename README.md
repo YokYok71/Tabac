@@ -70,10 +70,13 @@ npm run doc:check  # versions, i18n, contrats de libellés, documentation
 npm run size:check # budget de chargement initial (après build)
 ```
 
-Deux vérifications optionnelles nécessitent un navigateur
+Trois vérifications nécessitent un navigateur
 (`npm i --no-save playwright-core`) : `npm run i18n:layout` rend l'application
-dans chaque langue pour détecter les débordements de texte, et
-`npm run theme:contrast` mesure les contrastes des six palettes.
+dans chaque langue pour détecter les débordements de texte,
+`npm run theme:contrast` mesure les contrastes des six palettes, et
+`npm run offline:check` vérifie que l'application démarre hors ligne. Elles
+tournent aussi dans les jobs navigateur du déploiement
+(`.github/workflows/deploy.yml`) et le bloquent en cas d'échec.
 
 `CLAUDE.md` documente l'architecture, les invariants et les décisions de
 conception.

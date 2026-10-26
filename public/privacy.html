@@ -95,13 +95,13 @@
 <a class="back" href="./">← Ma Cave à Tabac</a>
 <button class="lang-btn" id="lang-toggle-fr" onclick="switchLang()">EN</button>
 <h1>Politique de confidentialité</h1>
-<p class="subtitle">Ma Cave à Tabac — t-cellar.app &nbsp;·&nbsp; Dernière mise à jour : août 2026</p>
+<p class="subtitle">Ma Cave à Tabac — t-cellar.app &nbsp;·&nbsp; Dernière mise à jour : octobre 2026</p>
 
 <h2>Résumé</h2>
 <p>Ma Cave à Tabac est une application web progressive (PWA) personnelle, mise à disposition gratuitement, en mode « best effort ». Elle ne collecte aucune donnée utilisateur sur un serveur. Toutes vos données restent sur votre appareil.</p>
 
 <h2>Données stockées localement</h2>
-<p>L'application stocke les informations suivantes exclusivement sur votre appareil via <code>localStorage</code> :</p>
+<p>L'application stocke les informations suivantes exclusivement sur votre appareil via <code>localStorage</code>, <code>sessionStorage</code> et <code>IndexedDB</code> :</p>
 <ul>
   <li>Votre collection de tabacs (noms, marques, notes, lots, photos)</li>
   <li>Votre collection de pipes</li>
@@ -117,7 +117,7 @@
 <h2>Google Drive (sauvegarde optionnelle)</h2>
 <p>Si vous choisissez d'utiliser la fonctionnalité de sauvegarde, l'application demande l'accès au scope <strong>drive.appdata</strong> de votre compte Google. Ce scope permet uniquement :</p>
 <ul>
-  <li>De lire et écrire des fichiers de sauvegarde horodatés (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) dans un dossier privé réservé à l'application, invisible dans votre Google Drive. L'application conserve au maximum 3 sauvegardes manuelles et un fichier de sauvegarde automatique horodaté (<code>cave-tabac-auto-….json</code>, écrasé en place à chaque sauvegarde) ; les fichiers manuels les plus anciens sont supprimés automatiquement.</li>
+  <li>De lire et écrire des fichiers de sauvegarde horodatés (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) dans un dossier privé réservé à l'application, invisible dans votre Google Drive. L'application conserve au maximum 3 sauvegardes manuelles et un fichier de sauvegarde automatique horodaté par appareil (<code>cave-tabac-auto-….json</code>, écrasé en place à chaque sauvegarde) ; les fichiers manuels les plus anciens sont supprimés automatiquement.</li>
 </ul>
 <p>L'application n'accède à aucun autre fichier de votre Google Drive. L'authentification est gérée directement par Google via OAuth 2.0. Aucun token ni donnée Google n'est transmis à un tiers. Comme pour Dropbox, le contenu peut être <strong>chiffré avant envoi</strong> si vous avez activé le chiffrement des sauvegardes.</p>
 
@@ -176,13 +176,13 @@
 <a class="back" href="./">← My Tobacco Cellar</a>
 <button class="lang-btn" id="lang-toggle-en" onclick="switchLang()">FR</button>
 <h1>Privacy Policy</h1>
-<p class="subtitle">My Tobacco Cellar — t-cellar.app &nbsp;·&nbsp; Last updated: August 2026</p>
+<p class="subtitle">My Tobacco Cellar — t-cellar.app &nbsp;·&nbsp; Last updated: October 2026</p>
 
 <h2>Summary</h2>
 <p>My Tobacco Cellar is a personal Progressive Web App (PWA), provided free of charge on a best-effort basis. It does not collect any user data on a server. All your data stays on your device.</p>
 
 <h2>Locally stored data</h2>
-<p>The app stores the following data exclusively on your device via <code>localStorage</code>:</p>
+<p>The app stores the following data exclusively on your device via <code>localStorage</code>, <code>sessionStorage</code> and <code>IndexedDB</code>:</p>
 <ul>
   <li>Your tobacco collection (names, brands, notes, lots, photos)</li>
   <li>Your pipe collection</li>
@@ -198,7 +198,7 @@
 <h2>Google Drive (optional backup)</h2>
 <p>If you choose to use the backup feature, the app requests access to the <strong>drive.appdata</strong> scope of your Google account. This scope only allows:</p>
 <ul>
-  <li>Reading and writing timestamped backup files (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in a private folder dedicated to the app, invisible in your Google Drive. The app keeps at most 3 manual backups plus one timestamped auto-save file (<code>cave-tabac-auto-….json</code>, overwritten in place on each save); the oldest manual files are deleted automatically.</li>
+  <li>Reading and writing timestamped backup files (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in a private folder dedicated to the app, invisible in your Google Drive. The app keeps at most 3 manual backups plus one timestamped auto-save file per device (<code>cave-tabac-auto-….json</code>, overwritten in place on each save); the oldest manual files are deleted automatically.</li>
 </ul>
 <p>The app never accesses any other file in your Google Drive. Authentication is handled directly by Google via OAuth 2.0. No token or Google data is transmitted to any third party. As with Dropbox, the content can be <strong>encrypted before upload</strong> if you enabled backup encryption.</p>
 
@@ -255,13 +255,13 @@
 
 <div id="sec-es" class="section">
 <h1>Política de privacidad</h1>
-<p class="subtitle">Mi Bodega de Tabaco — t-cellar.app &nbsp;·&nbsp; Última actualización: agosto de 2026</p>
+<p class="subtitle">Mi Bodega de Tabaco — t-cellar.app &nbsp;·&nbsp; Última actualización: octubre de 2026</p>
 
 <h2>Resumen</h2>
 <p>Mi Bodega de Tabaco es una aplicación web progresiva (PWA) personal, ofrecida de forma gratuita y según el mejor esfuerzo posible. No recopila ningún dato de usuario en un servidor. Todos tus datos permanecen en tu dispositivo.</p>
 
 <h2>Datos almacenados localmente</h2>
-<p>La aplicación almacena los siguientes datos exclusivamente en tu dispositivo mediante <code>localStorage</code>:</p>
+<p>La aplicación almacena los siguientes datos exclusivamente en tu dispositivo mediante <code>localStorage</code>, <code>sessionStorage</code> e <code>IndexedDB</code>:</p>
 <ul>
   <li>Tu colección de tabacos (nombres, marcas, notas, lotes, fotos)</li>
   <li>Tu colección de pipas</li>
@@ -277,7 +277,7 @@
 <h2>Google Drive (copia de seguridad opcional)</h2>
 <p>Si decides usar la función de copia de seguridad, la aplicación solicita acceso al ámbito <strong>drive.appdata</strong> de tu cuenta de Google. Este ámbito solo permite:</p>
 <ul>
-  <li>Leer y escribir archivos de copia de seguridad con marca de tiempo (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) en una carpeta privada dedicada a la aplicación, invisible en tu Google Drive. La aplicación conserva como máximo 3 copias de seguridad manuales más un archivo de guardado automático con marca de tiempo (<code>cave-tabac-auto-….json</code>, sobrescrito en el mismo lugar en cada guardado); los archivos manuales más antiguos se eliminan automáticamente.</li>
+  <li>Leer y escribir archivos de copia de seguridad con marca de tiempo (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) en una carpeta privada dedicada a la aplicación, invisible en tu Google Drive. La aplicación conserva como máximo 3 copias de seguridad manuales más un archivo de guardado automático con marca de tiempo por dispositivo (<code>cave-tabac-auto-….json</code>, sobrescrito en el mismo lugar en cada guardado); los archivos manuales más antiguos se eliminan automáticamente.</li>
 </ul>
 <p>La aplicación nunca accede a ningún otro archivo de tu Google Drive. La autenticación la gestiona directamente Google mediante OAuth 2.0. Ningún token ni dato de Google se transmite a terceros. Al igual que con Dropbox, el contenido puede <strong>cifrarse antes de subirse</strong> si has activado el cifrado de las copias de seguridad.</p>
 
@@ -333,13 +333,13 @@
 
 <div id="sec-de" class="section">
 <h1>Datenschutzerklärung</h1>
-<p class="subtitle">Mein Tabakkeller — t-cellar.app &nbsp;·&nbsp; Zuletzt aktualisiert: August 2026</p>
+<p class="subtitle">Mein Tabakkeller — t-cellar.app &nbsp;·&nbsp; Zuletzt aktualisiert: Oktober 2026</p>
 
 <h2>Zusammenfassung</h2>
 <p>Mein Tabakkeller ist eine persönliche Progressive Web App (PWA), die kostenlos und nach bestem Bemühen bereitgestellt wird. Sie erfasst keine Nutzerdaten auf einem Server. Alle deine Daten bleiben auf deinem Gerät.</p>
 
 <h2>Lokal gespeicherte Daten</h2>
-<p>Die App speichert die folgenden Daten ausschließlich auf deinem Gerät über <code>localStorage</code>:</p>
+<p>Die App speichert die folgenden Daten ausschließlich auf deinem Gerät über <code>localStorage</code>, <code>sessionStorage</code> und <code>IndexedDB</code>:</p>
 <ul>
   <li>Deine Tabaksammlung (Namen, Marken, Notizen, Chargen, Fotos)</li>
   <li>Deine Pfeifensammlung</li>
@@ -355,7 +355,7 @@
 <h2>Google Drive (optionale Sicherung)</h2>
 <p>Wenn du die Sicherungsfunktion nutzen möchtest, fordert die App Zugriff auf den Bereich <strong>drive.appdata</strong> deines Google-Kontos an. Dieser Bereich erlaubt nur:</p>
 <ul>
-  <li>Das Lesen und Schreiben von Sicherungsdateien mit Zeitstempel (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in einem privaten, der App vorbehaltenen Ordner, der in deinem Google Drive unsichtbar ist. Die App bewahrt höchstens 3 manuelle Sicherungen sowie eine automatische Sicherungsdatei mit Zeitstempel auf (<code>cave-tabac-auto-….json</code>, die bei jeder Sicherung an Ort und Stelle überschrieben wird); die ältesten manuellen Dateien werden automatisch gelöscht.</li>
+  <li>Das Lesen und Schreiben von Sicherungsdateien mit Zeitstempel (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in einem privaten, der App vorbehaltenen Ordner, der in deinem Google Drive unsichtbar ist. Die App bewahrt höchstens 3 manuelle Sicherungen sowie eine automatische Sicherungsdatei mit Zeitstempel pro Gerät auf (<code>cave-tabac-auto-….json</code>, die bei jeder Sicherung an Ort und Stelle überschrieben wird); die ältesten manuellen Dateien werden automatisch gelöscht.</li>
 </ul>
 <p>Die App greift nie auf eine andere Datei in deinem Google Drive zu. Die Authentifizierung wird direkt von Google über OAuth 2.0 abgewickelt. Es werden keine Tokens oder Google-Daten an Dritte übermittelt. Wie bei Dropbox kann der Inhalt <strong>vor dem Hochladen verschlüsselt werden</strong>, wenn du die Verschlüsselung der Sicherungen aktiviert hast.</p>
 
@@ -411,13 +411,13 @@
 
 <div id="sec-it" class="section">
 <h1>Informativa sulla privacy</h1>
-<p class="subtitle">La Mia Cantina del Tabacco — t-cellar.app &nbsp;·&nbsp; Ultimo aggiornamento: agosto 2026</p>
+<p class="subtitle">La Mia Cantina del Tabacco — t-cellar.app &nbsp;·&nbsp; Ultimo aggiornamento: ottobre 2026</p>
 
 <h2>In breve</h2>
 <p>La Mia Cantina del Tabacco è un'applicazione web progressiva (PWA) personale, offerta gratuitamente e secondo il miglior impegno possibile. Non raccoglie alcun dato dell'utente su un server. Tutti i tuoi dati restano sul tuo dispositivo.</p>
 
 <h2>Dati memorizzati localmente</h2>
-<p>L'applicazione memorizza i seguenti dati esclusivamente sul tuo dispositivo tramite <code>localStorage</code>:</p>
+<p>L'applicazione memorizza i seguenti dati esclusivamente sul tuo dispositivo tramite <code>localStorage</code>, <code>sessionStorage</code> e <code>IndexedDB</code>:</p>
 <ul>
   <li>La tua collezione di tabacchi (nomi, marche, note, lotti, foto)</li>
   <li>La tua collezione di pipe</li>
@@ -433,7 +433,7 @@
 <h2>Google Drive (backup opzionale)</h2>
 <p>Se scegli di usare la funzione di backup, l'applicazione richiede l'accesso all'ambito <strong>drive.appdata</strong> del tuo account Google. Questo ambito consente solo di:</p>
 <ul>
-  <li>Leggere e scrivere file di backup con marca temporale (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in una cartella privata dedicata all'applicazione, invisibile nel tuo Google Drive. L'applicazione conserva al massimo 3 backup manuali più un file di salvataggio automatico con marca temporale (<code>cave-tabac-auto-….json</code>, sovrascritto sul posto a ogni salvataggio); i file manuali più vecchi vengono eliminati automaticamente.</li>
+  <li>Leggere e scrivere file di backup con marca temporale (<code>cave-tabac-YYYYMMDD-HHMMSS-….json</code>) in una cartella privata dedicata all'applicazione, invisibile nel tuo Google Drive. L'applicazione conserva al massimo 3 backup manuali più un file di salvataggio automatico con marca temporale per dispositivo (<code>cave-tabac-auto-….json</code>, sovrascritto sul posto a ogni salvataggio); i file manuali più vecchi vengono eliminati automaticamente.</li>
 </ul>
 <p>L'applicazione non accede mai ad alcun altro file del tuo Google Drive. L'autenticazione è gestita direttamente da Google tramite OAuth 2.0. Nessun token o dato Google viene trasmesso a terzi. Come con Dropbox, il contenuto può essere <strong>cifrato prima del caricamento</strong> se hai attivato la cifratura dei backup.</p>
 
@@ -490,13 +490,13 @@
 <a class="back" href="./">← A Minha Adega de Tabaco</a>
 <button class="lang-btn" id="lang-toggle-pt" onclick="switchLang()">FR</button>
 <h1>Política de Privacidade</h1>
-<p class="subtitle">A Minha Adega de Tabaco — t-cellar.app &nbsp;·&nbsp; Última atualização: agosto de 2026</p>
+<p class="subtitle">A Minha Adega de Tabaco — t-cellar.app &nbsp;·&nbsp; Última atualização: outubro de 2026</p>
 
 <h2>Resumo</h2>
 <p>A Minha Adega de Tabaco é uma aplicação web progressiva (PWA) pessoal, disponibilizada gratuitamente e na medida do possível. Não recolhe quaisquer dados do utilizador num servidor. Todos os seus dados permanecem no seu dispositivo.</p>
 
 <h2>Dados guardados localmente</h2>
-<p>A aplicação guarda os seguintes dados exclusivamente no seu dispositivo através de <code>localStorage</code>:</p>
+<p>A aplicação guarda os seguintes dados exclusivamente no seu dispositivo através de <code>localStorage</code>, <code>sessionStorage</code> e <code>IndexedDB</code>:</p>
 <ul>
   <li>A sua coleção de tabacos (nomes, marcas, notas, lotes, fotografias)</li>
   <li>A sua coleção de cachimbos</li>
@@ -512,7 +512,7 @@
 <h2>Google Drive (cópia de segurança opcional)</h2>
 <p>Se optar por utilizar a funcionalidade de cópia de segurança, a aplicação solicita acesso ao âmbito <strong>drive.appdata</strong> da sua conta Google. Este âmbito permite apenas:</p>
 <ul>
-  <li>Ler e escrever ficheiros de cópia de segurança com data e hora (<code>cave-tabac-AAAAMMDD-HHMMSS-….json</code>) numa pasta privada dedicada à aplicação, invisível no seu Google Drive. A aplicação conserva no máximo 3 cópias manuais mais um ficheiro de gravação automática com data e hora (<code>cave-tabac-auto-….json</code>, substituído no mesmo lugar em cada gravação); os ficheiros manuais mais antigos são eliminados automaticamente.</li>
+  <li>Ler e escrever ficheiros de cópia de segurança com data e hora (<code>cave-tabac-AAAAMMDD-HHMMSS-….json</code>) numa pasta privada dedicada à aplicação, invisível no seu Google Drive. A aplicação conserva no máximo 3 cópias manuais mais um ficheiro de gravação automática com data e hora por dispositivo (<code>cave-tabac-auto-….json</code>, substituído no mesmo lugar em cada gravação); os ficheiros manuais mais antigos são eliminados automaticamente.</li>
 </ul>
 <p>A aplicação nunca acede a qualquer outro ficheiro do seu Google Drive. A autenticação é feita diretamente pela Google através de OAuth 2.0. Nenhum token nem dados da Google são transmitidos a terceiros. Tal como no Dropbox, o conteúdo pode ser <strong>cifrado antes do envio</strong> se tiver ativado a cifragem das cópias de segurança.</p>
 

@@ -8,7 +8,7 @@
 
 Ma Cave à Tabac est une PWA en livraison continue : seule la version la plus récente déployée sur https://t-cellar.app est supportée. Les correctifs de sécurité sont publiés sur la branche `main` et déployés automatiquement via GitHub Pages.
 
-Le numéro de version courant est visible dans ⚙️ Réglages → À propos et dans [`public/version.json`](public/version.json).
+Le numéro de version courant est visible dans ⚙️ Réglages → Application et dans [`public/version.json`](public/version.json).
 
 ### Signaler une vulnérabilité
 
@@ -16,7 +16,7 @@ Le numéro de version courant est visible dans ⚙️ Réglages → À propos et
 
 ➡️ **[Ouvrir un Security Advisory privé](https://github.com/yokyok71/Tabac/security/advisories/new)**
 
-Ce canal est chiffré côté GitHub, lisible uniquement par les mainteneurs du projet, et permet de coordonner un correctif et une divulgation responsable avant tout signalement public.
+Ce canal est privé, visible uniquement des mainteneurs du projet, et permet de coordonner un correctif et une divulgation responsable avant tout signalement public.
 
 Ce qu'il est utile d'inclure dans le rapport :
 
@@ -54,17 +54,17 @@ C'est un projet personnel maintenu en temps libre, donc pas de SLA contractuel. 
 Quelques arbitrages d'architecture sont documentés en clair dans le code et signalés par CodeQL. Ils sont considérés acceptés faute d'alternative compatible avec l'architecture « PWA statique, sans backend » :
 
 - **Stockage en clair du token OAuth Google** (`src/hooks/useGdriveAuth.ts` `tkSet`) — `localStorage` sur iOS standalone, `sessionStorage` ailleurs. L'app n'a pas de backend pour stocker un refresh token côté serveur ; le token doit vivre sur l'appareil pour appeler `googleapis.com` directement. La CSP (`script-src` sans `unsafe-inline`, domaines explicitement listés) est la défense XSS principale.
-- **Stockage en clair des tokens Dropbox** (`src/hooks/useDropboxAuth.ts`) — `dropbox-tk` (jeton d'accès courte durée, ~4 h) et surtout `dropbox-rt`, un **refresh token longue durée** en `localStorage`, qui permet le renouvellement silencieux du jeton sur toutes les plateformes (y compris iOS standalone). Même justification que pour Google : pas de backend, l'app appelle `api.dropboxapi.com` / `content.dropboxapi.com` directement. Le champ d'accès est confiné au dossier d'app dédié (`Applications/Ma Cave à Tabac`, scope `files.content`). Le refresh token est effacé à la déconnexion explicite ou si Dropbox renvoie `invalid_grant` (app révoquée par l'utilisateur). Même défense XSS que ci-dessus (CSP stricte).
-- **Stockage en clair de la clé API du provider IA** (`src/hooks/useAiAutoFill.ts` `saveApiKey`) — même justification : l'app appelle directement `api.anthropic.com` / `api.openai.com` / `generativelanguage.googleapis.com`, sans relais serveur. Par défaut, la clé est **exclue des exports et des sauvegardes Drive** (`cave-exclude-apikey` est opt-out).
+- **Stockage en clair des tokens Dropbox** (`src/hooks/useDropboxAuth.ts`) — `dropbox-tk` (jeton d'accès courte durée, ~4 h) et surtout `dropbox-rt`, un **refresh token longue durée** en `localStorage`, qui permet le renouvellement silencieux du jeton sur toutes les plateformes (y compris iOS standalone). Même justification que pour Google : pas de backend, l'app appelle `api.dropboxapi.com` / `content.dropboxapi.com` directement. L'accès est confiné au dossier d'app dédié (`Applications/Ma Cave à Tabac`, accès « App folder ») ; les permissions sont définies dans la console de l'app Dropbox, l'URL d'autorisation n'en demande aucune. Le refresh token est effacé à la déconnexion explicite ou si Dropbox renvoie `invalid_grant` (app révoquée par l'utilisateur). Même défense XSS que ci-dessus (CSP stricte).
+- **Stockage en clair de la clé API du provider IA** (`src/hooks/useAiAutoFill.ts` `saveApiKey`) — même justification : l'app appelle directement `api.anthropic.com` / `api.openai.com` / `generativelanguage.googleapis.com`, sans relais serveur. Par défaut, la clé est **exclue des exports et des sauvegardes cloud (Google Drive ou Dropbox)** (`cave-exclude-apikey` est opt-out).
 - **Flow OAuth implicit grant (`response_type=token`) sur iOS standalone** — le seul flow compatible avec un client OAuth « Web Application » Google sans `client_secret` côté serveur, dans un webview PWA qui ne tolère pas les popups. La protection CSRF passe par un `state` aléatoire (`pkceGenerateVerifier()` réutilisé pour générer un nonce) validé strictement (`!st || !expectedSt || st !== expectedSt`).
 
 ### Politique de divulgation
 
 Divulgation coordonnée. Pour les vulnérabilités validées :
 
-1. Correctif développé en privé sur une branche dédiée.
+1. Correctif préparé dans le fork privé temporaire de l'advisory de sécurité GitHub.
 2. Release déployée sur GitHub Pages.
-3. Note publique dans `public/changelog.html` (description suffisante pour comprendre l'impact, sans détails permettant la réexploitation immédiate sur les utilisateurs lents à mettre à jour).
+3. Note publique dans `public/changelog.html`, sous le sous-titre « Important » (description suffisante pour comprendre l'impact, sans détails permettant la réexploitation immédiate sur les utilisateurs lents à mettre à jour).
 4. Publication de l'advisory GitHub avec crédit du découvreur, sauf demande contraire.
 
 Délai indicatif avant divulgation publique : **90 jours** après le signalement, ou plus tôt si un correctif est déployé et que la majorité des utilisateurs est à jour.
@@ -81,7 +81,7 @@ Projet personnel non commercial : aucune rétribution financière. Le crédit da
 
 Ma Cave à Tabac is a continuously-delivered PWA: only the latest version deployed at https://t-cellar.app is supported. Security fixes ship from the `main` branch and are deployed automatically via GitHub Pages.
 
-The current version number is visible in ⚙️ Settings → About and in [`public/version.json`](public/version.json).
+The current version number is visible in ⚙️ Settings → App and in [`public/version.json`](public/version.json).
 
 ### Reporting a vulnerability
 
@@ -89,7 +89,7 @@ The current version number is visible in ⚙️ Settings → About and in [`publ
 
 ➡️ **[Open a private Security Advisory](https://github.com/yokyok71/Tabac/security/advisories/new)**
 
-This channel is encrypted server-side by GitHub, readable only by project maintainers, and lets us coordinate a fix and responsible disclosure before any public report.
+This channel is private, visible only to maintainers, and lets us coordinate a fix and responsible disclosure before any public report.
 
 A helpful report includes:
 
@@ -127,17 +127,17 @@ This is a personal project maintained in spare time, so no contractual SLA. Best
 A few architectural trade-offs are documented inline in the code and flagged by CodeQL. They are considered accepted for lack of an alternative compatible with the "static PWA, no backend" architecture:
 
 - **Clear-text storage of the Google OAuth token** (`src/hooks/useGdriveAuth.ts` `tkSet`) — `localStorage` on iOS standalone, `sessionStorage` elsewhere. The app has no backend to hold a refresh token server-side; the token must live on the device to call `googleapis.com` directly. The CSP (`script-src` without `unsafe-inline`, with an explicit allow-list) is the primary XSS defense.
-- **Clear-text storage of the Dropbox tokens** (`src/hooks/useDropboxAuth.ts`) — `dropbox-tk` (short-lived access token, ~4 h) and notably `dropbox-rt`, a **long-lived refresh token** in `localStorage`, which enables silent token renewal on every platform (including iOS standalone). Same reasoning as Google: no backend, the app calls `api.dropboxapi.com` / `content.dropboxapi.com` directly. Access is confined to the dedicated app folder (`Apps/Ma Cave à Tabac`, `files.content` scope). The refresh token is cleared on explicit disconnect or when Dropbox returns `invalid_grant` (app revoked by the user). Same XSS defense as above (strict CSP).
-- **Clear-text storage of the AI provider API key** (`src/hooks/useAiAutoFill.ts` `saveApiKey`) — same reasoning: the app calls `api.anthropic.com` / `api.openai.com` / `generativelanguage.googleapis.com` directly with no server relay. By default the key is **excluded from exports and Drive backups** (`cave-exclude-apikey` is opt-out).
+- **Clear-text storage of the Dropbox tokens** (`src/hooks/useDropboxAuth.ts`) — `dropbox-tk` (short-lived access token, ~4 h) and notably `dropbox-rt`, a **long-lived refresh token** in `localStorage`, which enables silent token renewal on every platform (including iOS standalone). Same reasoning as Google: no backend, the app calls `api.dropboxapi.com` / `content.dropboxapi.com` directly. Access is confined to the dedicated app folder (`Apps/Ma Cave à Tabac`, "App folder" access); the permissions are set in the Dropbox app console, and the authorization URL requests none. The refresh token is cleared on explicit disconnect or when Dropbox returns `invalid_grant` (app revoked by the user). Same XSS defense as above (strict CSP).
+- **Clear-text storage of the AI provider API key** (`src/hooks/useAiAutoFill.ts` `saveApiKey`) — same reasoning: the app calls `api.anthropic.com` / `api.openai.com` / `generativelanguage.googleapis.com` directly with no server relay. By default the key is **excluded from exports and cloud backups (Google Drive or Dropbox)** (`cave-exclude-apikey` is opt-out).
 - **OAuth implicit grant (`response_type=token`) on iOS standalone** — the only flow compatible with a Google "Web Application" OAuth client without a server-side `client_secret`, inside a PWA webview that does not tolerate popups. CSRF protection relies on a random `state` (generated via `pkceGenerateVerifier()` reused as a nonce) validated strictly (`!st || !expectedSt || st !== expectedSt`).
 
 ### Disclosure policy
 
 Coordinated disclosure. For confirmed vulnerabilities:
 
-1. Fix developed privately on a dedicated branch.
+1. Fix prepared in the GitHub security advisory's temporary private fork.
 2. Release deployed to GitHub Pages.
-3. Public note added to `public/changelog.html` (enough description to convey impact, no exploit details that would burn users slow to update).
+3. Public note added to `public/changelog.html`, under the "Important" sub-heading (enough description to convey impact, no exploit details that would burn users slow to update).
 4. GitHub advisory published with credit to the reporter, unless they request otherwise.
 
 Indicative time-to-public-disclosure: **90 days** after the initial report, or earlier if a fix is deployed and most users are up to date.

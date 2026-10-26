@@ -28,7 +28,7 @@ This product bundles or loads at runtime the following third-party software.
 Their respective licenses and copyright notices are reproduced below.
 
 -------------------------------------------------------------------------------
-React (bundled)
+React, React-DOM & scheduler (bundled)
 -------------------------------------------------------------------------------
 https://github.com/facebook/react
 
@@ -160,7 +160,8 @@ distribution bundle. Their source is not included in shipped artifacts:
   - jest-axe (MIT, https://github.com/nickcolley/jest-axe)
   - axe-core (MPL-2.0, https://github.com/dequelabs/axe-core)
   - playwright-core (Apache-2.0, https://playwright.dev) — installed on demand
-    (npm i --no-save) by the two opt-in browser checks; never a dependency,
-    never redistributed.
+    (npm i --no-save) by the three browser checks (i18n:layout,
+    theme:contrast, offline:check); never a dependency, not bundled, never
+    redistributed.
   - fast-check (MIT, https://github.com/dubzzz/fast-check)
   - knip (ISC, https://knip.dev)
