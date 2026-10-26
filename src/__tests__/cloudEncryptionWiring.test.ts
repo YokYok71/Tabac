@@ -31,6 +31,18 @@ import { makeEncryptionVerifier, isEncryptedEnvelopeJSON } from "../utils/crypto
 import { INIT } from "../constants";
 import { imgCache } from "../utils/imgCache.ts";
 
+// THE WAITS ARE SIZED FOR PBKDF2, NOT FOR THE DEFAULT 1 s. Every encrypted
+// case derives a key with 600 000 PBKDF2-SHA256 iterations (cryptoBackup.ts)
+// — some twice or three times (verifier, passphrase check, payload; the photo
+// pack and the auto file). MEASURED idle: the photo-pack case took 761 ms of a
+// 1000 ms waitFor default; under 8 busy processes on 4 cores the file failed
+// 5 runs out of 5, and a timed-out case's upload, still in flight, landed in
+// the NEXT case's `calls` and failed it too (« une invite ANNULÉE » in 58 ms).
+// waitFor still returns the moment its condition holds, so a fast machine
+// pays nothing; only a slow one is given the time the crypto really costs.
+const KDF_WAIT = { timeout: 20_000 };
+vi.setConfig({ testTimeout: 30_000 });
+
 vi.mock("../utils/imgCache.ts", () => ({
   imgCache: {
     get: vi.fn().mockResolvedValue(null),
@@ -108,7 +120,7 @@ describe("sauvegarde manuelle chiffrée — le câblage", () => {
     const props = makeProps({ driveEncryptionEnabled: false });
     const { result } = renderHook(() => useGdriveSync(props as any));
     await act(async () => { result.current.gdriveSave("gtok"); });
-    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0));
+    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0), KDF_WAIT);
     const body = (await uploadedBodies(calls)).join("");
     expect(body).toContain("Halvorsen Foxtrot");
     expect(isEncryptedEnvelopeJSON(body.slice(body.indexOf("{")))).toBe(false);
@@ -122,7 +134,7 @@ describe("sauvegarde manuelle chiffrée — le câblage", () => {
     });
     const { result } = renderHook(() => useGdriveSync(props as any));
     await act(async () => { result.current.gdriveSave("gtok"); });
-    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0));
+    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0), KDF_WAIT);
     const body = (await uploadedBodies(calls)).join("");
     // Ce qui compte pour l'utilisateur : le nom de son tabac n'est pas sur le fil.
     expect(body).not.toContain("Halvorsen Foxtrot");
@@ -148,6 +160,7 @@ describe("sauvegarde manuelle chiffrée — le câblage", () => {
     // et lisait le message transitoire.
     await waitFor(() =>
       expect(String(result.current.gdriveStatus)).toContain("enc_err_wrong_passphrase"),
+      KDF_WAIT,
     );
     // RIEN n'est monté — ni en clair ni chiffré sous la mauvaise phrase.
     expect(await uploadedBodies(calls)).toEqual([]);
@@ -170,7 +183,7 @@ describe("sauvegarde manuelle chiffrée — le câblage", () => {
     });
     const { result } = renderHook(() => useGdriveSync(props as any));
     await act(async () => { result.current.gdriveSave("gtok"); });
-    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0));
+    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0), KDF_WAIT);
     expect((await uploadedBodies(calls)).join("")).toContain("_encrypted");
     expect(setDrivePassphrase).toHaveBeenCalledWith("la-vraie-phrase");
   });
@@ -188,7 +201,7 @@ describe("sauvegarde manuelle chiffrée — le câblage", () => {
     });
     const { result } = renderHook(() => useGdriveSync(props as any));
     await act(async () => { result.current.gdriveSave("gtok"); });
-    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0));
+    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0), KDF_WAIT);
     expect((await uploadedBodies(calls)).join("")).toContain("_encrypted");
   });
 
@@ -224,6 +237,7 @@ describe("sauvegarde manuelle chiffrée — le câblage", () => {
     // en silence ; celle-ci ne le peut pas.
     await waitFor(() =>
       expect(String(result.current.gdriveStatus)).toContain("enc_err_cancelled"),
+      KDF_WAIT,
     );
     expect(await uploadedBodies(calls)).toEqual([]);
   });
@@ -301,7 +315,7 @@ describe("sauvegarde AUTO chiffrée — jamais de fuite en clair", () => {
     const { result } = renderHook(() => useGdriveSync(props as any));
     act(() => { result.current.gdriveSaveQuiet(); });
     await laisserRetomber();
-    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0));
+    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBeGreaterThan(0), KDF_WAIT);
     const body = (await uploadedBodies(calls)).join("");
     expect(body).toContain("_encrypted");
     expect(body).not.toContain("Halvorsen Foxtrot");
@@ -324,7 +338,7 @@ describe("le paquet de photos (build 54) — chiffré comme la sauvegarde", () =
   async function deuxEnvois(props: any) {
     const { result } = renderHook(() => useGdriveSync(props as any));
     act(() => { result.current.gdriveSaveQuiet(); });
-    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBe(2));
+    await waitFor(async () => expect((await uploadedBodies(calls)).length).toBe(2), KDF_WAIT);
     return uploadedBodies(calls);
   }
 
