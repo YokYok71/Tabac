@@ -10,7 +10,8 @@ export type IcoName =
   | "plus" | "settings" | "flame" | "play" | "pause" | "edit" | "trash"
   | "box" | "chevron" | "heart" | "clock" | "filter"
   | "sliders" | "more" | "diamond" | "close" | "check"
-  | "cloud" | "camera" | "contrast" | "stop" | "cart" | "copy" | "restore";
+  | "cloud" | "camera" | "contrast" | "stop" | "cart" | "copy" | "restore"
+  | "scale" | "moon";
 
 const PATHS: Record<IcoName, React.ReactNode> = {
   home:    <path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z" />,
@@ -122,6 +123,11 @@ const PATHS: Record<IcoName, React.ReactNode> = {
   // "stop" — filled rounded square. Ends a live tasting, sits
   // next to the pause button in TastingView.
   stop:    <rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor" stroke="none"/>,
+  // "scale" (a balance) and "moon" — the first-run screen's « stock qui se
+  // tient tout seul » and « Ce soir ? » cards; nothing else in the set says
+  // either.
+  scale:   <path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z" />,
+  moon:    <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5zM17 3v3M15.5 4.5h3" />,
 };
 
 export interface IcoProps {

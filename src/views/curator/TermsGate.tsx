@@ -7,12 +7,35 @@ import { useAppCtx } from "../../AppContext.tsx";
 import { APP_VERSION, APP_BUILD } from "../../constants.ts";
 import { alpha, fs, C, F, CARD_BG, safeTop } from "../../theme-curator.ts";
 import { Lbl, PressCard } from "../../components/curator/primitives.tsx";
-import { Ico, Orn } from "../../components/curator/icons.tsx";
+import { Ico, Orn, type IcoName } from "../../components/curator/icons.tsx";
 
 export function CuratorTermsGate() {
   const ctx = useAppCtx();
   const { t, lang, saveLang, acceptTerms, langPending, langErr } = ctx;
   const [agreed, setAgreed] = useState(false);
+
+  // What the app does, shown BEFORE the consent block: this is the first
+  // screen a visitor sees, and it used to say nothing but « your data stays
+  // here ». Every claim maps to a shipped feature (stock accounting in
+  // lotUtils, « Ce soir ? » in utils/suggest.ts, the StatsView charts…); keep
+  // it that way — a card announcing something the app does not do is worse
+  // than no card. `accent` marks the one the screen leads with.
+  const features: { icon: IcoName; title: string; text: string[]; accent?: boolean }[] = t ? [
+    { icon: "box",   title: t("terms_feat_cellar_title"),  text: [t("terms_feat_cellar_text")] },
+    { icon: "scale", title: t("terms_feat_stock_title"),   text: [t("terms_feat_stock_text"), t("terms_feat_stock_text2")], accent: true },
+    { icon: "flame", title: t("terms_feat_tasting_title"), text: [t("terms_feat_tasting_text")] },
+    { icon: "moon",  title: t("terms_feat_tonight_title"), text: [t("terms_feat_tonight_text")] },
+    { icon: "pipe",  title: t("terms_feat_pipes_title"),   text: [t("terms_feat_pipes_text")] },
+    { icon: "book",  title: t("terms_feat_journal_title"), text: [t("terms_feat_journal_text")] },
+    { icon: "chart", title: t("terms_feat_stats_title"),   text: [t("terms_feat_stats_text"), t("terms_feat_stats_text2")] },
+  ] : [];
+  const pills: string[] = t ? [
+    t("terms_pill_ai"), t("terms_pill_cloud"), t("terms_pill_encryption"), t("terms_pill_devices"),
+    t("terms_pill_offline"),
+    // Counted, not written: a seventh language must not leave this saying six.
+    String(t("terms_pill_languages")).replace("{n}", String(LANGUAGES.length)),
+    t("terms_pill_themes"),
+  ] : [];
 
   return (
     <div style={{
@@ -113,15 +136,54 @@ export function CuratorTermsGate() {
             }}>{t ? t("app_name") : "Ma Cave à Tabac"}</span>
             <Orn color={C.brass} />
           </div>
-          <div style={{
-            fontFamily: F.display, fontSize: fs(40), color: C.ivory,
-            letterSpacing: -0.6, lineHeight: 1.05, marginTop: 14,
+          <h1 style={{
+            fontFamily: F.display, fontSize: fs(40), color: C.ivory, fontWeight: 400,
+            letterSpacing: -0.6, lineHeight: 1.05, margin: "14px 0 0",
           }}>
             {t ? t("terms_welcome_pre") : "Bienvenue dans votre"}<br/>
             <span style={{ fontStyle: "italic", color: C.title }}>
               {t ? t("terms_welcome_noun") : "cave"}
             </span>
-          </div>
+          </h1>
+          <p style={{ margin: "14px 0 0", fontSize: fs(16.5), color: C.tx2, lineHeight: 1.5 }}>
+            {t ? t("terms_tagline") : "Vos tabacs, vos pipes et vos dégustations, réunis dans votre poche."}
+          </p>
+        </div>
+
+        {/* What you can do — one card per feature, then the smaller ones as pills. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <Lbl color={C.brass}>{t ? t("terms_features_label") : "Ce que vous pouvez faire"}</Lbl>
+          {features.map((f) => (
+            <div key={f.icon} style={{
+              display: "flex", gap: 14, padding: 16,
+              background: CARD_BG, borderRadius: 12,
+              border: `1px solid ${f.accent ? C.brassDim : C.rule}`,
+            }}>
+              <span style={{
+                flex: "0 0 40px", height: 40, borderRadius: 10, background: C.cardHi,
+                display: "inline-flex", alignItems: "center", justifyContent: "center", color: C.brass,
+              }}>
+                <Ico name={f.icon} size={22} />
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+                <h2 style={{
+                  margin: 0, fontFamily: F.display, fontWeight: 500, fontSize: fs(19),
+                  color: C.ivory, lineHeight: 1.25,
+                }}>{f.title}</h2>
+                {f.text.map((line, i) => (
+                  <p key={i} style={{ margin: 0, fontSize: fs(15), color: C.tx2, lineHeight: 1.5 }}>{line}</p>
+                ))}
+              </div>
+            </div>
+          ))}
+          <ul style={{ listStyle: "none", margin: "4px 0 0", padding: 0, display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {pills.map((p) => (
+              <li key={p} style={{
+                fontSize: fs(13), color: C.tx, background: C.bg2,
+                border: `1px solid ${C.rule2}`, borderRadius: 999, padding: "6px 12px",
+              }}>{p}</li>
+            ))}
+          </ul>
         </div>
 
         {/* Privacy summary card */}
@@ -150,7 +212,7 @@ export function CuratorTermsGate() {
             display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 10, fontSize: fs(15), color: C.tx2, lineHeight: 1.55,
           }}>
             <div>{t ? t("terms_point_warranty") : "⚠️ L'application est mise à disposition gratuitement, en mode « best effort » et « telle quelle » — sans garantie de disponibilité ni de conservation des données. Un navigateur peut effacer son cache, un appareil peut tomber en panne."}</div>
-            <div>{t ? t("terms_point_backup") : "💾 Pense à exporter régulièrement tes données (Paramètres → Exporter JSON) ou à activer une sauvegarde cloud (Dropbox recommandé, Google Drive possible)."}</div>
+            <div>{t ? t("terms_point_backup") : "💾 Pensez à exporter régulièrement vos données (Paramètres → Exporter JSON) ou à activer une sauvegarde cloud (Dropbox recommandé, Google Drive possible)."}</div>
           </div>
 
           {/* Intentionally a DIRECT link to the published ./privacy.html,

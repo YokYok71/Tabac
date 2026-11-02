@@ -10,6 +10,8 @@ import { describe, it, expect, vi } from "vitest";
 import { fireEvent } from "@testing-library/react";
 import { renderWithCtx } from "../viewTestUtils";
 import { CuratorTermsGate } from "../../views/curator/TermsGate";
+import { LANGUAGES } from "../../i18n/languages";
+import { translate } from "../../i18n";
 
 describe("TermsGate", () => {
   it("renders the privacy summary card with all three points", () => {
@@ -117,5 +119,33 @@ describe("TermsGate entry button a11y", () => {
     expect(node, "entry control has no role=button while disabled").toBeTruthy();
     expect(node!.getAttribute("aria-disabled")).toBe("true");
     expect(node!.getAttribute("tabindex")).toBe("0");
+  });
+
+  // The first-run showcase. What matters: every feature card is there, the
+  // stock-accounting card is the one the screen leads with (second, accented),
+  // the language count is COUNTED, and the real French copy renders — a key
+  // that resolved to nothing would leave a card with no title.
+  it("shows the seven feature cards, stock accounting second, before the consent block", () => {
+    const { container } = renderWithCtx(<CuratorTermsGate />, {
+      acceptTerms: vi.fn(), saveLang: vi.fn(), t: (k: string) => k,
+    });
+    const titles = Array.from(container.querySelectorAll("h2")).map((h) => h.textContent);
+    expect(titles).toEqual([
+      "terms_feat_cellar_title", "terms_feat_stock_title", "terms_feat_tasting_title",
+      "terms_feat_tonight_title", "terms_feat_pipes_title", "terms_feat_journal_title",
+      "terms_feat_stats_title",
+    ]);
+    const text = container.textContent || "";
+    expect(text.indexOf("terms_feat_stats_text2"), "features must come before the privacy card")
+      .toBeLessThan(text.indexOf("terms_your_data"));
+  });
+
+  it("counts the languages in the pill rather than writing the number", () => {
+    const { container } = renderWithCtx(<CuratorTermsGate />, {
+      acceptTerms: vi.fn(), saveLang: vi.fn(), t: (k: string) => translate("fr", k),
+    });
+    const pills = Array.from(container.querySelectorAll("li")).map((li) => li.textContent);
+    expect(pills).toContain(LANGUAGES.length + " langues");
+    expect(container.textContent).toContain("Un stock qui se tient tout seul");
   });
 });

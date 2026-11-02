@@ -39,6 +39,9 @@
     "err_dropbox_expired"
   ],
   "identical": {
+    "terms_pill_cloud": [
+      "pt"
+    ],
     "abbr_force": [
       "pt"
     ],
