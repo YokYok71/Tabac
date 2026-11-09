@@ -2,7 +2,7 @@ name: CDN dependency check
 
 on:
   schedule:
-    - cron: '0 8 * * 1'  # Every Monday 08:00 UTC
+    - cron: '0 5 * * 0'  # Every Sunday 05:00 UTC (06:00 Paris in winter, 07:00 in summer)
   workflow_dispatch:
 
 # See deploy.yml — same rationale.
