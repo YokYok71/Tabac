@@ -173,7 +173,14 @@ export function CuratorShoppingModal() {
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
               textDecoration: on ? "line-through" : "none",
             }}>{it.name || "—"}</div>
-            <div style={{ fontSize: fs(12.5), color: C.tx2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {/* WRAPS rather than ellipsising. It was one nowrap line, which
+                held while it only ever read « brand · 12g »; « épuisé » made it
+                carry a translated word, and at 360 px with the large text size
+                « Marlow & Finch · aufgebraucht » needed 196 px of a 153 px box —
+                the deploy's i18n:layout caught it in five languages out of six
+                (French's « épuisé » fitted). The state is the useful half of
+                that line; cutting it off with « … » hid exactly that. */}
+            <div style={{ fontSize: fs(12.5), color: C.tx2, overflowWrap: "anywhere" }}>
               {it.brand || "—"}
               {it.kind === "restock" && it.value > 0 ? " · " + it.value + weightUnit
                 : it.kind === "restock" && it.soldOut ? " · " + tr("shopping_sold_out", "épuisé") : ""}
