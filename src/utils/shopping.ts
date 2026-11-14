@@ -4,9 +4,10 @@
 //   • restock — OWNED tobaccos, for one of three reasons (`shoppingReason`):
 //               « manual »  put on the list by hand from the fiche (`toBuy`);
 //               « low »     running low (active weight ≤ threshold) and not
-//                           marked « à ne pas reprendre » (rebuy !== false);
+//                           marked « à ne pas reprendre » (rebuy !== false) nor
+//                           « plus disponible » (discontinued);
 //               « out »     used up — every lot finished — AND marked
-//                           « À reprendre » (rebuy === true).
+//                           « À reprendre » (rebuy === true), not discontinued.
 //               The "buy more of what you love before it runs out" list.
 //   • wishes  — the wishlist (things you want to try).
 // Each item carries a stable `key` ("restock:<id>" / "wish:<id>") so the view
@@ -78,6 +79,8 @@ export function shoppingReason(tob: any, threshold: number): ShoppingReason | nu
   if (!tob || tob.deletedAt) return null;
   if (tob.toBuy === true) return "manual";
   if (tob.rebuy === false) return null;
+  // « Plus disponible à l'achat »: low or used up, it cannot be bought back.
+  if (tob.discontinued === true) return null;
   if (isLowStock(tob, threshold)) return "low";
   if (tob.rebuy === true && isUsedUp(tob)) return "out";
   return null;

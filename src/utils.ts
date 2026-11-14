@@ -1704,6 +1704,7 @@ export function migrateData(d: any): any {
       // `toBuy` (the manual shopping-list flag) — same strict-literal rule,
       // same reason: `"no"` must not put a tabac on the list.
       if (_tob && _tob.toBuy !== undefined) _tob.toBuy = _tob.toBuy === true;
+      if (_tob && _tob.discontinued !== undefined) _tob.discontinued = _tob.discontinued === true;
       // Coerce a non-array `lots` to [] — parity with the
       // pipes maintenance/photos normalisation below. isPlausibleBackup only
       // checks Array.isArray(tobaccos), so a forged/quota-corrupt payload with

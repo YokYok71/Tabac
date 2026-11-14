@@ -32,12 +32,15 @@ export function CuratorShoppingModal() {
     shoppingOpen, setShoppingOpen,
     data, t, weightUnit = "g", watchLowWeight,
     imgLocal, crossOpenDetail, setStatusFilter, nav,
+    setTobaccoToBuy, setTobaccoDiscontinued, setTobaccoRebuy, delWish,
   } = ctx;
   const tr = (k: string, frFallback: string) => (t ? t(k) : frFallback);
   const close = () => setShoppingOpen && setShoppingOpen(false);
 
   const [checked, setChecked] = useState<Set<string>>(readChecked);
   const [copied, setCopied] = useState(false);
+  // The row whose « Pourquoi le retirer ? » panel is open (its `key`), if any.
+  const [asking, setAsking] = useState<string | null>(null);
 
   const list = shoppingOpen
     ? computeShoppingList(data?.tobaccos || [], data?.wishlist || [], {
@@ -76,6 +79,35 @@ export function CuratorShoppingModal() {
     }
   }
 
+  // « Retirer » — what it does depends on WHY the row is there, because the
+  // list is computed, not stored:
+  //  - added by hand → just undo that (`toBuy` off);
+  //  - a wish        → delete the wish (soft, 30-day trash, with the undo
+  //                    toast every delete carries);
+  //  - put there by the app (stock bas / épuisé) → ASK WHY, and record the
+  //    answer on the fiche. There is no « hide » flag: a row the app computed
+  //    would come straight back, so the only honest removal is a reason —
+  //    « plus disponible » or « je ne veux pas le racheter » — which is also
+  //    information the user keeps. Their choice, from the two the menu offers.
+  function removeItem(it: ShoppingItem) {
+    if (it.kind === "wish") {
+      // `it.id` is stringified; delWish matches the stored id STRICTLY.
+      const w = (data?.wishlist || []).find((x: any) => String(x?.id) === it.id);
+      if (w && delWish) delWish(w.id);
+      return;
+    }
+    if (it.reason === "manual") {
+      if (setTobaccoToBuy) setTobaccoToBuy(it.id, false);
+      return;
+    }
+    setAsking(it.key);
+  }
+  function removeBecause(it: ShoppingItem, why: "discontinued" | "norebuy") {
+    setAsking(null);
+    if (why === "discontinued") { if (setTobaccoDiscontinued) setTobaccoDiscontinued(it.id, true); }
+    else if (setTobaccoRebuy) setTobaccoRebuy(it.id, false);
+  }
+
   function copyList() {
     const lines: string[] = [];
     const push = (header: string, items: ShoppingItem[]) => {
@@ -103,8 +135,10 @@ export function CuratorShoppingModal() {
     const on = checked.has(it.key);
     const photo = it.imageUrl ? ((imgLocal && imgLocal[it.imageUrl]) || it.imageUrl) : null;
     const accent = it.kind === "restock" ? C.amber : C.oxbloodHi;
+    const label = [it.brand, it.name].filter(Boolean).join(" ");
     return (
-      <div key={it.key} style={{
+      <div key={it.key}>
+      <div style={{
         display: "flex", alignItems: "center", gap: 10,
         padding: "8px 10px", background: CARD_BG, borderRadius: 8,
         // Was `opacity: on ? 0.5 : 1` on the WHOLE row. Two
@@ -170,7 +204,12 @@ export function CuratorShoppingModal() {
               // documented at 8.37:1 on bg) rather than the old row-wide
               // opacity, so the text stays comfortably readable.
               color: on ? C.tx2 : C.ivory,
-              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              // Wraps, like the brand line below: the 44 px « Retirer » target
+              // took its width from this column, and at 360 px « Crown of the
+              // North » needed 133 px of the 99 left — clipped in all six
+              // languages. A shopping list is read in a shop; a cut-off name
+              // is the one thing it must not show.
+              overflowWrap: "anywhere",
               textDecoration: on ? "line-through" : "none",
             }}>{it.name || "—"}</div>
             {/* WRAPS rather than ellipsising. It was one nowrap line, which
@@ -186,8 +225,54 @@ export function CuratorShoppingModal() {
                 : it.kind === "restock" && it.soldOut ? " · " + tr("shopping_sold_out", "épuisé") : ""}
             </div>
           </div>
-          <Ico name="chevron" size={15} sw={2} />
         </button>
+        {/* The « › » chevron that sat here was dropped with the × : two glyphs
+            at the row's end read as two actions on the same thing, and it cost
+            the name 25 px. The row is still one button that opens the fiche. */}
+        <button type="button" onClick={() => removeItem(it)}
+          aria-label={tr("shopping_remove_item", "Retirer de la liste") + (label ? " · " + label : "")}
+          aria-expanded={it.kind === "restock" && it.reason !== "manual" ? asking === it.key : undefined}
+          style={{
+            // 44 px target, same reasoning as the tick box on the left.
+            width: 44, height: 44, flexShrink: 0, padding: 0, cursor: "pointer",
+            background: "transparent", border: "none", color: C.tx3,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+          <Ico name="close" size={15} sw={2} />
+        </button>
+      </div>
+      {asking === it.key && (
+        <div role="group" aria-label={tr("shopping_why", "Pourquoi le retirer de la liste ?")} style={{
+          margin: "4px 0 2px", padding: "10px 12px", borderRadius: 8,
+          border: `1px solid ${C.rule2}`, background: CARD_BG,
+        }}>
+          <div style={{ fontSize: fs(14), color: C.ivory, marginBottom: 8 }}>
+            {tr("shopping_why", "Pourquoi le retirer de la liste ?")}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {([
+              ["discontinued", tr("shopping_why_discontinued", "Plus disponible à l'achat")],
+              ["norebuy", tr("shopping_why_norebuy", "Je ne veux pas le racheter")],
+            ] as const).map(([why, text]) => (
+              <button key={why} type="button" onClick={() => removeBecause(it, why)}
+                style={{
+                  minHeight: 44, padding: "8px 12px", borderRadius: 8, cursor: "pointer",
+                  border: `1px solid ${C.rule2}`, background: "transparent", color: C.tx,
+                  fontFamily: F.body, fontSize: fs(14), fontWeight: 600, textAlign: "left",
+                }}>{text}</button>
+            ))}
+            <button type="button" onClick={() => setAsking(null)}
+              style={{
+                minHeight: 44, padding: "8px 12px", borderRadius: 8, cursor: "pointer",
+                border: "none", background: "transparent", color: C.tx2,
+                fontFamily: F.body, fontSize: fs(14), textAlign: "left",
+              }}>{tr("btn_cancel", "Annuler")}</button>
+          </div>
+          <div style={{ marginTop: 8, fontSize: fs(12.5), color: C.tx3, lineHeight: 1.4 }}>
+            {tr("shopping_why_hint", "Ce choix est enregistré sur la fiche du tabac, où vous pourrez le changer.")}
+          </div>
+        </div>
+      )}
       </div>
     );
   };

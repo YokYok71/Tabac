@@ -210,6 +210,36 @@ describe("CuratorInventoryListView", () => {
     expect(chip, "Expected the chip to stay hidden when count is 0").toBeFalsy();
   });
 
+  // « Plus disponible » — the same three promises as « À ne pas reprendre »:
+  // the chip shows only when a tabac carries the flag, it filters by it, and
+  // the card says so with its own badge (a struck circle, not a second ✕).
+  it("the « Plus disponible » chip and card badge follow the flag", () => {
+    const gone = { ...mkTob(1), discontinued: true };
+    const other = { ...mkTob(2), discontinued: false };
+    const setStatusFilter = vi.fn();
+    const { container } = renderWith({
+      ...baseCtx, setStatusFilter,
+      filtered: [gone, other],
+      data: { tobaccos: [gone, other], wishlist: [] },
+    });
+    const chip = Array.from(container.querySelectorAll("button"))
+      .find(b => /f_discontinued/.test(b.textContent || ""));
+    expect(chip, "chip must show when one tabac is discontinued").toBeTruthy();
+    expect(chip!.textContent || "").toMatch(/01/);
+    fireEvent.click(chip!);
+    expect(setStatusFilter).toHaveBeenCalledWith("discontinued");
+    expect(container.querySelectorAll('[aria-label="lbl_discontinued"]')).toHaveLength(1);
+  });
+
+  it("hides the « Plus disponible » chip when no tabac carries the flag", () => {
+    const { container } = renderWith({
+      ...baseCtx,
+      filtered: [mkTob(1)],
+      data: { tobaccos: [mkTob(1)], wishlist: [] },
+    });
+    expect(Array.from(container.querySelectorAll("button")).find(b => /f_discontinued/.test(b.textContent || ""))).toBeFalsy();
+  });
+
   it("clicking the 'À ne pas reprendre' chip fires setStatusFilter('norebuy')", () => {
     const tobNoRebuy = { ...mkTob(1), rebuy: false };
     const setStatusFilter = vi.fn();
@@ -1417,5 +1447,20 @@ describe("les quatre portes du formulaire d'envie", () => {
     expect(opens, "une porte de plus qu'un ouvreur est une copie qui va diverger").toBe(2);
     expect((src.match(/openAddWish\(\)/g) || []).length).toBeGreaterThanOrEqual(2);
     expect((src.match(/openEditWish\(w\)/g) || []).length).toBe(2);
+  });
+});
+
+// The « Plus disponible » chip COUNTS in InventoryListView and FILTERS in
+// App.tsx — two copies of one predicate, the shape this repo keeps paying for.
+// Read both out of the source and require the same expression.
+describe("« Plus disponible » — App filter and chip count agree", () => {
+  it("both use `discontinued === true`", () => {
+    const fs = require("node:fs");
+    const app: string = fs.readFileSync("src/App.tsx", "utf8");
+    const view: string = fs.readFileSync("src/views/curator/InventoryListView.tsx", "utf8");
+    const branch = app.slice(app.indexOf('eff === "discontinued"'), app.indexOf('eff === "discontinued"') + 600);
+    expect(app.indexOf('eff === "discontinued"'), "App.tsx has no discontinued filter branch").toBeGreaterThan(0);
+    expect(branch).toContain("return t.discontinued === true;");
+    expect(view).toContain("if (tob.discontinued === true) discontinued++;");
   });
 });

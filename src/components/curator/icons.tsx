@@ -11,7 +11,7 @@ export type IcoName =
   | "box" | "chevron" | "heart" | "clock" | "filter"
   | "sliders" | "more" | "diamond" | "close" | "check"
   | "cloud" | "camera" | "contrast" | "stop" | "cart" | "copy" | "restore"
-  | "scale" | "moon";
+  | "scale" | "moon" | "ban";
 
 const PATHS: Record<IcoName, React.ReactNode> = {
   home:    <path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z" />,
@@ -128,6 +128,10 @@ const PATHS: Record<IcoName, React.ReactNode> = {
   // either.
   scale:   <path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z" />,
   moon:    <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5zM17 3v3M15.5 4.5h3" />,
+  // « Plus disponible à l'achat » — the inventory card's square badge, beside
+  // the ✕ of « à ne pas reprendre ». A circle struck through rather than a
+  // second cross, so the two refusals stay distinguishable at 20 px.
+  ban:     <g><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></g>,
 };
 
 export interface IcoProps {

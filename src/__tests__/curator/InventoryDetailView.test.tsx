@@ -1002,3 +1002,16 @@ describe("InventoryDetailView — shopping list control", () => {
     expect(findCard(container, "shopping_in_list_low")).toBeTruthy();
   });
 });
+
+describe("InventoryDetailView — « Plus disponible » badge", () => {
+  it("shows only when the flag is true", () => {
+    const data = (tob: any) => ({ tobaccos: [tob], sessions: [], pipes: [], accessories: [], wishlist: [] });
+    const on = { ...tobacco, discontinued: true };
+    const r1 = renderWithCtx(<CuratorInventoryDetailView />, { view: "inv", detail: on, data: data(on) });
+    expect(r1.container.textContent).toContain("lbl_discontinued");
+    r1.unmount();
+    const off = { ...tobacco, discontinued: false };
+    const r2 = renderWithCtx(<CuratorInventoryDetailView />, { view: "inv", detail: off, data: data(off) });
+    expect(r2.container.textContent).not.toContain("lbl_discontinued");
+  });
+});

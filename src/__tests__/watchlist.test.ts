@@ -66,6 +66,13 @@ describe("computeWatchlist — signals", () => {
     expect(items[0]!.value).toBe(35);
   });
 
+  it("does NOT flag a low tobacco marked « plus disponible » — there is nothing to go and buy", () => {
+    expect(computeWatchlist([tob({
+      discontinued: true,
+      lots: [{ status: "jar", weightG: "35", dateOpened: isoMonthsAgo(1) }],
+    })], { now: NOW, lowWeightThreshold: 50 })).toEqual([]);
+  });
+
   it("flags a low NON-favourite (no rating gate anymore)", () => {
     const items = computeWatchlist([tob({
       rating: 3,

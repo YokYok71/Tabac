@@ -234,18 +234,42 @@ export function useTobaccoStore({
    *  phone would never reach the tablet, and the tabac would sit on its list
    *  for ever. An explicit `false` is carried by the same assign. */
   function setTobaccoToBuy(tobId: any, on: boolean) {
+    patchTobaccoFlags(tobId, { toBuy: !!on });
+  }
+
+  /** « Plus disponible à l'achat ». Same write rules as `setTobaccoToBuy`:
+   *  stamped, and OFF is an explicit `false`. */
+  function setTobaccoDiscontinued(tobId: any, on: boolean) {
+    patchTobaccoFlags(tobId, { discontinued: !!on });
+  }
+
+  /** The tri-state « À reprendre ? » (true / false / null), set from outside
+   *  the form — the shopping list's « Je ne veux pas le racheter ». */
+  function setTobaccoRebuy(tobId: any, value: boolean | null) {
+    patchTobaccoFlags(tobId, { rebuy: value === true ? true : value === false ? false : null });
+  }
+
+  /** The shared write behind the three flag setters above. Two things it must
+   *  get right, both learned on the way here:
+   *  - it REFRESHES the open fiche but never OPENS one. These setters are now
+   *    called from the shopping list too, which can be open over the inventory
+   *    list with no fiche at all: an unconditional `setDetail(updated)` would
+   *    pop the tabac's fiche open behind the modal.
+   *  - it builds on `fresh()`, like every other mutation in this store. */
+  function patchTobaccoFlags(tobId: any, patch: Record<string, any>) {
     var data = fresh();
     var updated: any = null;
     var tobs = (data.tobaccos || []).map(function (t: any) {
       if (String(t.id) !== String(tobId)) return t;
-      var next = Object.assign({}, t, { updatedAt: new Date().toISOString() });
-      next.toBuy = !!on;
+      var next = Object.assign({}, t, patch, { updatedAt: new Date().toISOString() });
       updated = next;
       return next;
     });
     if (!updated) return;
     save(Object.assign({}, data, { tobaccos: tobs }));
-    setDetail(updated);
+    setDetail(function (prev: any) {
+      return prev && String(prev.id) === String(tobId) ? updated : prev;
+    });
   }
 
   function deleteTobacco(id: any) {
@@ -533,6 +557,8 @@ export function useTobaccoStore({
     updateTobacco,
     updateTobaccoTastingNotes,
     setTobaccoToBuy,
+    setTobaccoDiscontinued,
+    setTobaccoRebuy,
     deleteTobacco,
     addLotToTobacco,
     updateLotInTobacco,

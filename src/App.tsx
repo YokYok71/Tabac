@@ -2045,6 +2045,8 @@ function App() {
     updateTobacco,
     updateTobaccoTastingNotes,
     setTobaccoToBuy,
+    setTobaccoDiscontinued,
+    setTobaccoRebuy,
     deleteTobacco,
     addLotToTobacco,
     updateLotInTobacco,
@@ -2537,6 +2539,13 @@ function App() {
         // pure filter, no side effect on the data.
         ls = ls.filter(function (t) {
           return t.rebuy === false;
+        });
+      else if (eff === "discontinued")
+        // « Plus disponible » chip — tabacs flagged no longer sold. Strict
+        // `=== true`, the flag's only meaningful value. MUST match
+        // InventoryListView's `counts.discontinued` predicate.
+        ls = ls.filter(function (t) {
+          return t.discontinued === true;
         });
       else if (eff === "lowstock")
         // "Stock bas" chip — tabacs whose active (non-finished)
@@ -3430,6 +3439,8 @@ function App() {
     updateTobacco,
     updateTobaccoTastingNotes,
     setTobaccoToBuy,
+    setTobaccoDiscontinued,
+    setTobaccoRebuy,
     nav,
     openDocFromSettings,
     closeDocPage,

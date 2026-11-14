@@ -116,3 +116,62 @@ describe("CuratorShoppingModal", () => {
     expect(container.textContent).not.toContain("shopping_restock");
   });
 });
+
+// « Retirer » from the list. The list is COMPUTED, so what removal means
+// depends on why a row is there: a hand-added tabac just loses its flag, a
+// wish goes to the trash, and a row the app put there asks WHY — the answer is
+// recorded on the fiche, since a « hide » would be recomputed straight back.
+describe("CuratorShoppingModal — Retirer", () => {
+  beforeEach(() => { try { localStorage.clear(); } catch { /* ignore */ } });
+  const removeBtn = (getByLabelText: any, name: string) => getByLabelText(new RegExp("shopping_remove_item.*" + name));
+
+  it("a hand-added tabac: × just clears the flag, no question", () => {
+    const setTobaccoToBuy = vi.fn();
+    const manual = { id: 3, brand: "B", name: "Plenty", toBuy: true, lots: [{ status: "cellar", weightG: "200" }] };
+    const { getByLabelText, container } = renderWithCtx(<CuratorShoppingModal />, {
+      ...baseCtx, setTobaccoToBuy, data: { ...baseCtx.data, tobaccos: [manual], wishlist: [] },
+    });
+    fireEvent.click(removeBtn(getByLabelText, "Plenty"));
+    expect(setTobaccoToBuy).toHaveBeenCalledWith("3", false);
+    expect(container.textContent).not.toContain("shopping_why_discontinued");
+  });
+
+  it("a wish: × deletes it, by its STORED id (the item id is a string, delWish matches strictly)", () => {
+    const delWish = vi.fn();
+    const { getByLabelText } = renderWithCtx(<CuratorShoppingModal />, { ...baseCtx, delWish });
+    fireEvent.click(removeBtn(getByLabelText, "Irish Flake"));
+    expect(delWish).toHaveBeenCalledWith(5);
+  });
+
+  it("a low-stock row asks why; « plus disponible » records it on the tabac", () => {
+    const setTobaccoDiscontinued = vi.fn();
+    const setTobaccoRebuy = vi.fn();
+    const { getByLabelText, getByText, container } = renderWithCtx(<CuratorShoppingModal />, {
+      ...baseCtx, setTobaccoDiscontinued, setTobaccoRebuy,
+    });
+    const x = removeBtn(getByLabelText, "Duskfall");
+    expect(x.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(x);
+    expect(x.getAttribute("aria-expanded")).toBe("true");
+    expect(container.textContent).toContain("shopping_why_hint");
+    fireEvent.click(getByText("shopping_why_discontinued"));
+    expect(setTobaccoDiscontinued).toHaveBeenCalledWith("1", true);
+    expect(setTobaccoRebuy).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("shopping_why_hint");
+  });
+
+  it("« je ne veux pas le racheter » sets rebuy to false; « Annuler » changes nothing", () => {
+    const setTobaccoDiscontinued = vi.fn();
+    const setTobaccoRebuy = vi.fn();
+    const { getByLabelText, getByText, container } = renderWithCtx(<CuratorShoppingModal />, {
+      ...baseCtx, setTobaccoDiscontinued, setTobaccoRebuy,
+    });
+    fireEvent.click(removeBtn(getByLabelText, "Duskfall"));
+    fireEvent.click(getByText("btn_cancel"));
+    expect(container.textContent).not.toContain("shopping_why_hint");
+    fireEvent.click(removeBtn(getByLabelText, "Duskfall"));
+    fireEvent.click(getByText("shopping_why_norebuy"));
+    expect(setTobaccoRebuy).toHaveBeenCalledWith("1", false);
+    expect(setTobaccoDiscontinued).not.toHaveBeenCalled();
+  });
+});

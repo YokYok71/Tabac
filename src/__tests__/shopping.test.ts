@@ -131,3 +131,18 @@ describe("shoppingReason — used up + « À reprendre », and the manual flag",
     expect(shoppingReason({ id: 1, toBuy: true, deletedAt: "x", lots: [] }, 25)).toBeNull();
   });
 });
+
+// « Plus disponible à l'achat » — nothing to go and buy, so it leaves the
+// list whatever got it there automatically. A hand-add still wins: it is the
+// later, explicit act (and the fiche keeps offering it).
+describe("shoppingReason — discontinued", () => {
+  it("keeps a low-stock or used-up tabac off the list", () => {
+    expect(shoppingReason({ id: 1, discontinued: true, lots: [{ status: "jar", weightG: "10" }] }, 25)).toBeNull();
+    expect(shoppingReason({ id: 1, discontinued: true, rebuy: true, lots: [{ status: "finished" }] }, 25)).toBeNull();
+    expect(shoppingReason({ id: 1, discontinued: false, lots: [{ status: "jar", weightG: "10" }] }, 25)).toBe("low");
+  });
+  it("a hand-add still wins, and only the literal true counts", () => {
+    expect(shoppingReason({ id: 1, discontinued: true, toBuy: true, lots: [] }, 25)).toBe("manual");
+    expect(shoppingReason({ id: 1, discontinued: "yes", lots: [{ status: "jar", weightG: "10" }] }, 25)).toBe("low");
+  });
+});

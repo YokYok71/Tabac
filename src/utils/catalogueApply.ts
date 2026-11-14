@@ -109,6 +109,11 @@ export const PROTECTED_FIELDS = [
   // a row out of it. Listing it makes that a stated promise the test asserts
   // rather than an emergent property of the walk.
   "catalogueLock",
+  // The user's own shopping decisions. The catalogue has no column for either
+  // today, so this is a promise about the future: « plus disponible » is
+  // knowledge of THEIR market, and a catalogue saying a blend is still made
+  // must not silently put a tabac they cannot buy back on their list.
+  "discontinued", "toBuy",
 ] as const;
 
 // The catalogue exposes the brand under a different key; mirrors useDbSync.

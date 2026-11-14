@@ -86,6 +86,9 @@ describe("catalogueLock — the per-fiche opt-out", () => {
     // Unreachable today (a locked row never enters the plan) but stated, so
     // the pass can never clear the flag that keeps a row out of it.
     expect([...PROTECTED_FIELDS]).toContain("catalogueLock");
+    // The user's shopping decisions: the catalogue must never reset them.
+    expect([...PROTECTED_FIELDS]).toContain("discontinued");
+    expect([...PROTECTED_FIELDS]).toContain("toBuy");
   });
 
   it("is seeded by both templates, so a fresh fiche starts unlocked", () => {

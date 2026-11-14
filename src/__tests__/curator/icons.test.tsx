@@ -16,7 +16,7 @@ const ALL_NAMES = [
   "plus", "settings", "flame", "play", "pause", "edit", "trash",
   "box", "chevron", "heart", "clock",
   "sliders", "more", "diamond", "close", "check",
-  "scale", "moon",
+  "scale", "moon", "ban",
 ] as const;
 
 describe("Ico — every IcoName resolves to a valid SVG", () => {

@@ -346,6 +346,14 @@ export function CuratorInventoryDetailView() {
                   textTransform: "uppercase", fontWeight: 700,
                 }}>✕ {t ? t("rebuy_no") : "Pas reprendre"}</span>
               )}
+              {tob.discontinued === true && (
+                <span style={{
+                  padding: "2px 7px", borderRadius: 4,
+                  background: alpha(C.tx3, "22"), color: C.tx2,
+                  fontFamily: F.mono, fontSize: fs(11), letterSpacing: 1.2,
+                  textTransform: "uppercase", fontWeight: 700,
+                }}>{t ? t("lbl_discontinued") : "Plus disponible"}</span>
+              )}
             </div>
           </div>
         </div>

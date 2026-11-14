@@ -200,9 +200,10 @@ export function CuratorInventoryListView() {
   // and the watchlist (user's display unit, default 25 g / 0.9 oz).
   const lowThreshold = lowStockThreshold(watchLowWeight, weightUnit);
   const counts = useMemo(() => {
-    let cellar = 0, jars = 0, finished = 0, disposed = 0, approaching = 0, overaged = 0, smokesoon = 0, active = 0, usedUp = 0, nolot = 0, norebuy = 0, young = 0, optimal = 0, lowstock = 0, recent = 0;
+    let cellar = 0, jars = 0, finished = 0, disposed = 0, approaching = 0, overaged = 0, smokesoon = 0, active = 0, usedUp = 0, nolot = 0, norebuy = 0, discontinued = 0, young = 0, optimal = 0, lowstock = 0, recent = 0;
     for (const tob of tobaccos) {
       if (tob.rebuy === false) norebuy++;
+      if (tob.discontinued === true) discontinued++;
       if (isLowStock(tob, lowThreshold)) lowstock++;
       // scope-ok: these counts label the filter chips THEMSELVES ("how many
       // tabacs have ≥1 jar lot"), so they must see every lot regardless of
@@ -251,7 +252,7 @@ export function CuratorInventoryListView() {
         if (mApp || mOver) smokesoon++;
       }
     }
-    return { all: tobaccos.length, active, usedUp, nolot, cellar, jars, finished, disposed, approaching, overaged, smokesoon, norebuy, young, optimal, lowstock, recent };
+    return { all: tobaccos.length, active, usedUp, nolot, cellar, jars, finished, disposed, approaching, overaged, smokesoon, norebuy, discontinued, young, optimal, lowstock, recent };
   }, [tobaccos, lotAgingStatus, lowThreshold]);
 
   // Dropdown filter options derived from the user's live
@@ -380,6 +381,8 @@ export function CuratorInventoryListView() {
       n: counts.disposed, color: C.tx3 },
     { id: "norebuy", label: t ? t("f_norebuy") : "À ne pas reprendre",
       n: counts.norebuy, color: C.oxbloodHi },
+    { id: "discontinued", label: t ? t("f_discontinued") : "Plus disponible",
+      n: counts.discontinued, color: C.tx2 },
   ];
 
   // Statuses that narrow beyond the default "active" view also
@@ -387,7 +390,7 @@ export function CuratorInventoryListView() {
   // from a Home/Stats deep-link — e.g. the maturity bar — is visible and
   // removable at the top, not just highlighted in the scrollable chip row).
   // The × resets the status to the default "active".
-  const STATUS_PILL_IDS = ["cellar", "jar", "recent", "used_up", "nolot", "finished", "disposed", "norebuy", "lowstock", "young", "optimal", "approaching", "overaged", "smokesoon"];
+  const STATUS_PILL_IDS = ["cellar", "jar", "recent", "used_up", "nolot", "finished", "disposed", "norebuy", "discontinued", "lowstock", "young", "optimal", "approaching", "overaged", "smokesoon"];
   const statusPill = STATUS_PILL_IDS.indexOf(statusFilter) >= 0
     ? chips.find((c) => c.id === statusFilter)
     : null;
@@ -751,7 +754,7 @@ export function CuratorInventoryListView() {
         {(() => {
           const shown = chips.filter(f => {
             // Auto-hide the low-signal chips at count 0 (unless selected).
-            if ((f.id === "approaching" || f.id === "overaged" || f.id === "smokesoon" || f.id === "disposed" || f.id === "norebuy"
+            if ((f.id === "approaching" || f.id === "overaged" || f.id === "smokesoon" || f.id === "disposed" || f.id === "norebuy" || f.id === "discontinued"
                  || f.id === "lowstock" || f.id === "young" || f.id === "optimal" || f.id === "used_up" || f.id === "nolot")
                 && f.n === 0 && statusFilter !== f.id) {
               return false;
@@ -1098,6 +1101,7 @@ function TobaccoCard({
     return d != null && (mx == null || d > mx) ? d : mx;
   }, null as number | null);
   const noRebuy = tob.rebuy === false;
+  const discontinued = tob.discontinued === true;
   return (
     <PressCard onClick={onOpen} style={{
       background: CARD_BG, border: `1px solid ${C.rule}`,
@@ -1244,6 +1248,16 @@ function TobaccoCard({
                     background: alpha(C.oxbloodHi, "22"), color: C.oxbloodHi,
                     fontSize: fs(14.5), lineHeight: 1, borderRadius: 3, fontWeight: 700,
                   }}>✕</span>
+              )}
+              {discontinued && (
+                <span title={t ? t("lbl_discontinued") : "Plus disponible"}
+                  aria-label={t ? t("lbl_discontinued") : "Plus disponible"}
+                  role="img"
+                  style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    width: 20, height: 20, padding: 0,
+                    background: alpha(C.tx3, "22"), color: C.tx2, borderRadius: 3,
+                  }}><Ico name="ban" size={14} sw={2} /></span>
               )}
             </div>
           </div>

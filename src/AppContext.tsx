@@ -50,6 +50,8 @@ export interface AppCtxType {
   updateTobacco: () => void;
   updateTobaccoTastingNotes: (tobId: any, notes: string) => void;
   setTobaccoToBuy: (tobId: any, on: boolean) => void;
+  setTobaccoDiscontinued: (tobId: any, on: boolean) => void;
+  setTobaccoRebuy: (tobId: any, value: boolean | null) => void;
   nav: (view: string, opts?: { restoreScroll?: boolean }) => void;
   // Doc-page (help/changelog/privacy/licenses) Settings-aware back.
   openDocFromSettings: (page: string) => void;

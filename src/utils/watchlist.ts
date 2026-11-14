@@ -83,8 +83,10 @@ export function computeWatchlist(
     if (hasOveraged) offer("overaged", 0);
     else if (hasApproaching) offer("approaching", 0);
 
-    // 3 — running low on stock (any tobacco except "don't rebuy").
-    if (t.rebuy !== false) {
+    // 3 — running low on stock (any tobacco except "don't rebuy" and
+    // « plus disponible » — both say there is nothing to go and buy, which is
+    // the whole point of this reminder; same rule as the shopping list).
+    if (t.rebuy !== false && t.discontinued !== true) {
       var totalActive = lots.reduce(function (sum: number, l: any) {
         return sum + safeNonNeg(l.weightG);
       }, 0);

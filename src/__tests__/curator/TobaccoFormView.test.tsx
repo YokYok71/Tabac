@@ -583,6 +583,26 @@ describe("TobaccoFormView — catalogue lock", () => {
   });
 });
 
+// « Plus disponible à l'achat » — a real checkbox, like the catalogue lock,
+// that writes `discontinued` through to the form both ways.
+describe("TobaccoFormView — « Plus disponible à l'achat »", () => {
+  const findBox = (c: HTMLElement) =>
+    Array.from(c.querySelectorAll('[role="checkbox"]'))
+      .find((el) => (el.textContent || "").indexOf("lbl_discontinued_q") !== -1) as HTMLElement | undefined;
+  it("reflects the flag and writes it through on tap", () => {
+    const set = vi.fn();
+    const form = { ...emptyForm, discontinued: true };
+    const { container } = renderWithCtx(<CuratorTobaccoFormView />, { view: "addT", form, setForm: set });
+    const box = findBox(container);
+    expect(box, "the checkbox is missing from the form").toBeTruthy();
+    expect(box!.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(box!);
+    const arg = set.mock.calls[0]![0];
+    const next = typeof arg === "function" ? arg(form) : arg;
+    expect(next.discontinued).toBe(false);
+  });
+});
+
 // LE BOUTON ENREGISTRER N'ÉTAIT JAMAIS TAPÉ — ce fichier ne contenait aucune
 // occurrence d'`addTobacco` ni d'`updateTobacco`. Même trou dans les deux autres
 // formulaires, et c'est ce qui explique douze des quarante-cinq mutations

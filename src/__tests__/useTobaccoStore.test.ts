@@ -482,6 +482,48 @@ describe("useTobaccoStore — setTobaccoToBuy", () => {
   });
 });
 
+// The two setters the shopping list's « Retirer » menu calls. They share
+// `patchTobaccoFlags`, whose one subtle duty is about the FICHE: refresh it
+// when it shows this tabac, never OPEN one — the list can be open over the
+// inventory with no fiche at all.
+describe("useTobaccoStore — setTobaccoDiscontinued / setTobaccoRebuy", () => {
+  it("write the flag, stamped; OFF is an explicit false", () => {
+    const save = vi.fn();
+    const data = makeData({ tobaccos: [makeTob(1, [], { discontinued: true })] });
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(data, save)));
+    act(() => { result.current.setTobaccoDiscontinued(1, false); });
+    expect(save.mock.calls[0]![0].tobaccos[0].discontinued).toBe(false);
+    expect(typeof save.mock.calls[0]![0].tobaccos[0].updatedAt).toBe("string");
+    act(() => { result.current.setTobaccoRebuy(1, false); });
+    expect(save.mock.calls[1]![0].tobaccos[0].rebuy).toBe(false);
+  });
+
+  it("rebuy is coerced to the tri-state", () => {
+    const save = vi.fn();
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(makeData({ tobaccos: [makeTob(1, [])] }), save)));
+    act(() => { result.current.setTobaccoRebuy(1, "yes" as any); });
+    expect(save.mock.calls[0]![0].tobaccos[0].rebuy).toBeNull();
+  });
+
+  it("does NOT open a fiche when none is open", () => {
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(makeData({ tobaccos: [makeTob(1, [])] }), vi.fn())));
+    expect(result.current.detail).toBeNull();
+    act(() => { result.current.setTobaccoDiscontinued(1, true); });
+    expect(result.current.detail).toBeNull();
+  });
+
+  it("refreshes the open fiche of THAT tabac, and leaves another one's alone", () => {
+    const data = makeData({ tobaccos: [makeTob(1, []), makeTob(2, [])] });
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(data, vi.fn())));
+    act(() => { result.current.setDetail(data.tobaccos[0]); });
+    act(() => { result.current.setTobaccoDiscontinued(1, true); });
+    expect(result.current.detail.discontinued).toBe(true);
+    act(() => { result.current.setTobaccoRebuy(2, false); });
+    expect(result.current.detail.id).toBe(1);
+    expect(result.current.detail.rebuy).toBeUndefined();
+  });
+});
+
 describe("useTobaccoStore — deleteTobacco", () => {
   // deleteTobacco now soft-deletes (sets `deletedAt`)
   // instead of removing the row. The row stays in the array — the

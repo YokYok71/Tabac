@@ -102,6 +102,17 @@ export interface Tobacco {
    */
   toBuy?: boolean;
   /**
+   * « Plus disponible à l'achat » — the blend is no longer sold. Keeps the
+   * tabac off the shopping list and out of the Home « stock bas » reminder
+   * (both are about buying), but NOT out of the inventory's « Stock bas »
+   * filter, which is about what is running low. Set from the form, the fiche
+   * or the shopping list's « Retirer » menu. The catalogue never writes it
+   * (`PROTECTED_FIELDS`): it is the user's knowledge of their market. Absent
+   * and `false` are the same; OFF writes `false` so it travels through the
+   * merge, like `toBuy`.
+   */
+  discontinued?: boolean;
+  /**
    * Soft-delete timestamp. ISO string set when the user
    * deletes the tabac; the row stays in `data.tobaccos` but is filtered
    * out of the live ctx view (visible only in the Trash section of

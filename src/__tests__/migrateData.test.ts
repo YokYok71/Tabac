@@ -759,3 +759,12 @@ describe("migrateData — toBuy is a strict boolean", () => {
     expect("toBuy" in d.tobaccos[3]).toBe(false);
   });
 });
+
+describe("migrateData — discontinued is a strict boolean", () => {
+  it("keeps true, turns anything else into false, leaves absent absent", () => {
+    const tob = (extra: Record<string, unknown>) => ({ id: 1, name: "T", brand: "B", lots: [], ...extra });
+    const d = migrateData({ tobaccos: [tob({ discontinued: true }), tob({ id: 2, discontinued: "no" }), tob({ id: 3 })] });
+    expect(d.tobaccos.map((t: any) => t.discontinued)).toEqual([true, false, undefined]);
+    expect("discontinued" in d.tobaccos[2]).toBe(false);
+  });
+});
