@@ -90,6 +90,18 @@ export interface Tobacco {
    */
   catalogueLock?: boolean;
   /**
+   * « Ajouter à la liste de courses » — set by hand from the fiche. Puts the
+   * tabac under « À racheter » whatever its stock, and is CLEARED by
+   * `addLotToTobacco`: recording the tin you bought is what takes it off the
+   * list. A flag on the tabac rather than a wishlist row on purpose — a wish
+   * is « to discover », and « Je l'ai acheté » on a wish creates a NEW tabac,
+   * i.e. a duplicate of the one you already own. Absent and `false` mean the
+   * same thing to the list; `migrateData` keeps only the literal `true`. Turning
+   * it OFF writes `false` rather than deleting the key, so a newer backup
+   * carries the removal through the merge (see `setTobaccoToBuy`).
+   */
+  toBuy?: boolean;
+  /**
    * Soft-delete timestamp. ISO string set when the user
    * deletes the tabac; the row stays in `data.tobaccos` but is filtered
    * out of the live ctx view (visible only in the Trash section of

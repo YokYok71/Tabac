@@ -223,6 +223,31 @@ export function useTobaccoStore({
     save(nd);
   }
 
+  /** « Ajouter à / Retirer de la liste de courses » on the fiche. Stamps
+   *  `updatedAt`: a deliberate act, so last-write-wins is the right reading
+   *  across devices.
+   *
+   *  OFF WRITES `false`, IT DOES NOT DELETE THE KEY — and deleting it was the
+   *  first version. The import merge builds the row as
+   *  `Object.assign({}, local, imported)`, so a key ABSENT from the newer
+   *  imported row leaves the local `true` standing: a « Retirer » made on the
+   *  phone would never reach the tablet, and the tabac would sit on its list
+   *  for ever. An explicit `false` is carried by the same assign. */
+  function setTobaccoToBuy(tobId: any, on: boolean) {
+    var data = fresh();
+    var updated: any = null;
+    var tobs = (data.tobaccos || []).map(function (t: any) {
+      if (String(t.id) !== String(tobId)) return t;
+      var next = Object.assign({}, t, { updatedAt: new Date().toISOString() });
+      next.toBuy = !!on;
+      updated = next;
+      return next;
+    });
+    if (!updated) return;
+    save(Object.assign({}, data, { tobaccos: tobs }));
+    setDetail(updated);
+  }
+
   function deleteTobacco(id: any) {
     // Build on the FRESHEST committed cellar, not this render's snapshot
     // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
@@ -314,7 +339,16 @@ export function useTobaccoStore({
     }
     var tobs = data.tobaccos.map(function (t: any) {
       if (t.id !== tobId) return t;
-      return Object.assign({}, t, { lots: (t.lots || []).concat(newLots) });
+      var next = Object.assign({}, t, { lots: (t.lots || []).concat(newLots) });
+      // Recording a new tin IS the purchase: a tabac put on the shopping list
+      // by hand leaves it here. Written as an explicit `false` and stamped, so
+      // the clearing wins a later merge against a device that still carries
+      // the flag — see setTobaccoToBuy for why the key is not deleted.
+      if (next.toBuy) {
+        next.toBuy = false;
+        next.updatedAt = new Date().toISOString();
+      }
+      return next;
     });
     save(Object.assign({}, data, { tobaccos: tobs }));
     setDetail(
@@ -498,6 +532,7 @@ export function useTobaccoStore({
     addTobacco,
     updateTobacco,
     updateTobaccoTastingNotes,
+    setTobaccoToBuy,
     deleteTobacco,
     addLotToTobacco,
     updateLotInTobacco,

@@ -1,6 +1,7 @@
 // Curator "Liste de courses" modal — the actionable shopping list.
-// Aggregates two sources via computeShoppingList: OWNED tobaccos running low
-// (that you'd rebuy) + the wishlist. Each row carries a "got it" checkbox
+// Aggregates two sources via computeShoppingList: OWNED tobaccos to rebuy —
+// running low, used up and marked « À reprendre », or put on the list by hand
+// from the fiche — + the wishlist. Each row carries a "got it" checkbox
 // persisted in localStorage (cave-shopping-checked) so the list survives an
 // app reload while you shop. A "Copier" button puts the un-checked rows on the
 // clipboard as plain text. Mounted in CuratorApp next to the other modals;
@@ -174,7 +175,8 @@ export function CuratorShoppingModal() {
             }}>{it.name || "—"}</div>
             <div style={{ fontSize: fs(12.5), color: C.tx2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {it.brand || "—"}
-              {it.kind === "restock" && it.value > 0 ? " · " + it.value + weightUnit : ""}
+              {it.kind === "restock" && it.value > 0 ? " · " + it.value + weightUnit
+                : it.kind === "restock" && it.soldOut ? " · " + tr("shopping_sold_out", "épuisé") : ""}
             </div>
           </div>
           <Ico name="chevron" size={15} sw={2} />
@@ -233,7 +235,7 @@ export function CuratorShoppingModal() {
                 </button>
               )}
             </div>
-            {section(tr("shopping_restock", "À racheter"), tr("shopping_restock_sub", "stock bas"), C.amber, list.restock)}
+            {section(tr("shopping_restock", "À racheter"), tr("shopping_restock_sub", "de votre cave"), C.amber, list.restock)}
             {section(tr("shopping_wishes", "Mes envies"), tr("shopping_wishes_sub", "à découvrir"), C.oxbloodHi, list.wishes)}
           </>
         )}

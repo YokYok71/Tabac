@@ -747,3 +747,15 @@ describe("migrateData — uid backfill", () => {
     expect(d.tobaccos[0].uid).not.toBe(d.tobaccos[1].uid);
   });
 });
+
+// `toBuy` — the manual shopping-list flag. Strict literal, like catalogueLock:
+// a hand-edited backup's "no" is TRUTHY and must not put a tabac on the list.
+// Absent stays absent (no key written onto every row for nothing).
+describe("migrateData — toBuy is a strict boolean", () => {
+  const tob = (extra: Record<string, unknown>) => ({ id: 1, name: "T", brand: "B", lots: [], ...extra });
+  it("keeps true, turns anything else into false, leaves absent absent", () => {
+    const d = migrateData({ tobaccos: [tob({ toBuy: true }), tob({ id: 2, toBuy: "no" }), tob({ id: 3, toBuy: 1 }), tob({ id: 4 })] });
+    expect(d.tobaccos.map((t: any) => t.toBuy)).toEqual([true, false, false, undefined]);
+    expect("toBuy" in d.tobaccos[3]).toBe(false);
+  });
+});

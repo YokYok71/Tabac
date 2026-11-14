@@ -1,9 +1,13 @@
 // shopping.ts — the "Liste de courses" engine. Pure, like
 // computeWatchlist: derives, at render time, an actionable shopping list from
 // data the app already holds. Two sources:
-//   • restock — OWNED tobaccos running low on stock (active weight ≤ threshold)
-//               that you'd rebuy (rebuy !== false). The "buy more of what you
-//               love before it runs out" list.
+//   • restock — OWNED tobaccos, for one of three reasons (`shoppingReason`):
+//               « manual »  put on the list by hand from the fiche (`toBuy`);
+//               « low »     running low (active weight ≤ threshold) and not
+//                           marked « à ne pas reprendre » (rebuy !== false);
+//               « out »     used up — every lot finished — AND marked
+//                           « À reprendre » (rebuy === true).
+//               The "buy more of what you love before it runs out" list.
 //   • wishes  — the wishlist (things you want to try).
 // Each item carries a stable `key` ("restock:<id>" / "wish:<id>") so the view
 // can persist a "got it" checkbox per row. Sorted brand → name within each
@@ -20,7 +24,12 @@ export interface ShoppingItem {
   imageUrl?: string;
   /** restock → remaining active weight (rounded, user's unit); wish → 0. */
   value: number;
+  /** restock only: why the tabac is on the list. */
+  reason?: ShoppingReason;
+  /** restock only: no active lot left (every lot finished) — shown « épuisé ». */
+  soldOut?: boolean;
 }
+export type ShoppingReason = "manual" | "low" | "out";
 export interface ShoppingList {
   restock: ShoppingItem[];
   wishes: ShoppingItem[];
@@ -44,6 +53,34 @@ export function tobaccoActiveWeight(tob: any): number {
 export function isLowStock(tob: any, threshold: number): boolean {
   var w = tobaccoActiveWeight(tob);
   return w > 0 && w <= threshold;
+}
+
+/** « Épuisé » — the tabac HAD lots and every live one is finished. The SAME
+ *  predicate as the inventory's « Épuisé » chip (`countActive === 0 &&
+ *  lots.length > 0`), written against soft-deleted lots too because this
+ *  module may be handed the raw cellar. A tabac with NO lot is « sans lot »,
+ *  incomplete data, not something you finished. */
+export function isUsedUp(tob: any): boolean {
+  if (!tob) return false;
+  var live = ((tob.lots || []) as any[]).filter(function (l: any) { return l && !l.deletedAt; });
+  return live.length > 0 && live.every(function (l: any) { return l.status === "finished"; });
+}
+
+/** Why a tabac sits under « À racheter », or null when it does not. ONE
+ *  definition for the list, its badge count and the fiche's shopping control —
+ *  the fiche must never say « dans la liste » about a row the list leaves out.
+ *
+ *  Order matters. A manual add wins over everything, `rebuy === false`
+ *  included: it is the later, explicit act. A used-up tabac needs an explicit
+ *  « À reprendre » (`rebuy === true`) — merely undecided would put every blend
+ *  ever finished on the list, which for a long-standing cellar is dozens. */
+export function shoppingReason(tob: any, threshold: number): ShoppingReason | null {
+  if (!tob || tob.deletedAt) return null;
+  if (tob.toBuy === true) return "manual";
+  if (tob.rebuy === false) return null;
+  if (isLowStock(tob, threshold)) return "low";
+  if (tob.rebuy === true && isUsedUp(tob)) return "out";
+  return null;
 }
 
 /** Les valeurs de repli du seuil de stock bas, PAR UNITÉ D'AFFICHAGE.
@@ -90,20 +127,20 @@ export function computeShoppingList(
   var restock: ShoppingItem[] = [];
   (tobaccos || []).forEach(function (t: any) {
     if (!t || t.deletedAt || t.id === undefined || t.id === null) return;
-    // "à ne pas reprendre" is out — no point restocking what you won't rebuy.
-    if (t.rebuy === false) return;
+    var reason = shoppingReason(t, lowThreshold);
+    if (!reason) return;
     var totalActive = tobaccoActiveWeight(t);
-    if (totalActive > 0 && totalActive <= lowThreshold) {
-      restock.push({
-        key: "restock:" + String(t.id),
-        kind: "restock",
-        id: String(t.id),
-        brand: String(t.brand || ""),
-        name: String(t.name || ""),
-        ...(t.imageUrl ? { imageUrl: String(t.imageUrl) } : {}),
-        value: Math.round(totalActive * 10) / 10,
-      });
-    }
+    restock.push({
+      key: "restock:" + String(t.id),
+      kind: "restock",
+      id: String(t.id),
+      brand: String(t.brand || ""),
+      name: String(t.name || ""),
+      ...(t.imageUrl ? { imageUrl: String(t.imageUrl) } : {}),
+      value: Math.round(totalActive * 10) / 10,
+      reason: reason,
+      soldOut: isUsedUp(t),
+    });
   });
 
   var wishes: ShoppingItem[] = [];

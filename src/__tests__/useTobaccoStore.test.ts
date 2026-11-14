@@ -427,6 +427,61 @@ describe("useTobaccoStore — addLotToTobacco bulk create", () => {
 
 // ── deleteTobacco ─────────────────────────────────────────────────────────────
 
+// ── setTobaccoToBuy + the purchase that clears it ─────────────────
+// The manual « Ajouter à la liste de courses ». What must hold: ON stores the
+// literal true, OFF stores an explicit FALSE (deleting the key would not travel
+// through the import merge — see setTobaccoToBuy), both stamp updatedAt (a
+// deliberate act, so LWW wins across devices), and recording a new lot is what
+// takes the tabac off.
+describe("useTobaccoStore — setTobaccoToBuy", () => {
+  it("ON stores toBuy:true and stamps updatedAt; OFF stores false", () => {
+    const save = vi.fn();
+    const data = makeData({ tobaccos: [makeTob(1, []), makeTob(2, [])] });
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(data, save)));
+    act(() => { result.current.setTobaccoToBuy(1, true); });
+    const on = save.mock.calls[0]![0].tobaccos;
+    expect(on[0].toBuy).toBe(true);
+    expect(typeof on[0].updatedAt).toBe("string");
+    expect(on[1]).toBe(data.tobaccos[1]); // untouched rows keep their identity
+
+    const data2 = makeData({ tobaccos: [makeTob(1, [], { toBuy: true })] });
+    const save2 = vi.fn();
+    const r2 = renderHook(() => useTobaccoStore(makeDeps(data2, save2)));
+    act(() => { r2.result.current.setTobaccoToBuy(1, false); });
+    expect(save2.mock.calls[0]![0].tobaccos[0].toBuy).toBe(false);
+  });
+
+  it("an unknown id saves nothing", () => {
+    const save = vi.fn();
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(makeData({ tobaccos: [makeTob(1, [])] }), save)));
+    act(() => { result.current.setTobaccoToBuy(99, true); });
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("adding a lot takes the tabac off the list, and ONLY that tabac", () => {
+    const save = vi.fn();
+    const data = makeData({ tobaccos: [makeTob(1, [], { toBuy: true }), makeTob(2, [], { toBuy: true })] });
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(data, save)));
+    act(() => {
+      result.current.addLotToTobacco(1, Object.assign({}, BL, { weightInitial: "50", weightG: "50" }));
+    });
+    const tobs = save.mock.calls[0]![0].tobaccos;
+    expect(tobs[0].toBuy).toBe(false);
+    expect(typeof tobs[0].updatedAt).toBe("string");
+    expect(tobs[1].toBuy).toBe(true);
+  });
+
+  it("adding a lot to a tabac that was not on the list does not stamp it", () => {
+    const save = vi.fn();
+    const data = makeData({ tobaccos: [makeTob(1, [])] });
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(data, save)));
+    act(() => {
+      result.current.addLotToTobacco(1, Object.assign({}, BL, { weightInitial: "50", weightG: "50" }));
+    });
+    expect(save.mock.calls[0]![0].tobaccos[0].updatedAt).toBeUndefined();
+  });
+});
+
 describe("useTobaccoStore — deleteTobacco", () => {
   // deleteTobacco now soft-deletes (sets `deletedAt`)
   // instead of removing the row. The row stays in the array — the

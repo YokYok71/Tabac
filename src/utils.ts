@@ -1701,6 +1701,9 @@ export function migrateData(d: any): any {
       // never had it — absent and false mean the same thing to the catalogue
       // pass, and adding it everywhere would rewrite every row for nothing.
       if (_tob && _tob.catalogueLock !== undefined) _tob.catalogueLock = _tob.catalogueLock === true;
+      // `toBuy` (the manual shopping-list flag) — same strict-literal rule,
+      // same reason: `"no"` must not put a tabac on the list.
+      if (_tob && _tob.toBuy !== undefined) _tob.toBuy = _tob.toBuy === true;
       // Coerce a non-array `lots` to [] — parity with the
       // pipes maintenance/photos normalisation below. isPlausibleBackup only
       // checks Array.isArray(tobaccos), so a forged/quota-corrupt payload with

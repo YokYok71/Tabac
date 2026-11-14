@@ -13,6 +13,7 @@ import { makeLotDuplicate, isUsableLot } from "../../utils/lotUtils.ts";
 import { scopeFromStatusFilter, scopedHeldWeight, scopedOldestAgeDays, scopeLabelKey, lotInScope, lotMaturityBucket } from "../../utils/cellarInsights.ts";
 import { topPairings, computeAromaProfile } from "../../utils/stats.ts";
 import { aromaLabelKey } from "../../utils/aromas.ts";
+import { shoppingReason, lowStockThreshold } from "../../utils/shopping.ts";
 import { alpha, fs, C, F, catColor, CARD_BG, CARD_SHADOW } from "../../theme-curator.ts";
 import { CATS_EN, CUTS_EN } from "../../constants.ts";
 import {
@@ -39,6 +40,7 @@ export function CuratorInventoryDetailView() {
     weightUnit = "g", currencySymbol = "€", data,
     lotAgingStatus, setLightbox, imgLocal,
     deleteTobacco, statusFilter, crossOpenDetail, crossOpenSession, navToInvByTag,
+    setTobaccoToBuy, setShoppingOpen, watchLowWeight,
   } = ctx;
   const [lotForm, setLotForm] = useState<LotFormData | null>(null);
   // Read-only detail modal — tapping a lot row opens this
@@ -638,6 +640,48 @@ export function CuratorInventoryDetailView() {
             <Ico name="plus" size={16} sw={1.8} />
             {t("btn_add_lot")}
           </PressCard>
+          {/* « Liste de courses ». The reason comes from the SAME
+              `shoppingReason` the list uses, so this line can never claim a
+              row the list leaves out. Three states: put on by hand → the
+              control takes it off again; on the list by itself (stock bas, or
+              épuisé + « À reprendre ») → a link to the list, since there is
+              nothing to undo by hand; not on it → « Ajouter ». The rule that
+              a new lot takes a manual entry off is spelled out under the
+              button: it is the one effect the user cannot see happen. */}
+          {(() => {
+            const reason = shoppingReason(tob, lowStockThreshold(watchLowWeight, weightUnit));
+            const cardStyle = {
+              marginTop: 8, padding: "11px 14px", borderRadius: 8,
+              border: `1px solid ${alpha(C.sage, "55")}`, color: C.sage,
+              display: "flex", alignItems: "center", gap: 10, justifyContent: "center",
+              fontFamily: F.body, fontWeight: 500, fontSize: fs(15),
+              background: "transparent", textAlign: "center" as const,
+            };
+            if (reason === "low" || reason === "out") {
+              return (
+                <PressCard onClick={() => setShoppingOpen && setShoppingOpen(true)} style={cardStyle}>
+                  <Ico name="cart" size={16} sw={1.8} />
+                  {reason === "low" ? t("shopping_in_list_low") : t("shopping_in_list_out")}
+                </PressCard>
+              );
+            }
+            const on = reason === "manual";
+            return (
+              <>
+                <PressCard
+                  onClick={() => setTobaccoToBuy && setTobaccoToBuy(tob.id, !on)}
+                  style={on ? cardStyle : { ...cardStyle, border: `1px dashed ${C.rule2}` }}>
+                  <Ico name={on ? "check" : "cart"} size={16} sw={1.8} />
+                  {on ? t("shopping_remove") : t("shopping_add")}
+                </PressCard>
+                {on && (
+                  <div style={{ marginTop: 6, fontSize: fs(12.5), color: C.tx3, textAlign: "center", lineHeight: 1.4 }}>
+                    {t("shopping_manual_hint")}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Aroma fingerprint from this tobacco's sessions. */}

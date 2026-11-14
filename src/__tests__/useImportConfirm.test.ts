@@ -3339,3 +3339,19 @@ describe("une charge CSV multi-sections arrive jusqu'à la cave", () => {
     expect(written.wishlist, "une envie NON cochée est entrée quand même").toHaveLength(0);
   });
 });
+
+// `toBuy` (the manual shopping-list flag) across a merge. The first version of
+// « Retirer » DELETED the key, and this pair shows why that cannot work: the
+// merge is `Object.assign({}, local, imported)`, so an imported row that merely
+// LACKS the key leaves the local `true` standing. The store now writes `false`.
+describe("applyEntityLww — toBuy removal travels to the other device", () => {
+  const local = { id: 1, uid: "u", name: "T", brand: "B", lots: [], toBuy: true, updatedAt: "2026-11-01T00:00:00Z" };
+  it("a newer row carrying toBuy:false clears the local flag", () => {
+    const imported = { ...local, toBuy: false, updatedAt: "2026-11-02T00:00:00Z" };
+    expect(applyEntityLww(local, imported, LWW_PROTECT_TOB_FIXTURE).row.toBuy).toBe(false);
+  });
+  it("a newer row with the key ABSENT would not — which is why OFF is never a delete", () => {
+    const { toBuy: _drop, ...imported } = { ...local, updatedAt: "2026-11-02T00:00:00Z" };
+    expect(applyEntityLww(local, imported, LWW_PROTECT_TOB_FIXTURE).row.toBuy).toBe(true);
+  });
+});

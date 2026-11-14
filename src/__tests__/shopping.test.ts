@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeShoppingList, shoppingCount } from "../utils/shopping";
+import { computeShoppingList, shoppingCount, shoppingReason, isUsedUp } from "../utils/shopping";
 
 describe("computeShoppingList", () => {
   it("returns empty groups on invalid input", () => {
@@ -12,7 +12,7 @@ describe("computeShoppingList", () => {
     ] }];
     const r = computeShoppingList(tobs, [], { lowWeightThreshold: 50 });
     expect(r.restock).toEqual([
-      { key: "restock:1", kind: "restock", id: "1", brand: "Brackwater", name: "Duskfall", value: 20 },
+      { key: "restock:1", kind: "restock", id: "1", brand: "Brackwater", name: "Duskfall", value: 20, reason: "low", soldOut: false },
     ]);
   });
 
@@ -81,5 +81,53 @@ describe("tobaccoActiveWeight + isLowStock", () => {
     expect(isLowStock({ lots: [{ status: "jar", weightG: "40" }] }, 25)).toBe(false);
     expect(isLowStock({ lots: [{ status: "jar", weightG: "0" }] }, 25)).toBe(false);  // no stock
     expect(isLowStock({ lots: [{ status: "finished", weightG: "0" }] }, 25)).toBe(false);
+  });
+});
+
+// The two ways onto « À racheter » that are not « stock bas ». Until they
+// existed, a tabac you had FINISHED — the most natural thing to rebuy — could
+// not appear at all (`isLowStock` demands w > 0), and there was no way to put
+// one on the list by hand short of a wish, which creates a duplicate on
+// « Je l'ai acheté ».
+describe("shoppingReason — used up + « À reprendre », and the manual flag", () => {
+  const finished = [{ status: "finished", weightG: "0" }];
+
+  it("a used-up tabac marked « À reprendre » is on the list, shown as sold out", () => {
+    const tobs = [{ id: 7, brand: "A", name: "Gone", rebuy: true, lots: finished }];
+    const r = computeShoppingList(tobs, [], { lowWeightThreshold: 25 });
+    expect(r.restock).toHaveLength(1);
+    expect(r.restock[0]).toMatchObject({ id: "7", reason: "out", soldOut: true, value: 0 });
+  });
+
+  it("a used-up tabac that is merely undecided stays OFF — or every blend ever finished would be listed", () => {
+    expect(shoppingReason({ id: 1, rebuy: null, lots: finished }, 25)).toBeNull();
+    expect(shoppingReason({ id: 1, lots: finished }, 25)).toBeNull();
+    expect(shoppingReason({ id: 1, rebuy: false, lots: finished }, 25)).toBeNull();
+  });
+
+  it("« Sans lot » is not « épuisé »: a tabac with no lot is incomplete data, not finished", () => {
+    expect(isUsedUp({ lots: [] })).toBe(false);
+    expect(shoppingReason({ id: 1, rebuy: true, lots: [] }, 25)).toBeNull();
+    // A soft-deleted lot does not count, in either direction.
+    expect(isUsedUp({ lots: [{ status: "finished" }, { status: "jar", weightG: "50", deletedAt: "x" }] })).toBe(true);
+    expect(isUsedUp({ lots: [{ status: "finished", deletedAt: "x" }] })).toBe(false);
+  });
+
+  it("an active lot left at 0 g is neither low nor used up", () => {
+    expect(shoppingReason({ id: 1, rebuy: true, lots: [{ status: "cellar", weightG: "0" }] }, 25)).toBeNull();
+  });
+
+  it("the manual flag lists a well-stocked tabac, and wins over « à ne pas reprendre »", () => {
+    const full = [{ status: "cellar", weightG: "200" }];
+    expect(shoppingReason({ id: 1, toBuy: true, lots: full }, 25)).toBe("manual");
+    expect(shoppingReason({ id: 1, toBuy: true, rebuy: false, lots: full }, 25)).toBe("manual");
+    // Only the literal true: a hand-edited backup's "yes" is not a flag.
+    expect(shoppingReason({ id: 1, toBuy: "yes", lots: full }, 25)).toBeNull();
+    const r = computeShoppingList([{ id: 3, brand: "B", name: "Plenty", toBuy: true, lots: full }], []);
+    expect(r.restock[0]).toMatchObject({ reason: "manual", soldOut: false, value: 200 });
+  });
+
+  it("a trashed tabac is never on the list, flag or not", () => {
+    expect(shoppingReason({ id: 1, toBuy: true, deletedAt: "x", lots: [] }, 25)).toBeNull();
   });
 });

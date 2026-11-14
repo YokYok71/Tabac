@@ -955,3 +955,50 @@ describe("réactivation et suppression d'un lot", () => {
     expect(ctx.removeLot).toHaveBeenCalledWith("1", "L1");
   });
 });
+
+// The fiche's shopping control. Its state must come from the SAME rule as the
+// list (`shoppingReason`), so each case below pairs a tobacco shape with the
+// one control it must show, and the action it must fire.
+describe("InventoryDetailView — shopping list control", () => {
+  const data = (tob: any) => ({ tobaccos: [tob], sessions: [], pipes: [], accessories: [], wishlist: [] });
+  const findCard = (container: HTMLElement, key: string) =>
+    Array.from(container.querySelectorAll("[role='button']")).find((el) => (el.textContent || "").includes(key)) as HTMLElement | undefined;
+  const full = [{ id: "l1", status: "cellar", weightG: "200" }];
+
+  it("not on the list → « Ajouter », which sets the flag", () => {
+    const setTobaccoToBuy = vi.fn();
+    const tob = { ...tobacco, rebuy: null, lots: full };
+    const { container } = renderWithCtx(<CuratorInventoryDetailView />, { view: "inv", detail: tob, data: data(tob), setTobaccoToBuy, watchLowWeight: "25" });
+    const card = findCard(container, "shopping_add");
+    expect(card).toBeTruthy();
+    fireEvent.click(card!);
+    expect(setTobaccoToBuy).toHaveBeenCalledWith("1", true);
+    expect(container.textContent).not.toContain("shopping_manual_hint");
+  });
+
+  it("put on by hand → « Retirer », which clears it, with the « a new lot takes it off » hint", () => {
+    const setTobaccoToBuy = vi.fn();
+    const tob = { ...tobacco, toBuy: true, lots: full };
+    const { container } = renderWithCtx(<CuratorInventoryDetailView />, { view: "inv", detail: tob, data: data(tob), setTobaccoToBuy, watchLowWeight: "25" });
+    fireEvent.click(findCard(container, "shopping_remove")!);
+    expect(setTobaccoToBuy).toHaveBeenCalledWith("1", false);
+    expect(container.textContent).toContain("shopping_manual_hint");
+  });
+
+  it("on the list by itself (used up + « À reprendre ») → a link to the list, not a toggle", () => {
+    const setTobaccoToBuy = vi.fn();
+    const setShoppingOpen = vi.fn();
+    const tob = { ...tobacco, rebuy: true, lots: [{ id: "l1", status: "finished", weightG: "0" }] };
+    const { container } = renderWithCtx(<CuratorInventoryDetailView />, { view: "inv", detail: tob, data: data(tob), setTobaccoToBuy, setShoppingOpen, watchLowWeight: "25" });
+    expect(findCard(container, "shopping_add")).toBeUndefined();
+    fireEvent.click(findCard(container, "shopping_in_list_out")!);
+    expect(setShoppingOpen).toHaveBeenCalledWith(true);
+    expect(setTobaccoToBuy).not.toHaveBeenCalled();
+  });
+
+  it("low stock → « Dans la liste · stock bas »", () => {
+    const tob = { ...tobacco, rebuy: null, lots: [{ id: "l1", status: "jar", weightG: "10" }] };
+    const { container } = renderWithCtx(<CuratorInventoryDetailView />, { view: "inv", detail: tob, data: data(tob), watchLowWeight: "25" });
+    expect(findCard(container, "shopping_in_list_low")).toBeTruthy();
+  });
+});

@@ -74,7 +74,8 @@ export function CuratorInventoryListView() {
   const visible = (filtered || tobaccos) as Tobacco[];
 
   // Shopping-list count → the cart icon in the top bar (shown only
-  // when there's something to buy: low-stock rebuys + wishlist).
+  // when there's something to buy: tabacs to rebuy — low stock, used up and
+  // « À reprendre », or added by hand — + wishlist).
   const shopCount = useMemo(
     () => shoppingCount(computeShoppingList(data?.tobaccos || [], data?.wishlist || [], {
       lowWeightThreshold: lowStockThreshold(watchLowWeight, weightUnit),
