@@ -268,9 +268,14 @@ describe("la ligne d'en-tête FRANÇAISE est le contrat historique", () => {
   // DÉCISION — le lecteur replie accents et unités, donc rien ne casse
   // fonctionnellement, et c'est précisément pour cela que la dérive est
   // silencieuse et mérite une porte.
+  //
+  // DÉCISION, BUILD 64 : « Plus disponible » entre après « A reprendre ». Une
+  // colonne AJOUTÉE, pas renommée — un fichier plus ancien n'en a pas et se
+  // relit à l'identique (la clé reste absente), et un build plus ancien qui
+  // lit un fichier récent la range parmi les colonnes ignorées.
   const FR_TOBACCO = [
     "Marque", "Nom", "Categorie", "Composition", "Coupe", "Force", "Room Note",
-    "Gout", "Description", "Note", "A reprendre", "Notes degustation",
+    "Gout", "Description", "Note", "A reprendre", "Plus disponible", "Notes degustation",
     "Age max cave (ans)", "Statut", "Éliminé", "Poids (g)", "Poids initial (g)",
     "Statut origine", "Date achat", "Date production", "Date mise en pot",
     "Date fin", "No boite", "Lieu de stockage", "Prix (€)", "Vendeur",
@@ -473,5 +478,26 @@ describe("un code inconnu retombe sur la forme CANONIQUE", () => {
     const r = parseTobaccoCsv(exportCsv(makeCellar(), "zz"));
     expect(r.tobaccos.length).toBe(1);
     expect(r.tobaccos[0]!.lots.map((l: any) => l.status)).toEqual(["cellar", "jar", "finished"]);
+  });
+});
+
+// « Plus disponible » across the CSV, in every language the writer speaks:
+// the flag goes out as that language's YES and comes back as `true`; an
+// undecided tabac goes out BLANK and comes back with no key at all — not a
+// `false` the file never said.
+describe("la colonne « Plus disponible » fait l'aller-retour", () => {
+  it("dans les six langues", () => {
+    for (const { code } of LANGUAGES) {
+      const on = makeCellar();
+      (on.tobaccos[0] as any).discontinued = true;
+      const back = parseTobaccoCsv(exportCsv(on, code));
+      expect(back.tobaccos[0]!.discontinued, `${code} : marqué`).toBe(true);
+      const off = parseTobaccoCsv(exportCsv(makeCellar(), code));
+      expect("discontinued" in off.tobaccos[0]!, `${code} : non marqué`).toBe(false);
+    }
+  });
+  it("« Non » ne pose rien — seul un oui marque le tabac", () => {
+    const r = parseTobaccoCsv(`Marque;Nom;Plus disponible\nBrackwater;Duskfall;${csvValue("no", "fr")}\n`);
+    expect("discontinued" in r.tobaccos[0]!).toBe(false);
   });
 });

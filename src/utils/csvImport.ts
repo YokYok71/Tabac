@@ -268,6 +268,13 @@ var HEADER_ALIASES: Record<string, string> = {
   "description": "description",
   "note": "rating", "rating": "rating", "note perso": "rating",
   "a reprendre": "rebuy", "reprendre": "rebuy", "rebuy": "rebuy", "a racheter": "rebuy",
+  // « Plus disponible à l'achat » — added with the column, reader first (the
+  // order this table's header comment requires). One word per language, the
+  // writer's own (`CSV_COLUMNS.discontinued`), folded; none is a homograph of
+  // another field, which `csvHeaderLanguages.test.ts` re-derives anyway.
+  "plus disponible": "discontinued", "discontinued": "discontinued",
+  "descatalogado": "discontinued", "nicht mehr erhaltlich": "discontinued",
+  "fuori produzione": "discontinued", "descontinuado": "discontinued",
   "notes degustation": "tastingNotes", "tasting notes": "tastingNotes", "degustation": "tastingNotes",
   "age max cave": "agingMax", "age max": "agingMax", "vieillissement": "agingMax", "aging max": "agingMax", "aging": "agingMax",
   "statut": "status", "status": "status",
@@ -395,6 +402,7 @@ var CSV_COLUMNS: Record<string, Record<string, string>> = {
   description: { fr: "Description", en: "Description", es: "Descripción", de: "Beschreibung", it: "Descrizione", pt: "Descrição" },
   rating: { fr: "Note", en: "Rating", es: "Valoración", de: "Bewertung", it: "Voto", pt: "Classificação" },
   rebuy: { fr: "A reprendre", en: "Rebuy", es: "Recomprar", de: "Nachkaufen", it: "Ricomprare", pt: "Recomprar" },
+  discontinued: { fr: "Plus disponible", en: "Discontinued", es: "Descatalogado", de: "Nicht mehr erhältlich", it: "Fuori produzione", pt: "Descontinuado" },
   tastingNotes: { fr: "Notes degustation", en: "Tasting notes", es: "Notas de cata", de: "Verkostungsnotizen", it: "Note di degustazione", pt: "Notas de prova" },
   agingMax: { fr: "Age max cave (ans)", en: "Aging max", es: "Envejecimiento", de: "Reifung", it: "Invecchiamento", pt: "Envelhecimento" },
   status: { fr: "Statut", en: "Status", es: "Estado", de: "Status", it: "Stato", pt: "Estado" },
@@ -1289,6 +1297,10 @@ export function parseTobaccoCsv(
         taste: clamp05(rec["taste"]),
         rating: clamp05(rec["rating"]),
         rebuy: parseRebuy(rec["rebuy"]),
+        // « Plus disponible » — only a YES sets it; anything else (« Non »,
+        // blank, an absent column) leaves the key off, which is what an
+        // undecided tabac looks like. Same yes/no words as « À reprendre ».
+        ...(parseRebuy(rec["discontinued"]) === true ? { discontinued: true } : {}),
         tastingNotes: rec["tastingNotes"] || "",
         description: rec["description"] || "",
         agingMax: normAging(rec["agingMax"]),

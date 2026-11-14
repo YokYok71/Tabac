@@ -524,6 +524,30 @@ describe("useTobaccoStore — setTobaccoDiscontinued / setTobaccoRebuy", () => {
   });
 });
 
+// A lot bought FROM a wish (« Acquérir » on a tabac already owned) retires the
+// wish in the SAME save — and only that wish, and only when asked.
+describe("useTobaccoStore — addLotToTobacco fromWishId", () => {
+  const wl = [{ id: 7, name: "W7" }, { id: 8, name: "W8" }];
+  it("removes that wish (matched by String, the id came through UI state)", () => {
+    const save = vi.fn();
+    const data = makeData({ tobaccos: [makeTob(1, [])], wishlist: wl });
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(data, save)));
+    act(() => {
+      result.current.addLotToTobacco(1, Object.assign({}, BL, { weightInitial: "50", weightG: "50" }), 1, { fromWishId: "7" });
+    });
+    const saved = save.mock.calls[0]![0];
+    expect(saved.tobaccos[0].lots).toHaveLength(1);
+    expect(saved.wishlist.map((w: any) => w.id)).toEqual([8]);
+  });
+  it("leaves the wishlist alone without it", () => {
+    const save = vi.fn();
+    const data = makeData({ tobaccos: [makeTob(1, [])], wishlist: wl });
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(data, save)));
+    act(() => { result.current.addLotToTobacco(1, Object.assign({}, BL, { weightInitial: "50", weightG: "50" })); });
+    expect(save.mock.calls[0]![0].wishlist).toBe(wl);
+  });
+});
+
 describe("useTobaccoStore — deleteTobacco", () => {
   // deleteTobacco now soft-deletes (sets `deletedAt`)
   // instead of removing the row. The row stays in the array — the

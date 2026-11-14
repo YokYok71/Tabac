@@ -1015,3 +1015,35 @@ describe("InventoryDetailView — « Plus disponible » badge", () => {
     expect(r2.container.textContent).not.toContain("lbl_discontinued");
   });
 });
+
+// The other half of « Acquérir a wish you already own »: the fiche opens its
+// add-lot form when the request names THIS tabac, consumes the request either
+// way, and saving that lot hands the wish id to addLotToTobacco.
+describe("InventoryDetailView — lot form requested from a wish", () => {
+  const data = (tob: any) => ({ tobaccos: [tob], sessions: [], pipes: [], accessories: [], wishlist: [] });
+  it("opens the add-lot form for this tabac and passes fromWishId on save", () => {
+    const setLotFormRequest = vi.fn();
+    const addLotToTobacco = vi.fn();
+    renderWithCtx(<CuratorInventoryDetailView />, {
+      view: "inv", detail: tobacco, data: data(tobacco),
+      lotFormRequest: { tobId: "1", fromWishId: 7 }, setLotFormRequest, addLotToTobacco,
+    });
+    expect(setLotFormRequest).toHaveBeenCalledWith(null);
+    const add = Array.from(document.querySelectorAll("[role='button'], button"))
+      .find(b => (b.textContent || "").trim() === "btn_add") as HTMLElement | undefined;
+    expect(add, "the add-lot form should be open").toBeTruthy();
+    fireEvent.click(add!);
+    expect(addLotToTobacco).toHaveBeenCalledTimes(1);
+    expect(addLotToTobacco.mock.calls[0]![3]).toEqual({ fromWishId: 7 });
+  });
+  it("a request for ANOTHER tabac is consumed without opening anything", () => {
+    const setLotFormRequest = vi.fn();
+    renderWithCtx(<CuratorInventoryDetailView />, {
+      view: "inv", detail: tobacco, data: data(tobacco),
+      lotFormRequest: { tobId: "99", fromWishId: 7 }, setLotFormRequest,
+    });
+    expect(setLotFormRequest).toHaveBeenCalledWith(null);
+    expect(Array.from(document.querySelectorAll("[role='button'], button"))
+      .find(b => (b.textContent || "").trim() === "btn_add")).toBeUndefined();
+  });
+});

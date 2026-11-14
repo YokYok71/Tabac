@@ -241,14 +241,14 @@
 <h3>Obtenir et charger votre catalogue</h3>
 <ol>
   <li>Allez dans <em>Paramètres → Données → Catalogue de référence</em>.</li>
-  <li>Touchez <strong>Télécharger le modèle</strong> : vous obtenez un fichier CSV vide, avec la ligne d'en-tête et une ligne d'exemple. L'en-tête est écrit dans <strong>votre langue</strong> — comme celui de l'export : un fichier produit sous une langue se ré-importe sous n'importe quelle autre.</li>
+  <li>Touchez <strong>Télécharger le modèle</strong> : vous obtenez un fichier CSV vide, avec la ligne d'en-tête et deux lignes d'exemple (un même tabac, deux lots). L'en-tête est écrit dans <strong>votre langue</strong> — comme celui de l'export : un fichier produit sous une langue se ré-importe sous n'importe quelle autre.</li>
   <li>Remplissez-le dans un tableur — <strong>une ligne par mélange</strong>.</li>
   <li>Revenez dans l'app et touchez <strong>Charger un catalogue (.csv)</strong>, puis choisissez votre fichier.</li>
 </ol>
 <p>Charger un nouveau fichier <strong>remplace</strong> le précédent — le catalogue n'est pas cumulatif, contrairement à l'import de vos tabacs. Le bouton <strong>Retirer le catalogue</strong> le supprime ; votre cave n'est pas touchée, et vous pourrez toujours le recharger depuis votre fichier.</p>
 
 <h3>Le format du fichier</h3>
-<p>Le <strong>modèle CSV</strong> porte les vingt colonnes que l'app sait lire, avec une ligne d'exemple. Gardez la ligne d'en-tête : les colonnes sont reconnues <strong>par leur nom</strong>, pas par leur position, et une colonne inutilisée peut rester vide.</p>
+<p>Le <strong>modèle CSV</strong> porte les colonnes que vous pouvez remplir — dont « Plus disponible » —, avec deux lignes d'exemple. Gardez la ligne d'en-tête : les colonnes sont reconnues <strong>par leur nom</strong>, pas par leur position, et une colonne inutilisée peut rester vide.</p>
 <ul>
   <li><strong>brand_key</strong> — <strong>Obligatoire.</strong> La marque. Avec <em>blend_name</em>, c'est l'identité de la ligne : deux lignes portant le même couple sont des doublons et seule la première est gardée. Une ligne sans l'un des deux est ignorée.</li>
   <li><strong>blend_name</strong> — <strong>Obligatoire.</strong> Le nom du mélange.</li>
@@ -456,7 +456,7 @@ Le même avertissement revient <em>au moment où il sert</em> : si vous choisiss
 <h3>Actions sur un élément</h3>
 <ul>
   <li><strong>Modifier</strong> — touchez la carte de l'envie.</li>
-  <li><strong>Acquérir</strong> (icône boîte) — convertit en fiche tabac pré-remplie (Nom, Marque, Type, Coupe, Composition, Description, Âge max, Notes) et retire de la wishlist. Vous n'avez plus qu'à ajouter vos lots.</li>
+  <li><strong>Acquérir</strong> (icône boîte) — convertit en fiche tabac pré-remplie (Nom, Marque, Type, Coupe, Composition, Description, Âge max, Notes) et retire de la wishlist. Vous n'avez plus qu'à ajouter vos lots. <strong>Si vous possédez déjà ce tabac</strong> (même marque et même nom), l'app vous le dit d'abord et propose <strong>Ajouter un lot à mon tabac</strong> : sa fiche s'ouvre sur le formulaire de lot, et l'envie disparaît quand vous l'enregistrez. Vous pouvez aussi créer un nouveau tabac quand même.</li>
   <li><strong>Supprimer</strong> (icône corbeille) — envoie l'entrée à la corbeille (récupérable 30 jours, voir <a href="#fr-corbeille">section 17</a>).</li>
 </ul>
 <p>Le bouton <em>Chercher</em> de l'assistant IA remplit aussi les champs depuis le nom et la marque (voir <a href="#fr-ia">section 12</a>). La wishlist est groupée par marque et accepte les filtres type / coupe.</p>
@@ -930,14 +930,14 @@ Les deux formats n'ont ni les mêmes colonnes ni le même effet : charger l'un �
 <h3>Getting and loading your catalogue</h3>
 <ol>
   <li>Go to <em>Settings → Data → Reference catalogue</em>.</li>
-  <li>Tap <strong>Download the template</strong>: you get an empty CSV file, with the header row and one example row. The header is written in <strong>your own language</strong> — as is the export's: a file produced under one language re-imports under any other.</li>
+  <li>Tap <strong>Download the template</strong>: you get an empty CSV file, with the header row and two example rows (one tobacco, two lots). The header is written in <strong>your own language</strong> — as is the export's: a file produced under one language re-imports under any other.</li>
   <li>Fill it in using a spreadsheet — <strong>one row per blend</strong>.</li>
   <li>Come back to the app and tap <strong>Load a catalogue (.csv)</strong>, then pick your file.</li>
 </ol>
 <p>Loading a new file <strong>replaces</strong> the previous one — the catalogue is not cumulative, unlike the import of your own tobaccos. The <strong>Remove the catalogue</strong> button deletes it; your cellar is untouched, and you can always load it again from your file.</p>
 
 <h3>The file format</h3>
-<p>The <strong>CSV template</strong> carries the twenty columns the app can read, with one example row. Keep the header row: columns are matched <strong>by name</strong>, not by position, and a column you do not use can stay empty.</p>
+<p>The <strong>CSV template</strong> carries the columns you can fill in — « Discontinued » included —, with two example rows. Keep the header row: columns are matched <strong>by name</strong>, not by position, and a column you do not use can stay empty.</p>
 <ul>
   <li><strong>brand_key</strong> — <strong>Required.</strong> The brand. Together with <em>blend_name</em> it is the row's identity: two rows sharing the pair are duplicates and only the first is kept. A row missing either one is skipped.</li>
   <li><strong>blend_name</strong> — <strong>Required.</strong> The blend's name.</li>
@@ -1145,7 +1145,7 @@ The same warning comes back <em>at the moment it is useful</em>: if you pick tha
 <h3>Item actions</h3>
 <ul>
   <li><strong>Edit</strong> — tap the wish card.</li>
-  <li><strong>Acquire</strong> (box icon) — converts to a pre-filled tobacco entry (Name, Brand, Type, Cut, Blend, Description, Max age, Notes) and removes it from the wishlist. Just add your lots.</li>
+  <li><strong>Acquire</strong> (box icon) — converts to a pre-filled tobacco entry (Name, Brand, Type, Cut, Blend, Description, Max age, Notes) and removes it from the wishlist. Just add your lots. <strong>If you already own this tobacco</strong> (same brand and name), the app tells you first and offers <strong>Add a lot to my tobacco</strong>: its fiche opens on the lot form, and the wish disappears when you save it. You can still create a new tobacco anyway.</li>
   <li><strong>Delete</strong> (trash icon) — sends the entry to the trash (recoverable for 30 days, see <a href="#en-trash">section 17</a>).</li>
 </ul>
 <p>The AI assistant's <em>Search</em> button also fills the fields from the name and brand (see <a href="#en-ai">section 12</a>). The wishlist is grouped by brand and accepts type / cut filters.</p>
@@ -1615,14 +1615,14 @@ The two formats have neither the same columns nor the same effect: loading one i
 <h3>Conseguir y cargar tu catálogo</h3>
 <ol>
   <li>Ve a <em>Ajustes → Datos → Catálogo de referencia</em>.</li>
-  <li>Toca <strong>Descargar la plantilla</strong>: obtienes un archivo CSV vacío, con la fila de encabezado y una fila de ejemplo. La cabecera se escribe en <strong>tu idioma</strong>, igual que la de la exportación: un archivo generado en un idioma se reimporta en cualquier otro.</li>
+  <li>Toca <strong>Descargar la plantilla</strong>: obtienes un archivo CSV vacío, con la fila de encabezado y dos filas de ejemplo (un mismo tabaco, dos lotes). La cabecera se escribe en <strong>tu idioma</strong>, igual que la de la exportación: un archivo generado en un idioma se reimporta en cualquier otro.</li>
   <li>Rellénalo en una hoja de cálculo — <strong>una fila por mezcla</strong>.</li>
   <li>Vuelve a la app y toca <strong>Cargar un catálogo (.csv)</strong>, luego elige tu archivo.</li>
 </ol>
 <p>Cargar un archivo nuevo <strong>reemplaza</strong> el anterior — el catálogo no es acumulativo, al contrario que la importación de tus tabacos. El botón <strong>Quitar el catálogo</strong> lo elimina; tu bodega no se toca, y siempre podrás volver a cargarlo desde tu archivo.</p>
 
 <h3>El formato del archivo</h3>
-<p>La <strong>plantilla CSV</strong> lleva las veinte columnas que la app sabe leer, con una fila de ejemplo. Conserva la fila de encabezado: las columnas se reconocen <strong>por su nombre</strong>, no por su posición, y una columna que no uses puede quedar vacía.</p>
+<p>La <strong>plantilla CSV</strong> lleva las columnas que puedes rellenar —incluida «Descatalogado»—, con dos filas de ejemplo. Conserva la fila de encabezado: las columnas se reconocen <strong>por su nombre</strong>, no por su posición, y una columna que no uses puede quedar vacía.</p>
 <ul>
   <li><strong>brand_key</strong> — <strong>Obligatoria.</strong> La marca. Junto con <em>blend_name</em> es la identidad de la fila: dos filas con el mismo par son duplicados y solo se conserva la primera. Una fila sin uno de los dos se ignora.</li>
   <li><strong>blend_name</strong> — <strong>Obligatoria.</strong> El nombre de la mezcla.</li>
@@ -1830,7 +1830,7 @@ El mismo aviso reaparece <em>en el momento en que sirve</em>: si eliges esa pipa
 <h3>Acciones sobre un elemento</h3>
 <ul>
   <li><strong>Editar</strong> — toca la tarjeta del deseo.</li>
-  <li><strong>Adquirir</strong> (icono de caja) — lo convierte en una entrada de tabaco prerrellenada (Nombre, Marca, Tipo, Corte, Mezcla, Descripción, Edad máx., Notas) y lo quita de la lista de deseos. Solo tienes que añadir tus lotes.</li>
+  <li><strong>Adquirir</strong> (icono de caja) — lo convierte en una entrada de tabaco prerrellenada (Nombre, Marca, Tipo, Corte, Mezcla, Descripción, Edad máx., Notas) y lo quita de la lista de deseos. Solo tienes que añadir tus lotes. <strong>Si ya tienes este tabaco</strong> (misma marca y mismo nombre), la app te lo dice antes y propone <strong>Añadir un lote a mi tabaco</strong>: su ficha se abre en el formulario de lote, y el deseo desaparece cuando lo guardas. También puedes crear un tabaco nuevo de todos modos.</li>
   <li><strong>Eliminar</strong> (icono de papelera) — envía la entrada a la papelera (recuperable durante 30 días, consulta la <a href="#es-trash">sección 17</a>).</li>
 </ul>
 <p>El botón <em>Buscar</em> del asistente de IA también rellena los campos a partir del nombre y la marca (consulta la <a href="#es-ai">sección 12</a>). La lista de deseos se agrupa por marca y admite filtros de tipo / corte.</p>
@@ -2299,14 +2299,14 @@ Los dos formatos no tienen ni las mismas columnas ni el mismo efecto: cargar uno
 <h3>Deinen Katalog anlegen und laden</h3>
 <ol>
   <li>Gehe zu <em>Einstellungen → Daten → Referenzkatalog</em>.</li>
-  <li>Tippe auf <strong>Vorlage herunterladen</strong>: du erhältst eine leere CSV-Datei mit Kopfzeile und einer Beispielzeile. Die Kopfzeile ist in <strong>deiner Sprache</strong> geschrieben — wie die des Exports: eine in einer Sprache erzeugte Datei lässt sich in jeder anderen wieder importieren.</li>
+  <li>Tippe auf <strong>Vorlage herunterladen</strong>: du erhältst eine leere CSV-Datei mit Kopfzeile und zwei Beispielzeilen (ein Tabak, zwei Lose). Die Kopfzeile ist in <strong>deiner Sprache</strong> geschrieben — wie die des Exports: eine in einer Sprache erzeugte Datei lässt sich in jeder anderen wieder importieren.</li>
   <li>Fülle sie in einer Tabelle aus — <strong>eine Zeile pro Mischung</strong>.</li>
   <li>Komm in die App zurück, tippe auf <strong>Katalog laden (.csv)</strong> und wähle deine Datei.</li>
 </ol>
 <p>Eine neue Datei zu laden <strong>ersetzt</strong> die vorige — der Katalog ist nicht kumulativ, anders als der Import deiner Tabake. Die Schaltfläche <strong>Katalog entfernen</strong> löscht ihn; dein Keller bleibt unberührt, und du kannst ihn jederzeit aus deiner Datei neu laden.</p>
 
 <h3>Das Dateiformat</h3>
-<p>Die <strong>CSV-Vorlage</strong> trägt die zwanzig Spalten, die die App lesen kann, mit einer Beispielzeile. Behalte die Kopfzeile: Spalten werden <strong>über ihren Namen</strong> erkannt, nicht über ihre Position, und eine Spalte, die du nicht nutzt, darf leer bleiben.</p>
+<p>Die <strong>CSV-Vorlage</strong> trägt die Spalten, die du ausfüllen kannst – „Nicht mehr erhältlich“ eingeschlossen –, mit zwei Beispielzeilen. Behalte die Kopfzeile: Spalten werden <strong>über ihren Namen</strong> erkannt, nicht über ihre Position, und eine Spalte, die du nicht nutzt, darf leer bleiben.</p>
 <ul>
   <li><strong>brand_key</strong> — <strong>Pflicht.</strong> Die Marke. Zusammen mit <em>blend_name</em> ist sie die Identität der Zeile: zwei Zeilen mit demselben Paar sind Duplikate, nur die erste bleibt. Eine Zeile ohne eines von beiden wird übersprungen.</li>
   <li><strong>blend_name</strong> — <strong>Pflicht.</strong> Der Name der Mischung.</li>
@@ -2514,7 +2514,7 @@ Dieselbe Warnung kehrt wieder, <em>wenn sie nützt</em>: wählst du diese Pfeife
 <h3>Aktionen pro Eintrag</h3>
 <ul>
   <li><strong>Bearbeiten</strong> — tippe auf die Wunschkarte.</li>
-  <li><strong>Erwerben</strong> (Kistensymbol) — wandelt in einen vorausgefüllten Tabakeintrag um (Name, Marke, Typ, Schnitt, Blend, Beschreibung, Max. Alter, Notizen) und entfernt ihn von der Wunschliste. Füge nur noch deine Lose hinzu.</li>
+  <li><strong>Erwerben</strong> (Kistensymbol) — wandelt in einen vorausgefüllten Tabakeintrag um (Name, Marke, Typ, Schnitt, Blend, Beschreibung, Max. Alter, Notizen) und entfernt ihn von der Wunschliste. Füge nur noch deine Lose hinzu. <strong>Wenn du diesen Tabak schon hast</strong> (gleiche Marke, gleicher Name), sagt dir die App das zuerst und bietet <strong>Meinem Tabak ein Los hinzufügen</strong> an: Seine Detailseite öffnet sich mit dem Los-Formular, und der Wunsch verschwindet, sobald du speicherst. Du kannst trotzdem einen neuen Tabak anlegen.</li>
   <li><strong>Löschen</strong> (Papierkorbsymbol) — schickt den Eintrag in den Papierkorb (30 Tage lang wiederherstellbar, siehe <a href="#de-trash">Abschnitt 17</a>).</li>
 </ul>
 <p>Die Schaltfläche <em>Suchen</em> des KI-Assistenten füllt die Felder ebenfalls anhand von Name und Marke (siehe <a href="#de-ai">Abschnitt 12</a>). Die Wunschliste ist nach Marke gruppiert und akzeptiert Typ- / Schnitt-Filter.</p>
@@ -2979,14 +2979,14 @@ Die beiden Formate haben weder dieselben Spalten noch dieselbe Wirkung: das eine
 <h3>Procurarsi e caricare il catalogo</h3>
 <ol>
   <li>Vai in <em>Impostazioni → Dati → Catalogo di riferimento</em>.</li>
-  <li>Tocca <strong>Scarica il modello</strong>: ottieni un file CSV vuoto, con la riga di intestazione e una riga di esempio. L'intestazione è scritta nella <strong>tua lingua</strong>, come quella dell'esportazione: un file prodotto in una lingua si reimporta in qualsiasi altra.</li>
+  <li>Tocca <strong>Scarica il modello</strong>: ottieni un file CSV vuoto, con la riga di intestazione e due righe di esempio (uno stesso tabacco, due lotti). L'intestazione è scritta nella <strong>tua lingua</strong>, come quella dell'esportazione: un file prodotto in una lingua si reimporta in qualsiasi altra.</li>
   <li>Compilalo in un foglio di calcolo — <strong>una riga per miscela</strong>.</li>
   <li>Torna nell'app, tocca <strong>Carica un catalogo (.csv)</strong> e scegli il tuo file.</li>
 </ol>
 <p>Caricare un nuovo file <strong>sostituisce</strong> il precedente — il catalogo non è cumulativo, al contrario dell'importazione dei tuoi tabacchi. Il pulsante <strong>Rimuovi il catalogo</strong> lo elimina; la tua cantina non viene toccata, e potrai sempre ricaricarlo dal tuo file.</p>
 
 <h3>Il formato del file</h3>
-<p>Il <strong>modello CSV</strong> porta le venti colonne che l'app sa leggere, con una riga di esempio. Conserva la riga di intestazione: le colonne sono riconosciute <strong>dal loro nome</strong>, non dalla posizione, e una colonna che non usi può restare vuota.</p>
+<p>Il <strong>modello CSV</strong> porta le colonne che puoi compilare — compresa «Fuori produzione» —, con due righe di esempio. Conserva la riga di intestazione: le colonne sono riconosciute <strong>dal loro nome</strong>, non dalla posizione, e una colonna che non usi può restare vuota.</p>
 <ul>
   <li><strong>brand_key</strong> — <strong>Obbligatoria.</strong> La marca. Insieme a <em>blend_name</em> è l'identità della riga: due righe con la stessa coppia sono duplicati e resta solo la prima. Una riga priva di uno dei due viene ignorata.</li>
   <li><strong>blend_name</strong> — <strong>Obbligatoria.</strong> Il nome della miscela.</li>
@@ -3194,7 +3194,7 @@ Lo stesso avviso torna <em>nel momento in cui serve</em>: se scegli quella pipa 
 <h3>Azioni sulle voci</h3>
 <ul>
   <li><strong>Modifica</strong> — tocca la scheda del desiderio.</li>
-  <li><strong>Acquisisci</strong> (icona a scatola) — la converte in una voce di tabacco precompilata (Nome, Marca, Tipo, Taglio, Blend, Descrizione, Età max, Note) e la rimuove dalla lista dei desideri. Devi solo aggiungere i tuoi lotti.</li>
+  <li><strong>Acquisisci</strong> (icona a scatola) — la converte in una voce di tabacco precompilata (Nome, Marca, Tipo, Taglio, Blend, Descrizione, Età max, Note) e la rimuove dalla lista dei desideri. Devi solo aggiungere i tuoi lotti. <strong>Se hai già questo tabacco</strong> (stessa marca e stesso nome), l'app te lo dice prima e propone <strong>Aggiungi un lotto al mio tabacco</strong>: la sua scheda si apre sul modulo del lotto, e il desiderio scompare quando lo salvi. Puoi comunque creare un nuovo tabacco.</li>
   <li><strong>Elimina</strong> (icona cestino) — invia la voce nel cestino (recuperabile per 30 giorni, vedi <a href="#it-trash">sezione 17</a>).</li>
 </ul>
 <p>Anche il pulsante <em>Cerca</em> dell'assistente IA riempie i campi a partire da nome e marca (vedi <a href="#it-ai">sezione 12</a>). La lista dei desideri è raggruppata per marca e accetta filtri per tipo / taglio.</p>
@@ -3666,14 +3666,14 @@ I due formati non hanno né le stesse colonne né lo stesso effetto: caricare l'
 <h3>Obter e carregar o seu catálogo</h3>
 <ol>
   <li>Vá a <em>Definições → Dados → Catálogo de referência</em>.</li>
-  <li>Toque em <strong>Descarregar o modelo</strong>: obtém um ficheiro CSV vazio, com a linha de cabeçalho e uma linha de exemplo. O cabeçalho é escrito na <strong>sua língua</strong> — tal como o da exportação: um ficheiro produzido numa língua volta a importar-se em qualquer outra.</li>
+  <li>Toque em <strong>Descarregar o modelo</strong>: obtém um ficheiro CSV vazio, com a linha de cabeçalho e duas linhas de exemplo (um mesmo tabaco, dois lotes). O cabeçalho é escrito na <strong>sua língua</strong> — tal como o da exportação: um ficheiro produzido numa língua volta a importar-se em qualquer outra.</li>
   <li>Preencha-o numa folha de cálculo — <strong>uma linha por blend</strong>.</li>
   <li>Volte à aplicação, toque em <strong>Carregar um catálogo (.csv)</strong> e escolha o seu ficheiro.</li>
 </ol>
 <p>Carregar um ficheiro novo <strong>substitui</strong> o anterior — o catálogo não é cumulativo, ao contrário da importação dos seus tabacos. O botão <strong>Remover o catálogo</strong> elimina-o; a sua adega não é tocada e poderá sempre voltar a carregá-lo a partir do seu ficheiro.</p>
 
 <h3>O formato do ficheiro</h3>
-<p>O <strong>modelo CSV</strong> traz as vinte colunas que a aplicação sabe ler, com uma linha de exemplo. Mantenha a linha de cabeçalho: as colunas são reconhecidas <strong>pelo nome</strong>, não pela posição, e uma coluna que não use pode ficar vazia.</p>
+<p>O <strong>modelo CSV</strong> traz as colunas que pode preencher — incluindo "Descontinuado" —, com duas linhas de exemplo. Mantenha a linha de cabeçalho: as colunas são reconhecidas <strong>pelo nome</strong>, não pela posição, e uma coluna que não use pode ficar vazia.</p>
 <ul>
   <li><strong>brand_key</strong> — <strong>Obrigatória.</strong> A marca. Com <em>blend_name</em> é a identidade da linha: duas linhas com o mesmo par são duplicados e só a primeira é mantida. Uma linha sem um dos dois é ignorada.</li>
   <li><strong>blend_name</strong> — <strong>Obrigatória.</strong> O nome do blend.</li>
@@ -3879,7 +3879,7 @@ O mesmo aviso reaparece <em>no momento em que serve</em>: se escolher esse cachi
 <h3>Ações do item</h3>
 <ul>
   <li><strong>Editar</strong> — prima o cartão do desejo.</li>
-  <li><strong>Adquirir</strong> (ícone de caixa) — converte numa ficha de tabaco já preenchida (Nome, Marca, Tipo, Corte, Blend, Descrição, Envelhecimento máx., Notas) e remove-o da lista de desejos. Basta adicionar os seus lotes.</li>
+  <li><strong>Adquirir</strong> (ícone de caixa) — converte numa ficha de tabaco já preenchida (Nome, Marca, Tipo, Corte, Blend, Descrição, Envelhecimento máx., Notas) e remove-o da lista de desejos. Basta adicionar os seus lotes. <strong>Se já tem este tabaco</strong> (mesma marca e mesmo nome), a app avisa primeiro e propõe <strong>Adicionar um lote ao meu tabaco</strong>: a ficha abre no formulário do lote, e o desejo desaparece quando o guardar. Pode também criar um novo tabaco mesmo assim.</li>
   <li><strong>Eliminar</strong> (ícone de lixo) — envia a entrada para a reciclagem (recuperável durante 30 dias, ver <a href="#pt-trash">secção 17</a>).</li>
 </ul>
 <p>O botão <em>Pesquisar</em> do assistente de IA também preenche os campos a partir do nome e da marca (ver <a href="#pt-ai">secção 12</a>). A lista de desejos é agrupada por marca e aceita filtros de tipo / corte.</p>

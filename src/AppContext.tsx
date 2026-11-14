@@ -212,7 +212,11 @@ export interface AppCtxType {
   showFinished?: boolean;
   setShowFinished: (...args: any[]) => void;
   updateLotInTobacco: (tobId: any, lotId: any, lotOverride?: any) => void;
-  addLotToTobacco: (tobId: any, lotOverride?: any, count?: any) => void;
+  addLotToTobacco: (tobId: any, lotOverride?: any, count?: any, opts?: { fromWishId?: any }) => void;
+  /** « Acquérir » a wish already owned → the fiche opens its add-lot form for
+   *  this tabac, and saving the lot retires the wish. See useTobaccoStore. */
+  lotFormRequest?: { tobId: any; fromWishId: any } | null;
+  setLotFormRequest: (r: { tobId: any; fromWishId: any } | null) => void;
   deleteTobacco: (id: any) => void;
   pipeDet?: Pipe | null;
   filteredPipes?: Pipe[];

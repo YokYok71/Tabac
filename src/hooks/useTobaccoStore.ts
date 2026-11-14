@@ -51,6 +51,12 @@ export function useTobaccoStore({
   var _ld = useState<any>(null),
     lotDet = _ld[0],
     setLotDet = _ld[1];
+  // « Acquérir » an envie you ALREADY own → open that tabac's fiche with the
+  // add-a-lot form up, carrying the wish id so saving the lot retires it.
+  // Set by InventoryListView, consumed (and cleared) by InventoryDetailView.
+  var _lfr = useState<{ tobId: any; fromWishId: any } | null>(null),
+    lotFormRequest = _lfr[0],
+    setLotFormRequest = _lfr[1];
   var _sf = useState(false),
     showFinished = _sf[0],
     setShowFinished = _sf[1];
@@ -310,7 +316,7 @@ export function useTobaccoStore({
     if (detail && detail.id === id) setDetail(null);
   }
 
-  function addLotToTobacco(tobId: any, lotOverride?: any, count?: any) {
+  function addLotToTobacco(tobId: any, lotOverride?: any, count?: any, opts?: { fromWishId?: any }) {
     // Build on the FRESHEST committed cellar, not this render's snapshot
     // (see `fresh` above). Deliberately SHADOWS the hook-scope `data` for the
     // whole function, so every read below uses the fresh base — a partial
@@ -374,7 +380,19 @@ export function useTobaccoStore({
       }
       return next;
     });
-    save(Object.assign({}, data, { tobaccos: tobs }));
+    var nd = Object.assign({}, data, { tobaccos: tobs });
+    // The lot was bought FROM a wish (« Acquérir » on a tabac already owned):
+    // retire that wish in the SAME save, exactly as `addTobacco` does for the
+    // new-tabac path through `fromWishRef` — removed, not trashed, since it
+    // was fulfilled, not deleted. Matched by String: the id came through UI
+    // state. A cancelled lot form never reaches here, so the wish survives it.
+    if (opts && opts.fromWishId !== undefined && opts.fromWishId !== null) {
+      var wid = String(opts.fromWishId);
+      nd = Object.assign({}, nd, {
+        wishlist: (nd.wishlist || []).filter(function (w: any) { return String(w && w.id) !== wid; }),
+      });
+    }
+    save(nd);
     setDetail(
       tobs.find(function (t: any) {
         return t.id === tobId;
@@ -556,6 +574,8 @@ export function useTobaccoStore({
     addTobacco,
     updateTobacco,
     updateTobaccoTastingNotes,
+    lotFormRequest,
+    setLotFormRequest,
     setTobaccoToBuy,
     setTobaccoDiscontinued,
     setTobaccoRebuy,

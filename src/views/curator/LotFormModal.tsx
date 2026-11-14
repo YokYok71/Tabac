@@ -20,6 +20,9 @@ export interface LotFormData {
   tobacco: Tobacco;
   lot?: Lot;       // undefined → add mode
   idx?: number;    // index for edit mode
+  /** Add mode opened from « Acquérir » on a wish you already own: saving the
+   *  lot also retires that wish (`addLotToTobacco`'s `fromWishId`). */
+  fromWishId?: any;
 }
 
 export interface LotFormModalProps {

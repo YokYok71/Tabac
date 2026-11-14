@@ -259,7 +259,7 @@ export function useExportImport({
     lines.push(
       ([
         "brand", "name", "category", "blend", "cut", "force", "roomNote", "taste",
-        "description", "rating", "rebuy", "tastingNotes", "agingMax", "status",
+        "description", "rating", "rebuy", "discontinued", "tastingNotes", "agingMax", "status",
         "disposed", "weightG", "weightInitial", "originalStatus", "datePurchased",
         "dateProduction", "dateOpened", "dateFinished", "boxNumber",
         "storageLocation", "price", "seller", "sellerUrl", "age", "imageUrl",
@@ -302,6 +302,7 @@ export function useExportImport({
             tb.description,
             tb.rating || "",
             rb,
+            tb.discontinued === true ? csvValue("yes", lang) : "",
             tb.tastingNotes || "",
             tb.agingMax || "",
             st,
@@ -650,7 +651,7 @@ export function useExportImport({
     // demonstrate the column rather than rely on the repair.
     var FIELDS = [
       "brand", "name", "category", "blend", "cut", "force", "roomNote", "taste", "rating",
-      "rebuy", "agingMax", "status", "weightG", "weightInitial", "datePurchased",
+      "rebuy", "discontinued", "agingMax", "status", "weightG", "weightInitial", "datePurchased",
       "dateProduction", "dateOpened", "dateFinished", "price", "seller", "sellerUrl",
       "boxNumber", "storageLocation", "description", "tastingNotes",
     ] as const;
@@ -683,10 +684,10 @@ export function useExportImport({
     var exDesc = String(t ? t("csv_tpl_desc") : "Exemple : votre description du blend.");
     var exNotes = String(t ? t("csv_tpl_notes") : "Exemple : vos notes de degustation.");
     var ex1 = ["Halvorsen", "Duskfall", "Virginia/Burley", "Virginia, Burley", "Flake", "3", "2", "3", "4",
-      csvValue("yes", lang), "12", csvValue("jar", lang), "40", "50", "2024-03-15", "2022", "2025-06-01", "",
+      csvValue("yes", lang), "", "12", csvValue("jar", lang), "40", "50", "2024-03-15", "2022", "2025-06-01", "",
       "14.90", "smokingpipes.com", "www.smokingpipes.com", "A12", "Armoire A", exDesc, exNotes];
     var ex2 = ["Halvorsen", "Duskfall", "Virginia/Burley", "Virginia, Burley", "Flake", "3", "2", "3", "4",
-      csvValue("yes", lang), "12", csvValue("cellar", lang), "100", "100", "2025-01-10", "2024", "", "", "15.50", "", "",
+      csvValue("yes", lang), "", "12", csvValue("cellar", lang), "100", "100", "2025-01-10", "2024", "", "", "15.50", "", "",
       "A13", "Armoire A", "", ""];
     var lines = [headers, ex1, ex2].map(function (row) {
       return row.map(csvEsc).join(CSV_DELIM);

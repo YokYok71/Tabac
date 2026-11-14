@@ -41,6 +41,7 @@ export function CuratorInventoryDetailView() {
     lotAgingStatus, setLightbox, imgLocal,
     deleteTobacco, statusFilter, crossOpenDetail, crossOpenSession, navToInvByTag,
     setTobaccoToBuy, setShoppingOpen, watchLowWeight,
+    lotFormRequest, setLotFormRequest,
   } = ctx;
   const [lotForm, setLotForm] = useState<LotFormData | null>(null);
   // Read-only detail modal — tapping a lot row opens this
@@ -77,6 +78,18 @@ export function CuratorInventoryDetailView() {
   // dates, and feeds the balance invariants, so a form opened on tobacco A and
   // saved over tobacco B writes stock that never existed.
   useEffect(() => { setLotForm(null); setLotDetail(null); }, [detail?.id]);
+  // « Acquérir » a wish you already own (InventoryListView) lands HERE with an
+  // add-lot request. Declared AFTER the reset above on purpose: both fire in
+  // the commit that changes `detail`, in declaration order, so the reset runs
+  // first and this one opens the form — the other way round would open it
+  // and wipe it in the same tick. Only for THIS tabac; consumed either way.
+  useEffect(() => {
+    if (!lotFormRequest || !detail) return;
+    if (String(lotFormRequest.tobId) === String(detail.id)) {
+      setLotForm({ tobacco: detail, fromWishId: lotFormRequest.fromWishId });
+    }
+    if (setLotFormRequest) setLotFormRequest(null);
+  }, [detail, lotFormRequest, setLotFormRequest]);
 
   if (view !== "inv" || !detail) return null;
   const tob: Tobacco = detail;
@@ -207,7 +220,8 @@ export function CuratorInventoryDetailView() {
     if (lotForm.lot !== undefined && lotForm.idx !== undefined) {
       updateLotInTobacco && updateLotInTobacco(tob.id, lotForm.lot.id, lot);
     } else {
-      addLotToTobacco && addLotToTobacco(tob.id, lot, count);
+      addLotToTobacco && addLotToTobacco(tob.id, lot, count,
+        lotForm.fromWishId !== undefined ? { fromWishId: lotForm.fromWishId } : undefined);
     }
     setLotForm(null);
     // See TobaccoFormView for the iOS auto-save piggyback.

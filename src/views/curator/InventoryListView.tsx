@@ -28,6 +28,7 @@ import { bumpFormSession } from "../../utils/formSession.ts";
 import { Modal, ModalHeader } from "../../components/curator/Modal.tsx";
 import { ModalAction } from "../../components/curator/ModalAction.tsx";
 import { AromaPicker } from "../../components/curator/AromaPicker.tsx";
+import { findDuplicateEntry } from "../../hooks/useImportConfirm.ts";
 import { aromaLabelKey } from "../../utils/aromas.ts";
 import { lotMaturityBucket, scopeFromStatusFilter, scopedHeldWeight, scopedOldestAgeDays, scopeLabelKey, lotInScope, isRecentPurchase } from "../../utils/cellarInsights.ts";
 import { CATS_EN, CUTS_EN } from "../../constants.ts";
@@ -57,6 +58,7 @@ export function CuratorInventoryListView() {
     BT, setForm, setEditId,
     scrollSaveRef,
     setShoppingOpen, weightUnit = "g", watchLowWeight,
+    setLotFormRequest,
   } = ctx;
   // Wrap the nullish fallbacks in useMemo so the `tobaccos`
   // reference stays stable when `data?.tobaccos` is the same array — the
@@ -191,6 +193,19 @@ export function CuratorInventoryListView() {
   // Aroma filter modal (draft edited in the picker, applied on
   // confirm so the list doesn't churn under the open sheet).
   const [aromaModalOpen, setAromaModalOpen] = useState(false);
+  // « Acquérir » on a wish you ALREADY own. Converting it the old way opened a
+  // blank NEW tabac form: the form did warn (its duplicate banner said « ajoutez
+  // plutôt un lot au tabac existant »), but following that advice meant
+  // abandoning the form, finding the tabac, adding the lot and deleting the
+  // wish by hand. The question is asked here instead, with the two answers as
+  // buttons. Same duplicate rule as that banner (`findDuplicateEntry`, which
+  // also knows catalogue synonyms), so the two can never disagree.
+  const [acquireAsk, setAcquireAsk] = useState<{ wish: any; tob: any } | null>(null);
+  const acquire = (w: any) => {
+    const owned = findDuplicateEntry(data?.tobaccos, w?.brand, w?.name);
+    if (owned) setAcquireAsk({ wish: w, tob: owned });
+    else if (wishToInv) wishToInv(w);
+  };
   const [aromaDraft, setAromaDraft] = useState<string[]>([]);
   // The secondary filters (Type / Coupe / Note dropdowns + the tag
   // chips) are collapsed behind a "Plus de filtres" toggle to save vertical
@@ -951,7 +966,7 @@ export function CuratorInventoryListView() {
                         {!collapsed && items.slice(0, wishGroupRows.shownFor(name)).map((w, i) => (
                           <WishCard key={w.id} w={w} idx={i}
                             focused={String(w.id) === String(focusedWishId)}
-                            onAcquire={() => wishToInv && wishToInv(w)}
+                            onAcquire={() => acquire(w)}
                             // `openEditWish` writes `scrollSaveRef.current`, and this
                             // branch builds its rows inside an IIFE that runs during
                             // render — so the rule traces the ref write to render time.
@@ -974,7 +989,7 @@ export function CuratorInventoryListView() {
               : flatWish.visible.map((w, i) => (
                   <WishCard key={w.id} w={w} idx={i}
                     focused={String(w.id) === String(focusedWishId)}
-                    onAcquire={() => wishToInv && wishToInv(w)}
+                    onAcquire={() => acquire(w)}
                     onEdit={() => openEditWish(w)}
                     onDelete={() => { delWish && delWish(w.id); }} />
                 ))
@@ -1030,6 +1045,43 @@ export function CuratorInventoryListView() {
             </ModalAction>
           </div>
         </div>
+      </Modal>
+      <Modal open={!!acquireAsk} onClose={() => setAcquireAsk(null)}
+        ariaLabel={t ? t("acq_owned_title") : "Vous avez déjà ce tabac"}>
+        <ModalHeader title={t ? t("acq_owned_title") : "Vous avez déjà ce tabac"}
+          onClose={() => setAcquireAsk(null)} />
+        {acquireAsk && (
+          <div style={{ padding: "0 16px 18px" }}>
+            <div style={{ fontFamily: F.display, fontStyle: "italic", fontSize: fs(18), color: C.ivory, marginBottom: 6, overflowWrap: "anywhere" }}>
+              {[acquireAsk.tob.brand, acquireAsk.tob.name].filter(Boolean).join(" — ")}
+            </div>
+            <div style={{ fontSize: fs(14), color: C.tx2, lineHeight: 1.45, marginBottom: 14 }}>
+              {t ? t("acq_owned_text") : "Il est déjà dans votre inventaire. Pour une nouvelle boîte du même mélange, ajoutez-lui plutôt un lot : son historique reste au même endroit, et l'envie disparaît dès que le lot est enregistré."}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <ModalAction variant="primary" onClick={() => {
+                const { wish, tob } = acquireAsk;
+                setAcquireAsk(null);
+                // Fiche first, then the request: InventoryDetailView opens the
+                // add-lot form once that fiche is the one on screen.
+                if (setDetail) setDetail(tob);
+                if (setLotFormRequest) setLotFormRequest({ tobId: tob.id, fromWishId: wish.id });
+              }}>
+                {t ? t("acq_owned_add_lot") : "Ajouter un lot à mon tabac"}
+              </ModalAction>
+              <ModalAction variant="secondary" onClick={() => {
+                const { wish } = acquireAsk;
+                setAcquireAsk(null);
+                if (wishToInv) wishToInv(wish);
+              }}>
+                {t ? t("acq_owned_new") : "Créer un nouveau tabac quand même"}
+              </ModalAction>
+              <ModalAction variant="secondary" onClick={() => setAcquireAsk(null)}>
+                {t ? t("btn_cancel") : "Annuler"}
+              </ModalAction>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

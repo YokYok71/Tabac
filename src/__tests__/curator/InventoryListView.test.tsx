@@ -1464,3 +1464,56 @@ describe("« Plus disponible » — App filter and chip count agree", () => {
     expect(view).toContain("if (tob.discontinued === true) discontinued++;");
   });
 });
+
+// « Acquérir » on a wish you ALREADY own. The old path opened a blank new-tabac
+// form — whose own banner then advised adding a lot instead, with no way to do
+// it from there. Now the question is asked up front, using the SAME duplicate
+// rule as that banner (`findDuplicateEntry`).
+describe("InventoryListView — Acquérir a wish you already own", () => {
+  const wish = { id: 7, brand: "Brackwater", name: "Duskfall" };
+  const owned = { ...mkTob(3), brand: "brackwater ", name: "DUSKFALL" }; // case / space-insensitive match
+  const ctxFor = (extra: any) => ({
+    ...baseCtx, statusFilter: "wish", filtered: [],
+    data: { tobaccos: [owned], wishlist: [wish] }, BW: { id: 0 }, ...extra,
+  });
+  const acquireBtn = (c: HTMLElement) => Array.from(c.querySelectorAll("button"))
+    .find(b => /btn_acquire/.test(b.textContent || ""))!;
+  const btn = (key: string) => Array.from(document.querySelectorAll("button, [role='button']"))
+    .find(b => (b.textContent || "").includes(key)) as HTMLElement | undefined;
+
+  it("asks instead of opening a new-tabac form; « Ajouter un lot » opens the owned fiche with a lot request", () => {
+    const wishToInv = vi.fn(), setDetail = vi.fn(), setLotFormRequest = vi.fn();
+    const { container } = renderWith(ctxFor({ wishToInv, setDetail, setLotFormRequest }));
+    fireEvent.click(acquireBtn(container));
+    expect(wishToInv).not.toHaveBeenCalled();
+    expect(btn("acq_owned_title") || document.body.textContent?.includes("acq_owned_title")).toBeTruthy();
+    fireEvent.click(btn("acq_owned_add_lot")!);
+    expect(setDetail).toHaveBeenCalledWith(owned);
+    expect(setLotFormRequest).toHaveBeenCalledWith({ tobId: 3, fromWishId: 7 });
+    expect(wishToInv).not.toHaveBeenCalled();
+  });
+
+  it("« Créer un nouveau tabac quand même » keeps the old path", () => {
+    const wishToInv = vi.fn(), setLotFormRequest = vi.fn();
+    const { container } = renderWith(ctxFor({ wishToInv, setLotFormRequest }));
+    fireEvent.click(acquireBtn(container));
+    fireEvent.click(btn("acq_owned_new")!);
+    expect(wishToInv).toHaveBeenCalledWith(wish);
+    expect(setLotFormRequest).not.toHaveBeenCalled();
+  });
+
+  it("a wish you do NOT own converts straight away, no question", () => {
+    const wishToInv = vi.fn();
+    const { container } = renderWith(ctxFor({ wishToInv, data: { tobaccos: [mkTob(3)], wishlist: [wish] } }));
+    fireEvent.click(acquireBtn(container));
+    expect(wishToInv).toHaveBeenCalledWith(wish);
+    expect(btn("acq_owned_add_lot")).toBeUndefined();
+  });
+
+  it("a TRASHED owned tabac does not count", () => {
+    const wishToInv = vi.fn();
+    const { container } = renderWith(ctxFor({ wishToInv, data: { tobaccos: [{ ...owned, deletedAt: "x" }], wishlist: [wish] } }));
+    fireEvent.click(acquireBtn(container));
+    expect(wishToInv).toHaveBeenCalledWith(wish);
+  });
+});
