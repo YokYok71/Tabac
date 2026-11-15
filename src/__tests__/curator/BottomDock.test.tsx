@@ -80,14 +80,40 @@ describe("BottomDock", () => {
       return style;
     };
 
-    // jsdom may reorder the factors inside calc(), so compare on a
-    // whitespace-stripped form that tolerates either multiplication order.
-    const norm = (s: string) => s.replace(/\s+/g, "");
+    // Compare the VALUE, not the spelling. This used to compare the calc()
+    // string, first allowing for jsdom reordering its factors — and jsdom 31
+    // then SIMPLIFIED it outright: `calc(4px + (100% - 8px) * 1/12)` comes back
+    // as `calc(8.33333% + 3.33333px)`, the same length written another way. So
+    // the expression is evaluated for two pill widths and compared with the
+    // formula the component means: `base + (W - 8) * factor`, in px.
+    const evalCss = (expr: string, W: number): number => {
+      const src = expr.trim().replace(/^calc/, "");
+      let i = 0;
+      const ws = () => { while (src[i] === " ") i++; };
+      const atom = (): number => {
+        ws();
+        if (src[i] === "(") { i++; const v = sum(); ws(); i++; return v; }
+        const m = /^-?\d*\.?\d+(?:e-?\d+)?(%|px)?/.exec(src.slice(i));
+        if (!m) throw new Error("cannot parse " + JSON.stringify(expr) + " at " + i);
+        i += m[0].length;
+        const n = parseFloat(m[0]);
+        return m[1] === "%" ? (n * W) / 100 : n;
+      };
+      const prod = (): number => {
+        let v = atom();
+        for (;;) { ws(); if (src[i] === "*") { i++; v *= atom(); } else if (src[i] === "/") { i++; v /= atom(); } else return v; }
+      };
+      const sum = (): number => {
+        let v = prod();
+        for (;;) { ws(); if (src[i] === "+") { i++; v += prod(); } else if (src[i] === "-") { i++; v -= prod(); } else return v; }
+      };
+      return sum();
+    };
     const expectCalc = (actual: string, factor: number, base: string) => {
-      const a = norm(actual);
-      const mulAB = `(100%-8px)*${factor}`;
-      const mulBA = `${factor}*(100%-8px)`;
-      expect(a === norm(`calc(${base}${mulAB})`) || a === norm(`calc(${base}${mulBA})`)).toBe(true);
+      const basePx = base ? parseFloat(base) : 0;
+      for (const W of [320, 480]) {
+        expect(evalCss(actual, W), `${actual} at a ${W}px pill`).toBeCloseTo(basePx + (W - 8) * factor, 2);
+      }
     };
 
     const first = renderFor("home");

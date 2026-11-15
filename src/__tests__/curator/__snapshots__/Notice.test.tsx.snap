@@ -3,7 +3,7 @@
 exports[`Notice > matches the snapshot for tone='error' 1`] = `
 <div
   role="alert"
-  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-oxblood-hi, #d27b6f) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-oxblood-hi, #d27b6f) 26.7%, transparent); color: var(--c-oxblood-hi, #d27b6f); font-family: "DM Sans", -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
+  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-oxblood-hi, #d27b6f) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-oxblood-hi, #d27b6f) 26.7%, transparent); color: var(--c-oxblood-hi, #d27b6f); font-family: DM Sans, -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
 >
   <span
     style="flex-shrink: 0; display: inline-flex;"
@@ -34,7 +34,7 @@ exports[`Notice > matches the snapshot for tone='error' 1`] = `
 exports[`Notice > matches the snapshot for tone='info' 1`] = `
 <div
   role="status"
-  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-brass-hi, #ecc789) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-brass-hi, #ecc789) 26.7%, transparent); color: var(--c-brass-hi, #ecc789); font-family: "DM Sans", -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
+  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-brass-hi, #ecc789) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-brass-hi, #ecc789) 26.7%, transparent); color: var(--c-brass-hi, #ecc789); font-family: DM Sans, -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
 >
   <span
     style="flex-shrink: 0; display: inline-flex;"
@@ -82,7 +82,7 @@ exports[`Notice > matches the snapshot for tone='info' 1`] = `
 exports[`Notice > matches the snapshot for tone='success' 1`] = `
 <div
   role="status"
-  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-sage, #8fbf9c) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-sage, #8fbf9c) 26.7%, transparent); color: var(--c-sage, #8fbf9c); font-family: "DM Sans", -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
+  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-sage, #8fbf9c) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-sage, #8fbf9c) 26.7%, transparent); color: var(--c-sage, #8fbf9c); font-family: DM Sans, -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
 >
   <span
     style="flex-shrink: 0; display: inline-flex;"
@@ -113,7 +113,7 @@ exports[`Notice > matches the snapshot for tone='success' 1`] = `
 exports[`Notice > matches the snapshot for tone='warn' 1`] = `
 <div
   role="alert"
-  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-amber, #e89556) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-amber, #e89556) 26.7%, transparent); color: var(--c-amber, #e89556); font-family: "DM Sans", -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
+  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-amber, #e89556) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-amber, #e89556) 26.7%, transparent); color: var(--c-amber, #e89556); font-family: DM Sans, -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
 >
   <span
     style="flex-shrink: 0; display: inline-flex;"
@@ -145,7 +145,7 @@ exports[`Notice > matches the snapshot for tone='warn' 1`] = `
 exports[`Notice > matches the snapshot when an action slot is supplied 1`] = `
 <div
   role="alert"
-  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-amber, #e89556) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-amber, #e89556) 26.7%, transparent); color: var(--c-amber, #e89556); font-family: "DM Sans", -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
+  style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: 8px; background: color-mix(in srgb, var(--c-amber, #e89556) 8.2%, transparent); border: 1px solid color-mix(in srgb, var(--c-amber, #e89556) 26.7%, transparent); color: var(--c-amber, #e89556); font-family: DM Sans, -apple-system, system-ui, sans-serif; font-size: calc(15px * var(--cave-font-scale, 1)); line-height: 1.45;"
 >
   <span
     style="flex-shrink: 0; display: inline-flex;"

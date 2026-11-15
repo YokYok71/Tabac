@@ -1299,7 +1299,10 @@ describe("SettingsModal — nothing in a tab may be wider than the tab", () => {
     expect(grids.length).toBeGreaterThan(0);            // non-vacuous
     // `auto` (the default) is the bug: it floors the track at min-content, so
     // the widest row sizes every row and the tab overflows.
-    grids.forEach((g) => expect(g.style.gridTemplateColumns).toBe("minmax(0, 1fr)"));
+    // `0` and `0px` are the same length; jsdom 31 writes the unit, 30 did not.
+    // What matters is a zero minimum — anything else (auto, min-content) is
+    // the bug — so the unit is allowed and nothing else is.
+    grids.forEach((g) => expect(g.style.gridTemplateColumns).toMatch(/^minmax\(0(px)?, 1fr\)$/));
   });
 
   it("lets every Segmented wrap instead of forcing its row wider", () => {
