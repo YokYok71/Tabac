@@ -33,7 +33,7 @@
     "@vitejs/plugin-react": "^6.3.0",
     "eslint": "^10.15.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "fast-check": "^4.10.2",
+    "fast-check": "^4.10.3",
     "jest-axe": "^11.0.0",
     "jsdom": "^31.0.1",
     "knip": "^6.45.1",
