@@ -46,6 +46,8 @@ import { buildTobaccoAromaIndex, tobaccoMatchesAromas } from "./utils/aromas.ts"
 import { lotMaturityBucket, isRecentPurchase, scopeFromStatusFilter, lotInScope, scopedHeldWeight, scopedOldestAgeDays } from "./utils/cellarInsights.ts";
 import { isLowStock, lowStockThreshold } from "./utils/shopping.ts";
 import { offloadDataPhotos } from "./utils/photoOffload.ts";
+import { setLocalWriteFailed } from "./utils/localWriteState.ts";
+import { requestPersistentStorage } from "./utils/storagePersist.ts";
 import { assertLotInvariants } from "./utils/lotInvariants.ts";
 import { imgCache, imgMap } from "./utils/imgCache.ts";
 import { processOAuthReturn } from "./utils/oauthReturn.ts";
@@ -1195,7 +1197,12 @@ function App() {
       lsRemove(SK + "-bkp-ts");
     } catch (_e) {}
     setCellarChars(json.length);
-    appStorage.set(SK, json).catch(function (e) {
+    appStorage.set(SK, json).then(function () {
+      setLocalWriteFailed(false);
+    }).catch(function (e) {
+      // Until a later save lands, the cloud auto-save must not upload the
+      // stale on-disk copy as « synced » (see localWriteState.ts).
+      setLocalWriteFailed(true);
       console.error("Save error:", e.name, e.message);
       var isQuota =
         e.name === "QuotaExceededError" ||
@@ -1215,6 +1222,7 @@ function App() {
             return appStorage.set(SK, JSON.stringify(slim));
           })
           .then(function () {
+            setLocalWriteFailed(false);
             latestDataRef.current = slim;
             setData(slim);
             // Read the language directly from storage so the message
@@ -1263,6 +1271,42 @@ function App() {
     },
     [load],
   );
+  // Ask the browser to keep the cellar and photos (see storagePersist.ts):
+  // once, after the cellar has loaded, so a refusal can never delay it.
+  useEffect(function () {
+    if (loading) return;
+    requestPersistentStorage();
+  }, [loading]);
+  // TWO TABS (or Chrome + the installed app on Android, which share storage)
+  // USED TO OVERWRITE EACH OTHER SILENTLY: save() writes the whole in-memory
+  // cellar, so each tab's next save erased what the other had saved, and
+  // nothing in the repo listened for the other side. The browser fires
+  // `storage` in every OTHER tab when one writes; this tab now adopts that
+  // cellar (through migrateData, like a load) and says so, so its next save
+  // builds on the other tab's work instead of on a stale copy. Forms keep
+  // their working copy; the stores build on `latestDataRef`, refreshed here.
+  // An unreadable value is ignored rather than adopted.
+  useEffect(function () {
+    function onStorage(e: StorageEvent) {
+      if (e.key !== SK || typeof e.newValue !== "string" || !e.newValue) return;
+      var parsed: any;
+      try { parsed = JSON.parse(e.newValue); } catch (_e) { return; }
+      var next = migrateData(parsed);
+      try {
+        if (latestDataRef.current && stableStringify(latestDataRef.current) === stableStringify(next)) return;
+      } catch (_e) { /* compare failed: adopt */ }
+      latestDataRef.current = next;
+      setData(next);
+      setCellarChars(e.newValue.length);
+      var _l = lsGet("cave-lang") || "en";
+      setSaveWarn(String(((LANG as any)[_l] || (LANG as any).en)?.warn_other_tab_update
+        || (LANG as any).en.warn_other_tab_update));
+    }
+    window.addEventListener("storage", onStorage);
+    return function () { window.removeEventListener("storage", onStorage); };
+    // The three setters are stable (useState); listed because the rule cannot
+    // tell, through the `_x[1]` destructuring this file uses.
+  }, [setCellarChars, setData, setSaveWarn]);
   // RESOLVE EVERY COVER PHOTO INTO `imgLocal` — ONCE, NOT ON EVERY SAVE.
   //
   // MEASURED on a 300-cover cellar by driving the real App with a counting

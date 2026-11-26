@@ -1,3 +1,4 @@
+import { localWriteFailed } from "../utils/localWriteState.ts";
 import React from "react";
 import { collectSettings } from "../utils/appSettings.ts";
 import {
@@ -2857,6 +2858,14 @@ export function useGdriveSync({
     // it would overwrite this device's auto file in the cloud — very likely
     // the newest good copy — with nothing. Wait until the user has restored
     // or entered data again.
+    // The last LOCAL write failed (quota): disk holds an older cellar than
+    // memory. Uploading it and declaring « synchronisé » would claim edits
+    // are safe that exist nowhere on disk — skip, keep the unsynced state.
+    if (localWriteFailed()) {
+      recordAutosaveDiag("skip-local-write-failed", isDbx ? "dropbox" : "drive");
+      releaseQuietLock();
+      return;
+    }
     if (lsGet(SK + "-unreadable") && !hasCellarData(snap)) {
       recordAutosaveDiag("skip-unreadable", isDbx ? "dropbox" : "drive");
       releaseQuietLock();

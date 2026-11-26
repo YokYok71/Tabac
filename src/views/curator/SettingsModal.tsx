@@ -339,6 +339,7 @@ export function CuratorSettingsModal() {
               "network-error": "autosave_diag_network_error",
               "photos-unreadable": "autosave_diag_photos_unreadable",
               "skip-unreadable": "autosave_diag_skip_unreadable",
+              "skip-local-write-failed": "autosave_diag_skip_local_write_failed",
             });
             var msgKey = msgKeyMap[d.stage];
             var label = (msgKey && t) ? t(msgKey) : d.stage;
