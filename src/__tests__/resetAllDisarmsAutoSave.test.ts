@@ -105,3 +105,31 @@ describe("resetAll disarms the cloud auto-save before the photo clear", () => {
     expect(localStorage.getItem("cave-autosave")).toBe("1");
   });
 });
+
+// Doc review #4: the reset left the reference catalogue's IndexedDB alone, so
+// « Effacer toutes les données » kept the user's catalogue CSV loaded — while
+// the help and the privacy policy both promised a blank device.
+describe("resetAll also clears the reference catalogue", () => {
+  it("calls catalogueClear, and reloads only once BOTH stores are cleared", async () => {
+    const store = await import("../utils/catalogueStore");
+    let releaseCat!: (v: boolean) => void;
+    const cat = vi.spyOn(store, "catalogueClear").mockImplementation(
+      () => new Promise<boolean>((r) => { releaseCat = r; }));
+    vi.spyOn(imgCache, "clear").mockResolvedValue(undefined as any);
+    const reload = vi.fn();
+    const loc = window.location;
+    Object.defineProperty(window, "location", { value: { ...loc, reload }, configurable: true });
+    try {
+      const { result } = renderHook(() => useExportImport(makeProps() as any));
+      act(() => { result.current.resetAll(); });
+      expect(cat).toHaveBeenCalledOnce();
+      await Promise.resolve(); await Promise.resolve();
+      expect(reload, "must not restart over an in-flight catalogue delete").not.toHaveBeenCalled();
+      releaseCat(true);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(reload).toHaveBeenCalledOnce();
+    } finally {
+      Object.defineProperty(window, "location", { value: loc, configurable: true });
+    }
+  });
+});

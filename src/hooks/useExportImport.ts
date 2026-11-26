@@ -5,6 +5,7 @@ import { INIT, SCHEMA_VERSION } from "../constants.ts";
 import { daysSince, fmtDate, fmtNum, isTrashed, stripDeleted, isPlausibleBackup, monotonicId, today, localDayKey } from "../utils.ts";
 import { sanitizeAromas, aromaLabelKey } from "../utils/aromas.ts";
 import { imgCache } from "../utils/imgCache.ts";
+import { catalogueClear } from "../utils/catalogueStore.ts";
 import { buildCollectionReport } from "../utils/collectionReport.ts";
 import { parseTobaccoCsv, CSV_DELIM, csvHeader, csvValue } from "../utils/csvImport.ts";
 import {
@@ -1160,11 +1161,22 @@ export function useExportImport({
     var done = function () {
       try { window.location.reload(); } catch (_e) { nav("home"); }
     };
+    // THE REFERENCE CATALOGUE IS THE SECOND INDEXEDDB, and the reset used to
+    // leave it: `cave-catalogue` was never touched, and the next launch read
+    // it straight back — so after « Effacer toutes les données » the user's
+    // catalogue CSV was still loaded, while privacy.html promised « il ne
+    // reste rien de vous sur l'appareil » and the help « remet l'appareil à
+    // neuf ». Cleared here alongside the photos, and the reload waits for
+    // BOTH, for the same in-flight-transaction reason. `catalogueClear`
+    // never rejects (it resolves false when IndexedDB is unavailable).
+    var pending: Promise<any>[] = [];
     try {
       var p = imgCache.clear ? imgCache.clear() : null;
-      if (p && typeof p.then === "function") p.then(done, done);
-      else done();
-    } catch (_e) { done(); }
+      if (p && typeof p.then === "function") pending.push(p.then(null, function () { /* see done */ }));
+    } catch (_e) { /* the reload still happens */ }
+    try { pending.push(catalogueClear()); } catch (_e) { /* idem */ }
+    if (pending.length) Promise.all(pending).then(done, done);
+    else done();
   }
 
   // File picker now stages the parsed payload into

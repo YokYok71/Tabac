@@ -444,7 +444,7 @@ export function CuratorSettingsModal() {
               } else {
                 // Disabling: confirm — old encrypted backups remain
                 // readable with the passphrase, but new ones go plain.
-                if (window.confirm(t ? t("enc_disable_confirm") : "Désactiver le chiffrement Drive ? Les prochaines sauvegardes seront en clair. Les sauvegardes chiffrées existantes restent lisibles avec la phrase secrète.")) {
+                if (window.confirm(t ? t("enc_disable_confirm") : "Désactiver le chiffrement des sauvegardes cloud ? Les prochaines sauvegardes seront en clair. Les sauvegardes chiffrées existantes restent lisibles avec la phrase secrète.")) {
                   saveDriveEncryptionEnabled(false);
                 }
               }

@@ -184,22 +184,13 @@
   <li><strong>Si vous aviez choisi Gemini 3.6 Flash, il reste votre choix.</strong> Il fonctionne toujours, et son successeur peut consommer davantage à chaque recherche : l'app ne vous y fait donc pas passer sans vous le demander. Vous pouvez passer à Gemini 3.8 Flash quand vous voulez.</li>
 </ul>
 
-<h2><span class="tag">v1.1 · Build 33</span> Le bandeau du haut se tient à l'écart du fondu qu'iOS peint au bord de l'écran <span class="date">septembre 2026</span></h2>
-<!-- anchors: HEADER_BAND_CLEARANCE_PX, HEADER_BAND_CLEARANCE_PHONE_PX, headerTop, IS_IPHONE -->
-<h3>Important</h3>
-<ul>
-  <li><strong>iOS 26 et 27 appliquent un léger fondu sur la toute première bande de la page.</strong> Il apparaît dès que vous avez fait défiler quelque chose, il ne concerne que l'app installée sur l'écran d'accueil, et rien dans une page web ne permet de le retirer : le système le peint après tout le reste. Ce n'est pas le voile décrit plus bas, qui lui a bel et bien disparu.</li>
-  <li><strong>Le titre et les trois boutons du haut sont désormais posés juste en dessous.</strong> Ils commencent exactement là où ce fondu s'arrête, si bien qu'ils restent francs pendant que la bande, elle, ne porte plus que le fond.</li>
-  <li><strong>La hauteur a été mesurée séparément sur iPhone et sur iPad</strong>, qui ne placent pas ce fondu à la même profondeur. Chaque appareil garde ainsi le maximum de place pour le contenu.</li>
-</ul>
-
 <h2><span class="tag">v1.1 · Build 19</span> Le bandeau du haut redevient franc dans l'app installée sur iOS 27 <span class="date">septembre 2026</span></h2>
 <!-- anchors: apple-mobile-web-app-status-bar-style, THEME_COLOR_META, safeTop, HEADER_TOP_FLOOR, TOP_INSET_TRIM_PX -->
 <h3>Important</h3>
 <ul>
   <li><strong>Depuis iOS 27, l'app ajoutée à l'écran d'accueil montrait un voile grisâtre sur toute la bande supérieure.</strong> Le titre et les boutons s'y noyaient, alors que la même page ouverte dans Safari restait parfaitement nette. Le voile était peint par le système par-dessus tout ce que l'app dessine : aucun réglage de votre côté n'y pouvait quoi que ce soit.</li>
   <li><strong>L'app ne demande plus à iOS de s'étendre sous la barre d'état.</strong> Celle-ci reçoit sa propre bande, accordée au thème clair ou sombre que vous avez choisi, et le bandeau du haut retrouve son aspect d'origine.</li>
-  <li><strong>Une manipulation est nécessaire, une seule fois — et seulement si vous aviez ajouté l'app à votre écran d'accueil AVANT cette version.</strong> iOS ne relit ce réglage qu'au moment où l'app est ajoutée : une mise à jour ordinaire ne le change pas. <strong>Sauvegardez d'abord</strong> (Réglages → Données, vers le cloud ou en JSON), puis retirez l'icône de l'écran d'accueil et rajoutez-la depuis Safari. Une installation neuve n'a rien à faire.</li>
+  <li><strong>Une manipulation est nécessaire, une seule fois — et seulement si vous aviez ajouté l'app à votre écran d'accueil AVANT cette version.</strong> iOS ne relit ce réglage qu'au moment où l'app est ajoutée : une mise à jour ordinaire ne le change pas. <strong>Sauvegardez d'abord</strong> (Paramètres → Données, vers le cloud ou en JSON), puis retirez l'icône de l'écran d'accueil et rajoutez-la depuis Safari. Une installation neuve n'a rien à faire.</li>
   <li><strong>Le bandeau se rapproche aussi du haut de l'écran.</strong> Quelques points d'espace inutile ont été repris sur chaque écran, au profit du contenu.</li>
 </ul>
 
@@ -207,12 +198,6 @@
 <h3>Amélioration</h3>
 <ul>
   <li><strong>L'écran « Sélectionner les éléments » coche tout d'avance.</strong> Il partait vide : le chemin le plus court — cocher la première section et valider — laissait le reste de côté, sans que rien ne dise ce qu'on venait d'écarter. Désormais vous <em>décochez</em> ce dont vous ne voulez pas, ce qui correspond à l'intention la plus courante et rend l'omission volontaire.</li>
-</ul>
-
-<h2><span class="tag">v1.1 · Build 10</span> Le bouton d'import CSV dit enfin ce qu'il fait <span class="date">septembre 2026</span></h2>
-<h3>Amélioration</h3>
-<ul>
-  <li><strong>« Importer tabacs » s'appelle maintenant « Importer un CSV ».</strong> Depuis la version précédente, un export complet ramène aussi vos pipes, vos envies et vos accessoires — mais le bouton continuait de promettre les seuls tabacs, ce qui donnait toutes les raisons de croire que rien n'avait changé. Le nom, le message d'échec et le guide disent désormais la même chose que l'action.</li>
 </ul>
 
 <h2><span class="tag">v1.1 · Build 9</span> L'import CSV montre ce qu'il va faire, et ramène pipes et accessoires <span class="date">septembre 2026</span></h2>
@@ -277,18 +262,10 @@
   <li><strong>La colonne Statut comprend le mot de votre langue.</strong> <em>Tarro</em>, <em>Glas</em>, <em>Barattolo</em>, <em>Frasco</em> arrivent en pot. Un mot que l'app ne place pas est toujours importé en cave — mais il est désormais signalé, avec son numéro de ligne, au lieu de transformer un pot ouvert en boîte scellée sans un mot.</li>
 </ul>
 
-<h2><span class="tag">v1.0 · Build 56</span> Dropbox dit ce qui ne va pas, et ne vous éjecte plus de l'app <span class="date">août 2026</span></h2>
-<h3>Amélioration</h3>
-<ul>
-  <li><strong>Un Dropbox plein est enfin nommé comme tel.</strong> Le message anglais brut du fournisseur s'affichait à la place du remède — libérer de la place — sur le seul refus où le remède compte.</li>
-  <li><strong>Une coupure de réseau ne vous envoie plus sur dropbox.com.</strong> L'application confondait « l'appel a échoué » et « votre autorisation est morte » : elle quittait votre cave pour vous faire reconnecter, alors qu'il n'y avait rien à reconnecter. Hors ligne, il fallait fermer et rouvrir l'application.</li>
-  <li><strong>Le panneau cloud offre enfin une sortie.</strong> Quand la session avec votre fournisseur expirait, ses deux boutons ne menaient nulle part. Ils permettent maintenant de se reconnecter.</li>
-</ul>
-
 <h2><span class="tag">v1.0 · Build 54</span> L'application dit quand la sauvegarde cloud ne passe plus <span class="date">août 2026</span></h2>
 <h3>Nouveau</h3>
 <ul>
-  <li><strong>Une sauvegarde automatique qui échoue plusieurs fois d'affilée est désormais signalée.</strong> Jusqu'ici elle échouait en silence : la cave cessait d'atteindre le cloud et rien ne le disait, sauf une ligne dans <em>Réglages → Données</em>. Un raté isolé reste silencieux, comme avant ; c'est la série qui déclenche le message.</li>
+  <li><strong>Une sauvegarde automatique qui échoue plusieurs fois d'affilée est désormais signalée.</strong> Jusqu'ici elle échouait en silence : la cave cessait d'atteindre le cloud et rien ne le disait, sauf une ligne dans <em>Paramètres → Données</em>. Un raté isolé reste silencieux, comme avant ; c'est la série qui déclenche le message.</li>
   <li><strong>Un espace de stockage plein est nommé comme tel.</strong> Un Drive ou un Dropbox saturé était traité comme une session expirée : on vous redemandait de vous connecter, en boucle, sans jamais dire qu'il fallait faire de la place.</li>
 </ul>
 
@@ -405,15 +382,6 @@
   <li><strong>If you had picked Gemini 3.6 Flash, it stays your choice.</strong> It still works, and its successor can use more per search, so the app does not move you onto it without asking. You can switch to Gemini 3.8 Flash whenever you like.</li>
 </ul>
 
-<h2><span class="tag">v1.1 · Build 33</span> The top bar keeps clear of the fade iOS paints at the screen's edge <span class="date">September 2026</span></h2>
-<!-- anchors: HEADER_BAND_CLEARANCE_PX, HEADER_BAND_CLEARANCE_PHONE_PX, headerTop, IS_IPHONE -->
-<h3>Important</h3>
-<ul>
-  <li><strong>iOS 26 and 27 apply a soft fade to the very first band of the page.</strong> It appears as soon as you have scrolled anything, it affects only the app installed on the Home Screen, and nothing in a web page can remove it: the system paints it after everything else. This is not the haze described further down, which really is gone.</li>
-  <li><strong>The title and the three buttons at the top now sit just below it.</strong> They begin exactly where that fade ends, so they stay crisp while the band itself carries nothing but the background.</li>
-  <li><strong>The height was measured separately on iPhone and iPad</strong>, which do not place that fade at the same depth. Each device therefore keeps the most room for content.</li>
-</ul>
-
 <h2><span class="tag">v1.1 · Build 19</span> The top bar looks right again in the installed app on iOS 27 <span class="date">September 2026</span></h2>
 <!-- anchors: apple-mobile-web-app-status-bar-style, THEME_COLOR_META, safeTop, HEADER_TOP_FLOOR, TOP_INSET_TRIM_PX -->
 <h3>Important</h3>
@@ -428,12 +396,6 @@
 <h3>Improvement</h3>
 <ul>
   <li><strong>The “Select items” screen now ticks everything to start with.</strong> It used to start empty: the shortest path — tick the first section and confirm — left the rest behind, with nothing on screen to say what had just been dropped. You now <em>untick</em> what you do not want, which matches the common intent and makes leaving something out a deliberate act.</li>
-</ul>
-
-<h2><span class="tag">v1.1 · Build 10</span> The CSV import button finally says what it does <span class="date">September 2026</span></h2>
-<h3>Improvement</h3>
-<ul>
-  <li><strong>“Import tobaccos” is now “Import a CSV”.</strong> Since the previous version a full export also brings back your pipes, wishes and accessories — but the button went on promising tobaccos alone, which gave every reason to believe nothing had changed. The name, the failure message and the guide now say the same thing as the action.</li>
 </ul>
 
 <h2><span class="tag">v1.1 · Build 9</span> CSV import shows what it will do, and brings pipes and accessories back <span class="date">September 2026</span></h2>
@@ -496,14 +458,6 @@
 <ul>
   <li><strong>Headers are recognised in all six app languages.</strong> The reader knew French and English only, while the error message already named the required columns in each language's own words. Write « Marca » and « Nombre », « Marke » and « Name »: the file imports.</li>
   <li><strong>The Status column understands your language's word.</strong> <em>Tarro</em>, <em>Glas</em>, <em>Barattolo</em>, <em>Frasco</em> all arrive as a jar. A word the app cannot place is still imported as cellar — but it is now reported, with its line number, instead of silently turning an opened jar into a sealed tin.</li>
-</ul>
-
-<h2><span class="tag">v1.0 · Build 56</span> Dropbox says what is wrong, and no longer throws you out of the app <span class="date">August 2026</span></h2>
-<h3>Improvement</h3>
-<ul>
-  <li><strong>A full Dropbox is finally named as such.</strong> The provider's raw English message showed instead of the remedy — free up space — on the one refusal where the remedy matters.</li>
-  <li><strong>A dropped connection no longer sends you to dropbox.com.</strong> The app confused "the call failed" with "your authorisation is dead": it left your cellar to make you sign in again, when there was nothing to sign in to. Offline, you had to close and reopen the app.</li>
-  <li><strong>The cloud panel finally offers a way out.</strong> When your provider session expired, its two buttons led nowhere. They now let you reconnect.</li>
 </ul>
 
 <h2><span class="tag">v1.0 · Build 54</span> The app says when the cloud backup stops going through <span class="date">August 2026</span></h2>
@@ -624,15 +578,6 @@
   <li><strong>Si habías elegido Gemini 3.6 Flash, sigue siendo tu elección.</strong> Sigue funcionando, y su sucesor puede consumir más en cada búsqueda, así que la app no te cambia a él sin preguntarte. Puedes pasar a Gemini 3.8 Flash cuando quieras.</li>
 </ul>
 
-<h2><span class="tag">v1.1 · Build 33</span> La barra superior se aparta del desvanecido que iOS pinta en el extremo de la pantalla <span class="date">septiembre 2026</span></h2>
-<!-- anchors: HEADER_BAND_CLEARANCE_PX, HEADER_BAND_CLEARANCE_PHONE_PX, headerTop, IS_IPHONE -->
-<h3>Importante</h3>
-<ul>
-  <li><strong>iOS 26 y 27 aplican un ligero desvanecido a la primera franja de la página.</strong> Aparece en cuanto has desplazado algo, solo afecta a la app instalada en la pantalla de inicio, y nada dentro de una página web puede quitarlo: el sistema lo pinta después de todo lo demás. No es el velo que se describe más abajo, que ese sí ha desaparecido.</li>
-  <li><strong>El título y los tres botones de arriba se sitúan ahora justo debajo.</strong> Empiezan exactamente donde termina ese desvanecido, así que se ven nítidos mientras la franja solo lleva el fondo.</li>
-  <li><strong>La altura se midió por separado en iPhone y en iPad</strong>, que no colocan ese desvanecido a la misma profundidad. Cada dispositivo conserva así el máximo espacio para el contenido.</li>
-</ul>
-
 <h2><span class="tag">v1.1 · Build 19</span> La barra superior vuelve a verse bien en la app instalada con iOS 27 <span class="date">septiembre 2026</span></h2>
 <!-- anchors: apple-mobile-web-app-status-bar-style, THEME_COLOR_META, safeTop, HEADER_TOP_FLOOR, TOP_INSET_TRIM_PX -->
 <h3>Importante</h3>
@@ -647,12 +592,6 @@
 <h3>Mejora</h3>
 <ul>
   <li><strong>La pantalla «Seleccionar elementos» ahora marca todo de entrada.</strong> Antes empezaba vacía: el camino más corto —marcar la primera sección y confirmar— dejaba el resto fuera, sin que nada indicara qué se acababa de descartar. Ahora <em>desmarcas</em> lo que no quieres, lo que corresponde a la intención más habitual y hace que omitir algo sea deliberado.</li>
-</ul>
-
-<h2><span class="tag">v1.1 · Build 10</span> El botón de importación CSV por fin dice lo que hace <span class="date">septiembre 2026</span></h2>
-<h3>Mejora</h3>
-<ul>
-  <li><strong>«Importar tabacos» pasa a llamarse «Importar un CSV».</strong> Desde la versión anterior, una exportación completa también recupera tus pipas, deseos y accesorios, pero el botón seguía prometiendo solo tabacos, lo que daba todas las razones para creer que nada había cambiado. El nombre, el mensaje de error y la guía dicen ahora lo mismo que la acción.</li>
 </ul>
 
 <h2><span class="tag">v1.1 · Build 9</span> La importación CSV muestra lo que hará y recupera pipas y accesorios <span class="date">septiembre 2026</span></h2>
@@ -715,14 +654,6 @@
 <ul>
   <li><strong>Las cabeceras se reconocen en los seis idiomas de la app.</strong> El lector solo conocía el francés y el inglés, mientras que el mensaje de error ya nombraba las columnas obligatorias con las palabras de cada idioma. Escribe « Marca » y « Nombre »: el archivo se importa.</li>
   <li><strong>La columna Estado entiende la palabra de tu idioma.</strong> <em>Tarro</em>, <em>Glas</em>, <em>Barattolo</em>, <em>Frasco</em> llegan como tarro. Una palabra que la app no reconoce se sigue importando en bodega, pero ahora se señala con su número de línea, en lugar de convertir en silencio un tarro abierto en una lata sellada.</li>
-</ul>
-
-<h2><span class="tag">v1.0 · Build 56</span> Dropbox dice qué falla y ya no te expulsa de la aplicación <span class="date">agosto 2026</span></h2>
-<h3>Mejora</h3>
-<ul>
-  <li><strong>Un Dropbox lleno por fin se nombra como tal.</strong> Se mostraba el mensaje en inglés del proveedor en lugar del remedio —liberar espacio— en el único rechazo donde el remedio importa.</li>
-  <li><strong>Un corte de red ya no te manda a dropbox.com.</strong> La aplicación confundía «la llamada falló» con «tu autorización ha muerto»: abandonaba tu bodega para hacerte volver a conectar, cuando no había nada que reconectar. Sin conexión, había que cerrar y reabrir.</li>
-  <li><strong>El panel de nube por fin ofrece una salida.</strong> Cuando la sesión con tu proveedor caducaba, sus dos botones no llevaban a ninguna parte. Ahora permiten reconectarse.</li>
 </ul>
 
 <h2><span class="tag">v1.0 · Build 54</span> La aplicación avisa cuando la copia en la nube ya no pasa <span class="date">agosto 2026</span></h2>
@@ -843,15 +774,6 @@
   <li><strong>Wenn du Gemini 3.6 Flash gewählt hattest, bleibt es deine Wahl.</strong> Es funktioniert weiterhin, und sein Nachfolger kann pro Suche mehr verbrauchen — deshalb stellt die App dich nicht ungefragt um. Du kannst jederzeit zu Gemini 3.8 Flash wechseln.</li>
 </ul>
 
-<h2><span class="tag">v1.1 · Build 33</span> Die obere Leiste hält Abstand zum Verlauf, den iOS an den Bildschirmrand malt <span class="date">September 2026</span></h2>
-<!-- anchors: HEADER_BAND_CLEARANCE_PX, HEADER_BAND_CLEARANCE_PHONE_PX, headerTop, IS_IPHONE -->
-<h3>Wichtig</h3>
-<ul>
-  <li><strong>iOS 26 und 27 legen einen sanften Verlauf über den allerersten Streifen der Seite.</strong> Er erscheint, sobald du irgendetwas gescrollt hast, betrifft nur die auf dem Home-Bildschirm installierte App, und nichts innerhalb einer Webseite kann ihn entfernen: Das System malt ihn nach allem anderen. Es ist nicht der Schleier, der weiter unten beschrieben wird — der ist tatsächlich verschwunden.</li>
-  <li><strong>Titel und die drei Schaltflächen oben sitzen jetzt direkt darunter.</strong> Sie beginnen genau dort, wo dieser Verlauf endet, und bleiben dadurch klar, während der Streifen selbst nur noch den Hintergrund trägt.</li>
-  <li><strong>Die Höhe wurde auf iPhone und iPad getrennt gemessen</strong>, denn beide setzen diesen Verlauf unterschiedlich tief an. So behält jedes Gerät den größtmöglichen Platz für den Inhalt.</li>
-</ul>
-
 <h2><span class="tag">v1.1 · Build 19</span> Die obere Leiste sieht in der installierten App unter iOS 27 wieder richtig aus <span class="date">September 2026</span></h2>
 <!-- anchors: apple-mobile-web-app-status-bar-style, THEME_COLOR_META, safeTop, HEADER_TOP_FLOOR, TOP_INSET_TRIM_PX -->
 <h3>Wichtig</h3>
@@ -866,12 +788,6 @@
 <h3>Verbesserung</h3>
 <ul>
   <li><strong>Der Bildschirm „Elemente auswählen“ hakt jetzt alles vorab an.</strong> Bisher startete er leer: Der kürzeste Weg — den ersten Abschnitt anhaken und bestätigen — ließ den Rest zurück, ohne dass irgendetwas sagte, was gerade weggefallen war. Du hakst nun ab, was du nicht willst, was der üblichen Absicht entspricht und das Weglassen zu einer bewussten Entscheidung macht.</li>
-</ul>
-
-<h2><span class="tag">v1.1 · Build 10</span> Die CSV-Import-Schaltfläche sagt endlich, was sie tut <span class="date">September 2026</span></h2>
-<h3>Verbesserung</h3>
-<ul>
-  <li><strong>Aus „Tabake importieren“ wird „CSV importieren“.</strong> Seit der letzten Version holt ein vollständiger Export auch deine Pfeifen, Wünsche und Zubehörteile zurück — die Schaltfläche versprach aber weiterhin nur Tabake, was jeden Grund gab zu glauben, es habe sich nichts geändert. Name, Fehlermeldung und Hilfe sagen jetzt dasselbe wie die Aktion.</li>
 </ul>
 
 <h2><span class="tag">v1.1 · Build 9</span> Der CSV-Import zeigt, was er tun wird, und holt Pfeifen und Zubehör zurück <span class="date">September 2026</span></h2>
@@ -934,14 +850,6 @@
 <ul>
   <li><strong>Spaltennamen werden in allen sechs App-Sprachen erkannt.</strong> Der Leser kannte nur Französisch und Englisch, während die Fehlermeldung die Pflichtspalten längst mit den Wörtern der jeweiligen Sprache nannte. Schreib „Marke“ und „Name“: die Datei wird importiert.</li>
   <li><strong>Die Spalte Status versteht das Wort deiner Sprache.</strong> <em>Glas</em>, <em>Tarro</em>, <em>Barattolo</em>, <em>Frasco</em> kommen als Glas an. Ein Wort, das die App nicht einordnen kann, wird weiterhin als Keller importiert — aber jetzt mit Zeilennummer gemeldet, statt ein offenes Glas stillschweigend in eine versiegelte Dose zu verwandeln.</li>
-</ul>
-
-<h2><span class="tag">v1.0 · Build 56</span> Dropbox sagt, was nicht stimmt, und wirft dich nicht mehr aus der App <span class="date">August 2026</span></h2>
-<h3>Verbesserung</h3>
-<ul>
-  <li><strong>Ein volles Dropbox wird endlich beim Namen genannt.</strong> Statt der Abhilfe — Platz schaffen — erschien die englische Rohmeldung des Anbieters, ausgerechnet bei der einzigen Ablehnung, bei der die Abhilfe zählt.</li>
-  <li><strong>Ein Netzausfall schickt dich nicht mehr zu dropbox.com.</strong> Die App verwechselte „der Aufruf ist fehlgeschlagen" mit „deine Berechtigung ist tot": sie verließ deinen Keller, um dich neu anmelden zu lassen, obwohl es nichts anzumelden gab. Offline musstest du sie schließen und neu öffnen.</li>
-  <li><strong>Der Cloud-Bereich bietet endlich einen Ausweg.</strong> Lief die Sitzung mit deinem Anbieter ab, führten seine zwei Schaltflächen nirgendwohin. Jetzt kannst du dich darüber neu verbinden.</li>
 </ul>
 
 <h2><span class="tag">v1.0 · Build 54</span> Die App sagt, wenn die Cloud-Sicherung nicht mehr durchgeht <span class="date">August 2026</span></h2>
@@ -1062,15 +970,6 @@
   <li><strong>Se avevi scelto Gemini 3.6 Flash, resta la tua scelta.</strong> Funziona ancora, e il suo successore può consumare di più a ogni ricerca, quindi l'app non ti ci sposta senza chiedertelo. Puoi passare a Gemini 3.8 Flash quando vuoi.</li>
 </ul>
 
-<h2><span class="tag">v1.1 · Build 33</span> La barra superiore si tiene lontana dalla sfumatura che iOS dipinge sul margine dello schermo <span class="date">settembre 2026</span></h2>
-<!-- anchors: HEADER_BAND_CLEARANCE_PX, HEADER_BAND_CLEARANCE_PHONE_PX, headerTop, IS_IPHONE -->
-<h3>Importante</h3>
-<ul>
-  <li><strong>iOS 26 e 27 applicano una leggera sfumatura alla primissima fascia della pagina.</strong> Compare non appena hai fatto scorrere qualcosa, riguarda solo l'app installata nella schermata Home, e nulla dentro una pagina web può rimuoverla: il sistema la dipinge dopo tutto il resto. Non è il velo descritto più sotto, che invece è sparito davvero.</li>
-  <li><strong>Il titolo e i tre pulsanti in alto si trovano ora appena sotto.</strong> Iniziano esattamente dove quella sfumatura finisce, così restano nitidi mentre la fascia porta soltanto lo sfondo.</li>
-  <li><strong>L'altezza è stata misurata separatamente su iPhone e su iPad</strong>, che non collocano quella sfumatura alla stessa profondità. Ogni dispositivo conserva così il massimo spazio per il contenuto.</li>
-</ul>
-
 <h2><span class="tag">v1.1 · Build 19</span> La barra superiore torna a vedersi bene nell'app installata con iOS 27 <span class="date">settembre 2026</span></h2>
 <!-- anchors: apple-mobile-web-app-status-bar-style, THEME_COLOR_META, safeTop, HEADER_TOP_FLOOR, TOP_INSET_TRIM_PX -->
 <h3>Importante</h3>
@@ -1085,12 +984,6 @@
 <h3>Miglioramento</h3>
 <ul>
   <li><strong>La schermata «Seleziona gli elementi» ora spunta tutto in partenza.</strong> Prima partiva vuota: la via più breve — spuntare la prima sezione e confermare — lasciava indietro il resto, senza che nulla dicesse che cosa era appena stato escluso. Ora togli la spunta a ciò che non vuoi, il che corrisponde all'intenzione più comune e rende l'omissione voluta.</li>
-</ul>
-
-<h2><span class="tag">v1.1 · Build 10</span> Il pulsante di importazione CSV dice finalmente che cosa fa <span class="date">settembre 2026</span></h2>
-<h3>Miglioramento</h3>
-<ul>
-  <li><strong>«Importa tabacchi» si chiama ora «Importa un CSV».</strong> Dalla versione precedente un'esportazione completa riporta anche le tue pipe, i tuoi desideri e i tuoi accessori, ma il pulsante continuava a promettere i soli tabacchi, il che dava ogni ragione di credere che nulla fosse cambiato. Il nome, il messaggio di errore e la guida dicono ora la stessa cosa dell'azione.</li>
 </ul>
 
 <h2><span class="tag">v1.1 · Build 9</span> L'importazione CSV mostra che cosa farà e riporta pipe e accessori <span class="date">settembre 2026</span></h2>
@@ -1153,14 +1046,6 @@
 <ul>
   <li><strong>Le intestazioni sono riconosciute nelle sei lingue dell'app.</strong> Il lettore conosceva solo francese e inglese, mentre il messaggio di errore nominava già le colonne obbligatorie con le parole di ciascuna lingua. Scrivi « Marca » e « Nome »: il file viene importato.</li>
   <li><strong>La colonna Stato capisce la parola della tua lingua.</strong> <em>Barattolo</em>, <em>Tarro</em>, <em>Glas</em>, <em>Frasco</em> arrivano come barattolo. Una parola che l'app non sa collocare viene ancora importata in cantina, ma ora è segnalata con il numero di riga, invece di trasformare in silenzio un barattolo aperto in una latta sigillata.</li>
-</ul>
-
-<h2><span class="tag">v1.0 · Build 56</span> Dropbox dice cosa non va e non ti butta più fuori dall'app <span class="date">agosto 2026</span></h2>
-<h3>Miglioramento</h3>
-<ul>
-  <li><strong>Un Dropbox pieno viene finalmente chiamato con il suo nome.</strong> Compariva il messaggio inglese grezzo del fornitore al posto del rimedio — liberare spazio — proprio nell'unico rifiuto in cui il rimedio conta.</li>
-  <li><strong>Un'interruzione di rete non ti manda più su dropbox.com.</strong> L'app confondeva «la chiamata è fallita» con «la tua autorizzazione è morta»: lasciava la tua cantina per farti riconnettere, quando non c'era nulla da riconnettere. Offline bisognava chiuderla e riaprirla.</li>
-  <li><strong>Il pannello cloud offre finalmente una via d'uscita.</strong> Quando la sessione con il tuo fornitore scadeva, i suoi due pulsanti non portavano da nessuna parte. Ora permettono di riconnettersi.</li>
 </ul>
 
 <h2><span class="tag">v1.0 · Build 54</span> L'app dice quando il backup nel cloud non passa più <span class="date">agosto 2026</span></h2>
@@ -1280,15 +1165,6 @@
   <li><strong>Se tinha escolhido o Gemini 3.6 Flash, continua a ser a sua escolha.</strong> Continua a funcionar, e o seu sucessor pode consumir mais em cada pesquisa, por isso a app não o muda para ele sem perguntar. Pode mudar para o Gemini 3.8 Flash quando quiser.</li>
 </ul>
 
-<h2><span class="tag">v1.1 · Build 33</span> A barra superior mantém-se afastada do esbatimento que o iOS pinta na extremidade do ecrã <span class="date">setembro 2026</span></h2>
-<!-- anchors: HEADER_BAND_CLEARANCE_PX, HEADER_BAND_CLEARANCE_PHONE_PX, headerTop, IS_IPHONE -->
-<h3>Importante</h3>
-<ul>
-  <li><strong>O iOS 26 e o 27 aplicam um ligeiro esbatimento à primeira faixa da página.</strong> Aparece assim que tiver deslocado alguma coisa, afeta apenas a app instalada no ecrã principal, e nada dentro de uma página web o consegue remover: o sistema pinta-o depois de tudo o resto. Não é o véu descrito mais abaixo, esse desapareceu mesmo.</li>
-  <li><strong>O título e os três botões do topo ficam agora logo por baixo.</strong> Começam exatamente onde esse esbatimento termina, pelo que se mantêm nítidos enquanto a faixa leva apenas o fundo.</li>
-  <li><strong>A altura foi medida separadamente no iPhone e no iPad</strong>, que não colocam esse esbatimento à mesma profundidade. Cada aparelho conserva assim o máximo de espaço para o conteúdo.</li>
-</ul>
-
 <h2><span class="tag">v1.1 · Build 19</span> A barra superior volta a ficar bem na app instalada com o iOS 27 <span class="date">setembro 2026</span></h2>
 <!-- anchors: apple-mobile-web-app-status-bar-style, THEME_COLOR_META, safeTop, HEADER_TOP_FLOOR, TOP_INSET_TRIM_PX -->
 <h3>Importante</h3>
@@ -1303,12 +1179,6 @@
 <h3>Melhoria</h3>
 <ul>
   <li><strong>O ecrã «Selecionar os elementos» passa a assinalar tudo de início.</strong> Antes começava vazio: o caminho mais curto — assinalar a primeira secção e confirmar — deixava o resto para trás, sem que nada dissesse o que acabara de ser posto de lado. Agora <em>desmarca</em> o que não quiser, o que corresponde à intenção mais comum e torna a omissão deliberada.</li>
-</ul>
-
-<h2><span class="tag">v1.1 · Build 10</span> O botão de importação CSV diz finalmente o que faz <span class="date">setembro 2026</span></h2>
-<h3>Melhoria</h3>
-<ul>
-  <li><strong>«Importar tabacos» passa a chamar-se «Importar um CSV».</strong> Desde a versão anterior, uma exportação completa traz também os seus cachimbos, desejos e acessórios — mas o botão continuava a prometer apenas tabacos, o que dava todas as razões para crer que nada tinha mudado. O nome, a mensagem de falha e o guia dizem agora o mesmo que a ação.</li>
 </ul>
 
 <h2><span class="tag">v1.1 · Build 9</span> A importação CSV mostra o que vai fazer e traz de volta cachimbos e acessórios <span class="date">setembro 2026</span></h2>
@@ -1371,14 +1241,6 @@
 <ul>
   <li><strong>Os cabeçalhos são reconhecidos nas seis línguas da app.</strong> O leitor só conhecia o francês e o inglês, embora a mensagem de erro já nomeasse as colunas obrigatórias com as palavras de cada língua. Escreva « Marca » e « Nome »: o ficheiro é importado.</li>
   <li><strong>A coluna Estado entende a palavra da sua língua.</strong> <em>Frasco</em>, <em>Tarro</em>, <em>Glas</em>, <em>Barattolo</em> chegam como frasco. Uma palavra que a app não consegue colocar continua a ser importada na adega — mas agora é assinalada, com o número da linha, em vez de transformar em silêncio um frasco aberto numa lata selada.</li>
-</ul>
-
-<h2><span class="tag">v1.0 · Build 56</span> O Dropbox diz o que está mal e já não o expulsa da aplicação <span class="date">agosto 2026</span></h2>
-<h3>Melhoria</h3>
-<ul>
-  <li><strong>Um Dropbox cheio é finalmente nomeado como tal.</strong> Aparecia a mensagem em inglês do fornecedor em vez do remédio — libertar espaço — precisamente na única recusa em que o remédio conta.</li>
-  <li><strong>Um corte de rede já não o envia para dropbox.com.</strong> A aplicação confundia «a chamada falhou» com «a sua autorização morreu»: abandonava a sua cave para o obrigar a ligar-se de novo, quando não havia nada a ligar. Sem rede, era preciso fechar e reabrir.</li>
-  <li><strong>O painel da nuvem oferece finalmente uma saída.</strong> Quando a sessão com o seu fornecedor expirava, os seus dois botões não levavam a lado nenhum. Agora permitem voltar a ligar.</li>
 </ul>
 
 <h2><span class="tag">v1.0 · Build 54</span> A aplicação avisa quando a cópia na nuvem deixa de passar <span class="date">agosto 2026</span></h2>

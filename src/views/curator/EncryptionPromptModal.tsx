@@ -89,7 +89,7 @@ export function CuratorEncryptionPromptModal() {
         <div style={{ fontFamily: F.body, fontSize: fs(15), color: C.tx2, lineHeight: 1.55, marginBottom: 14 }}>
           {mode === "setup"
             ? (t ? t("enc_setup_body") : "Choisissez une phrase secrète (≥ 8 caractères). Elle sera demandée à chaque sauvegarde ou restauration cloud.")
-            : (t ? t("enc_unlock_body") : "Entrez votre phrase secrète pour déverrouiller le chiffrement Drive sur cet appareil.")}
+            : (t ? t("enc_unlock_body") : "Entrez votre phrase secrète pour déverrouiller le chiffrement des sauvegardes cloud sur cet appareil.")}
         </div>
         <label style={{ display: "block", marginBottom: 10 }}>
           <div style={{ fontFamily: F.mono, fontSize: fs(11.5), color: C.tx3, letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 4 }}>

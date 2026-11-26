@@ -202,7 +202,7 @@ export function CuratorTermsGate() {
           }}>
             {t ? t("terms_local_pre") : "L'application stocke tout"}{" "}
             <strong style={{ color: C.brassHi }}>{t ? t("terms_local_strong") : "localement sur votre appareil"}</strong>
-            {t ? t("terms_local_post") : ". Rien n'est envoyé ailleurs sauf si vous activez une sauvegarde cloud (Dropbox ou Google Drive) ou utilisez l'assistant IA optionnel."}
+            {t ? t("terms_local_post") : ". Rien n'est envoyé ailleurs sauf si vous activez une sauvegarde cloud (Dropbox ou Google Drive) ou utilisez l'assistant IA ou la localisation des séances, tous deux optionnels."}
           </div>
 
           {/* Best-effort warranty + backup reminder (i18n keys
