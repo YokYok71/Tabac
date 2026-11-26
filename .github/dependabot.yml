@@ -19,9 +19,12 @@
 # while they were, this file was the ONLY Dependabot running here: no
 # CVE alert could fire, whatever the line above promised.
 #
-# Auto-merge: NOT enabled. Each PR runs through CI (deploy.yml + codeql)
-# and a human eyeballs the changelog before merging — we don't want a
-# silent breaking minor.
+# Auto-merge: NOT enabled — and the PRs are not merged at all. Each runs
+# through CI (deploy.yml + codeql); the week's bumps are then applied
+# together in ONE commit after the gates and a dist/ comparison, and
+# Dependabot closes its own PRs once main carries the versions. The full
+# routine, and what to check per kind of package, is in docs/checks.md
+# (« Dependency updates — every Sunday »).
 version: 2
 updates:
   - package-ecosystem: "npm"

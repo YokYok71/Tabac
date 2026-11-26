@@ -37,7 +37,7 @@
 │   └── data-only-release.cjs # Writes public/version.json for a runtime-neutral release
 │
 ├── .github/
-│   ├── dependabot.yml    # Dependency update PRs
+│   ├── dependabot.yml    # Dependency update PRs — Sunday 06:00 Paris; how they are processed: docs/checks.md « Dependency updates »
 │   ├── codeql/
 │   │   └── codeql-config.yml # Scopes CodeQL to production code (tests excluded)
 │   └── workflows/
@@ -45,8 +45,8 @@
 │       ├── checks.yml    # Fast lane on push + pull_request: typecheck, lint, prune, tests, doc:check
 │       ├── browser.yml   # The browser campaigns on pull requests, path-filtered
 │       ├── lighthouse.yml # Lighthouse CI + size:check
-│       ├── codeql.yml    # CodeQL analysis (push, pull_request, weekly)
-│       └── cdn-check.yml # Weekly check of runtime CDN dependencies
+│       ├── codeql.yml    # CodeQL analysis (push, pull_request, weekly — Sunday 03:00 UTC)
+│       └── cdn-check.yml # Weekly check of runtime CDN dependencies (Sunday 05:00 UTC)
 │
 ├── eslint-rules/         # Fourteen local rules. Each automates a paragraph that was prose
 │                         # first and got broken anyway — the index is in docs/checks.md.

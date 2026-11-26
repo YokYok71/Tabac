@@ -12,7 +12,7 @@
 | [`docs/ui.md`](docs/ui.md) | The Curator shell and its layout invariants, the design tokens and themes, the accessibility rules, fonts and viewport. |
 | [`docs/integrations.md`](docs/integrations.md) | The catalogue, the AI auto-fill, Google Drive / Dropbox, photos, scroll and back navigation, backup encryption. |
 | [`docs/storage-keys.md`](docs/storage-keys.md) | Every `localStorage` / `sessionStorage` key, what writes it and whether it travels in a backup. |
-| [`docs/checks.md`](docs/checks.md) | The npm scripts, the per-build checklist, the doc:check gates, the i18n rules, the ESLint rule index, the bundle budgets. |
+| [`docs/checks.md`](docs/checks.md) | The npm scripts, the per-build checklist, the doc:check gates, the i18n rules, the ESLint rule index, the bundle budgets, the Sunday dependency routine. |
 | [`docs/history.md`](docs/history.md) | Findings kept for their reasoning: what broke, how it was measured, which fix was rejected and why. |
 
 **Two rules for editing any of them, and both were learned in the split itself.** (1) **When you add a doc file, add it to `docChecks.DOC_FILES`** — a gate that stops seeing its subject reports NOTHING, which reads exactly like a clean repo; `docFiles.test.ts` inverts the burden and walks the `docs/*.md` git tracks rather than restating the list, so a seventh file cannot ship uncovered. (2) **A numeric label contract names the file its number lives in** (`scripts/label-contracts.json`): seven of the eight contracts pointing at CLAUDE.md went red the moment their paragraph moved, named their number and their new home, and were repointed — the gate behaving exactly as designed, which is the argument for having written it.
