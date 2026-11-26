@@ -360,20 +360,33 @@ export function findDuplicateEntry(
   name: string,
   opts?: { excludeId?: any },
 ): any | null {
+  return findDuplicateEntries(list, brand, name, opts)[0] || null;
+}
+
+/** EVERY colliding row, in list order — the same rule as findDuplicateEntry.
+ *  « Acquérir » on a wish needs them all: two live tabacs can legitimately
+ *  share brand + name (two vintages), and adding the lot to the first one in
+ *  array order, without saying which, put it on a tabac the user could not
+ *  see or choose. */
+export function findDuplicateEntries(
+  list: any[] | null | undefined,
+  brand: string,
+  name: string,
+  opts?: { excludeId?: any },
+): any[] {
   var b = String(brand || "").trim();
   var n = String(name || "").trim();
-  if (!b || !n) return null;
+  if (!b || !n) return [];
   var k = dupKey({ brand: b, name: n });
   var ckey = tobaccoDbCanonicalKey(b, n);
   var excludeId = opts ? opts.excludeId : undefined;
-  var hit = (Array.isArray(list) ? list : []).find(function (x: any) {
+  return (Array.isArray(list) ? list : []).filter(function (x: any) {
     if (!x || x.deletedAt) return false;
     if (excludeId !== undefined && x.id === excludeId) return false;
     if (dupKey(x) === k) return true;
     if (ckey && tobaccoDbCanonicalKey(x.brand, x.name) === ckey) return true;
     return false;
   });
-  return hit || null;
 }
 
 export interface ImportConfirmState {

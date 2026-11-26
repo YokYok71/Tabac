@@ -646,3 +646,17 @@ describe("TobaccoFormView — le chemin d'écriture", () => {
     expect(add).not.toHaveBeenCalled();
   });
 });
+
+describe("TobaccoFormView — ticking « Plus disponible » clears a hand-added list entry", () => {
+  it("writes toBuy:false with discontinued:true", () => {
+    const set = vi.fn();
+    const form = { ...emptyForm, toBuy: true };
+    const { container } = renderWithCtx(<CuratorTobaccoFormView />, { view: "addT", form, setForm: set });
+    const box = Array.from(container.querySelectorAll('[role="checkbox"]'))
+      .find((el) => (el.textContent || "").indexOf("lbl_discontinued_q") !== -1) as HTMLElement;
+    fireEvent.click(box);
+    const arg = set.mock.calls[0]![0];
+    const next = typeof arg === "function" ? arg(form) : arg;
+    expect(next).toMatchObject({ discontinued: true, toBuy: false });
+  });
+});

@@ -1517,3 +1517,28 @@ describe("InventoryListView — Acquérir a wish you already own", () => {
     expect(wishToInv).toHaveBeenCalledWith(wish);
   });
 });
+
+// B6 (review of 26 Nov): two live tabacs with the same brand + name — the lot
+// used to go silently to the first in array order. Every match is offered,
+// each button saying which tabac it is (live lots, stock).
+describe("InventoryListView — Acquérir with several owned matches", () => {
+  it("offers one button per match, and the one tapped gets the lot", () => {
+    const wish = { id: 7, brand: "Brackwater", name: "Duskfall" };
+    const a = { ...mkTob(3), brand: "Brackwater", name: "Duskfall" };
+    const b = { ...mkTob(4), brand: "Brackwater", name: "Duskfall" };
+    const setDetail = vi.fn(), setLotFormRequest = vi.fn(), wishToInv = vi.fn();
+    const { container } = renderWith({
+      ...baseCtx, statusFilter: "wish", filtered: [], BW: { id: 0 },
+      data: { tobaccos: [a, b], wishlist: [wish] }, setDetail, setLotFormRequest, wishToInv,
+    });
+    fireEvent.click(Array.from(container.querySelectorAll("button")).find(x => /btn_acquire/.test(x.textContent || ""))!);
+    const picks = Array.from(document.querySelectorAll("button, [role='button']"))
+      .filter(x => (x.textContent || "").indexOf("acq_owned_add_lot_to") === 0) as HTMLElement[];
+    expect(picks).toHaveLength(2);
+    expect(document.body.textContent).toContain("acq_owned_text_many");
+    fireEvent.click(picks[1]!);
+    expect(setDetail).toHaveBeenCalledWith(b);
+    expect(setLotFormRequest).toHaveBeenCalledWith({ tobId: 4, fromWishId: 7 });
+    expect(wishToInv).not.toHaveBeenCalled();
+  });
+});

@@ -7,7 +7,7 @@
 // clipboard as plain text. Mounted in CuratorApp next to the other modals;
 // open/close via ctx.shoppingOpen / ctx.setShoppingOpen.
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAppCtx } from "../../AppContext.tsx";
 import { alpha, fs, C, F, CARD_BG } from "../../theme-curator.ts";
 import { Lbl } from "../../components/curator/primitives.tsx";
@@ -17,7 +17,7 @@ import { Notice } from "../../components/curator/Notice.tsx";
 import { safeBgUrl } from "../../utils/imgCache.ts";
 import { lsGet, lsSet } from "../../utils/appStorage.ts";
 import { safeJsonParse } from "../../utils/safeJson.ts";
-import { computeShoppingList, type ShoppingItem, lowStockThreshold } from "../../utils/shopping.ts";
+import { computeShoppingList, type ShoppingItem, lowStockThreshold, shoppingReason } from "../../utils/shopping.ts";
 
 const CHECKED_KEY = "cave-shopping-checked";
 
@@ -35,19 +35,88 @@ export function CuratorShoppingModal() {
     setTobaccoToBuy, setTobaccoDiscontinued, setTobaccoRebuy, delWish,
   } = ctx;
   const tr = (k: string, frFallback: string) => (t ? t(k) : frFallback);
-  const close = () => setShoppingOpen && setShoppingOpen(false);
+  // Closing also folds an open « Pourquoi ? » panel: the modal stays mounted
+  // once opened, so the panel would otherwise greet the user on the next visit.
+  const close = () => { setAsking(null); setFocusKey(null); if (setShoppingOpen) setShoppingOpen(false); };
 
   const [checked, setChecked] = useState<Set<string>>(readChecked);
   const [copied, setCopied] = useState(false);
   // The row whose « Pourquoi le retirer ? » panel is open (its `key`), if any.
   const [asking, setAsking] = useState<string | null>(null);
 
+  const threshold = lowStockThreshold(watchLowWeight, weightUnit);
   const list = shoppingOpen
     ? computeShoppingList(data?.tobaccos || [], data?.wishlist || [], {
-        lowWeightThreshold: lowStockThreshold(watchLowWeight, weightUnit),
+        lowWeightThreshold: threshold,
       })
     : { restock: [], wishes: [] };
   const total = list.restock.length + list.wishes.length;
+  const order = list.restock.concat(list.wishes).map((i) => i.key);
+  const orderSig = order.join("|");
+
+  // A TICK BELONGS TO A ROW ON SCREEN. `restock:<id>` is reused for the life
+  // of the tabac, and ticks were never pruned: a tabac ticked in the shop,
+  // taken off the list when its tin was recorded, and listed again a month
+  // later came back ALREADY TICKED — struck through and left out of « Copier
+  // la liste ». While the list is open, any stored tick that names no visible
+  // row is dropped (and the pruned set saved). Not while closed: the list is
+  // not computed then, and every tick would look stale.
+  useEffect(() => {
+    if (!shoppingOpen) return;
+    const visible = new Set(orderSig ? String(orderSig).split("|") : []);
+    setChecked((prev) => {
+      let stale = false;
+      prev.forEach((k) => { if (!visible.has(k)) stale = true; });
+      if (!stale) return prev;
+      const next = new Set(Array.from(prev).filter((k) => visible.has(k)));
+      lsSet(CHECKED_KEY, JSON.stringify(Array.from(next)));
+      return next;
+    });
+  }, [shoppingOpen, orderSig]);
+
+  // FOCUS NEVER FALLS TO THE PAGE. Closing the « Pourquoi ? » panel or
+  // removing a row unmounts the very button that had focus, which left it on
+  // <body> — and the modal's trap only reacts to Tab on its first/last
+  // element, so the next Tab could land behind the dialog. After each of
+  // those, focus goes to a named target: the row's own × (panel closed, row
+  // kept), else the next row's ×, else the previous one, else the dialog's
+  // first button.
+  const removeRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  // The row order at the moment of a removal, to find the row that FOLLOWED it.
+  const pendingOrderRef = useRef<string[] | null>(null);
+  useEffect(() => {
+    if (!focusKey) return;
+    const keys = orderSig ? String(orderSig).split("|") : [];
+    let el: HTMLElement | null = null;
+    if (focusKey.indexOf("after:") === 0) {
+      const gone = focusKey.slice(6);
+      const at = keys.indexOf(gone);
+      // Still listed: the save that removes it has not re-rendered yet. Keep
+      // the target pending until the row order changes; focusing the row's own
+      // × now would hand focus to a button about to unmount.
+      if (at >= 0) return;
+      {
+        const was = (pendingOrderRef.current || []).indexOf(gone);
+        const near = (pendingOrderRef.current || []).slice(was + 1).concat((pendingOrderRef.current || []).slice(0, was).reverse())
+          .find((k) => keys.indexOf(k) >= 0);
+        if (near) el = removeRefs.current[near] || null;
+      }
+    } else {
+      el = removeRefs.current[focusKey] || null;
+    }
+    if (!el && bodyRef.current) {
+      const dlg = bodyRef.current.closest("[role='dialog']") as HTMLElement | null;
+      el = (dlg && dlg.querySelector("button")) as HTMLElement | null;
+    }
+    if (el) el.focus({ preventScroll: true });
+    setFocusKey(null);
+  }, [focusKey, orderSig]);
+  const focusAfterRemoving = (key: string) => {
+    pendingOrderRef.current = order.slice();
+    setFocusKey("after:" + key);
+  };
 
   function toggle(key: string) {
     setChecked((prev) => {
@@ -94,10 +163,21 @@ export function CuratorShoppingModal() {
       // `it.id` is stringified; delWish matches the stored id STRICTLY.
       const w = (data?.wishlist || []).find((x: any) => String(x?.id) === it.id);
       if (w && delWish) delWish(w.id);
+      focusAfterRemoving(it.key);
       return;
     }
     if (it.reason === "manual") {
+      // A hand-added tabac that is ALSO low or used up would stay listed once
+      // its flag is cleared — the × did nothing visible, and only a second
+      // tap asked why. Ask straight away instead; the answer clears the flag
+      // too (setTobaccoDiscontinued / setTobaccoRebuy).
+      const tob = (data?.tobaccos || []).find((x: any) => String(x?.id) === it.id);
+      if (tob && shoppingReason(Object.assign({}, tob, { toBuy: false }), threshold)) {
+        setAsking(it.key);
+        return;
+      }
       if (setTobaccoToBuy) setTobaccoToBuy(it.id, false);
+      focusAfterRemoving(it.key);
       return;
     }
     setAsking(it.key);
@@ -106,6 +186,11 @@ export function CuratorShoppingModal() {
     setAsking(null);
     if (why === "discontinued") { if (setTobaccoDiscontinued) setTobaccoDiscontinued(it.id, true); }
     else if (setTobaccoRebuy) setTobaccoRebuy(it.id, false);
+    focusAfterRemoving(it.key);
+  }
+  function cancelAsking(it: ShoppingItem) {
+    setAsking(null);
+    setFocusKey(it.key);
   }
 
   function copyList() {
@@ -230,8 +315,9 @@ export function CuratorShoppingModal() {
             at the row's end read as two actions on the same thing, and it cost
             the name 25 px. The row is still one button that opens the fiche. */}
         <button type="button" onClick={() => removeItem(it)}
+          ref={(el) => { removeRefs.current[it.key] = el; }}
           aria-label={tr("shopping_remove_item", "Retirer de la liste") + (label ? " · " + label : "")}
-          aria-expanded={it.kind === "restock" && it.reason !== "manual" ? asking === it.key : undefined}
+          aria-expanded={it.kind === "restock" ? asking === it.key : undefined}
           style={{
             // 44 px target, same reasoning as the tick box on the left.
             width: 44, height: 44, flexShrink: 0, padding: 0, cursor: "pointer",
@@ -261,7 +347,7 @@ export function CuratorShoppingModal() {
                   fontFamily: F.body, fontSize: fs(14), fontWeight: 600, textAlign: "left",
                 }}>{text}</button>
             ))}
-            <button type="button" onClick={() => setAsking(null)}
+            <button type="button" onClick={() => cancelAsking(it)}
               style={{
                 minHeight: 44, padding: "8px 12px", borderRadius: 8, cursor: "pointer",
                 border: "none", background: "transparent", color: C.tx2,
@@ -300,7 +386,7 @@ export function CuratorShoppingModal() {
         onClose={close}
         accent={C.amber}
       />
-      <div style={{ padding: "4px 18px 18px" }}>
+      <div ref={bodyRef} style={{ padding: "4px 18px 18px" }}>
         {total === 0 ? (
           <Notice tone="info">{tr("shopping_empty", "Rien à acheter pour l'instant — votre cave est bien remplie et votre liste d'envies est vide.")}</Notice>
         ) : (

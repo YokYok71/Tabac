@@ -175,3 +175,56 @@ describe("CuratorShoppingModal — Retirer", () => {
     expect(setTobaccoDiscontinued).not.toHaveBeenCalled();
   });
 });
+
+// Review of 26 Nov — B1 (stale ticks), B5 (hand-added AND low), B7 (focus).
+import { act as _act } from "@testing-library/react";
+import { AppCtx } from "../../AppContext";
+
+describe("CuratorShoppingModal — review fixes", () => {
+  beforeEach(() => { try { localStorage.clear(); } catch { /* ignore */ } });
+  const removeBtn = (getByLabelText: any, name: string) => getByLabelText(new RegExp("shopping_remove_item.*" + name));
+
+  it("B1: a stored tick naming no visible row is pruned, so a row that comes back is not pre-ticked", () => {
+    localStorage.setItem("cave-shopping-checked", JSON.stringify(["restock:99", "wish:5"]));
+    renderWithCtx(<CuratorShoppingModal />, baseCtx);
+    expect(JSON.parse(localStorage.getItem("cave-shopping-checked")!)).toEqual(["wish:5"]);
+  });
+
+  it("B5: × on a hand-added tabac that is ALSO low asks why instead of doing nothing visible", () => {
+    const setTobaccoToBuy = vi.fn(), setTobaccoRebuy = vi.fn();
+    const both = { id: 3, brand: "B", name: "Both", toBuy: true, lots: [{ status: "jar", weightG: "10" }] };
+    const { getByLabelText, getByText, container } = renderWithCtx(<CuratorShoppingModal />, {
+      ...baseCtx, setTobaccoToBuy, setTobaccoRebuy, data: { ...baseCtx.data, tobaccos: [both], wishlist: [] },
+    });
+    fireEvent.click(removeBtn(getByLabelText, "Both"));
+    expect(setTobaccoToBuy).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("shopping_why_hint");
+    fireEvent.click(getByText("shopping_why_norebuy"));
+    expect(setTobaccoRebuy).toHaveBeenCalledWith("3", false);
+  });
+
+  it("B7: « Annuler » returns focus to the row's ×, never to the page", async () => {
+    const { getByLabelText, getByText } = renderWithCtx(<CuratorShoppingModal />, {
+      ...baseCtx, setTobaccoDiscontinued: vi.fn(), setTobaccoRebuy: vi.fn(),
+    });
+    const x = removeBtn(getByLabelText, "Duskfall");
+    fireEvent.click(x);
+    await _act(async () => { fireEvent.click(getByText("btn_cancel")); });
+    expect(document.activeElement).toBe(x);
+  });
+
+  it("B7: removing the last row moves focus to the previous row's ×", async () => {
+    const delWish = vi.fn();
+    const ctx = { ...baseCtx, delWish, t: (k: string) => k } as any;
+    const { getByLabelText, rerender } = renderWithCtx(<CuratorShoppingModal />, ctx);
+    const prev = removeBtn(getByLabelText, "Duskfall");
+    await _act(async () => { fireEvent.click(removeBtn(getByLabelText, "Irish Flake")); });
+    // The wish is gone from the data, as after delWish.
+    const after = { ...ctx, data: { ...ctx.data, wishlist: [] } };
+    await _act(async () => {
+      rerender(<AppCtx.Provider value={{ ...after, nav: vi.fn(), lang: "fr" }}><CuratorShoppingModal /></AppCtx.Provider>);
+    });
+    expect(document.activeElement).toBe(prev);
+    expect(document.activeElement).not.toBe(document.body);
+  });
+});

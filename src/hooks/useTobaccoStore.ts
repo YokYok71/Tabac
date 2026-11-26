@@ -246,13 +246,21 @@ export function useTobaccoStore({
   /** « Plus disponible à l'achat ». Same write rules as `setTobaccoToBuy`:
    *  stamped, and OFF is an explicit `false`. */
   function setTobaccoDiscontinued(tobId: any, on: boolean) {
-    patchTobaccoFlags(tobId, { discontinued: !!on });
+    // ON also clears a hand-added `toBuy`: « plus disponible » means there is
+    // nothing to go and buy, and the form's hint promises the tabac leaves
+    // the list. Before, a manual entry won over it (`shoppingReason` checks
+    // `toBuy` first) and the tabac stayed listed under a hint that said
+    // otherwise. Adding it back by hand afterwards is still possible.
+    patchTobaccoFlags(tobId, on ? { discontinued: true, toBuy: false } : { discontinued: false });
   }
 
   /** The tri-state « À reprendre ? » (true / false / null), set from outside
    *  the form — the shopping list's « Je ne veux pas le racheter ». */
   function setTobaccoRebuy(tobId: any, value: boolean | null) {
-    patchTobaccoFlags(tobId, { rebuy: value === true ? true : value === false ? false : null });
+    // « Je ne veux pas le racheter » takes a hand-added entry off too, for the
+    // same reason as `setTobaccoDiscontinued`.
+    if (value === false) patchTobaccoFlags(tobId, { rebuy: false, toBuy: false });
+    else patchTobaccoFlags(tobId, { rebuy: value === true ? true : null });
   }
 
   /** The shared write behind the three flag setters above. Two things it must
@@ -371,25 +379,33 @@ export function useTobaccoStore({
       if (t.id !== tobId) return t;
       var next = Object.assign({}, t, { lots: (t.lots || []).concat(newLots) });
       // Recording a new tin IS the purchase: a tabac put on the shopping list
-      // by hand leaves it here. Written as an explicit `false` and stamped, so
-      // the clearing wins a later merge against a device that still carries
-      // the flag — see setTobaccoToBuy for why the key is not deleted.
-      if (next.toBuy) {
-        next.toBuy = false;
-        next.updatedAt = new Date().toISOString();
-      }
+      // by hand leaves it here. Written as an explicit `false` and stamped
+      // ALWAYS — not only when this device sees the flag. It used to be
+      // conditional, and the review of 26 Nov showed the gap: the phone adds
+      // the tabac to the list at 10:00, the tablet (still on its 09:00 copy,
+      // no flag) records the tin at 11:00 and stamps nothing, so merging the
+      // phone's backup put the tabac BACK on the list. A purchase is a change
+      // to the row; the merge must see it as the newer one.
+      next.toBuy = false;
+      next.updatedAt = new Date().toISOString();
       return next;
     });
     var nd = Object.assign({}, data, { tobaccos: tobs });
     // The lot was bought FROM a wish (« Acquérir » on a tabac already owned):
-    // retire that wish in the SAME save, exactly as `addTobacco` does for the
-    // new-tabac path through `fromWishRef` — removed, not trashed, since it
-    // was fulfilled, not deleted. Matched by String: the id came through UI
-    // state. A cancelled lot form never reaches here, so the wish survives it.
+    // retire that wish in the SAME save. SOFT-deleted (`deletedAt`), into the
+    // 30-day trash — the first version removed it outright, like `addTobacco`'s
+    // `fromWishRef` path, but there the wish's fields travel into the new
+    // tabac's form; here NOTHING from it is carried over, so its notes,
+    // priority and photo were simply destroyed, beyond the reach of undo or
+    // the trash. Matched by String: the id came through UI state. A cancelled
+    // lot form never reaches here, so the wish survives it.
     if (opts && opts.fromWishId !== undefined && opts.fromWishId !== null) {
       var wid = String(opts.fromWishId);
+      var nowIso = new Date().toISOString();
       nd = Object.assign({}, nd, {
-        wishlist: (nd.wishlist || []).filter(function (w: any) { return String(w && w.id) !== wid; }),
+        wishlist: (nd.wishlist || []).map(function (w: any) {
+          return w && String(w.id) === wid && !w.deletedAt ? Object.assign({}, w, { deletedAt: nowIso }) : w;
+        }),
       });
     }
     save(nd);

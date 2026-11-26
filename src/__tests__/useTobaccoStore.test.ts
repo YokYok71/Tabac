@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useTobaccoStore } from "../hooks/useTobaccoStore";
+import { applyEntityLww } from "../hooks/useImportConfirm";
 import { BT, BL } from "../constants";
 import { countActive, hasActive, isUntrackedWeight } from "../utils";
 import { isUsableLot, stepApplyDelta, stepAutoFinish } from "../utils/lotUtils";
@@ -471,14 +472,34 @@ describe("useTobaccoStore — setTobaccoToBuy", () => {
     expect(tobs[1].toBuy).toBe(true);
   });
 
-  it("adding a lot to a tabac that was not on the list does not stamp it", () => {
+  // REVERSED on 26 Nov. This case pinned « not on the list here → no stamp »,
+  // and that was the merge bug: another device may hold the flag this one
+  // never saw (phone adds to the list at 10:00, tablet on its 09:00 copy
+  // records the tin at 11:00), and an unstamped purchase lost the merge, so
+  // the tabac came back on the list. A purchase now ALWAYS writes toBuy:false
+  // and stamps the row.
+  it("adding a lot always writes toBuy:false and stamps, even when this device never saw the flag", () => {
     const save = vi.fn();
     const data = makeData({ tobaccos: [makeTob(1, [])] });
     const { result } = renderHook(() => useTobaccoStore(makeDeps(data, save)));
     act(() => {
       result.current.addLotToTobacco(1, Object.assign({}, BL, { weightInitial: "50", weightG: "50" }));
     });
-    expect(save.mock.calls[0]![0].tobaccos[0].updatedAt).toBeUndefined();
+    expect(save.mock.calls[0]![0].tobaccos[0].toBuy).toBe(false);
+    expect(typeof save.mock.calls[0]![0].tobaccos[0].updatedAt).toBe("string");
+  });
+
+  it("and therefore wins the merge against the device that still holds the flag", () => {
+    const save = vi.fn();
+    const tablet = makeData({ tobaccos: [makeTob(1, [], { updatedAt: "2026-11-01T09:00:00Z" })] });
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(tablet, save)));
+    act(() => {
+      result.current.addLotToTobacco(1, Object.assign({}, BL, { weightInitial: "50", weightG: "50" }));
+    });
+    const local = save.mock.calls[0]![0].tobaccos[0];
+    const phone = Object.assign({}, makeTob(1, []), { toBuy: true, updatedAt: "2026-11-01T10:00:00Z" });
+    const merged = applyEntityLww(local, phone, ["id", "uid", "brand", "name", "deletedAt", "imageUrl", "lots"]).row;
+    expect(merged.toBuy).toBe(false);
   });
 });
 
@@ -528,7 +549,10 @@ describe("useTobaccoStore — setTobaccoDiscontinued / setTobaccoRebuy", () => {
 // wish in the SAME save — and only that wish, and only when asked.
 describe("useTobaccoStore — addLotToTobacco fromWishId", () => {
   const wl = [{ id: 7, name: "W7" }, { id: 8, name: "W8" }];
-  it("removes that wish (matched by String, the id came through UI state)", () => {
+  // Soft-deleted, not removed: nothing from the wish is carried onto the tabac
+  // on this path, so a hard removal destroyed its notes, priority and photo
+  // beyond the reach of the trash (review of 26 Nov).
+  it("sends that wish to the trash (matched by String, the id came through UI state)", () => {
     const save = vi.fn();
     const data = makeData({ tobaccos: [makeTob(1, [])], wishlist: wl });
     const { result } = renderHook(() => useTobaccoStore(makeDeps(data, save)));
@@ -537,7 +561,9 @@ describe("useTobaccoStore — addLotToTobacco fromWishId", () => {
     });
     const saved = save.mock.calls[0]![0];
     expect(saved.tobaccos[0].lots).toHaveLength(1);
-    expect(saved.wishlist.map((w: any) => w.id)).toEqual([8]);
+    expect(saved.wishlist.map((w: any) => w.id)).toEqual([7, 8]);
+    expect(typeof saved.wishlist[0].deletedAt).toBe("string");
+    expect(saved.wishlist[1].deletedAt).toBeUndefined();
   });
   it("leaves the wishlist alone without it", () => {
     const save = vi.fn();
@@ -1378,5 +1404,19 @@ describe("useTobaccoStore — the starter lot invents no stock", () => {
     // The defect was inheriting that prefill where there is no field and no
     // user looking at it. Changing BL would silently change the form too.
     expect(BL.weightG).toBe("50");
+  });
+});
+
+describe("useTobaccoStore — « plus disponible » / « ne pas racheter » also clear a hand-added toBuy", () => {
+  it("setTobaccoDiscontinued(true) and setTobaccoRebuy(false) write toBuy:false; turning OFF leaves it", () => {
+    const save = vi.fn();
+    const data = makeData({ tobaccos: [makeTob(1, [], { toBuy: true }), makeTob(2, [], { toBuy: true }), makeTob(3, [], { toBuy: true })] });
+    const { result } = renderHook(() => useTobaccoStore(makeDeps(data, save)));
+    act(() => { result.current.setTobaccoDiscontinued(1, true); });
+    expect(save.mock.calls[0]![0].tobaccos[0]).toMatchObject({ discontinued: true, toBuy: false });
+    act(() => { result.current.setTobaccoRebuy(2, false); });
+    expect(save.mock.calls[1]![0].tobaccos[1]).toMatchObject({ rebuy: false, toBuy: false });
+    act(() => { result.current.setTobaccoDiscontinued(3, false); });
+    expect(save.mock.calls[2]![0].tobaccos[2].toBuy).toBe(true);
   });
 });

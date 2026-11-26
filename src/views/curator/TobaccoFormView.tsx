@@ -343,7 +343,9 @@ export function CuratorTobaccoFormView() {
           label={t ? t("lbl_discontinued_q") : "Plus disponible à l'achat"}
           hint={t ? t("discontinued_hint") : "Il ne figurera plus dans la liste de courses ni dans les rappels de stock bas. Le catalogue ne modifie jamais ce choix."}
           checked={!!form.discontinued}
-          onChange={(v: boolean) => set({ discontinued: v })}
+          // Ticking it also clears a hand-added shopping-list entry, as
+          // setTobaccoDiscontinued does — the hint above promises it.
+          onChange={(v: boolean) => set(v ? { discontinued: true, toBuy: false } : { discontinued: false })}
           accent={C.tx2}
         />
         <TextField label={t ? t("lbl_aging_max") : "Âge max cave (ans)"}

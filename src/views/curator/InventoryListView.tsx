@@ -20,7 +20,7 @@ import { Ico, IcoName } from "../../components/curator/icons.tsx";
 import { MaturityChip } from "../../components/curator/MaturityChip.tsx";
 import { ToggleBtn, ActiveFilterPill, ScrollableChipRow } from "../../components/curator/FilterControls.tsx";
 import { CuratorTrashIndicator } from "../../components/curator/TrashIndicator.tsx";
-import { computeShoppingList, shoppingCount, isLowStock, lowStockThreshold } from "../../utils/shopping.ts";
+import { computeShoppingList, shoppingCount, isLowStock, lowStockThreshold, tobaccoActiveWeight } from "../../utils/shopping.ts";
 import { compareByBrandThenName } from "../../utils/sortBrandName.ts";
 import { allTags } from "../../utils/tags.ts";
 import { FilterChipSimple } from "../../components/curator/FilterControls.tsx";
@@ -28,7 +28,7 @@ import { bumpFormSession } from "../../utils/formSession.ts";
 import { Modal, ModalHeader } from "../../components/curator/Modal.tsx";
 import { ModalAction } from "../../components/curator/ModalAction.tsx";
 import { AromaPicker } from "../../components/curator/AromaPicker.tsx";
-import { findDuplicateEntry } from "../../hooks/useImportConfirm.ts";
+import { findDuplicateEntries } from "../../hooks/useImportConfirm.ts";
 import { aromaLabelKey } from "../../utils/aromas.ts";
 import { lotMaturityBucket, scopeFromStatusFilter, scopedHeldWeight, scopedOldestAgeDays, scopeLabelKey, lotInScope, isRecentPurchase } from "../../utils/cellarInsights.ts";
 import { CATS_EN, CUTS_EN } from "../../constants.ts";
@@ -200,10 +200,13 @@ export function CuratorInventoryListView() {
   // wish by hand. The question is asked here instead, with the two answers as
   // buttons. Same duplicate rule as that banner (`findDuplicateEntry`, which
   // also knows catalogue synonyms), so the two can never disagree.
-  const [acquireAsk, setAcquireAsk] = useState<{ wish: any; tob: any } | null>(null);
+  // EVERY match, not the first: two live tabacs may share brand + name (two
+  // vintages), and the lot used to go to whichever came first in the array,
+  // with the dialog naming neither — the user could not see or choose which.
+  const [acquireAsk, setAcquireAsk] = useState<{ wish: any; tobs: any[] } | null>(null);
   const acquire = (w: any) => {
-    const owned = findDuplicateEntry(data?.tobaccos, w?.brand, w?.name);
-    if (owned) setAcquireAsk({ wish: w, tob: owned });
+    const owned = findDuplicateEntries(data?.tobaccos, w?.brand, w?.name);
+    if (owned.length) setAcquireAsk({ wish: w, tobs: owned });
     else if (wishToInv) wishToInv(w);
   };
   const [aromaDraft, setAromaDraft] = useState<string[]>([]);
@@ -1053,22 +1056,36 @@ export function CuratorInventoryListView() {
         {acquireAsk && (
           <div style={{ padding: "0 16px 18px" }}>
             <div style={{ fontFamily: F.display, fontStyle: "italic", fontSize: fs(18), color: C.ivory, marginBottom: 6, overflowWrap: "anywhere" }}>
-              {[acquireAsk.tob.brand, acquireAsk.tob.name].filter(Boolean).join(" — ")}
+              {[acquireAsk.tobs[0].brand, acquireAsk.tobs[0].name].filter(Boolean).join(" — ")}
             </div>
             <div style={{ fontSize: fs(14), color: C.tx2, lineHeight: 1.45, marginBottom: 14 }}>
-              {t ? t("acq_owned_text") : "Il est déjà dans votre inventaire. Pour une nouvelle boîte du même mélange, ajoutez-lui plutôt un lot : son historique reste au même endroit, et l'envie disparaît dès que le lot est enregistré."}
+              {acquireAsk.tobs.length > 1
+                ? (t ? t("acq_owned_text_many") : "Plusieurs tabacs de votre inventaire portent ce nom. Choisissez celui auquel ajouter le lot ; l'envie disparaît dès que le lot est enregistré.")
+                : (t ? t("acq_owned_text") : "Il est déjà dans votre inventaire. Pour une nouvelle boîte du même mélange, ajoutez-lui plutôt un lot : son historique reste au même endroit, et l'envie disparaît dès que le lot est enregistré.")}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <ModalAction variant="primary" onClick={() => {
-                const { wish, tob } = acquireAsk;
-                setAcquireAsk(null);
-                // Fiche first, then the request: InventoryDetailView opens the
-                // add-lot form once that fiche is the one on screen.
-                if (setDetail) setDetail(tob);
-                if (setLotFormRequest) setLotFormRequest({ tobId: tob.id, fromWishId: wish.id });
-              }}>
-                {t ? t("acq_owned_add_lot") : "Ajouter un lot à mon tabac"}
-              </ModalAction>
+              {acquireAsk.tobs.map((tob: any) => {
+                // With several matches each button says which tabac it is: its
+                // live lot count and the stock it holds.
+                // scope-ok: identifies the tabac in a choice between namesakes — the whole tabac, not a filtered slice.
+                const live = (tob.lots || []).filter((l: any) => l && !l.deletedAt && l.status !== "finished").length;
+                const detailLine = live + " " + (t ? (live > 1 ? t("lbl_lots_plural") : t("lbl_lot")) : "lot")
+                  + " · " + fmtNum(Math.round(tobaccoActiveWeight(tob) * 10) / 10) + weightUnit;
+                return (
+                  <ModalAction key={String(tob.id)} variant="primary" onClick={() => {
+                    const { wish } = acquireAsk;
+                    setAcquireAsk(null);
+                    // Fiche first, then the request: InventoryDetailView opens the
+                    // add-lot form once that fiche is the one on screen.
+                    if (setDetail) setDetail(tob);
+                    if (setLotFormRequest) setLotFormRequest({ tobId: tob.id, fromWishId: wish.id });
+                  }}>
+                    {acquireAsk.tobs.length > 1
+                      ? (t ? t("acq_owned_add_lot_to") : "Ajouter le lot à :") + " " + detailLine
+                      : (t ? t("acq_owned_add_lot") : "Ajouter un lot à mon tabac")}
+                  </ModalAction>
+                );
+              })}
               <ModalAction variant="secondary" onClick={() => {
                 const { wish } = acquireAsk;
                 setAcquireAsk(null);
