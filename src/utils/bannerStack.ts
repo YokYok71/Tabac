@@ -49,10 +49,13 @@ export interface TopBannerState {
   // checked `importModal` for exactly this reason; the banners were
   // never given the same gate.
   //
-  // The reachable case is destructive: with Settings open, "Vérifier les
-  // sauvegardes cloud" can raise the cloud-newer banner, whose "Restaurer"
-  // button calls stageImport(..., {autoApply:"replace"}) with NO confirmation —
-  // and it lands where the user is reaching to close Settings.
+  // The reachable case WAS destructive when this gate was written: with
+  // Settings open, "Vérifier les sauvegardes cloud" can raise the cloud-newer
+  // banner, whose "Restaurer" then called stageImport(..., {autoApply:"replace"})
+  // with NO confirmation — landing where the user is reaching to close
+  // Settings. It opens the Replace / Merge picker now; the gate stays, because
+  // a banner over a modal's close X and outside its focus trap is wrong
+  // whatever its button does.
   //
   // Standing down loses nothing: the state persists, so the banner appears the
   // moment the modal closes.

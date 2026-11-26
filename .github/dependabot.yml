@@ -5,7 +5,8 @@
 # without polling npm audit manually.
 #
 # Two ecosystems we depend on:
-#   - npm        : React, Vite, Vitest, fast-check, jsdom… (~70 deps)
+#   - npm        : React, Vite, Vitest, fast-check, jsdom… (2 runtime + 17 dev
+#                  dependencies in package.json, ~360 packages in the lockfile)
 #   - github-actions : checkout, setup-node, deploy-pages, codeql-action…
 #
 # Schedule weekly so the PR backlog stays manageable. CVE alerts ignore
@@ -20,7 +21,9 @@
 # CVE alert could fire, whatever the line above promised.
 #
 # Auto-merge: NOT enabled — and the PRs are not merged at all. Each runs
-# through CI (deploy.yml + codeql); the week's bumps are then applied
+# through the PR workflows (checks.yml, codeql.yml, lighthouse.yml, and
+# browser.yml when its paths are touched) — NOT deploy.yml, which runs only on
+# a push to main or by hand; the week's bumps are then applied
 # together in ONE commit after the gates and a dist/ comparison, and
 # Dependabot closes its own PRs once main carries the versions. The full
 # routine, and what to check per kind of package, is in docs/checks.md

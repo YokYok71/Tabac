@@ -8,9 +8,9 @@ import { createRequire } from "node:module";
 // the config itself stays ESM.
 const require = createRequire(import.meta.url);
 const stringLocaleCompareRule = require("./eslint-rules/string-locale-compare.cjs");
-// Companion rule for the wider String-only-method family
-// — set at "warn" so it surfaces during development without blocking
-// CI on legitimate uses.
+// Companion rule for the wider String-only-method family. It started at
+// "warn" and was promoted to "error" (see docs/checks.md, ESLint rule index):
+// it now blocks CI, and a legitimate use carries an explicit String(…) wrap.
 const stringOnlyMethodRule = require("./eslint-rules/string-only-method.cjs");
 // iOS/Android parity rule — flags inline "Settings → X"
 // breadcrumbs outside i18n.ts. Backstops CLAUDE.md invariant #20

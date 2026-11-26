@@ -9,8 +9,9 @@ export default defineConfig({
     // transfer budget) + the Lighthouse `resource-summary:script:size`
     // hard cap — both measured on GZIP, both green. Vite's default 500 KB
     // warning is on the RAW uncompressed chunk, so it fired on every build
-    // as pure noise (index.js is ~566 KB raw / ~147 KB gzip — re-measured;
-    // the previous figures had drifted). Raise the
+    // as pure noise (index.js measured 651 KB raw / 172 KB gzip on 26 Nov
+    // 2026 — a dated figure, it drifts; `npm run size:check` prints the live
+    // one). Raise the
     // limit so the console warning reflects the raw size we actually ship
     // and stops crying wolf; the meaningful budgets stay enforced elsewhere.
     chunkSizeWarningLimit: 800,

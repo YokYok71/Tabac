@@ -6,12 +6,13 @@ name: Lighthouse CI
 # check; warnings show in the workflow log but don't fail.
 #
 # The point: catch perf regressions before they reach production.
-# Current baseline (dist):
-#   - vendor-react.js : 60 KB gzip
-#   - index.js (app)  : 147.2 KB gzip   (re-measured)
-#   - HTML + assets   : ~3 KB gzip
-# Total 303.2 KB gzip — still under the 500 KB script budget, but note this
-# is 91% of the tighter local `size:check` budget (332 KB). See CLAUDE.md.
+# Baseline measured on 26 Nov 2026 (dist) — DATED, it drifts; `npm run
+# size:check` prints the live figure on every run:
+#   - vendor-react.js : 65.8 KB gzip
+#   - index.js (app)  : 172.3 KB gzip
+#   - eager scripts   : 291.9 KB gzip (size:check's own total)
+# Well under the 500 KB script budget, and 88% of the tighter local
+# `size:check` budget (332 KB). See docs/checks.md (bundle budgets).
 
 on:
   push:
