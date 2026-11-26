@@ -1614,6 +1614,23 @@ export function migrateData(d: any): any {
   _pruneRows(d.wishlist);
   _pruneRows(d.accessories);
   _pruneRows(d.sessions);
+  // THE SAME RULE ONE LEVEL DOWN — the sub-records. A backup holding
+  // `"lots":[{…}, null]` passed every check above (the ARRAY was fine), was
+  // accepted by Replace and Merge alike, and `computeStats` — run on every
+  // render — then threw `Cannot read properties of null (reading 'status')`.
+  // Stored, that cellar crashed EVERY launch onto the error screen, whose
+  // « vider le cache » does not touch localStorage: no way out short of
+  // wiping the site. A number or string lot was worse in a quieter way — the
+  // per-lot passes turned it into an id-less ghost lot. Dropped here, for the
+  // same reason the rows are: a primitive carries nothing to recover. Pipe
+  // maintenance entries get the same treatment; `photos` are STRINGS
+  // (local-photo keys) by design and are left to their own allowlist.
+  for (var _sr = 0; _sr < d.tobaccos.length; _sr++) {
+    if (Array.isArray(d.tobaccos[_sr].lots)) _pruneRows(d.tobaccos[_sr].lots);
+  }
+  for (var _sp = 0; _sp < d.pipes.length; _sp++) {
+    if (Array.isArray(d.pipes[_sp].maintenance)) _pruneRows(d.pipes[_sp].maintenance);
+  }
   d.nxT = Math.max(1, parseInt(d.nxT) || 1);
   d.nxW = Math.max(1, parseInt(d.nxW) || 1);
   d.nxP = Math.max(1, parseInt(d.nxP) || 1);

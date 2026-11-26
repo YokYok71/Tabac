@@ -338,6 +338,7 @@ export function CuratorSettingsModal() {
               // raw code (« network-error · Failed to fetch »).
               "network-error": "autosave_diag_network_error",
               "photos-unreadable": "autosave_diag_photos_unreadable",
+              "skip-unreadable": "autosave_diag_skip_unreadable",
             });
             var msgKey = msgKeyMap[d.stage];
             var label = (msgKey && t) ? t(msgKey) : d.stage;

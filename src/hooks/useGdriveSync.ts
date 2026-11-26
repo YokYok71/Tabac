@@ -478,6 +478,15 @@ export function getDeviceName(): string {
 // can surface it ("✓ sauvegardé · ménage 15 supprimés" / "✗ jeton
 // indisponible" / "✗ envoi refusé 429" …) and the user/maintainer can see
 // WHY a save didn't land. One slot, last-write-wins. Never in backups.
+/** Does this cellar hold anything at all? Same five collections as App's load
+ *  predicate. Used to refuse uploading an EMPTY cellar while an unreadable one
+ *  is set aside (`-unreadable`). */
+export function hasCellarData(o: any): boolean {
+  return !!o && ["tobaccos", "pipes", "accessories", "wishlist", "sessions"].some(function (k) {
+    return Array.isArray(o[k]) && o[k].length > 0;
+  });
+}
+
 export function recordAutosaveDiag(stage: string, detail?: string): void {
   lsSet(
     "cave-autosave-diag",
@@ -2840,6 +2849,16 @@ export function useGdriveSync({
     try {
       snap = JSON.parse(rawSnap);
     } catch (_e) {
+      releaseQuietLock();
+      return;
+    }
+    // The local cellar was found UNREADABLE at launch and set aside (App's
+    // load, `-unreadable`): the app is running on an empty cellar. Uploading
+    // it would overwrite this device's auto file in the cloud — very likely
+    // the newest good copy — with nothing. Wait until the user has restored
+    // or entered data again.
+    if (lsGet(SK + "-unreadable") && !hasCellarData(snap)) {
+      recordAutosaveDiag("skip-unreadable", isDbx ? "dropbox" : "drive");
       releaseQuietLock();
       return;
     }

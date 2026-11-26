@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 // and the mirror was lying to the tests by claiming "this is a
 // verbatim copy". Pointing at the source of truth here means every
 // new layer of migration is exercised by these tests automatically.
-import { migrateData, bumpCounterPastMaxId } from "../utils";
+import { migrateData, bumpCounterPastMaxId, computeStats } from "../utils";
 
 // ── counter clamping ──────────────────────────────────────────────────────────
 
@@ -766,5 +766,25 @@ describe("migrateData — discontinued is a strict boolean", () => {
     const d = migrateData({ tobaccos: [tob({ discontinued: true }), tob({ id: 2, discontinued: "no" }), tob({ id: 3 })] });
     expect(d.tobaccos.map((t: any) => t.discontinued)).toEqual([true, false, undefined]);
     expect("discontinued" in d.tobaccos[2]).toBe(false);
+  });
+});
+
+// A null / primitive LOT inside an otherwise valid backup. Replace and Merge
+// both accepted it, and computeStats — run on every render — then threw on
+// `l.status`, so the stored cellar crashed every launch. The test goes through
+// the CONSUMER, because migrateData's own output looked fine: that is exactly
+// how the property tests missed it.
+describe("migrateData — non-object lots and maintenance entries are dropped", () => {
+  const raw = () => ({
+    tobaccos: [{ id: 1, name: "T", brand: "B", lots: [{ id: 1, status: "jar", weightG: "10" }, null, 7, "x", [1]] }],
+    pipes: [{ id: 1, name: "P", brand: "B", maintenance: [{ id: 1, date: "2026-01-01" }, null, 3] }],
+    sessions: [], wishlist: [], accessories: [],
+  });
+  it("keeps the real lot, drops the rest, and computeStats no longer throws", () => {
+    const d = migrateData(raw() as any);
+    expect(d.tobaccos[0].lots).toHaveLength(1);
+    expect(d.tobaccos[0].lots[0].status).toBe("jar");
+    expect(d.pipes[0].maintenance).toHaveLength(1);
+    expect(() => computeStats(d)).not.toThrow();
   });
 });

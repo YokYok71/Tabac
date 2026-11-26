@@ -45,6 +45,7 @@ import { pickJarLot, detailAfterLotUndo, markLotDisposed } from "./utils/lotUtil
 import { buildTobaccoAromaIndex, tobaccoMatchesAromas } from "./utils/aromas.ts";
 import { lotMaturityBucket, isRecentPurchase, scopeFromStatusFilter, lotInScope, scopedHeldWeight, scopedOldestAgeDays } from "./utils/cellarInsights.ts";
 import { isLowStock, lowStockThreshold } from "./utils/shopping.ts";
+import { offloadDataPhotos } from "./utils/photoOffload.ts";
 import { assertLotInvariants } from "./utils/lotInvariants.ts";
 import { imgCache, imgMap } from "./utils/imgCache.ts";
 import { processOAuthReturn } from "./utils/oauthReturn.ts";
@@ -1043,13 +1044,14 @@ function App() {
       .get(SK)
       .then(function (r) {
         var parsed: any = null;
+        var _unreadable = false;
         // Seed the budget gauge from what is ON DISK, so the very first launch
         // of an already-large cellar is measured before any save happens.
         if (r && r.value) setCellarChars(String(r.value).length);
         if (r && r.value) {
           try {
             parsed = JSON.parse(r.value);
-          } catch (_e) {}
+          } catch (_e) { _unreadable = true; }
         }
         // ONE "has any data" predicate across all three
         // checks (emptiness → restore acceptance → clear-bkp). They once
@@ -1080,6 +1082,27 @@ function App() {
         if (_hasAnyData(parsed)) {
           lsRemove(SK + "-bkp");
           lsRemove(SK + "-bkp-ts");
+        }
+        // AN UNREADABLE CELLAR USED TO LOAD AS AN EMPTY ONE, SILENTLY — and the
+        // first save then wrote the empty cellar over the only copy. A
+        // truncated write is enough to get here. The unreadable text is now set
+        // aside under `-unreadable` BEFORE anything can overwrite it, the user
+        // is told in plain words, and the cloud auto-save refuses to upload an
+        // empty cellar while that copy exists (useGdriveSync), so the device's
+        // auto file in the cloud is not replaced by nothing. Read back to know
+        // whether the copy really landed: lsSet swallows a quota error.
+        if (_unreadable && !_hasAnyData(parsed) && r && r.value) {
+          var _raw = String(r.value);
+          var _kept: boolean;
+          try {
+            lsSet(SK + "-unreadable", _raw);
+            lsSet(SK + "-unreadable-ts", String(Date.now()));
+            _kept = lsGet(SK + "-unreadable") === _raw;
+          } catch (_e) { _kept = false; }
+          var _ul = lsGet("cave-lang") || "en";
+          var _ud = (LANG as any)[_ul] || (LANG as any).en;
+          setSaveError(String((_kept ? _ud?.warn_cellar_unreadable_kept : _ud?.warn_cellar_unreadable_lost)
+            || (LANG as any).en.warn_cellar_unreadable_lost));
         }
         // If migrateData is about to BACKFILL a uid
         // on any uid-less top-level entity, persist the result immediately —
@@ -1180,28 +1203,15 @@ function App() {
       if (isQuota) {
         var slim = JSON.parse(json);
         var oldVals: Record<string, any> = {};
-        var promises: any[] = [];
-        function migrateArr(arr: any, type: any) {
-          (arr || []).forEach(function (obj: any) {
-            if (
-              obj &&
-              obj.id &&
-              obj.imageUrl &&
-              obj.imageUrl.indexOf("data:") === 0
-            ) {
-              var key = "local-photo-" + type + "-" + obj.id;
-              oldVals[key] = obj.imageUrl;
-              obj.imageUrl = key;
-              promises.push(imgCache.put(key, oldVals[key]));
-            }
-          });
-        }
-        migrateArr(slim.tobaccos, "t");
-        migrateArr(slim.pipes, "p");
-        migrateArr(slim.accessories, "a");
-        migrateArr(slim.wishlist, "w");
-        Promise.all(promises)
-          .then(function () {
+        // See offloadDataPhotos: a key replaces a photo only once IndexedDB
+        // confirmed the write, and the keys are random.
+        offloadDataPhotos(
+          slim,
+          function (k: string, v: string) { return imgCache.put(k, v) as Promise<boolean>; },
+          function () { return "local-photo-" + Date.now() + "-" + newPhotoSuffix(); },
+        )
+          .then(function (moved: Record<string, string>) {
+            oldVals = moved;
             return appStorage.set(SK, JSON.stringify(slim));
           })
           .then(function () {
