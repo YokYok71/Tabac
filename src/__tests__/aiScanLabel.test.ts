@@ -198,3 +198,25 @@ describe("aiClipStr / aiIsRefusal (moved to module scope)", () => {
     expect(aiIsRefusal("Halvorsen Duskfall")).toBe(false);
   });
 });
+
+// Review of 26 Nov — S3 and the redaction of bare cloud tokens.
+describe("Gemini model id in the URL path", () => {
+  it("a path-traversing id from a crafted backup falls back to the default model", () => {
+    const u = new URL(buildScanRequest("gemini", "k", "AAAA", "p", "../../v1beta/cachedContents#").url);
+    expect(u.pathname).toBe("/v1beta/models/gemini-3.5-flash-lite:generateContent");
+    expect(u.hash).toBe("");
+  });
+  it("a plain id is kept", () => {
+    expect(new URL(buildScanRequest("gemini", "k", "AAAA", "p", "gemini-3.6-flash").url).pathname)
+      .toBe("/v1beta/models/gemini-3.6-flash:generateContent");
+  });
+});
+
+describe("redactApiKeys — bare cloud tokens", () => {
+  it("masks a Google ya29 token and a Dropbox sl. token with no Bearer / access_token= around them", () => {
+    const out = redactApiKeys("token ya29.a0AfH6SMBxyz0123456789 then sl.BcDeFgHiJkLmNoPqRsT done");
+    expect(out).not.toMatch(/ya29\.a0Af/);
+    expect(out).not.toMatch(/sl\.BcDe/);
+    expect(out).toContain("done");
+  });
+});

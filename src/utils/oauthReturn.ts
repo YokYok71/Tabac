@@ -118,12 +118,17 @@ export function processOAuthReturn(w: Window = window): void {
   w.localStorage.removeItem("gdrive-state");
   w.localStorage.removeItem("gdrive-pkce-verifier");
   w.localStorage.removeItem("gdrive-pkce-redirect");
+  // The fragment carries the access token: strip it from the address bar and
+  // the history BEFORE deciding anything. It used to happen only on success,
+  // so a state mismatch (an iOS tracking-protection eviction of
+  // `gdrive-state` is enough) left `#access_token=…` in the URL — copied or
+  // shared with it. The mismatch still refuses the token, fail-closed.
+  w.history.replaceState({}, "", w.location.pathname);
   if (!st || !expectedSt || st !== expectedSt) {
     recordOAuthEvent("state-mismatch", pending || undefined,
       "st=" + (st ? "set" : "null") + " expected=" + (expectedSt ? "set" : "null"));
     return;
   }
-  w.history.replaceState({}, "", w.location.pathname);
   // `pending` was captured at the top; re-use it so the action
   // dispatcher sees what was set by gdriveGetToken at redirect-time.
   var pa = pending;

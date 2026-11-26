@@ -1242,6 +1242,16 @@ function SessionDetailModal({
                 title={t("sec_location")}
                 src={osmEmbedUrl(s.lat as number, s.lng as number)}
                 loading="lazy"
+                // SANDBOXED: the map is a third-party page inside ours, and an
+                // unsandboxed frame may navigate the TOP window, submit forms
+                // and open modal prompts over the app. The embed needs only its
+                // own scripts (Leaflet), its own origin, and popups for the
+                // attribution links — those escape the sandbox so the opened
+                // OSM page works normally. No allow-top-navigation, ever
+                // (locked by iframeSandbox.test.ts). The referrer is left at
+                // the browser default (origin only): OSM's tile policy asks
+                // for one, and the origin is already disclosed in privacy.html.
+                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                 style={{ width: "100%", height: 180, border: "none", display: "block" }}
               />
             </div>

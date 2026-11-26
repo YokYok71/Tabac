@@ -117,3 +117,32 @@ describe("CSP connect-src tripwire", () => {
     }
   });
 });
+
+// S4 — script-src names the ONE cdnjs file the app loads, not the whole
+// CDN. A host-wide `https://cdnjs.cloudflare.com` let any script among the
+// thousands cdnjs serves (an old AngularJS is the classic CSP-bypass gadget)
+// run with this origin's rights. A path source with no trailing slash
+// matches that exact file only, so bumping JSZip MUST bump this entry too —
+// which is what the second assertion turns into a test failure instead of a
+// ZIP export that silently never loads.
+describe("CSP script-src — the JSZip entry is an exact path", () => {
+  function scriptSrc(): string[] {
+    const html = readFileSync(join(ROOT, "index.html"), "utf8");
+    const m = html.match(/script-src([^;]*)/);
+    if (!m) throw new Error("CSP script-src directive not found in index.html");
+    return m[1]!.trim().split(/\s+/);
+  }
+
+  it("no host-wide cdnjs source", () => {
+    expect(scriptSrc()).not.toContain("https://cdnjs.cloudflare.com");
+    expect(scriptSrc().filter((s) => /cdnjs/.test(s) && s.endsWith("/"))).toEqual([]);
+  });
+
+  it("the JSZip URL the code loads is exactly the one script-src allows", () => {
+    const src = readFileSync(join(ROOT, "src/hooks/useExportImport.ts"), "utf8");
+    const loaded = src.match(/"(https:\/\/cdnjs\.cloudflare\.com\/[^"]+)"/g) || [];
+    expect(loaded.length).toBe(1);
+    const url = loaded[0]!.slice(1, -1);
+    expect(scriptSrc()).toContain(url);
+  });
+});

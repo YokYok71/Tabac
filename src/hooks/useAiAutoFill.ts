@@ -44,6 +44,10 @@ export function redactApiKeys(msg: string): string {
     .replace(/AIza[A-Za-z0-9_-]{10,}/g, "[clé masquée]")
     .replace(/(api[_-]?key=)[^&\s"']+/gi, "$1[clé masquée]")
     .replace(/\bBearer\s+[A-Za-z0-9._\-~+/=]{16,}/g, "Bearer [clé masquée]")
+    // Bare cloud tokens outside a « Bearer » / « access_token= » context: a
+    // Google OAuth access token (ya29.…) and a Dropbox short-lived token (sl.…).
+    .replace(/\bya29\.[A-Za-z0-9._-]{10,}/g, "[jeton masqué]")
+    .replace(/\bsl\.[A-Za-z0-9._-]{10,}/g, "[jeton masqué]")
     .replace(/\b(code|code_verifier|refresh_token|access_token)=[^&\s"']+/gi, "$1=[masqué]");
 }
 
@@ -400,9 +404,17 @@ export function buildModelProbeRequest(provider: string, apiKey: string, model: 
   };
 }
 
+// The model id lands in the URL PATH, and it is a free-form setting that
+// travels in backups (`ai-model-gemini`): a crafted backup restored with
+// « Remplacer » could carry `../../v1beta/cachedContents#` and send the next
+// request — with the user's x-goog-api-key — to another Google endpoint. Only
+// a plain model id is used; anything else falls back to the default, and the
+// id is encoded like buildModelProbeRequest already does.
+var GEMINI_MODEL_ID = /^[A-Za-z0-9][A-Za-z0-9.-]*$/;
 function geminiUrl(model: string): string {
+  var id = GEMINI_MODEL_ID.test(String(model || "")) ? String(model) : "gemini-3.5-flash-lite";
   return "https://generativelanguage.googleapis.com/v1beta/models/" +
-    (model || "gemini-3.5-flash-lite") + ":generateContent";
+    encodeURIComponent(id) + ":generateContent";
 }
 
 /**

@@ -159,6 +159,14 @@ describe("processOAuthReturn — implicit grant error paths", () => {
     expect(ev?.action).toBe("reconnect");
   });
 
+  it("state mismatch still strips the token from the address bar and history (review of 26 Nov, S2)", () => {
+    window.localStorage.setItem("gdrive-state", "S_EXPECTED");
+    const w = makeWin({ hash: "#access_token=tk&state=S_DIFFERENT" });
+    processOAuthReturn(w as unknown as Window);
+    expect(w.history.replaceState).toHaveBeenCalledWith({}, "", "/");
+    expect(w.__PENDING_GDRIVE_TOKEN__).toBeUndefined();
+  });
+
   it("missing expected state (cleared between redirect-out and return) fails fail-closed", () => {
     // Security invariant: !st || !expectedSt || st !== expectedSt.
     // If expectedSt was somehow wiped, the OAuth return must NOT

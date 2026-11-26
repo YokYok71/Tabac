@@ -1562,6 +1562,35 @@ export function applyMigratedPhotoKeys(
   return changed ? Object.assign({}, data, patch) : data;
 }
 
+/** Remove own `__proto__` / `constructor` / `prototype` keys at every depth,
+ *  in place. `JSON.parse` turns a `"__proto__"` key into an ordinary OWN
+ *  property, so a crafted backup could carry one through migrateData and into
+ *  storage; any later `Object.assign({}, item)` copy (the edit-form pattern)
+ *  then got the attacker's object as its PROTOTYPE — reproduced with
+ *  `deletedAt` inherited that way (review of 26 Nov, S1). No global pollution
+ *  was possible, but a row whose fields come from its prototype is not a row
+ *  the app can reason about. Run at the top of migrateData, so load, import
+ *  and merge all pass through it. Iterative: a hostile file cannot blow the
+ *  stack with depth. */
+var _DANGEROUS_KEYS = ["__proto__", "constructor", "prototype"];
+export function stripDangerousKeys(root: any): any {
+  var stack: any[] = [root];
+  while (stack.length) {
+    var o = stack.pop();
+    if (!o || typeof o !== "object") continue;
+    for (var di = 0; di < _DANGEROUS_KEYS.length; di++) {
+      var dk = _DANGEROUS_KEYS[di]!;
+      if (Object.prototype.hasOwnProperty.call(o, dk)) delete o[dk];
+    }
+    var ks = Object.keys(o);
+    for (var ki = 0; ki < ks.length; ki++) {
+      var v = o[ks[ki]!];
+      if (v && typeof v === "object") stack.push(v);
+    }
+  }
+  return root;
+}
+
 export function migrateData(d: any): any {
   // Degrade to an empty cellar instead of
   // throwing when localStorage holds a non-object (a bare JSON number/string,
@@ -1569,6 +1598,7 @@ export function migrateData(d: any): any {
   // .catch fires, and the app boots empty anyway — but doing it explicitly
   // keeps migrateData total and lets a forged import be sanitised, not crash.
   if (!d || typeof d !== "object" || Array.isArray(d)) d = {};
+  stripDangerousKeys(d);
   // Default ALL five collections to arrays (was accessories +
   // sessions only) so a bare-primitive / partial payload yields a totally
   // shaped object — every downstream consumer + the dedup pass below can rely

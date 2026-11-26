@@ -25,7 +25,7 @@ export var APIKEY_REPLACED_KEY = "cave-apikey-replaced";
 import React from "react";
 import { INIT, PIPE_MAX_EXTRA_PHOTOS } from "../constants.ts";
 import { imgCache, imgMap } from "../utils/imgCache.ts";
-import { isPlausibleBackup, monotonicId, newUid, stableStringify } from "../utils.ts";
+import { isPlausibleBackup, monotonicId, newUid, stableStringify, stripDangerousKeys } from "../utils.ts";
 import { tobaccoDbCanonicalKey } from "../utils/tobaccoDb.ts";
 
 var useState = React.useState;
@@ -548,6 +548,11 @@ export function useImportConfirm({
       try { window.alert(t ? t("err_import_invalid") : "Fichier invalide : ce n'est pas une sauvegarde de Ma Cave à Tabac."); } catch (_e) { /* noop */ }
       return;
     }
+    // Strip `__proto__` / `constructor` / `prototype` keys HERE, at the door,
+    // not only in migrateData: the merge copies imported rows with
+    // `Object.assign` BEFORE migrateData runs, and assigning an own
+    // "__proto__" key through [[Set]] REPLACES the target's prototype.
+    stripDangerousKeys(parsed);
     // Validate `_apiKey` before persisting. A forged JSON
     // could otherwise write an arbitrary multi-MB string to the
     // localStorage key for the active AI provider. Real provider keys

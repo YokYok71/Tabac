@@ -38,11 +38,21 @@ const BODY = (() => {
 type Probe = { ok: boolean; body: string } | "throw";
 
 /** Drive the REAL page against a stubbed world. Returns what it did. */
-async function run(opts: { online?: boolean; probe?: Probe; lang?: string }) {
+async function run(opts: {
+  online?: boolean; probe?: Probe; lang?: string;
+  /** Defaults to one of our own pages — the in-app « Réparer » link. */
+  referrer?: string; framed?: boolean;
+}) {
   const deleted: string[] = [];
   const unregistered: string[] = [];
   document.body.innerHTML = BODY;
   document.documentElement.lang = "";
+  Object.defineProperty(document, "referrer", {
+    value: opts.referrer ?? location.origin + "/", configurable: true,
+  });
+  Object.defineProperty(window, "top", {
+    value: opts.framed ? ({} as Window) : window, configurable: true,
+  });
 
   try { localStorage.setItem("cave-lang", opts.lang ?? "fr"); } catch { /* ignore */ }
 
@@ -170,6 +180,50 @@ describe("reset.html refuses to purge when the app cannot be re-fetched", () => 
   });
 });
 
+describe("reset.html — the entry gate (S5 review: it purged on LOAD, whoever sent the visitor)", () => {
+  afterEach(() => {
+    delete (globalThis as any).caches;
+    delete (globalThis as any).fetch;
+    Object.defineProperty(window, "top", { value: window, configurable: true });
+    try { localStorage.removeItem("cave-lang"); } catch { /* ignore */ }
+  });
+
+  it("FRAMED: deletes nothing, probes nothing, offers nothing to click", async () => {
+    // A frame can be overlaid; a button inside it is exactly what a
+    // UI-redress lures a tap onto. Hence no button at all, not just no auto-run.
+    const r = await run({ framed: true });
+    expect(r.deleted).toEqual([]);
+    expect(r.unregistered).toEqual([]);
+    expect(r.fetchMock).not.toHaveBeenCalled();
+    expect(r.actions).toEqual([]);
+    expect(r.msg).toBe(((globalThis as any).L.fr as string[])[8]);
+  });
+
+  it("FROM ANOTHER SITE: asks first — and the button is what purges", async () => {
+    const r = await run({ referrer: "https://evil.example.com/page" });
+    expect(r.deleted, "a cross-site link must not purge on its own").toEqual([]);
+    expect(r.fetchMock).not.toHaveBeenCalled();
+    expect(r.actions.map((a) => a.tag)).toEqual(["BUTTON", "A"]);
+    // …and the question is not a dead end: tapping it runs the real repair.
+    (document.querySelector("#act button") as HTMLButtonElement).click();
+    for (let i = 0; i < 12; i++) await Promise.resolve();
+    await new Promise((res) => setTimeout(res, 0));
+    for (let i = 0; i < 12; i++) await Promise.resolve();
+    expect(r.deleted).toEqual(["cave-tabac-v1-0-1"]);
+  });
+
+  it("NO REFERRER (typed URL, stripped header): asks, does not purge", async () => {
+    const r = await run({ referrer: "" });
+    expect(r.deleted).toEqual([]);
+    expect(r.actions[0]!.tag).toBe("BUTTON");
+  });
+
+  it("FROM OUR OWN PAGES: unchanged — repairs straight away", async () => {
+    const r = await run({});
+    expect(r.deleted).toEqual(["cave-tabac-v1-0-1"]);
+  });
+});
+
 describe("reset.html speaks every shipped language", () => {
   it("carries a complete row per registry code", async () => {
     // The Portuguese row was once missing here while it existed in LANGUAGES,
@@ -187,9 +241,10 @@ describe("reset.html speaks every shipped language", () => {
     LANGUAGES.forEach((l) => {
       const row = L[l.code];
       expect(row, `no row for « ${l.code} »`).toBeTruthy();
-      // Six slots: three status lines plus the offline refusal, its retry and
-      // its way back. A short row renders `undefined` on screen.
-      expect(row!.length, `« ${l.code} » must carry 6 strings`).toBe(6);
+      // Nine slots: three status lines, the offline refusal with its retry
+      // and its way back, then the entry gate's question, its button and the
+      // framed refusal. A short row renders `undefined` on screen.
+      expect(row!.length, `« ${l.code} » must carry 9 strings`).toBe(9);
       row!.forEach((s, i) => {
         expect(typeof s === "string" && s.trim().length > 0, `« ${l.code} »[${i}] is empty`).toBe(true);
       });

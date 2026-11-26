@@ -788,3 +788,20 @@ describe("migrateData — non-object lots and maintenance entries are dropped", 
     expect(() => computeStats(d)).not.toThrow();
   });
 });
+
+// S1 (review of 26 Nov): JSON.parse makes "__proto__" an OWN key, which
+// migrateData used to keep and persist; an `Object.assign({}, row)` copy then
+// had the attacker's object as its prototype (deletedAt inherited that way).
+describe("migrateData — __proto__ / constructor / prototype keys are stripped at every depth", () => {
+  it("leaves no dangerous own key and no inherited field on a copy", () => {
+    const raw = JSON.parse('{"tobaccos":[{"id":1,"name":"T","brand":"B","__proto__":{"deletedAt":"2020-01-01"},"lots":[{"id":1,"status":"jar","constructor":{"x":1}}]}],"prototype":{"y":1}}');
+    const d = migrateData(raw);
+    const t0 = d.tobaccos[0];
+    expect(Object.prototype.hasOwnProperty.call(t0, "__proto__")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(t0.lots[0], "constructor")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(d, "prototype")).toBe(false);
+    const copy = Object.assign({}, t0);
+    expect(copy.deletedAt).toBeUndefined();
+    expect(Object.getPrototypeOf(copy)).toBe(Object.prototype);
+  });
+});

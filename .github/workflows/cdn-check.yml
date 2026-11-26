@@ -12,7 +12,7 @@ env:
 # Default-deny GITHUB_TOKEN at workflow level; each job opts in to the
 # minimum scope it needs (the `check` job below adds issues:write +
 # contents:read). Without this, a future job added to the file would
-# inherit the repository default scope. Same pattern as the other 3
+# inherit the repository default scope. Same pattern as the other 5
 # workflows in this repo.
 permissions: {}
 
@@ -34,10 +34,8 @@ jobs:
         run: |
           # React: read from package.json (npm dependency since Vite migration)
           echo "react=$(node -e "console.log(require('./package.json').dependencies.react.replace(/[\^~]/,''))")" >> $GITHUB_OUTPUT
-          # JSZip is loaded via cdnjs from useExportImport.ts (since the
-          # legacy App.tsx loader was extracted). Grep both files so a
-          # future move stays detected without a workflow edit.
-          echo "jszip=$(grep -hoP 'jszip/\K[0-9]+\.[0-9]+\.[0-9]+' src/App.tsx src/hooks/useExportImport.ts 2>/dev/null | head -1)" >> $GITHUB_OUTPUT
+          # JSZip is loaded via cdnjs from useExportImport.ts.
+          echo "jszip=$(grep -hoP 'jszip/\K[0-9]+\.[0-9]+\.[0-9]+' src/hooks/useExportImport.ts 2>/dev/null | head -1)" >> $GITHUB_OUTPUT
 
       - name: Fetch latest versions from npm registry
         id: npm
@@ -51,12 +49,22 @@ jobs:
 
       - name: Create or update issue
         uses: actions/github-script@v9
+        # The four versions travel as ENVIRONMENT VARIABLES, never as
+        # `${{ }}` spliced into the script: the npm values come off the
+        # network, and an expression is pasted into the JavaScript source
+        # BEFORE it runs — a quote in one of them would be code running
+        # with this job's issues:write token. process.env reads them as data.
+        env:
+          RC: ${{ steps.cur.outputs.react }}
+          RN: ${{ steps.npm.outputs.react }}
+          ZC: ${{ steps.cur.outputs.jszip }}
+          ZN: ${{ steps.npm.outputs.jszip }}
         with:
           script: |
-            const rc = '${{ steps.cur.outputs.react }}';
-            const rn = '${{ steps.npm.outputs.react }}';
-            const zc = '${{ steps.cur.outputs.jszip }}';
-            const zn = '${{ steps.npm.outputs.jszip }}';
+            const rc = process.env.RC || '';
+            const rn = process.env.RN || '';
+            const zc = process.env.ZC || '';
+            const zn = process.env.ZN || '';
 
             if (!rn || !zn) {
               console.log('npm registry unreachable — skipping.');
@@ -120,17 +128,18 @@ jobs:
               '# Pousser sur main',
               '```',
               '',
-              '## JSZip (CDN dynamique dans src/App.tsx)',
+              '## JSZip (CDN dynamique dans src/hooks/useExportImport.ts)',
               '',
               '```bash',
               '# 1. Télécharger le fichier et recalculer le hash SRI',
               'curl -sL https://cdnjs.cloudflare.com/ajax/libs/jszip/NEW/jszip.min.js \\',
               '  | openssl dgst -sha384 -binary | openssl base64 -A',
               '',
-              '# 2. Dans src/App.tsx, mettre à jour :',
+              '# 2. Dans src/hooks/useExportImport.ts, mettre à jour :',
               '#    - l\'URL cdnjs (version jszip)',
               '#    - l\'attribut integrity (nouveau hash sha384)',
-              '# 3. Mettre à jour la section Security de CLAUDE.md',
+              '# 3. Dans index.html, mettre la MÊME URL dans script-src de la CSP',
+              '#    (chemin exact du fichier — cspConnectSrc.test.ts échoue sinon)',
               '# 4. Bumper APP_BUILD et pousser sur main',
               '```',
             ].join('\n');

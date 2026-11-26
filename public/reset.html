@@ -15,34 +15,55 @@ button,a{font:inherit;font-size:15px;color:#cb8528;background:transparent;border
 // far end of index.html's "repair the app" escape hatch, i.e. the one page a
 // user reaches when everything else is broken. It CAN localise itself inline
 // (unlike index.html, whose CSP is `script-src 'self'` with no 'unsafe-inline'):
-// this document ships no CSP meta and already carried this script.
+// this document ships no CSP meta and already carried this script. (Every
+// string it writes goes through textContent, so there is no injection sink
+// for a CSP to close; what it needed was the entry gate at the bottom.)
 // `cave-lang` is written by main.jsx on first launch, so it is present here.
 //
 // Slots 3-5 are the OFFLINE REFUSAL — see `reset()` below for why a
-// repair page must be able to decline.
+// repair page must be able to decline. Slots 6-8 are the ENTRY GATE at the
+// bottom of the script: the question and its button, and the framed refusal.
 var L = {
   fr: ['Nettoyage en cours…', '✅ Cache nettoyé ! Redirection…', '✅ Redirection…',
     "Le serveur est injoignable. Rien n'a été supprimé : vider le cache maintenant empêcherait l'application de se recharger.",
-    'Réessayer', "Retour à l'application"],
+    'Réessayer', "Retour à l'application",
+    "Vider le cache de l'application et la recharger ? Vos données restent sur cet appareil.",
+    "Réparer l'application",
+    "Cette page ne fonctionne pas dans un cadre. Ouvrez l'application directement."],
   en: ['Cleaning up…', '✅ Cache cleared! Redirecting…', '✅ Redirecting…',
     'The server cannot be reached. Nothing was deleted: clearing the cache now would leave the app unable to load.',
-    'Try again', 'Back to the app'],
+    'Try again', 'Back to the app',
+    "Clear the app's cache and reload it? Your data stays on this device.",
+    'Repair the app',
+    'This page does not work inside a frame. Open the app directly.'],
   es: ['Limpiando…', '✅ ¡Caché borrada! Redirigiendo…', '✅ Redirigiendo…',
     'No se puede contactar con el servidor. No se ha borrado nada: vaciar la caché ahora impediría que la aplicación volviera a cargarse.',
-    'Reintentar', 'Volver a la aplicación'],
+    'Reintentar', 'Volver a la aplicación',
+    '¿Vaciar la caché de la aplicación y recargarla? Tus datos se quedan en este dispositivo.',
+    'Reparar la aplicación',
+    'Esta página no funciona dentro de un marco. Abre la aplicación directamente.'],
   de: ['Wird aufgeräumt…', '✅ Cache geleert! Weiterleitung…', '✅ Weiterleitung…',
     'Der Server ist nicht erreichbar. Es wurde nichts gelöscht: den Cache jetzt zu leeren würde verhindern, dass die App wieder lädt.',
-    'Erneut versuchen', 'Zurück zur App'],
+    'Erneut versuchen', 'Zurück zur App',
+    'Den Cache der App leeren und sie neu laden? Deine Daten bleiben auf diesem Gerät.',
+    'App reparieren',
+    'Diese Seite funktioniert nicht in einem Rahmen. Öffne die App direkt.'],
   it: ['Pulizia in corso…', '✅ Cache svuotata! Reindirizzamento…', '✅ Reindirizzamento…',
     'Il server non è raggiungibile. Non è stato eliminato nulla: svuotare la cache adesso impedirebbe all\'app di ricaricarsi.',
-    'Riprova', 'Torna all\'app'],
+    'Riprova', 'Torna all\'app',
+    "Svuotare la cache dell'app e ricaricarla? I tuoi dati restano su questo dispositivo.",
+    "Ripara l'app",
+    "Questa pagina non funziona all'interno di un riquadro. Apri l'app direttamente."],
   // `pt` was missing — added in LANGUAGES but not here, so a
   // Portuguese reader hit `L[lng] || L.en` and read English on the ONE page you
   // reach when nothing else works. This file is outside doc:check's source tree,
   // so gate 15 never looked at it. One row per LANGUAGES code, no exceptions.
   pt: ['A limpar…', '✅ Cache limpa! A redirecionar…', '✅ A redirecionar…',
     'O servidor está inacessível. Nada foi eliminado: esvaziar a cache agora impediria a aplicação de voltar a carregar.',
-    'Tentar novamente', 'Voltar à aplicação']
+    'Tentar novamente', 'Voltar à aplicação',
+    'Esvaziar a cache da aplicação e recarregá-la? Os seus dados ficam neste dispositivo.',
+    'Reparar a aplicação',
+    'Esta página não funciona dentro de uma moldura. Abra a aplicação diretamente.']
 };
 var lng = 'en';   // English is the app-wide fallback (the line below already says so)
 try { lng = (localStorage.getItem('cave-lang') || 'en').slice(0, 2); } catch (e) { /* private mode */ }
@@ -132,7 +153,49 @@ async function reset() {
   // an action, not a place. Reported from the installed iOS PWA.
   setTimeout(function(){ window.location.replace('./?_v=' + Date.now()); }, 1500);
 }
-reset();
+// THE ENTRY GATE — the page used to purge on LOAD, whoever sent the visitor.
+//
+// Any site could link to (or frame) t-cellar.app/reset.html and, with no tap
+// on our side, unregister the service worker and delete the offline copy of
+// the app. Nothing of the user's is lost (localStorage and IndexedDB are never
+// touched), but the next launch on a plane does not start. So:
+//   - FRAMED → refuse outright. `frame-ancestors` is inert in a <meta> CSP
+//     (CLAUDE.md, Security) and this page has none anyway; same reasoning as
+//     src/utils/frameGuard.ts, which this standalone page cannot import.
+//   - arrived from OUR OWN pages (the « Réparer l'application » link in
+//     index.html's boot shell and in the app's loading screen) → proceed as
+//     before: the user has already tapped, a second question would only slow
+//     down the one page reached when nothing works. A same-origin referrer
+//     cannot be forged by another site.
+//   - anything else (another site, a typed URL, a stripped referrer) → ask,
+//     with one button. A wrong « ask » costs one tap; a wrong « proceed » is
+//     the drive-by this gate exists for — so it errs toward asking.
+function framed() {
+  try { return window.top !== window.self; } catch (e) { return true; }
+}
+function cameFromApp() {
+  try {
+    return !!document.referrer && new URL(document.referrer).origin === location.origin;
+  } catch (e) { return false; }
+}
+function ask() {
+  var msg = document.getElementById('msg');
+  var act = document.getElementById('act');
+  msg.textContent = S[6];
+  act.textContent = '';
+  var go = document.createElement('button');
+  go.type = 'button';
+  go.textContent = S[7];
+  go.onclick = function () { act.textContent = ''; reset(); };
+  var back = document.createElement('a');
+  back.href = './';
+  back.textContent = S[5];
+  act.appendChild(go);
+  act.appendChild(back);
+}
+if (framed()) document.getElementById('msg').textContent = S[8];
+else if (cameFromApp()) reset();
+else ask();
 </script>
 </body>
 </html>

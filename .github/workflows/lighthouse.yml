@@ -54,6 +54,12 @@ jobs:
         run: npm run size:check
 
       - name: Run Lighthouse CI
-        run: npx --yes @lhci/cli@0.15.x autorun
+        # EXACT version, not a range: `npx --yes` installs whatever the range
+        # resolves to at run time and executes it with the LHCI token in its
+        # environment, so a range is a standing permission for any future
+        # 0.15.* publish to run here. 0.15.1 is what `0.15.x` resolved to when
+        # it was pinned; a bump is a deliberate edit (Dependabot cannot see
+        # an npx argument).
+        run: npx --yes @lhci/cli@0.15.1 autorun
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}

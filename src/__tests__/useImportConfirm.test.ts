@@ -3355,3 +3355,29 @@ describe("applyEntityLww — toBuy removal travels to the other device", () => {
     expect(applyEntityLww(local, imported, LWW_PROTECT_TOB_FIXTURE).row.toBuy).toBe(true);
   });
 });
+
+// S1 (review of 26 Nov), on the MERGE path: the merge copies imported rows
+// with Object.assign BEFORE migrateData runs, and assigning an own "__proto__"
+// key through [[Set]] replaces the target's prototype. stageImport strips the
+// key at the door.
+describe("stageImport — a __proto__ key in a merged row does not reach a prototype", () => {
+  it("the saved row has Object.prototype and no inherited deletedAt", () => {
+    const save = vi.fn();
+    const local = {
+      tobaccos: [{ id: 1, uid: "u1", brand: "B", name: "T", lots: [], updatedAt: "2026-01-01T00:00:00Z" }],
+      pipes: [], accessories: [], sessions: [], wishlist: [], nxT: 2, nxP: 1, nxA: 1, nxJ: 1, nxW: 1,
+    };
+    const imported = JSON.parse(JSON.stringify(local));
+    imported.tobaccos[0].updatedAt = "2026-02-01T00:00:00Z";
+    imported.tobaccos[0].rating = 4;
+    const forged = JSON.parse(JSON.stringify(imported).replace('"rating":4', '"rating":4,"__proto__":{"deletedAt":"2020-01-01"}'));
+    const props = makeProps({ data: local, save });
+    const { result } = renderHook(() => useImportConfirm(props as any));
+    act(() => { result.current.stageImport(forged, "file", { autoApply: "merge" }); });
+    expect(save).toHaveBeenCalled();
+    const row = save.mock.calls[0]![0].tobaccos.find((t: any) => t.uid === "u1");
+    expect(Object.getPrototypeOf(row)).toBe(Object.prototype);
+    expect(row.deletedAt).toBeUndefined();
+    expect(row.rating).toBe(4);
+  });
+});
